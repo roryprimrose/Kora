@@ -139,7 +139,7 @@ public sealed class CopilotAccountBrokerTests : IDisposable
         broker.IsQuiescent.Should().BeTrue();
     }
 
-    private sealed class Fixture : ICopilotDeploymentApprovalSource, ISecurityAuditLog
+    internal sealed class Fixture : ICopilotDeploymentApprovalSource, ISecurityAuditLog
     {
         internal bool Approved { get; set; } = true;
         internal int Starts { get; private set; }
@@ -153,7 +153,7 @@ public sealed class CopilotAccountBrokerTests : IDisposable
         public ValueTask<CopilotDeploymentApproval?> ResolveAsync(CancellationToken token) => ValueTask.FromResult(Approved ? deployment : null);
         public void Write(SecurityAuditEvent auditEvent) => HostActivity.RequireCurrent();
     }
-    private sealed class FakeClient : ICopilotSdkClient
+    internal sealed class FakeClient : ICopilotSdkClient
     {
         internal GetAuthStatusResponse Auth { get; } = new() { IsAuthenticated = true, Login = "selected-user", Host = "github.com", AuthType = "token" };
         internal IList<ModelInfo> Models { get; } = [new() { Id = "model-1", Policy = new() { State = "enabled" },

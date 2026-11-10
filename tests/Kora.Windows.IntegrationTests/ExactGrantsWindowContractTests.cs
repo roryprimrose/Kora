@@ -9,7 +9,7 @@ public sealed class ExactGrantsWindowContractTests
     [Fact]
     public void NativeShellSeparatesTypedInventoryFromLegacyPreferencesAndExposesNamedExactConfirmationControls()
     {
-        var source = Read("ExactGrantsWindow.axaml");
+        var source = Read("ExactGrantsView.axaml");
         var document = XDocument.Parse(source);
         foreach (var binding in new[] { "RefreshCommand", "NextCommand", "InspectCommand", "RevokeCommand", "SelectedPermission", "Inspection", "Reviewed", "Message",
             "Grouping}", "UriPatternInput", "AddUriRuleCommand", "RemoveUriRuleCommand", "ClearUriRulesCommand",
@@ -47,7 +47,7 @@ public sealed class ExactGrantsWindowContractTests
             .And.Contain("Any by default").And.NotContain("Watermark=");
         Read("GrantListWindow.axaml").Should().NotContain("RevokeCommand");
         Read("App.ExactGrants.cs").Should().Contain("IExactGrantStore").And.Contain("ExactGrantControlAdmission");
-        Read("SettingsWindow.axaml").Should().Contain("Permission grants...").And.Contain("InspectNetworkPermissionGrants")
+        Read("SettingsView.axaml").Should().Contain("Permission grants...").And.Contain("InspectNetworkPermissionGrants")
             .And.NotContain("ItemsSource=\"{Binding PreapprovedUriPatterns}\"");
         Read("App.axaml.cs").Should().Contain("settingsWindow.InspectExactGrants = () => exactGrants?.Open()");
         Read("ExactGrantsWindowController.cs").Should().Contain("Dispatcher.UIThread.Invoke(WindowAdmitted)")

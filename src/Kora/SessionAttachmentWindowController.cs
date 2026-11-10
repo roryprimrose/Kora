@@ -17,7 +17,10 @@ internal sealed partial class SessionAttachmentWindowController : IUserFilePicke
     private readonly IUserFilePicker picker;
     private readonly MainViewModel? typographyHost;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
-    private LocalFilePreviewWindow? window;
+    private LocalFilePreviewView? window;
+    private Func<Window>? getWorkbench;
+    internal LocalFilePreviewView? View => window;
+    internal void BindWorkbench(Func<Window> owner) => getWorkbench = owner;
     private CancellationTokenSource? lifetime;
     private CancellationTokenRegistration inspectionCancellation;
     private Func<bool>? eligible;
@@ -83,7 +86,7 @@ internal sealed partial class SessionAttachmentWindowController : IUserFilePicke
             && ReferenceEquals(lifetime, openingLifetime);
         eligible = Current;
         if (!Current()) { throw new InvalidOperationException("The exact selected session is stale."); }
-        var view = new LocalFilePreviewWindow(reportFailure, typographyHost);
+        var view = CreateView();
         window = view;
         view.Closed += OnClosed;
         if (attach)
@@ -123,7 +126,7 @@ internal sealed partial class SessionAttachmentWindowController : IUserFilePicke
         window?.Activate();
     }
 
-    private async Task ShowRetained(LocalFilePreviewWindow view, SessionWorkspaceEntry target,
+    private async Task ShowRetained(LocalFilePreviewView view, SessionWorkspaceEntry target,
         Func<bool> current, CancellationToken token, SessionAttachmentSummary? expected = null, bool inspectionOnly = false)
     {
         var exactSession = target.Authority.SessionId;
@@ -201,16 +204,20 @@ internal sealed partial class SessionAttachmentWindowController : IUserFilePicke
         });
     }
 
-    private LocalFilePreviewWindow NewView()
+    private LocalFilePreviewView CreateView() => getWorkbench is not null
+        ? new(getWorkbench(), reportFailure, typographyHost)
+        : new LocalFilePreviewWindow(reportFailure, typographyHost).View;
+
+    private LocalFilePreviewView NewView()
     {
         RevokeView();
-        var view = new LocalFilePreviewWindow(reportFailure, typographyHost);
+        var view = CreateView();
         window = view;
         view.Closed += OnClosed;
         return view;
     }
 
-    private async Task ShowRemoval(LocalFilePreviewWindow view, HostId<SessionIdentity> exactSession,
+    private async Task ShowRemoval(LocalFilePreviewView view, HostId<SessionIdentity> exactSession,
         Func<bool> current, CancellationToken token)
     {
         var review = await service.PreviewRemoval(exactSession, token);

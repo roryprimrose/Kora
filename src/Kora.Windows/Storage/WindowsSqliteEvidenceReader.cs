@@ -15,7 +15,8 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
         HostRequest request, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var current = HostActivity.RequireCurrent();
-        if (current.Activity!.IsStopped || current.Request != request || request.Origin != RequestOrigin.LocalUi)
+        if (current.Activity!.IsStopped || current.Request != request || request.Origin != RequestOrigin.LocalUi
+            || request.InvocationId is not null)
         {
             throw new InvalidOperationException("Evidence reads require the admitted live local-UI request.");
         }

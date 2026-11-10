@@ -193,6 +193,9 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         internal OwnedInstructionEditorActions Actions { get; }
         internal OwnedInstructionSnapshot? Source { get; private set; }
         internal OwnedInstructionEditorWindow? Editor { get; private set; }
+        internal OwnedInstructionEditorView View => controller.View!;
+        private ResponseWindow? shell;
+        internal ResponseWindow Shell => shell ??= responses!.PrepareWorkbenchOwner();
         internal long Ownership = 1;
         internal bool Owned = true;
         internal string Prefix { get; }
@@ -205,9 +208,10 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         private readonly WindowsOwnedInstructionStore nativePrompts;
         private readonly ArtifactCatalogueReloadService reload;
         private readonly OwnedInstructionEditorController controller;
+        private readonly ResponseWindowController? responses;
         private readonly IDisposable opened;
 
-        private DraftValidationFixture(NativeUxFixtureSession session, ArtifactKind kind)
+        private DraftValidationFixture(NativeUxFixtureSession session, ArtifactKind kind, bool hosted)
         {
             Session = session;
             Sessions = new(session.Interactions);
@@ -230,6 +234,13 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             controller = new(session.Main, instructionActions, new(instructionActions), reload, session,
                 () => Owned, () => Ownership, session.Loggers.CreateLogger<OwnedInstructionEditorController>(), promptActions, new(promptActions),
                 restoreTime: restoreClock);
+            if (hosted)
+            {
+                var workbench = new ResponseWindowController(session.Main, NullLogger<ResponseWindowController>.Instance);
+                responses = workbench;
+                controller.BindWorkbench(workbench.PrepareWorkbenchOwner,
+                    view => workbench.ShowHostedView(WorkbenchActivity.InstructionEditor, view));
+            }
             Prefix = kind == ArtifactKind.Instruction ? "instructions" : "prompts";
             opened = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>
             { if (window is OwnedInstructionEditorWindow editor) { Editor = editor; } });
@@ -243,13 +254,13 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         }
 
         internal static async Task<DraftValidationFixture> Create(ArtifactKind kind, bool newDraft,
-            IUiDispatcher? dispatcher = null)
+            IUiDispatcher? dispatcher = null, bool hosted = false)
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
             var session = new NativeUxFixtureSession(parent);
             await session.InitializeAsync(null, dispatcher: dispatcher);
-            var fixture = new DraftValidationFixture(session, kind);
+            var fixture = new DraftValidationFixture(session, kind, hosted);
             if (newDraft) { await fixture.Run(fixture.Prefix + " create example"); }
             else
             {
@@ -258,7 +269,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 fixture.reload.ReconcileSavedCopy(fixture.Source).Should().BeTrue();
                 await fixture.Run(fixture.Prefix + " list");
                 await fixture.Run(fixture.Prefix + " inspect example");
-                fixture.Editor!.Files.SelectedItem = fixture.Editor.Files.ItemsSource!.Cast<OwnedDefinitionInventoryRow>().Single(row => row.Name is "example");
+                fixture.View.Files.SelectedItem = fixture.View.Files.ItemsSource!.Cast<OwnedDefinitionInventoryRow>().Single(row => row.Name is "example");
             }
             fixture.Store.Reads = 0; fixture.Store.Writes = 0; fixture.Store.Lists = 0;
             return fixture;
@@ -272,6 +283,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         public async ValueTask DisposeAsync()
         {
             controller.Dispose();
+            responses?.Dispose();
             opened.Dispose();
             reload.Dispose();
             await Admission.DisposeAsync();

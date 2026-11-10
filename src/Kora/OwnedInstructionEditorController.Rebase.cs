@@ -7,9 +7,9 @@ internal sealed partial class OwnedInstructionEditorController
 {
     private CancellationTokenSource? rebaseLifetime;
 
-    private async Task RebaseDraft(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task RebaseDraft(OwnedInstructionEditorView opened, Func<bool> eligible, CancellationToken token)
     {
-        if (!opened.IsVisible || opened.Source.IsReadOnly || baseline is not { } original || selectedName is not { } name
+        if (!opened.IsNativePresented || opened.Source.IsReadOnly || baseline is not { } original || selectedName is not { } name
             || uncertain || Actions.IsSourceUnavailable || newDraft
             || !string.Equals(opened.NameInput.Text, name, StringComparison.Ordinal)
             || opened.KindInput.SelectedItem is not ArtifactKind selectedKind || selectedKind != kind

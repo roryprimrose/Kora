@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class SkillReviewNavigationTests
+public sealed partial class SkillReviewNavigationTests
 {
     [WindowsFact]
     public async Task ReviewReusesExactSingletonsAndDraftsWithOnlyExistingRegistrationMetadataRefresh()

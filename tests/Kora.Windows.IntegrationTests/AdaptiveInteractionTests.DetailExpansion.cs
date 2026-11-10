@@ -127,13 +127,13 @@ public sealed partial class AdaptiveInteractionTests
     }
 
     [Fact]
-    public async Task ExpandedDetailsRetainsMinimumsAndAUsableDividerAtTheMinimumWindowWidth()
+    public async Task WideDetailsRetainsMinimumsAndAUsableDivider()
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new Fixture();
             var view = await OpenExpansionResult(f);
-            f.Window!.Width = f.Window.MinWidth;
+            f.Window!.Width = 1120;
             f.Window.UpdateLayout();
             var expand = RequireExpansionButton(view);
             ActivateExpansion(f.Window, expand, keyboard: true);

@@ -7,7 +7,7 @@ public sealed class ClipboardPreviewWindowContractTests
     [Fact]
     public void ImmutablePreviewExposesScreenReaderNamesAndRevokesWithoutHistoryOrEgress()
     {
-        var source = Read("ClipboardPreviewWindow.cs");
+        var source = Read("ClipboardPreviewView.cs");
         source.Should().Contain("using Avalonia.Automation;")
             .And.Contain("AutomationProperties.SetName(source, \"Clipboard snapshot plain text content\")")
             .And.Contain("AutomationProperties.SetName(identity, \"Clipboard snapshot identity and capture details\")")

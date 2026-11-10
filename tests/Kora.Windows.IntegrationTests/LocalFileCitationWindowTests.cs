@@ -10,12 +10,91 @@ using Kora.Application.Infrastructure;
 using Kora.Controls;
 using Kora.Core.Context;
 using Kora.Core.Hosting;
+using Kora.NativeUxFixture;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class LocalFileCitationWindowTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task HostedFileAndFolderReaderUsesOneShellAndSuppressesLateRetiredSearch(bool folder, bool hold)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
+            Directory.CreateDirectory(parent);
+            using var native = new NativeUxFixtureSession(parent);
+            await native.InitializeAsync();
+            using var responses = new ResponseWindowController(native.Main, NullLogger<ResponseWindowController>.Instance);
+            var shell = responses.PrepareWorkbenchOwner();
+            var files = Folder("alpha exact inert source");
+            var file = files.Files[1];
+            var reads = 0;
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failures = new List<string>();
+            using var view = new LocalFilePreviewView(shell, failures.Add);
+            async Task<LocalFileSearchResult> Search(string query, LocalFileRetrievalMode mode, CancellationToken token)
+            {
+                reads++;
+                if (hold) { entered.TrySetResult(); await release.Task; }
+                return folder
+                    ? new LocalFileLexicalRetrieval().Search(files, files.Reference, query, mode, DateTimeOffset.UnixEpoch, CancellationToken.None)
+                    : new LocalFileLexicalRetrieval().Search(file, file.Reference, query, mode, DateTimeOffset.UnixEpoch, CancellationToken.None);
+            }
+            if (folder) { view.ShowFolderRevision(files, Search, static () => true, () => Task.CompletedTask); }
+            else { view.ShowRevision(file, Search, static () => true, () => Task.CompletedTask); }
+            var windows = new List<Window>();
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) => windows.Add(window));
+            Task? searching = null;
+            try
+            {
+                view.Show();
+                reads.Should().Be(0);
+                var query = Query(shell);
+                query.Text = "alpha";
+                var button = FindButton(shell, "Search selected immutable revision locally");
+                searching = ((AsyncCommand)button.Command!).ExecuteAsync();
+                if (hold)
+                {
+                    await entered.Task;
+                    shell.Hide();
+                    shell.Show(); shell.Activate();
+                    searching.IsCompleted.Should().BeFalse("the ignoring retrieval still owns its work");
+                    view.Content.Should().BeNull();
+                    release.TrySetResult();
+                    await searching;
+                    view.Content.Should().BeNull();
+                }
+                else
+                {
+                    await searching;
+                    var rows = view.GetVisualDescendants().OfType<ListBox>().Single();
+                    var citation = rows.ItemsSource!.Cast<LocalFileCitation>().Last(row => row.Source == file.Reference);
+                    rows.SelectedItem = citation;
+                    await Press(shell, "Show exact cited source span");
+                    var span = ExactSpan(shell);
+                    span.Text.Should().Be(citation.Excerpt);
+                    span.IsFocused.Should().BeTrue();
+                    var other = new TextBlock { Text = "Another exact review" };
+                    shell.ShowNativeReview(other, "Another exact review", other, static () => true, _ => { });
+                    view.Content.Should().BeNull();
+                    span.Text.Should().BeNull();
+                }
+                reads.Should().Be(1);
+                failures.Should().BeEmpty();
+                windows.Distinct().Should().Equal(shell);
+            }
+            finally { release.TrySetResult(); if (searching is not null) { await searching; } }
+        });
+    }
+
     [Theory]
     [InlineData(LocalFileRetrievalMode.LexicalLines, false)]
     [InlineData(LocalFileRetrievalMode.MarkdownStructure, false)]

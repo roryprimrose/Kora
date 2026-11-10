@@ -1,0 +1,108 @@
+<UserControl x:Class="Kora.AttachmentCatalogueView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="12">
+    <WrapPanel>
+      <Button x:Name="RefreshPage" Content="_Search / refresh metadata" IsEnabled="{Binding CanSearch}" />
+      <Button x:Name="NextPage" Content="_Next bounded page" IsEnabled="{Binding CanNext}" />
+      <Button x:Name="CancelRead" Content="_Cancel read" IsEnabled="{Binding CanCancel}" />
+      <CheckBox Content="Include _removed slots (provenance only)" IsChecked="{Binding IncludeRemoved, Mode=TwoWay}"
+                IsEnabled="{Binding CanEdit}" />
+      <Button x:Name="ClearQuery" Content="Clear _query (Browse)" IsEnabled="{Binding CanEdit}" />
+    </WrapPanel>
+    <ScrollViewer Grid.Row="1" MaxHeight="380" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="6">
+      <WrapPanel>
+        <ComboBox x:Name="AttachmentPageOrder" ItemsSource="{Binding PageOrders}" SelectedItem="{Binding PageOrder, Mode=TwoWay}"
+                  IsEnabled="{Binding CanOrderPage}" AutomationProperties.Name="Order this loaded page: Source order, retained byte count ascending or descending (unknown last); metadata only; no read" />
+        <Button x:Name="ClearAttachmentPageOrder" Content="Clear _order (Source order)" IsEnabled="{Binding CanOrderPage}"
+                AutomationProperties.Name="Clear loaded-page order to Source order without a read; retires selection, details, Find and open readiness" />
+      </WrapPanel>
+      <controls:NamedTextBlock x:Name="AttachmentPageOrderDisclosure" Text="{Binding PageOrderHint}" TextWrapping="Wrap" />
+      <WrapPanel>
+        <ComboBox x:Name="AttachmentSessionFilter" ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter, Mode=TwoWay}"
+                  IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Stored session lifecycle: All, Active, Done or Removed; independent of removed attachment slots" />
+        <ComboBox x:Name="AttachmentMediaType" ItemsSource="{Binding MediaTypes}" SelectedItem="{Binding MediaType, Mode=TwoWay}"
+                  IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Exact retained media type: All, text/plain or text/markdown; removed tombstones match only All; changing performs no read" />
+        <ComboBox x:Name="AttachmentQueryMode" ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode, Mode=TwoWay}"
+                  IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Attachment metadata query mode: Browse or ExactId" />
+        <TextBox x:Name="AttachmentQueryText" Text="{Binding QueryText, Mode=TwoWay}" MinWidth="160" MaxWidth="540"
+                 IsEnabled="{Binding CanEditId}" AutomationProperties.Name="Private volatile exact session ID query; typing performs no read" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding QueryHint}" TextWrapping="Wrap" />
+      <controls:NamedTextBlock Text="{Binding MediaTypeHint}" TextWrapping="Wrap" />
+      <WrapPanel>
+        <ComboBox x:Name="AttachmentCopyStatus" ItemsSource="{Binding CopyStatuses}" SelectedItem="{Binding CopyStatus, Mode=TwoWay}"
+                  IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Exact copy status: Any, Confirmed, Held or Unavailable; changing performs no read" />
+        <TextBox x:Name="AttachmentMinimumBytes" Text="{Binding MinimumBytesText, Mode=TwoWay}" Width="200"
+                 PlaceholderText="Minimum stored bytes (Any)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Inclusive minimum retained stored bytes; empty means Any; unsigned invariant digits only; typing performs no read" />
+        <TextBox x:Name="AttachmentMaximumBytes" Text="{Binding MaximumBytesText, Mode=TwoWay}" Width="200"
+                 PlaceholderText="Maximum stored bytes (Any)" IsEnabled="{Binding CanEdit}"
+                 AutomationProperties.Name="Inclusive maximum retained stored bytes; empty means Any; unsigned invariant digits only; typing performs no read" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding CopyAndBytesHint}" TextWrapping="Wrap" />
+    </StackPanel>
+    </ScrollViewer>
+    <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
+                            AutomationProperties.Name="Content-free metadata scope and finite scan limitations; not full body verification" />
+    <Grid x:Name="CataloguePanes" Grid.Row="3" ColumnDefinitions="430,*" ColumnSpacing="12" RowSpacing="12" MinHeight="300">
+      <controls:ScrollableListBox x:Name="SlotRecords" ItemsSource="{Binding Records}"
+          SelectedItem="{Binding SelectedRecord, Mode=OneWay}"
+          AutomationProperties.Name="Exact retained private session slots; no filenames, original paths or source body">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Spacing="4">
+              <TextBlock Text="{Binding Session.Value, StringFormat='Session: {0}'}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding SessionState, StringFormat='Stored session: {0}'}" />
+              <TextBlock Text="{Binding CopyStatus, StringFormat='Copy certification: {0}'}" />
+              <TextBlock Text="{Binding RetainedSessionGeneration.Value, StringFormat='Session generation: {0}', TargetNullValue='Session generation: unavailable (removed provenance)'}" />
+              <TextBlock Text="{Binding RetainedCapturedGeneration.Value, StringFormat='Captured generation: {0}', TargetNullValue='Captured generation: unavailable (removed provenance)'}" />
+              <TextBlock Text="{Binding RetainedStorageRevision.Value, StringFormat='Storage revision: {0}', TargetNullValue='Storage revision: unavailable (removed provenance)'}" />
+              <TextBlock Text="{Binding RetainedStoredBytes, StringFormat='Stored original bytes: {0}', TargetNullValue='Stored original bytes: unavailable (removed provenance; no size claim)'}" />
+              <TextBlock Text="{Binding MediaType}" />
+              <TextBlock Text="{Binding RetainedCapturedAt, StringFormat='Captured UTC: {0:O}', TargetNullValue='Captured UTC: unavailable (removed provenance)'}" />
+              <TextBlock Text="{Binding RetainedDigest, StringFormat='Original digest header: {0}', TargetNullValue='Original digest: unavailable (removed provenance)'}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </controls:ScrollableListBox>
+      <ScrollViewer x:Name="MetadataDetailsPane" Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <StackPanel x:Name="MetadataFindPanel" Spacing="6">
+        <controls:NamedTextBlock Text="Find only in selected displayed metadata: exact case/spaces, one nonoverlapping match, no wrap. Enter: First; F3: Next; Shift+F3: Previous; Escape: Clear. No file/body/clipboard read or copy." TextWrapping="Wrap" />
+        <controls:NamedTextBlock x:Name="MetadataFindSpan" Text="{Binding MetadataFindMatch}" TextWrapping="Wrap"
+                                IsVisible="{Binding HasMetadataFindMatch}" Focusable="True"
+                                AutomationProperties.Name="Exact inert selected metadata literal match" />
+        <TextBox x:Name="MetadataFindQuery" Text="{Binding MetadataFindQuery, Mode=TwoWay}"
+                 PlaceholderText="Private one-line Find"
+                 AcceptsReturn="False" IsUndoEnabled="False" IsEnabled="{Binding CanFindMetadata}"
+                 AutomationProperties.Name="Private one-line case-sensitive literal Find in selected displayed metadata only; typing performs no read" />
+        <WrapPanel>
+          <Button x:Name="MetadataFindFirst" Content="Find first" IsEnabled="{Binding CanFindMetadata}"
+                  AutomationProperties.Name="Find first literal in selected metadata only; no wrap" />
+          <Button x:Name="MetadataFindNext" Content="Find next" IsEnabled="{Binding CanNavigateMetadataFind}"
+                  AutomationProperties.Name="Find next literal in selected metadata only; no wrap" />
+          <Button x:Name="MetadataFindPrevious" Content="Find previous" IsEnabled="{Binding CanNavigateMetadataFind}"
+                  AutomationProperties.Name="Find previous literal in selected metadata only; no wrap" />
+          <Button x:Name="MetadataFindClear" Content="Clear Find" IsEnabled="{Binding CanFindMetadata}"
+                  AutomationProperties.Name="Clear private metadata Find query, match and status; no read" />
+        </WrapPanel>
+        <controls:NamedTextBlock x:Name="MetadataFindStatus" Text="{Binding MetadataFindStatus}" TextWrapping="Wrap"
+                                AutomationProperties.Name="Metadata literal Find outcome and exact UTF-16 coordinates" />
+        <controls:NamedTextBlock x:Name="MetadataDetails" Text="{Binding SelectedDetails}" TextWrapping="Wrap"
+          AutomationProperties.Name="Selected exact session generation, storage revision, source, revision, item and digest headers; no body integrity claim" />
+      </StackPanel>
+      </ScrollViewer>
+    </Grid>
+    <WrapPanel Grid.Row="4">
+      <Button x:Name="OpenExact" Content="Open exact _session/attachment" IsEnabled="{Binding CanNavigate}"
+              AutomationProperties.Name="Re-resolve original exact session and attachment; no resume, replacement retarget or new consent" />
+      <Button x:Name="CloseView" Content="_Close" />
+    </WrapPanel>
+  </Grid>
+  </ScrollViewer>
+</UserControl>

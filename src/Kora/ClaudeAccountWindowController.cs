@@ -18,6 +18,10 @@ internal sealed partial class ClaudeAccountWindowController : IDisposable
     private readonly AudioControlAdmission admission;
     private readonly ILogger<ClaudeAccountWindowController> logger;
     private Window? window;
+    private PrivateReviewView? view;
+    private Func<Window>? getWorkbench;
+    internal PrivateReviewView? PresentedView => view;
+    internal void BindWorkbench(Func<Window> owner) => getWorkbench = owner;
     private TextBox? credential;
     private CancellationTokenSource? lifetime;
     private Task work = Task.CompletedTask;
@@ -40,7 +44,7 @@ internal sealed partial class ClaudeAccountWindowController : IDisposable
     private void OnRequested(object? sender, EventArgs args)
     {
         if (disposed || !main.CanRevealPrivatePresentation || !work.IsCompleted) { return; }
-        if (window is not null) { window.Activate(); return; }
+        if (view is not null) { view.Activate(); return; }
         var eligible = eligibility = main.CaptureHandoffPresentationEligibility();
         var cancellation = lifetime = new CancellationTokenSource(TimeSpan.FromMinutes(2));
         var secret = credential = new TextBox
@@ -49,13 +53,14 @@ internal sealed partial class ClaudeAccountWindowController : IDisposable
         var confirm = new CheckBox { Content = "Use the independently approved credential/workspace lease. This is not transmission consent.", IsChecked = false };
         var status = new TextBlock { Text = "Checking independent deployment, terms and cost approval. No ambient account is used.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap };
-        var opened = window = new Window { Title = "Claude account", Width = 680, Height = 360 };
-        bool Live() => !disposed && ReferenceEquals(window, opened) && main.CanRevealPrivatePresentation && eligible();
+        PrivateReviewView? opened = null;
+        bool OriginalLive() => !disposed && ReferenceEquals(view, opened) && main.CanRevealPrivatePresentation && eligible();
+        bool Live() => OriginalLive() && opened?.IsPresented == true;
         var verify = new Button { Content = "Authenticate approved credential and read complete Models catalogue", IsEnabled = false };
         void Failure(Exception exception)
         {
             SetupFailed(logger, exception.GetType().Name);
-            status.Text = "Unavailable: Claude approval, credential lease or complete catalogue was not confirmed. No fallback or inference was attempted.";
+            if (Live()) { status.Text = "Unavailable: Claude approval, credential lease or complete catalogue was not confirmed. No fallback or inference was attempted."; }
         }
         verify.Command = new AsyncCommand(async () =>
         {
@@ -76,14 +81,18 @@ internal sealed partial class ClaudeAccountWindowController : IDisposable
         var forget = new Button { Content = "Forget Claude credential and catalogue" };
         forget.Click += (_, _) =>
         {
+            if (!Live()) { main.ReportHostInteractionFailure("The original Claude account controls retired. No account was forgotten."); return; }
             try { HostRequestRunner.Run(RequestOrigin.LocalUi, accounts.Forget); }
             catch (Exception exception) when (exception is not OutOfMemoryException) { Failure(exception); }
             finally { Close(); }
         };
-        opened.Content = new StackPanel { Margin = new Thickness(16), Spacing = 12,
+        var panel = new StackPanel { Margin = new Thickness(16), Spacing = 12,
             Children = { status, secret, confirm, verify, forget } };
-        opened.Closed += (_, _) => Close();
-        opened.Show(); timer.Start();
+        var owner = getWorkbench?.Invoke() ?? (window = new Window { Width = 680, Height = 360 });
+        opened = new(owner, new ScrollViewer { Content = panel }, OriginalLive);
+        view = opened;
+        opened.Closed += (_, _) => { if (ReferenceEquals(view, opened)) { Close(); } };
+        opened.Show("Claude account"); timer.Start();
         new AsyncCommand(async () =>
         {
             var checking = admission.RunObservedAsync(RequestOrigin.LocalUi, Live, accounts.CanSetUpAsync,
@@ -108,7 +117,7 @@ internal sealed partial class ClaudeAccountWindowController : IDisposable
     private void Close()
     {
         timer.Stop(); eligibility = null;
-        var opened = window; window = null;
+        var opened = view; view = null; window = null;
         if (credential is not null) { credential.Text = string.Empty; credential = null; }
         var cancellation = lifetime; lifetime = null;
         try { cancellation?.Cancel(); }
@@ -117,7 +126,7 @@ internal sealed partial class ClaudeAccountWindowController : IDisposable
         finally
         {
             cancellation?.Dispose();
-            if (opened is not null) { opened.Content = null; opened.Close(); }
+            opened?.Dispose();
         }
     }
 

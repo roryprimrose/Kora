@@ -10,6 +10,8 @@ Copilot stays unavailable unless the host has a current authorized Copilot
 account/profile, permitted provider mode and ready runtime. Choosing this command
 does not set up an account, enable voice or change those settings.
 
+Copilot credential entry uses its own private supporting tab in the expanded workbench, never the chat composer. Passwords remain masked and memory-only; hiding the tab clears input without pretending an ignoring authentication call has joined ([account owner](../src/Kora/CopilotAccountWindowController.cs), [hosted regressions](../tests/Kora.Windows.IntegrationTests/AccountWorkbenchTests.cs)).
+
 ## Review the original request
 
 Use the exact current Active session ID, generation and metadata revision from
@@ -44,11 +46,13 @@ Confirmation retains the original USER request and asks the host to admit the
 explicit Copilot operation. It does **not** approve transmission.
 
 When authorized and ready, a separate native **Copilot - exact hosted disclosure**
-window shows the destination, account/model, complete noncredential headers and
+tab in the expanded workbench shows the destination, account/model, complete noncredential headers and
 complete final JSON body. Inspect these bytes, then choose
 **Transmit this exact request once**, or **Deny**. Voice request confirmation cannot replace this
 native final-send decision. Closing or losing private access never approves.
 Each later physical send requires its own disclosure.
+
+Switching away, hiding or minimizing retires the displayed review; returning does not renew consent. An old review's button cannot authorize or dismiss the next review ([disclosure owner](../src/Kora/CopilotTransmissionWindowController.cs), [native and hosted tests](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)).
 
 Inspect the original request's HOST/task outcome. Only a genuine bounded
 successful answer becomes an ASSISTANT response on that same request. Denial,

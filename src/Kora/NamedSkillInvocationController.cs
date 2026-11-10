@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using Avalonia.Controls;
 using Kora.Application.Skills;
 using Kora.Application.ViewModels;
 using Kora.Core.Diagnostics;
@@ -14,7 +15,15 @@ internal sealed partial class NamedSkillInvocationController(
     SharedSkillInvocationWorkflow shared, Func<bool> ownsHost, Func<long> ownershipRevision,
     ILogger<NamedSkillInvocationController> logger, QuestionWindowController? questions = null) : IAsyncDisposable
 {
-    private NamedSkillInvocationWindow? window;
+    private NamedSkillInvocationView? window;
+    private NamedSkillInvocationWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<NamedSkillInvocationView>? presentWorkbench;
+    private Func<bool>? operationPresentation;
+    private bool invoking;
+    internal NamedSkillInvocationView? View => window;
+    internal void BindWorkbench(Func<Window> ownerWindow, Action<NamedSkillInvocationView> present)
+    { getWorkbench = ownerWindow; presentWorkbench = present; }
     private NamedSkillCandidates? candidates;
     private NamedSkillChoice? choice;
     private OwnedSkillAuthoringAuthority? original;
@@ -52,7 +61,8 @@ internal sealed partial class NamedSkillInvocationController(
 
     private bool Eligible() => !disposed && ownsHost() && owner == ownershipRevision()
         && call == main.CallPolicyRevision && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible
-        && !main.IsResponseInteractionPending && original?.IsCurrent() == true && lifetime?.IsCancellationRequested == false;
+        && !main.IsResponseInteractionPending && original?.IsCurrent() == true && lifetime?.IsCancellationRequested == false
+        && (invoking || operationPresentation?.Invoke() != false);
 
     private async Task Route(NamedSkillCommand command, RequestOrigin origin, OwnedSkillAuthoringAuthority authority)
     {
@@ -67,19 +77,38 @@ internal sealed partial class NamedSkillInvocationController(
             original = authority;
             name = command.Name;
             if (!Eligible()) { Retire(); return; }
-            window = new(name, Start);
+            if (getWorkbench is not null && presentWorkbench is not null)
+            { window = new(getWorkbench(), name, Start, () => main.CanRevealPrivatePresentation && !disposed); }
+            else
+            {
+                adapter = new(name, Start);
+                window = adapter.View;
+            }
             window.Closed += (_, _) => Retire();
+            if (getWorkbench is not null)
+            {
+                window.PresentationLost += (_, _) =>
+                {
+                    if (invoking) { return; }
+                    candidates?.Dispose();
+                    candidates = null;
+                    RetireReview();
+                    if (window is { } opened) { opened.Choices.ItemsSource = null; }
+                };
+            }
             window.Choices.SelectionChanged += (_, _) => RetireReview();
             window.Request.PropertyChanged += (_, args) =>
             { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { RetirePreparation(); } };
             window.Targets.SelectionChanged += (_, _) => RetirePreparation();
-            window.Show();
+            if (presentWorkbench is not null) { presentWorkbench(window); }
+            else { adapter!.Show(); }
             if (!Eligible()) { Retire(); return; }
             window.Status.Text = "No files were read. Use the separate native read-consent control to inspect current candidates.";
             return;
         }
         if (command.Action is "Choice" && window is { } opened && Eligible() && active.IsCompleted)
         {
+            if (presentWorkbench is not null) { presentWorkbench(opened); }
             var rows = candidates?.Choices;
             if (rows is null || command.Choice > rows.Count)
             { opened.Status.Text = "Inspect first, then choose exactly one displayed numbered source. No name was guessed."; return; }
@@ -108,6 +137,7 @@ internal sealed partial class NamedSkillInvocationController(
     private async Task RunReported(string action)
     {
         var opened = window!;
+        operationPresentation = opened.CapturePresentation();
         opened.SetBusy(true);
         using var activity = HostActivity.BeginRoot(HostRequest.Create(action is "Inspect" or "Invoke" or "ReadOwnedReferences" ? RequestOrigin.LocalUi : original!.Origin),
             HostActivityLayer.Desktop, HostOperation.Request,
@@ -131,10 +161,15 @@ internal sealed partial class NamedSkillInvocationController(
                     + "No successful empty lookup, fallback or replay is claimed. Inspect again; check the exact conversation before retrying use.";
             }
         }
-        finally { if (ReferenceEquals(window, opened)) { opened.SetBusy(false); } }
+        finally
+        {
+            invoking = false;
+            operationPresentation = null;
+            if (ReferenceEquals(window, opened)) { opened.SetBusy(false); }
+        }
     }
 
-    private async Task Run(string action, NamedSkillInvocationWindow opened)
+    private async Task Run(string action, NamedSkillInvocationView opened)
     {
         if (!Eligible()) { throw new InvalidOperationException("Original named skill authority expired."); }
         var token = lifetime!.Token;
@@ -236,10 +271,11 @@ internal sealed partial class NamedSkillInvocationController(
             ownedInvocation = null;
             sharedInvocation = null;
             opened.Confirmation.Text = "";
+            invoking = true;
             var receipt = own is not null ? await owned.InvokeAsync(own, new(RequestOrigin.LocalUi, Eligible), Current, token)
                 : external is not null ? await shared.InvokeAsync(external, Current, token)
                 : throw new InvalidOperationException("Preview a fresh exact invocation before confirming.");
-            if (Current())
+            if (Current() && operationPresentation?.Invoke() != false)
             {
                 opened.Status.Text = $"Retained in the exact selected conversation: {receipt.Message.Outcome} / {receipt.Message.Reason}. "
                     + (receipt.Message.AssistantResponse?.Body ?? "No assistant answer. Inspect that conversation; no automatic retry.");
@@ -287,6 +323,7 @@ internal sealed partial class NamedSkillInvocationController(
         RetireReview();
         var opened = window;
         window = null;
+        adapter = null;
         opened?.Clear();
         opened?.Close();
         original = null;

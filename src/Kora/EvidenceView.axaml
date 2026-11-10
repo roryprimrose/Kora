@@ -1,0 +1,241 @@
+<UserControl
+    x:Class="Kora.EvidenceView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Kora"
+    xmlns:controls="using:Kora.Controls"
+    x:DataType="local:EvidenceViewModel"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}">
+  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+  <Grid x:Name="EvidenceLayoutRoot" Margin="24" MinWidth="780" MinHeight="620"
+        RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
+    <TextBlock Text="Evidence - SQLite; DailyLog; opt-in CombinedLog ordinary diagnostics" FontSize="20" FontWeight="SemiBold" />
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
+      <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" MinWidth="130"
+                AutomationProperties.Name="Evidence source" />
+      <TextBox Text="{Binding SafeText}" PlaceholderText="Safe text contains (max 256 characters)" Width="330"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Safe evidence text filter" />
+      <Button x:Name="Search" Content="Search / refresh" IsEnabled="{Binding CanQuery}"
+              AutomationProperties.Name="Search a fresh bounded evidence snapshot" />
+      <Button x:Name="Next" Content="Next page" IsEnabled="{Binding CanNext}" />
+      <Button x:Name="Trace" Content="Read selected trace" IsEnabled="{Binding CanReadTrace}" />
+    </StackPanel>
+    <Grid Grid.Row="2" ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
+      <TextBox Text="{Binding SessionFilter}" PlaceholderText="Session GUID (correlation filter only)"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Session correlation filter" />
+      <TextBox Grid.Column="1" Text="{Binding TaskFilter}" PlaceholderText="Task GUID"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Task correlation filter" />
+      <TextBox x:Name="TraceId" Grid.Column="2" Text="{Binding TraceFilter}" PlaceholderText="W3C trace ID"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Trace correlation filter" />
+      <TextBox x:Name="SpanId" Grid.Column="3" Text="{Binding SpanFilter}" PlaceholderText="Exact W3C span ID (16 lowercase hex)"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Exact W3C Span ID correlation filter; empty means Any"
+               ToolTip.Tip="Empty means Any. Otherwise exactly 16 lowercase hexadecimal characters, not all zero. No trimming or partial matching." />
+    </Grid>
+    <Expander Grid.Row="3" Header="Advanced filters (optional)" IsExpanded="False"
+              AutomationProperties.Name="Optional advanced evidence filters">
+      <ScrollViewer MaxHeight="280" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                    AutomationProperties.Name="Scrollable advanced evidence filters">
+      <StackPanel Spacing="8">
+        <WrapPanel>
+          <TextBox x:Name="TraceSource" Text="{Binding TraceSourceFilter}" PlaceholderText="Exact trace source (max 128); empty = Any"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact trace source; empty means Any" />
+          <ComboBox x:Name="TraceVersionAvailability" ItemsSource="{Binding TraceVersionAvailabilities}" SelectedItem="{Binding TraceVersionAvailability, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Trace source version: Any, Absent, Present or Exact" />
+          <TextBox x:Name="TraceSourceVersion" Text="{Binding TraceSourceVersionFilter}" PlaceholderText="Exact source version (max 128); Exact only"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact trace source version; required only with Exact; otherwise empty" />
+          <TextBox x:Name="ActivityName" Text="{Binding ActivityNameFilter}" PlaceholderText="Exact activity operation name (max 128); empty = Any"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact activity operation name; empty means Any" />
+          <ComboBox x:Name="ActivityKind" ItemsSource="{Binding ActivityKindChoices}" SelectedItem="{Binding ActivityKind, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Exact ActivityKind; Any includes missing traces">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+ActivityKindChoice" Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox x:Name="TraceFlags" ItemsSource="{Binding TraceFlagsChoices}" SelectedItem="{Binding TraceFlags, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Exact trace flags: Any, None or Recorded">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+TraceFlagsChoice" Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </WrapPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Trace metadata is untrusted diagnostic correlation, never session selection, identity, intent, permission, approval or authority. Exact text is case-sensitive, without surrounding whitespace or controls. Version Absent requires a trace with no version; Present requires a version; Exact requires the version text. Other choices require empty version text. Missing traces match only Any. No baggage, tags or omitted content is searched. All filters compose with AND; edits read nothing and retire results. Clear advanced resets these filters to Any." />
+        <WrapPanel>
+          <TextBox x:Name="ParentSpanId" Text="{Binding ParentSpanFilter}" PlaceholderText="Exact W3C parent span ID (16 lowercase hex)"
+                   Width="360" Margin="0,0,10,8" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                   AutomationProperties.Name="Exact W3C Parent Span ID correlation filter; empty means Any"
+                   ToolTip.Tip="Empty means Any. Otherwise exactly 16 lowercase hexadecimal characters, not all zero. No trimming or partial matching." />
+          <StackPanel Margin="0,0,10,8">
+            <TextBlock Text="Observed trace parent" />
+            <ComboBox x:Name="TraceParentKind" ItemsSource="{Binding TraceParentKindChoices}" SelectedItem="{Binding ParentKind, Mode=TwoWay}"
+                      MinWidth="150" AutomationProperties.Name="Observed trace parent: Any, Root or Child"
+                      ToolTip.Tip="Root requires a valid retained trace with no parent span ID. Child requires a valid retained parent span ID. Unknown traces match only Any; not complete trace or causality proof.">
+              <ComboBox.ItemTemplate>
+                <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+TraceParentKindChoice" Text="{Binding Label}" /></DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+          <ComboBox x:Name="OperationOutcome" ItemsSource="{Binding OutcomeChoices}" SelectedItem="{Binding Outcome, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Exact host operation outcome; Any includes null outcomes">
+            <ComboBox.ItemTemplate>
+              <DataTemplate><TextBlock x:DataType="local:EvidenceViewModel+OutcomeChoice" Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox x:Name="ContentAvailability" ItemsSource="{Binding ContentAvailabilities}" SelectedItem="{Binding ContentAvailability, Mode=TwoWay}"
+                    MinWidth="150" Margin="0,0,10,8" AutomationProperties.Name="Evidence content availability: Any, Present or Omitted" />
+        </WrapPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Parent Span ID is exact correlation metadata, not trace navigation. Observed Root requires a valid trace with null parent; Child requires a valid parent. Unknown traces match only Any. This proves neither complete trace nor causality, current session, identity, approval, ownership or authority. Host operation outcome matches the retained Outcome, not audit outcome; null outcomes match only Any. Content availability: Any, Present (ContentOmitted false), Omitted (true). These are metadata predicates, not integrity proof or body restoration. Every filter composes with AND; edits read nothing and retire prior results. Clear advanced resets these filters to Any." />
+        <WrapPanel>
+          <TextBox Text="{Binding RequestFilter}" PlaceholderText="Exact request GUID" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact request ID filter" />
+          <TextBox Text="{Binding InvocationFilter}" PlaceholderText="Exact invocation GUID" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact invocation ID filter" />
+          <TextBox Text="{Binding ApprovalFilter}" PlaceholderText="Exact approval GUID" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact approval ID filter" />
+          <TextBox Text="{Binding CorrelationFilter}" PlaceholderText="Exact audit correlation GUID" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact audit correlation ID filter" />
+        </WrapPanel>
+        <WrapPanel>
+          <TextBox Text="{Binding EventIdFilter}" PlaceholderText="Exact event ID (signed 32-bit integer)" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact event ID filter" />
+          <TextBox Text="{Binding CategoryFilter}" PlaceholderText="Exact case-sensitive category (max 256)" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact category filter" />
+          <TextBox Text="{Binding ActionIdFilter}" PlaceholderText="Exact case-sensitive audit action ID (max 128)" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact audit action ID filter" />
+        </WrapPanel>
+        <WrapPanel>
+          <TextBox x:Name="EventName" Text="{Binding EventNameFilter}" PlaceholderText="Exact event name (max 128); empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact diagnostic event name; empty means Any" />
+          <TextBox x:Name="ExceptionType" Text="{Binding ExceptionTypeFilter}" PlaceholderText="Exact exception type (max 256); empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact diagnostic exception type; empty means Any" />
+          <TextBox x:Name="FromAuditSequence" Text="{Binding FromAuditSequenceFilter}" PlaceholderText="Audit sequence from inclusive; empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive positive audit sequence start; empty means Any" />
+          <TextBox x:Name="UntilAuditSequence" Text="{Binding UntilAuditSequenceFilter}" PlaceholderText="Audit sequence until inclusive; empty = Any" Width="360" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive positive audit sequence end; empty means Any" />
+        </WrapPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Event name and exception type are exact case-sensitive diagnostic metadata, not messages, stack traces or content. Empty means Any; otherwise bounded plain text without surrounding whitespace or controls. Audit sequence bounds are inclusive positive canonical 64-bit integers, ordered from to until; empty means Any. Null metadata never matches an exact or range predicate. Sequence is committed ordering metadata only, not authority, completeness, freshness, replay position or permission. All predicates compose with AND. Clear advanced resets these fields to Any without reading." />
+        <WrapPanel>
+          <TextBox Text="{Binding FromFilter}" PlaceholderText="From inclusive: 2026-10-10T00:00:00Z" Width="380" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive evidence time range start" />
+          <TextBox Text="{Binding UntilFilter}" PlaceholderText="Until inclusive: ISO time with Z or offset" Width="380" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive evidence time range end" />
+        </WrapPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <StackPanel>
+            <TextBlock Text="Retained due UTC from (inclusive)" />
+            <TextBox x:Name="FromDueUtc" Text="{Binding FromDueFilter}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00" Width="380"
+                     ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                     AutomationProperties.Name="Inclusive retained due UTC start; empty means Any" />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Text="Retained due UTC until (inclusive)" />
+            <TextBox x:Name="UntilDueUtc" Text="{Binding UntilDueFilter}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00" Width="380"
+                     ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                     AutomationProperties.Name="Inclusive retained due UTC end; empty means Any" />
+          </StackPanel>
+        </StackPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Due bounds independently filter retained metadata deadlines, AND with every other filter. Only empty means Any; otherwise exact UTC with seven fractional digits and +00:00, ordered inclusive bounds. No trimming, repair or offset normalization. Missing DueUtc is UNKNOWN and never matches a constrained range. DailyLog has no retained due deadline. Due is not proof of physical deletion, current expiry, policy, authority or retention permission. Edits and Clear read nothing; Escape closes and retires the viewer." />
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ComboBox ItemsSource="{Binding Severities}" SelectedItem="{Binding Severity}" PlaceholderText="Any severity"
+                    MinWidth="180" AutomationProperties.Name="Optional exact diagnostic severity filter" />
+          <ComboBox ItemsSource="{Binding AuditOutcomes}" SelectedItem="{Binding AuditOutcome}" PlaceholderText="Any audit outcome"
+                    MinWidth="210" AutomationProperties.Name="Optional exact typed audit outcome filter" />
+          <Button x:Name="ClearAdvanced" Content="Clear advanced filters"
+                  AutomationProperties.Name="Unset all advanced evidence filters without reading" />
+        </StackPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Blank means unset; Clear advanced filters resets typed choices to Any and preserves the basic Trace ID and Span ID fields. Empty Span ID means Any; otherwise exactly 16 lowercase hexadecimal characters, not all zero, without trimming, repair or partial matching. All filters compose with AND. Event ID/category/action use empty-only unset; whitespace-only, noncanonical integers and surrounding text whitespace fail. Event IDs include zero and negative signed 32-bit values. Category/action compare exact case-sensitive text. Category is diagnostic category, activity source for Span/Link, or typed audit category for AuthorityAudit. Event ID/severity require All, Log, Audit, DailyLog or CombinedLog; action ID/audit outcome require All, Audit or AuthorityAudit. All remains SQLite-only; CombinedLog does not support action ID. Correlation is never identity, permission or audit authority. Both time edges are inclusive; ISO Z or explicit offsets normalize to UTC. SQLite/AuthorityAudit use commit time; DailyLog uses observation time; CombinedLog uses each source's own time, not an atomic snapshot. Changing any filter clears results; search again." />
+      </StackPanel>
+      </ScrollViewer>
+    </Expander>
+    <controls:NamedTextBlock Grid.Row="4" Text="{Binding Status}" TextWrapping="Wrap"
+               AutomationProperties.Name="Evidence status and storage limitations" />
+    <StackPanel Grid.Row="5" Spacing="6">
+      <TextBlock TextWrapping="Wrap"
+                 Text="Literal Find in this exact serialized page only: case-sensitive, unchanged spaces, nonoverlapping, no wrap or occurrence count. No retained-source search. Ctrl+F focuses query; Enter finds first; F3 / Shift+F3 moves next / previous. Query is volatile; no copy/paste." />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBox x:Name="LiteralQuery" Text="{Binding FindQuery}" Width="380" AcceptsReturn="False"
+                 IsEnabled="{Binding CanFind}"
+                 PlaceholderText="{Binding FindQueryHint}"
+                 ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                 AutomationProperties.Name="Case-sensitive literal Find in this exact serialized Evidence page only" />
+        <Button x:Name="FindFirst" Content="Find first" IsEnabled="{Binding CanFind}"
+                AutomationProperties.Name="Find first literal in this Evidence page; no wrap" />
+        <Button x:Name="FindNext" Content="Find next" IsEnabled="{Binding CanMoveFind}"
+                AutomationProperties.Name="Find next literal in this Evidence page; no wrap" />
+        <Button x:Name="FindPrevious" Content="Find previous" IsEnabled="{Binding CanMoveFind}"
+                AutomationProperties.Name="Find previous literal in this Evidence page; no wrap" />
+        <Button x:Name="ClearLiteral" Content="Clear literal Find"
+                AutomationProperties.Name="Clear volatile Evidence Find query and match without reading" />
+      </StackPanel>
+      <controls:NamedTextBlock x:Name="FindOutcome" Text="{Binding FindStatus}" TextWrapping="Wrap"
+                              AutomationProperties.Name="Evidence literal Find outcome and exact UTF-16 location" />
+      <ScrollViewer MaxHeight="80" IsVisible="{Binding HasFindSelection}">
+        <controls:NamedTextBlock x:Name="LiteralMatch" Text="{Binding FindMatchText}" Focusable="True"
+                                IsVisible="{Binding HasFindSelection}" FontFamily="Consolas" TextWrapping="Wrap"
+                                AutomationProperties.Name="Exact inert Evidence literal selection in current serialized page" />
+      </ScrollViewer>
+    </StackPanel>
+    <Grid Grid.Row="6" ColumnDefinitions="320,*" ColumnSpacing="14">
+      <Grid RowDefinitions="*,Auto,*">
+        <controls:ScrollableListBox x:Name="Records" ItemsSource="{Binding Records}" AutomationProperties.Name="Cited evidence records">
+          <ListBox.ItemTemplate>
+            <DataTemplate><TextBlock Text="{Binding Reference.Citation}" TextWrapping="Wrap" /></DataTemplate>
+          </ListBox.ItemTemplate>
+        </controls:ScrollableListBox>
+        <TextBlock Grid.Row="1" Text="Parent / explicit links (select, then Open segment)" Margin="0,12" TextWrapping="Wrap" />
+        <controls:ScrollableListBox x:Name="Segments" Grid.Row="2" ItemsSource="{Binding Segments}"
+                 AutomationProperties.Name="Trace parent and link segment availability">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel>
+                <TextBlock Text="{Binding TraceId}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding SpanId}" />
+                <TextBlock Text="{Binding Status}" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </controls:ScrollableListBox>
+      </Grid>
+      <Grid x:Name="EvidenceRecordBody" Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+        <controls:NamedTextBlock Text="{Binding RequestSummary}" TextWrapping="Wrap"
+                                AutomationProperties.Name="Exact request outcome and evidence availability" />
+      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+        <controls:NamedTextBlock x:Name="EvidenceBody" Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
+                   AutomationProperties.Name="Bounded structured evidence result, read only, no copy or export" />
+      </ScrollViewer>
+      <Expander x:Name="AskEvidence" Grid.Row="2" Header="Ask about this exact evidence" IsVisible="{Binding HasEvidenceAnswers}"
+                AutomationProperties.Name="Review one exact diagnostic page and separately confirm a local answer">
+        <ScrollViewer MaxHeight="420">
+          <StackPanel x:Name="EvidenceAnswerPanel" Spacing="8" />
+        </ScrollViewer>
+      </Expander>
+      </Grid>
+    </Grid>
+    <WrapPanel Grid.Row="7">
+      <Button x:Name="OpenSegment" Content="Open selected segment" IsEnabled="{Binding CanQuery}" />
+      <Button x:Name="ReadRequest" Content="Read request outcomes" IsEnabled="{Binding CanReadRequest}"
+              AutomationProperties.Name="Read exact selected host request audit outcomes" />
+      <Button x:Name="ReadActivity" Content="Inspect related diagnostics" IsEnabled="{Binding CanReadActivity}"
+              AutomationProperties.Name="Inspect exact selected activity and causal links; diagnostics are not authority" />
+      <Button x:Name="ReportException" Content="Report selected exception" IsEnabled="{Binding CanReportException}"
+              AutomationProperties.Name="Review a normalised exception report; no automatic upload or GitHub post"
+              ToolTip.Tip="Requires a retained managed stack. Old events, missing stacks and oversized signatures cannot be reported from this view." />
+      <Button x:Name="CloseView" Content="Close" />
+      <TextBlock x:Name="EvidenceRestrictions" Text="Raw evidence stays local. Exception reporting requires a separate public-content review." VerticalAlignment="Center" />
+    </WrapPanel>
+  </Grid>
+  </ScrollViewer>
+</UserControl>

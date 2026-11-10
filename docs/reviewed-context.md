@@ -62,7 +62,7 @@ into new history, raw-content diagnostics, tool use or hosted disclosure.
 Manual history follow-ups, exact-answer replies and per-session unsent input
 remain separate ([strict advisory](../src/Kora.Core/Conversation/ModelHistoryContextProposal.cs),
 [host binding](../src/Kora.Application/Hosting/SessionConversationService.ModelHistoryContext.cs),
-[native interaction](../src/Kora/ModelHistoryContext/ModelHistoryContextWindow.axaml)).
+[native interaction](../src/Kora/ModelHistoryContext/ModelHistoryContextView.axaml)).
 
 ## Keep your reading position when answers arrive
 
@@ -145,7 +145,7 @@ text length or an estimated model-token count
    Only this action admits the canonical local turn and retains its genuine
    ASSISTANT answer or explicit HOST unavailable/failure outcome. Removing a
    contribution is not confirmation
-   ([native recovery](../src/Kora/ReviewedContext/ReviewedContextWindow.cs),
+   ([native recovery](../src/Kora/ReviewedContext/ReviewedContextView.cs),
    [complete operation regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ContextBudgetRecovery.cs)).
 
 This consumer requires at least one whole history message, one complete enabled

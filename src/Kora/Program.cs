@@ -660,6 +660,8 @@ internal static class Program
         services.AddSingleton<SpeechComponentSetupService>();
         services.AddSingleton<ILocalModelReasoner, UnavailableLocalModelReasoner>();
         services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
+        services.AddSingleton<IWorkbenchPlacementPreferences>(provider =>
+            new LocalWorkbenchPlacementPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<IPlaybackVolumePreferences>(provider =>
             new LocalPlaybackVolumePreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<PlaybackVolumeConfigurationService>();

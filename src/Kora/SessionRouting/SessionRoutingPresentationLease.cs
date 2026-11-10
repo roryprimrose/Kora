@@ -17,7 +17,8 @@ internal sealed class SessionRoutingPresentationLease(
 
     internal bool Retains(ForegroundConversationTarget? original, Window? foreground) =>
         !disposed && ReferenceEquals(original, target) && target.IsCurrent && source.IsVisible
-        && (source is not ResponseWindow response || response.IsSessionListPresented)
+        && (source is not ResponseWindow response
+            || response.IsSessionWorkspacePresented && response.SessionView.IsConversationPresented)
         && (ReferenceEquals(foreground, source) || foreground is null
             && (transitioning || owned.Any(window => window.IsVisible && window.IsActive)));
 

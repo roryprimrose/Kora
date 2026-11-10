@@ -226,9 +226,9 @@ public sealed partial class AdaptiveInteractionTests
         });
     }
 
-    private sealed class Fixture : IDisposable
+    private sealed class Fixture(bool voice = false) : IDisposable
     {
-        internal NativeUxFixtureSession Native { get; } = new(Path.GetFullPath("."), silentCaption: true);
+        internal NativeUxFixtureSession Native { get; } = new(Path.GetFullPath("."), silentCaption: !voice, syntheticVoice: voice);
         internal NoAdmission Admission { get; } = new();
         internal SessionsWindowController Sessions { get; private set; } = null!;
         private ResponseWindowController? responses;
@@ -237,6 +237,9 @@ public sealed partial class AdaptiveInteractionTests
         private DetailWindowController? details;
         internal ResponseWindow? Window { get; private set; }
         internal SessionsPresentationOwner? Owner { get; private set; }
+        internal DetailWindowController Details => details!;
+        internal WorkspaceSurfaceCommandController Commands => commands!;
+        private TaskCompletionSource? navigationStarted;
         internal SessionsViewModel Model => (SessionsViewModel)Window!.SessionView.DataContext!;
         internal SessionWorkspaceEntry Conversation { get; private set; } = null!;
         internal SessionWorkspaceEntry? Done { get; private set; }
@@ -267,6 +270,7 @@ public sealed partial class AdaptiveInteractionTests
             responses.PrepareDetailsHost = Sessions.PrepareDetailsHost;
             all = new(Native.Main, Native.Sessions, Native.Access, NullLogger<AllWorkViewModel>.Instance, Sessions);
             commands = new(Native.Main, Native.Access, all, Sessions);
+            Native.Main.WorkspaceSurfaceRequested += _ => { navigationStarted?.TrySetResult(); return Task.CompletedTask; };
             commands.Bind();
         }
 
@@ -278,6 +282,21 @@ public sealed partial class AdaptiveInteractionTests
             Native.Main.CommandText = phrase;
             await Native.Main.RunTypedCommand.ExecuteAsync();
             await Sessions.InteractionOperation;
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        internal async Task RunVoice(string phrase)
+        {
+            Native.Main.BindVoiceOwnershipGate(static () => true);
+            await Native.Main.SetVoiceConsentAsync(true);
+            await Native.Main.BeginPushToTalkAsync();
+            await Native.Main.EndPushToTalkAsync();
+            navigationStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            Native.Voice.PublishTranscript(Native.Main.AssistantName + ", " + phrase);
+            await navigationStarted.Task.WaitAsync(Native.Token);
+#pragma warning disable VSTHRD003 // Join the exact navigation started by this fixture's published transcript.
+            await Commands.NavigationOperation;
+#pragma warning restore VSTHRD003
             Dispatcher.UIThread.RunJobs();
         }
 

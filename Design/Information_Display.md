@@ -19,7 +19,8 @@ Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to dis
 ## Explicit exact retained-answer file export
 
 The native conversation row's **Export exact answer...** action reviews one currently admitted retained final ASSISTANT body, never a session-wide latest result or rendered projection. Destination selection and passive Details grant no write authority.
-The [separate review](../src/Kora/ExactAnswerExportWindow.cs) shows complete original text, conversation/result identity, exact destination, UTF-8/no-BOM format and the retention disclosure before a separate original local-UI confirmation.
+The [separate review view](../src/Kora/ExactAnswerExportView.cs) shows complete original text, conversation/result identity, exact destination, UTF-8/no-BOM format and the retention disclosure before a separate original local-UI confirmation.
+It uses a supporting tab in the existing workbench; genuine OS destination selection remains external. Loss of review/source authority clears private text and retires consent without releasing an active writer's destination before actual completion ([hosted and compatibility regressions](../tests/Kora.Windows.IntegrationTests/ExactAnswerExportControllerTests.cs)).
 
 The destination/retention review and complete answer have independent bounded
 scrolling areas, including at the minimum 480-by-400 native size. Long paths
@@ -149,7 +150,7 @@ See [semantics, private source admission and maintained evidence](File_And_Folde
 ## Delivered Preparation-Only Local Search - 2026-10-20
 
 Original typed/current-name ACTIVATED `prepare file search for "<query>"` / `prepare folder search for "<query>"` pre-populates the existing exact volatile inspection window, not this viewer's Literal Find or a retained attachment.
-It resets run-only lexical mode and clears old citations, with **PREPARED / REVIEW NEEDED** and no search/result claim ([native hook](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs)).
+It resets run-only lexical mode and clears old citations, with **PREPARED / REVIEW NEEDED** and no search/result claim ([native hook](../src/Kora/LocalFilePreviewView.PreparedSearch.cs)).
 
 Raw final-quoted input preserves query characters. The scoped handoff freezes the admitted immutable source and rechecks queued admission; stale, closed, replaced or wrong-kind sources refuse. Only a separate native Search gesture executes the existing LocalUi-only audited path.
 No read/search/refresh/metadata capture, provider, clipboard, persistence, Attach or consent authority is added ([owning contract](File_And_Folder_Ingestion.md#delivered-preparation-only-native-lexical-query---2026-10-20)).
@@ -213,7 +214,8 @@ The [protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Context.cs) and [
 
 ## Delivered Exact Native Provider-Handoff Review - 2026-10-10
 
-The [native handoff window](../src/Kora/ModelHandoffWindow.axaml) displays actual audited host-issued offers: original session/task/request/origin, question/offer identities/revisions, generation/control/policy/destination/catalogue revisions, typed reason and validity. Production shows unavailable/no pending qualified offer.
+The [native handoff view](../src/Kora/ModelHandoffView.axaml) displays actual audited host-issued offers: original session/task/request/origin, question/offer identities/revisions, generation/control/policy/destination/catalogue revisions, typed reason and validity. Production shows unavailable/no pending qualified offer.
+The view is a supporting workbench tab; closing or losing its presentation retires the original review and joins its dismissal. Reduced evidence needs fresh complete review, and context approval is not physical-send consent ([hosted SQLite regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteNativeHandoffReviewTests.Workbench.cs)).
 
 The complete exact context/evidence/tool envelope retains the existing 32,768-byte/sixteen-evidence bounds. It is inert non-selectable text with provenance and typed disclosure labels, never Markdown/HTML, authority-bearing display text or fabricated samples.
 
@@ -323,8 +325,16 @@ Separate signed **Next request-audit snapshot page** controls preserve the exact
 
 This is the original-message-to-audit interaction, not another renderer, a diagnostic-to-authority promotion or command preparation.
 [Source/page validation](../src/Kora/SessionsViewModel.Details.cs) preserves the retained message, private control, native presenter, selected session and audit-record identity across awaited reads and passive revalidation; retired controls cannot read a replacement.
-No replay, model/provider, clipboard/export, grant, activity renewal or retention write is added. Existing native-only evidence admission remains unchanged.
+No replay, model/provider, clipboard/export, grant, activity renewal or retention write is added. These exact-message controls remain native; the separate committed-audit prompt below has its own original-channel admission.
 [Deterministic native regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.RequestEvidence.cs) are Implementation evidence, not provider, installed accessibility or E/Q qualification.
+
+#### Original-channel audit history in the shared workbench
+
+**show me the audit history** completes an explicitly application-wide bounded **AuthorityAudit** read in the shared Audit view. **show session audit** reads only the currently selected session. Original native/typed and activated-voice requests share the [admission rule](../src/Kora.Core/Diagnostics/EvidenceReadAdmission.cs); voice is not relabelled LocalUi and cannot read diagnostic sources.
+
+The [durable query](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs) and [committed reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Inspection.cs) retain source, live-context, ownership, bounds and readback validation. Invocation-scoped/model/system contexts fail closed. Native **Next** remains an explicit new read of the signed original query/snapshot, not a refresh or execution grant.
+
+The [prompt regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.PromptNavigation.cs) cover original channels and late input/view/privacy withdrawal while physically joining cancellation-ignoring reads. This adds no automatic speech, model disclosure, clipboard/export, audit write or approval operation.
 
 In the explicit Evidence window, select a typed **Audit** or **AuthorityAudit**
 record and choose **Read request outcomes**. The existing bounded reader freshly
@@ -1976,9 +1986,9 @@ Original typed input or current-name-prefixed activated voice uses the same admi
 The existing revision-bound proposal refuses concurrent changes rather than overwriting or recalculating. No clamp, guessed value, selected-window inference or new policy layer is introduced
 ([proposal](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [exact examples](../docs/commands.md#natural-exact-app-theme-and-native-reader-text-scale)).
 
-Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body; admitted complete immutable serialized Evidence page body and its inert focused literal-Find span; currently observed native speech-caption content text. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
+Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body; admitted complete immutable serialized Evidence page body and its inert focused literal-Find span; currently observed native speech-caption content text. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewView.cs), [span](../src/Kora/LocalFilePreviewView.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewView.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
-Trusted chrome, consent/approval/question controls, search inputs/results, provenance/citation locations, errors and renderer status retain their own typography and scrolling. This does not scale entire windows or transform content. Immutable source strings/bytes, search offsets and citations are not rewritten; content access, copy/export, caption enablement, call policy, permissions and persistence consent remain separate ([detail shell](../src/Kora/DetailWindow.axaml), [file reader](../src/Kora/LocalFilePreviewWindow.cs), [clipboard reader](../src/Kora/ClipboardPreviewWindow.cs)).
+Trusted chrome, consent/approval/question controls, search inputs/results, provenance/citation locations, errors and renderer status retain their own typography and scrolling. This does not scale entire windows or transform content. Immutable source strings/bytes, search offsets and citations are not rewritten; content access, copy/export, caption enablement, call policy, permissions and persistence consent remain separate ([detail shell](../src/Kora/DetailWindow.axaml), [file reader](../src/Kora/LocalFilePreviewView.cs), [clipboard reader](../src/Kora/ClipboardPreviewView.cs)).
 
 The preference is device-local atomic state under application data paths, with strict integer validation and pending evidence until exact readback and successful audit. Malformed, unknown, externally changed or unconfirmed evidence fails explicitly; it is not silently treated as 100. Existing preference files/migrations remain unchanged ([store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs), [workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 

@@ -15,6 +15,8 @@ public sealed partial class App
         BindClaudePresentation(main);
         handoffWindow = new(main, Services.GetRequiredService<ModelHandoffPresentation>(),
             Services.GetRequiredService<ILogger<ModelHandoffWindowController>>());
+        handoffWindow.BindWorkbench(() => (responseWindow
+            ?? throw new InvalidOperationException("Handoff review requires the owning response workbench.")).PrepareWorkbenchOwner());
         showVerifiedHandoff = () => Avalonia.Threading.Dispatcher.UIThread.Post(main.ReviewPendingHandoff);
         Services.GetRequiredService<VerifiedLocalHandoffOperation>().ReviewRequested += showVerifiedHandoff;
     }

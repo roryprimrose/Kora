@@ -21,8 +21,9 @@ internal sealed partial class OwnedInstructionEditorController
         var original = baseline;
         var observedKind = kind;
         var eligible = main.CaptureInstructionEditorEligibility();
+        var native = opened.CapturePresentation();
         bool Current() => !disposed && !closing && !busy && !active.IsCancellationRequested
-            && ReferenceEquals(lifetime, active) && ReferenceEquals(window, opened) && opened.IsVisible
+            && ReferenceEquals(lifetime, active) && ReferenceEquals(window, opened) && native()
             && ownsHost() && ownershipRevision() == ownership && eligible()
             && !opened.Source.IsReadOnly && !Actions.IsSourceUnavailable
             && kind == observedKind && ReferenceEquals(baseline, original) && string.Equals(selectedName, name, StringComparison.Ordinal)

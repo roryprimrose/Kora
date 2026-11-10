@@ -12,7 +12,7 @@ public sealed class NativeHandoffUiContractTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
         { directory = directory.Parent; }
         var root = directory?.FullName ?? throw new InvalidOperationException("The repository source root is unavailable.");
-        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "ModelHandoffWindow.axaml"));
+        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "ModelHandoffView.axaml"));
         var controls = document.Descendants().ToArray();
         XNamespace names = "http://schemas.microsoft.com/winfx/2006/xaml";
         foreach (var name in new[] { "Approve", "Decline", "Cancel", "Remove", "Inspect" })
@@ -33,7 +33,7 @@ public sealed class NativeHandoffUiContractTests
             .Contain("AddSingleton<ModelHandoffPresentation>")
             .And.Contain("AddSingleton<ModelProviderHandoffWorkflow>")
             .And.Contain("AddSingleton<Kora.Application.Interaction.HostQuestionReviewService>");
-        XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants()
+        XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants()
             .Any(control => string.Equals(control.Attribute("Click")?.Value, "OnReviewHandoffClicked", StringComparison.Ordinal)).Should().BeTrue();
     }
 }

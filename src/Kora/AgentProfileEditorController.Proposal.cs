@@ -27,7 +27,7 @@ internal sealed partial class AgentProfileEditorController
         Retire();
     }
 
-    private async Task Propose(AgentProfileEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task Propose(AgentProfileEditorView opened, Func<bool> eligible, CancellationToken token)
     {
         Retire();
         if (authoring is null || descriptionEligible is not { } descriptionInput)

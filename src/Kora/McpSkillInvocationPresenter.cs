@@ -9,8 +9,12 @@ namespace Kora;
 
 internal static class McpSkillInvocationPresenter
 {
-    internal static async Task<ReviewedMcpSkillInvocation> PrepareAsync(ReviewedToolSkillInvocationWorkflow service,
+    internal static Task<ReviewedMcpSkillInvocation> PrepareAsync(ReviewedToolSkillInvocationWorkflow service,
         ReviewedToolSkillReview review, SharedSkillInvocationWindow window, Func<bool> current,
+        RequestOrigin origin, CancellationToken token) => PrepareAsync(service, review, window.View, current, origin, token);
+
+    internal static async Task<ReviewedMcpSkillInvocation> PrepareAsync(ReviewedToolSkillInvocationWorkflow service,
+        ReviewedToolSkillReview review, SharedSkillInvocationView window, Func<bool> current,
         RequestOrigin origin, CancellationToken token)
     {
         var server = window.McpServers.SelectedItem as Kora.Application.Configuration.McpServerConfigurationSummary
@@ -29,13 +33,18 @@ internal static class McpSkillInvocationPresenter
         return invocation;
     }
 
-    internal static async Task<ConversationSubmissionReceipt> InvokeAsync(ReviewedToolSkillInvocationWorkflow service,
+    internal static Task<ConversationSubmissionReceipt> InvokeAsync(ReviewedToolSkillInvocationWorkflow service,
         ReviewedMcpSkillInvocation invocation, SharedSkillInvocationWindow window, QuestionWindowController questions,
+        Func<bool> current, CancellationToken token, Action<HostRequest, McpModelResult>? result = null,
+        McpResultCapture? capture = null) => InvokeAsync(service, invocation, window.View, questions, current, token, result, capture);
+
+    internal static async Task<ConversationSubmissionReceipt> InvokeAsync(ReviewedToolSkillInvocationWorkflow service,
+        ReviewedMcpSkillInvocation invocation, SharedSkillInvocationView window, QuestionWindowController questions,
         Func<bool> current, CancellationToken token, Action<HostRequest, McpModelResult>? result = null,
         McpResultCapture? capture = null)
     {
         window.Confirm.IsEnabled = false;
-        var native = new McpNativeReview(questions, () => window);
+        var native = new McpNativeReview(questions, () => window.Owner);
         using var request = HostActivity.BeginRoot(HostRequest.Create(invocation.Review.Origin), HostActivityLayer.Desktop, HostOperation.Request);
         var receipt = await service.InvokeMcpAsync(invocation, current,
             (proposal, generation, mapping, admitted, check) => capture is null

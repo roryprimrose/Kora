@@ -1,6 +1,7 @@
 using Kora.Application.ViewModels;
 using Kora.Application.Presentation;
 using Kora.Core.Presentation;
+using Kora.Core.Configuration;
 
 using Microsoft.Extensions.Logging;
 
@@ -13,7 +14,43 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
     private ResponseWindow? window;
     private bool disposed;
     private readonly DetailWindowController? details;
+    private readonly IWorkbenchPlacementPreferences? placementPreferences;
+    private Task retiredPlacementOperations = Task.CompletedTask;
+#pragma warning disable VSTHRD003 // Joins only placement writes retained by this controller across its owned window closure.
+    internal Task PlacementOperation => Task.WhenAll(retiredPlacementOperations, window?.PlacementOperation ?? Task.CompletedTask);
+#pragma warning restore VSTHRD003
     internal Action? PrepareDetailsHost { get; set; }
+    private Action? openPermissionGrants;
+    private Action? openEvidence;
+    private Action? openCustomizations;
+    private Action? openWork;
+    internal Action? OpenWork
+    {
+        get => openWork;
+        set { openWork = value; window?.BindWorkNavigation(value); }
+    }
+    internal Action? OpenCustomizations
+    {
+        get => openCustomizations;
+        set { openCustomizations = value; window?.BindCustomizationNavigation(value); }
+    }
+    internal Action? OpenEvidence
+    {
+        get => openEvidence;
+        set { openEvidence = value; window?.BindEvidenceNavigation(value); }
+    }
+    internal Action? OpenPermissionGrants
+    {
+        get => openPermissionGrants;
+        set
+        {
+            openPermissionGrants = value;
+            window?.BindPermissionNavigation(value);
+        }
+    }
+    internal ResponseWindow PrepareWorkbenchOwner() => EnsureWindow();
+    internal void ShowHostedView(WorkbenchActivity activity, Avalonia.Controls.Control view) =>
+        EnsureWindow().ShowHostedView(activity, view);
 
     internal ResponseWindow PrepareSessions(SessionsViewModel model, SessionsPresentationOwner owner,
         Action management, Action newConversation)
@@ -31,10 +68,16 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
     private ResponseWindow EnsureWindow()
     {
         if (window is not null) { return window; }
-        var opened = new ResponseWindow(viewModel, details);
+        var opened = new ResponseWindow(viewModel, details, null, null, placementPreferences, logger);
+        opened.PrepareDocumentHost = () => PrepareDetailsHost?.Invoke();
+        opened.BindPermissionNavigation(OpenPermissionGrants);
+        opened.BindEvidenceNavigation(OpenEvidence);
+        opened.BindCustomizationNavigation(OpenCustomizations);
+        opened.BindWorkNavigation(OpenWork);
         ObserveAutomaticDetailsWindow(opened);
         opened.Closed += (_, _) =>
         {
+            retiredPlacementOperations = Task.WhenAll(retiredPlacementOperations, opened.PlacementOperation);
             if (ReferenceEquals(window, opened)) { window = null; }
         };
         window = opened;
@@ -44,12 +87,15 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
     public ResponseWindowController(
         MainViewModel viewModel,
         ILogger<ResponseWindowController> logger,
-        DetailWindowController? detailController = null)
+        DetailWindowController? detailController = null,
+        IWorkbenchPlacementPreferences? placementPreferences = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
         details = detailController;
+        this.placementPreferences = placementPreferences;
         viewModel.WindowActionRequested += OnWindowActionRequested;
+        viewModel.ResponseRestoreRequested += OnResponseRestoreRequested;
         viewModel.CurrentResponseChanged += OnCurrentResponseChanged;
         viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
         viewModel.BindCurrentResponsePresentation(this);
@@ -65,7 +111,8 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
     public Func<bool> CaptureLifetime()
     {
         var captured = window;
-        return () => !disposed && captured is { IsVisible: true } && ReferenceEquals(captured, window);
+        return () => !disposed && captured is { IsVisible: true, WindowState: not Avalonia.Controls.WindowState.Minimized }
+            && ReferenceEquals(captured, window);
     }
 
     public bool Dismiss(Func<bool> admitted)
@@ -102,6 +149,7 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
 
         disposed = true;
         viewModel.WindowActionRequested -= OnWindowActionRequested;
+        viewModel.ResponseRestoreRequested -= OnResponseRestoreRequested;
         viewModel.CurrentResponseChanged -= OnCurrentResponseChanged;
         viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested;
         if (window is not null)
@@ -110,6 +158,12 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
             window = null;
         }
         details?.RetireUnavailableCurrentResponses();
+    }
+
+    private void OnResponseRestoreRequested(object? sender, EventArgs args)
+    {
+        if (!disposed && viewModel.CanRevealPrivatePresentation)
+        { EnsureWindow().ShowResponse(restoreMinimized: true); }
     }
 
     private void OnWindowActionRequested(object? sender, WindowAction action)

@@ -7,7 +7,7 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class WorkspaceRealignmentContractTests
 {
     [Theory]
-    [InlineData("SessionsWindow.axaml")]
+    [InlineData("SessionsManagementView.axaml")]
     [InlineData("CompactSessionWindow.axaml")]
     public void NormalConversationRetainsContentSearchWithoutEngineeringQueries(string file)
     {
@@ -23,7 +23,7 @@ public sealed class WorkspaceRealignmentContractTests
     [Fact]
     public void SessionsRetainsExistingWorkInspectionAndCancellationWithoutDiagnosticAdmission()
     {
-        var controls = Names("SessionsWindow.axaml");
+        var controls = Names("SessionsManagementView.axaml");
         controls.Should().Contain(["HistoryKind", "HistoryTaskState", "HistoryDecision",
             "HistoryQuestionStatus", "HistoryAnswerChannel"]);
         controls.Should().Contain(["ReadQueue", "InspectWork", "CancelQueueEntry", "RemoveQueueEntry",
@@ -37,7 +37,7 @@ public sealed class WorkspaceRealignmentContractTests
             || name is "DispatchQueue" or "PauseQueue" or "ResumeQueue" or "QueuePrerequisites" or "QueueCapabilities"
                 or "NoQueuePrerequisite" or "MoveQueueUp" or "MoveQueueDown" or "HistoryRequestId" or "HistoryTaskId"
                 or "LocalEventTaskIdFilter" or "LocalEventQueueProfileFilter").Should().BeEmpty();
-        var settings = XDocument.Load(Source("SettingsWindow.axaml"));
+        var settings = XDocument.Load(Source("SettingsView.axaml"));
         settings.Descendants().Attributes().Should().NotContain(attribute =>
             attribute.Value.Contains("QueueConfiguration", StringComparison.Ordinal)
             || attribute.Value.Contains("SelectedQueuePending", StringComparison.Ordinal)
@@ -53,7 +53,7 @@ public sealed class WorkspaceRealignmentContractTests
     [Fact]
     public void AttachmentCatalogueRetainsMeaningfulSizeTypeAndFindWithoutEngineeringPredicates()
     {
-        var controls = Names("AttachmentCatalogueWindow.axaml");
+        var controls = Names("AttachmentCatalogueView.axaml");
         controls.Should().Contain(["AttachmentMediaType", "AttachmentMinimumBytes", "AttachmentMaximumBytes",
             "AttachmentPageOrder", "MetadataDetails", "MetadataFindQuery", "OpenExact"]);
         controls.Where(name => name is "AttachmentDigest" or "AttachmentMetadataText"
@@ -66,16 +66,16 @@ public sealed class WorkspaceRealignmentContractTests
             || name.StartsWith("AttachmentMaximumCaptured", StringComparison.Ordinal)
             || name.StartsWith("AttachmentMinimumStorage", StringComparison.Ordinal)
             || name.StartsWith("AttachmentMaximumStorage", StringComparison.Ordinal)).Should().BeEmpty();
-        Names("SkillPackagesWindow.axaml").Should().NotContain(["PackageDefinitionDigest", "PackageDeclaredResourceDigest"]);
-        Names("SharedSkillSourcesWindow.axaml").Should().NotContain("SharedRevisionDigest");
-        Names("AllWorkWindow.axaml").Should().NotContain(["WorkRanges", "RetainedTaskId", "RetainedRequestId",
+        Names("SkillPackagesView.axaml").Should().NotContain(["PackageDefinitionDigest", "PackageDeclaredResourceDigest"]);
+        Names("SharedSkillSourcesView.axaml").Should().NotContain("SharedRevisionDigest");
+        Names("AllWorkView.axaml").Should().NotContain(["WorkRanges", "RetainedTaskId", "RetainedRequestId",
             "ObservationAvailability", "ObservedContent"]);
     }
 
     [Fact]
     public void EvidenceTraceAndAuditQueriesRemainInTheirDiagnosticSurface()
     {
-        Names("EvidenceWindow.axaml").Should().Contain(["SpanId", "TraceSource", "TraceSourceVersion",
+        Names("EvidenceView.axaml").Should().Contain(["SpanId", "TraceSource", "TraceSourceVersion",
             "ActivityName", "ActivityKind", "TraceFlags", "ParentSpanId", "OperationOutcome",
             "FromAuditSequence", "UntilAuditSequence", "FromDueUtc", "UntilDueUtc"]);
     }

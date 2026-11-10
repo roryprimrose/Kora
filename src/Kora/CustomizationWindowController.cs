@@ -10,6 +10,7 @@ using Kora.Core.Artifacts;
 using Kora.Core.Customizations;
 using Kora.Core.Hosting;
 using Kora.Core.Diagnostics;
+using Kora.Core.Commands;
 using Kora.Definitions.Skills;
 
 using Microsoft.Extensions.Logging;
@@ -25,7 +26,10 @@ internal sealed partial class CustomizationWindowController(
     Kora.Application.Configuration.ArtifactDirectoryConfigurationService? mcpSettings = null,
     Kora.Application.Hosting.SessionConversationService? mcpConversation = null) : IDisposable
 {
-    private CustomizationWindow? window;
+    private CustomizationView? window;
+    private CustomizationWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<CustomizationView>? presentWorkbench;
     private CancellationTokenSource? lifetime;
     private IReadOnlyList<CustomizationSource> sources = [];
     private readonly Dictionary<string, CustomizationSnapshot> bundled = new(StringComparer.Ordinal);
@@ -54,11 +58,84 @@ internal sealed partial class CustomizationWindowController(
     private long promptAuthoringRevision;
     internal CustomizationVoiceTarget? VoiceTarget => voiceTarget;
 
+    internal void BindWorkbench(Func<Window> owner, Action<CustomizationView> present)
+    {
+        getWorkbench = owner;
+        presentWorkbench = present;
+    }
+
     internal async Task WaitForOperation()
     {
 #pragma warning disable VSTHRD003 // Observes only the operation owned by this controller; no replacement is started.
         await active;
 #pragma warning restore VSTHRD003
+    }
+
+    internal async Task<bool> ShowRegisteredMcpAsync(bool lookupWorkIq, Func<bool> admitted)
+    {
+        if (!admitted() || busy)
+        { throw new InvalidOperationException("Registered MCP navigation requires the original idle host presentation."); }
+        Open();
+        if (window is not { } opened)
+        { throw new InvalidOperationException("The registered MCP view could not be presented."); }
+        await WaitForOperation();
+        if (!admitted() || !ReferenceEquals(window, opened) || !Eligible())
+        { throw new OperationCanceledException("Registered MCP navigation was retired before metadata presentation."); }
+        var read = ReadRegisteredMcpMetadataAsync(opened, admitted);
+        active = read;
+        if (!await read) { return false; }
+        opened.Kind = CustomizationKind.McpServer;
+        RenderSources();
+        var registered = sources.Where(item => item.Kind == CustomizationKind.McpServer).ToArray();
+        var unavailable = registered.Count(item => item.UnavailableReason is not null);
+        if (lookupWorkIq)
+        {
+            var matches = registered.Where(item => WorkspaceSurfaceCommand.MatchesObservationName(item.Name, "WorkIQ")).ToArray();
+            opened.Search.Text = "WorkIQ";
+            opened.Status.Text = matches.Length == 0
+                ? unavailable == 0
+                    ? "No MCP server named WorkIQ was found in Kora's registered metadata. Scope: registered sources only, not an internet search. Broader discovery requires separate source/network consent. No connection or model call was made."
+                    : "WorkIQ lookup unconfirmed: registered MCP source metadata is unavailable. No absence or complete inventory is claimed. Clear the filter and inspect the unavailable source, then explicitly retry. No connection or model call was made."
+                : $"Found {matches.Length} registered MCP source(s) named WorkIQ. Scope: Kora's registered metadata only. Presence in this list does not establish connector readiness, authentication or permission. No connection or model call was made.";
+            if (unavailable != 0) { opened.Status.Text += $" Unavailable registered entries: {unavailable}. The inventory is incomplete."; }
+            return matches.Length != 0 || unavailable == 0;
+        }
+        else
+        {
+            opened.Search.Text = string.Empty;
+            opened.Status.Text = $"Registered MCP metadata: {registered.Length} observed entries; {unavailable} unavailable sources. "
+                + (unavailable == 0 ? string.Empty : "Incomplete inventory; no empty success or absence is claimed. ")
+                + "Disabled entries remain visible. No endpoints, launch arguments or credentials were disclosed; no network, model or tool invocation occurred.";
+            return unavailable == 0;
+        }
+    }
+
+    private async Task<bool> ReadRegisteredMcpMetadataAsync(CustomizationView opened, Func<bool> admitted)
+    {
+        var token = lifetime?.Token ?? throw new InvalidOperationException("The registered MCP source owner is unavailable.");
+        bool Current() => admitted() && ReferenceEquals(window, opened) && Eligible();
+        busy = true;
+        try
+        {
+            sources = [];
+            Interlocked.Increment(ref capabilityPresentationRevision);
+            ClearCapabilityMetadata();
+            opened.Status.Text = "Reading current registered MCP metadata. The previous lookup result has been retired.";
+            var disk = await management.List(Current, token);
+            RequireCurrent(Current, token);
+            sources = [.. bundled.Values.Select(snapshot => snapshot.Source), .. disk];
+            RefreshCapabilityMetadata();
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException
+            or InvalidOperationException or ArgumentException or NotSupportedException or OperationCanceledException)
+        {
+            CustomizationFailed(logger, exception.GetType().Name);
+            if (ReferenceEquals(window, opened))
+            { opened.Status.Text = "Registered MCP metadata unavailable or retired. No complete inventory, absence or previous found result is claimed; explicitly retry after inspecting the source."; }
+            return false;
+        }
+        finally { busy = false; }
     }
 
     internal void Bind()
@@ -74,7 +151,7 @@ internal sealed partial class CustomizationWindowController(
         main.BindCustomizationVoice(RouteVoice);
     }
 
-    private bool Eligible() => !disposed && window is not null && ownsHost()
+    private bool Eligible() => !disposed && window is { IsNativePresented: true } && ownsHost()
         && ownerRevision == ownershipRevision() && main.CanRevealPrivatePresentation
         && main.CaptureInstructionEditorEligibility()();
 
@@ -85,12 +162,23 @@ internal sealed partial class CustomizationWindowController(
         { main.ReportHostInteractionFailure("Customizations requires the current unlocked owning host and eligible privacy/call state."); return; }
         if (window is not null)
         {
-            if (!Eligible()) { OnPrivacyClosed(this, EventArgs.Empty); return; }
-            window.Activate(); return;
+            if (!ownsHost() || ownerRevision != ownershipRevision() || !main.CaptureInstructionEditorEligibility()())
+            { OnPrivacyClosed(this, EventArgs.Empty); return; }
+            if (presentWorkbench is not null) { presentWorkbench(window); }
+            else { adapter!.Show(); }
+            window.Owner.Activate();
+            PublishVoiceTarget();
+            return;
         }
         ownerRevision = ownershipRevision();
         lifetime = new();
-        window = new(Start, main);
+        if (getWorkbench is not null)
+        { window = new CustomizationView(Start, main, getWorkbench()); }
+        else
+        {
+            adapter = new CustomizationWindow(Start, main);
+            window = adapter.View;
+        }
         window.Files.SelectionChanged += (_, _) => SelectFile();
         window.Editor.PropertyChanged += (_, change) =>
         {
@@ -107,14 +195,10 @@ internal sealed partial class CustomizationWindowController(
         window.PresentationLost += () => { RetireVoiceTarget(); RetirePromptAuthoring(); };
         window.Activated += (_, _) => PublishVoiceTarget();
         // Activated can precede IsActive; also observe the committed foreground state.
-        window.PropertyChanged += (_, change) =>
-        {
-            if (change.Property == Window.IsActiveProperty
-                && window is { IsActive: true, IsVisible: true }) { PublishVoiceTarget(); }
-        };
         window.Closing += OnClosing;
         window.Closed += (_, _) => ClearWindow();
-        window.Show();
+        if (presentWorkbench is not null) { presentWorkbench(window); }
+        else { adapter!.Show(); }
         Start("Refresh");
     }
 
@@ -218,7 +302,7 @@ internal sealed partial class CustomizationWindowController(
 
     private void PublishVoiceTarget()
     {
-        if (busy || window is not { IsActive: true, IsVisible: true } opened || source is null || !Eligible()
+        if (busy || window is not { IsActive: true, IsNativePresented: true } opened || source is null || !Eligible()
             || source.Kind == CustomizationKind.McpServer) { return; }
         if (voiceTarget is { IsCurrent: true }) { return; }
         var input = main.CaptureCustomizationVoiceEligibility();
@@ -796,19 +880,20 @@ internal sealed partial class CustomizationWindowController(
     private void OnPrivacyClosed(object? sender, EventArgs args)
     {
         if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(() => OnPrivacyClosed(sender, args)); return; }
-        RetirePromptAuthoring(); lifetime?.Cancel(); closing = true; window?.CancelReview(); window?.Close(); closing = false;
+        RetirePromptAuthoring(); lifetime?.Cancel(); closing = true; window?.CancelReview(); CloseSurface(); closing = false;
     }
     private void OnClosing(object? sender, WindowClosingEventArgs args)
     {
         RetireVoiceTarget();
         RetirePromptAuthoring();
-        if (closing) { return; }
+        if (closing || args.Cancel || !busy && !Dirty()) { return; }
         args.Cancel = true;
         if (!busy) { active = CloseReviewed(); }
     }
     private async Task CloseReviewed()
     {
-        if (await PrepareClose()) { closing = true; window?.Close(); closing = false; }
+        if (window is not null && !window.IsNativePresented && presentWorkbench is not null) { presentWorkbench(window); }
+        if (await PrepareClose()) { closing = true; window?.Owner.Close(); closing = false; }
     }
     internal async Task<bool> PrepareClose()
     {
@@ -830,8 +915,18 @@ internal sealed partial class CustomizationWindowController(
         externalInventories.Clear(); displayedServers.Clear();
         Interlocked.Increment(ref capabilityPresentationRevision);
         retiredWindow?.ClearPrivateText();
+        adapter = null;
         retired?.Cancel();
         if (retired is not null) { _ = DisposeLifetime(active, retired); }
+    }
+
+    private void CloseSurface()
+    {
+        var view = window;
+        var legacy = adapter;
+        view?.Dispose();
+        if (view?.Owner is ResponseWindow owner) { owner.RemoveHostedView(view); }
+        if (legacy is { IsVisible: true }) { legacy.Close(); }
     }
     private async Task DisposeLifetime(Task operation, CancellationTokenSource retired)
     {

@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-public sealed class WindowsSqliteNativeHandoffReviewTests
+public sealed partial class WindowsSqliteNativeHandoffReviewTests
 {
     [Theory]
     [InlineData(false)]

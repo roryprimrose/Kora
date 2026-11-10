@@ -11,11 +11,79 @@ using Kora.Core.Customizations;
 using Kora.Core.Hosting;
 using Kora.Core.Mcp;
 using Kora.Core.Storage;
+using Kora.NativeUxFixture;
+using Kora.Windows.IntegrationTests.Storage;
+using Avalonia.VisualTree;
 
 namespace Kora.Windows.IntegrationTests;
 
 public sealed class McpCapabilityManagerTests
 {
+    [Theory]
+    [InlineData("confirm")]
+    [InlineData("hide")]
+    [InlineData("minimize")]
+    [InlineData("tab")]
+    [InlineData("private")]
+    [InlineData("cancel")]
+    public async Task HostedCapabilityManagerRequiresFreshSeparateSaveAndCannotReviveLostPreferenceReview(string action)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var native = new NativeUxFixtureSession(OwnedStorageFixture.ScratchParent());
+            await native.InitializeAsync();
+            var owner = new ResponseWindow(native.Main);
+            var windows = new List<Window>();
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) => windows.Add(window));
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            var changes = new Changes();
+            var inventory = Inventory();
+            try
+            {
+                owner.ShowSessions(expanded: true);
+                var pending = McpCapabilityManagerWindow.ShowAsync(owner, changes, inventory, () => changes.Current, cancellation.Token);
+                var editor = owner.GetVisualDescendants().OfType<McpCapabilityManagerEditorView>().Single();
+                Click(editor, "Disable all Resources");
+                Click(editor, "Review changes");
+                var source = editor.GetLogicalDescendants().OfType<TextBox>().Single();
+                source.Text.Should().Contain("Complete discovered item selections");
+                pending.IsCompleted.Should().BeFalse();
+                inventory.Selection.Categories.Should().BeEmpty();
+                switch (action)
+                {
+                    case "confirm": Click(editor, "Confirm Save of these preferences"); break;
+                    case "hide": owner.Hide(); owner.Show(); owner.Activate(); break;
+                    case "minimize": owner.WindowState = WindowState.Minimized; owner.WindowState = WindowState.Normal; break;
+                    case "tab":
+                        var other = new TextBlock { Text = "Another exact review" };
+                        owner.ShowNativeReview(other, "Another exact review", other, static () => true, _ => { });
+                        break;
+                    case "private": changes.Current = false; changes.Notify(); break;
+                    case "cancel": await cancellation.CancelAsync(); break;
+                }
+                if (action is "cancel")
+                { await FluentActions.Awaiting(() => pending).Should().ThrowAsync<OperationCanceledException>(); }
+                else
+                {
+                    var result = await pending;
+                    if (action is "confirm")
+                    {
+                        result.Should().NotBeNull();
+                        result!.Selection.IsEnabled(inventory.ServerId, McpCapabilityKind.Resource, "data://item").Should().BeFalse();
+                        result.Selection.IsEnabled(inventory.ServerId, McpCapabilityKind.Tool, "search").Should().BeTrue();
+                    }
+                    else { result.Should().BeNull(); }
+                }
+                source.Text.Should().BeEmpty();
+                editor.Content.Should().BeNull();
+                inventory.Selection.Categories.Should().BeEmpty();
+                changes.Subscribers.Should().Be(0);
+                windows.Distinct().Should().Equal(owner);
+            }
+            finally { owner.Close(); }
+        });
+    }
+
     [Fact]
     public async Task ActiveFilterDoesNotNarrowCategoryBulkChangesOrDiscardIndividualDraftChoices()
     {
@@ -134,7 +202,7 @@ public sealed class McpCapabilityManagerTests
         });
     }
 
-    private static void Click(Window dialog, string text) => dialog.GetLogicalDescendants().OfType<Button>()
+    private static void Click(Control dialog, string text) => dialog.GetLogicalDescendants().OfType<Button>()
         .Single(button => Equals(button.Content, text)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
     private static McpCapabilityInventory Inventory()

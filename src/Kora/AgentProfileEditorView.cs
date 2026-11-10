@@ -1,0 +1,242 @@
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+
+using Kora.Application.Agents;
+
+namespace Kora;
+
+internal sealed class AgentProfileEditorView : UserControl, IDisposable
+{
+    internal Window Owner { get; }
+    private readonly NativeViewLifetime lifetime;
+    private readonly Func<bool> admitted;
+    private bool disposed;
+    internal bool IsNativePresented => lifetime.IsPresented;
+    internal Func<bool> CapturePresentation() => lifetime.Capture();
+    internal event EventHandler<WindowClosingEventArgs>? Closing;
+    internal event EventHandler? CloseRequested;
+    internal event EventHandler? PresentationLost;
+    internal void Activate() => Owner.Activate();
+    internal void Close() => Dispose();
+    private Action? cancelDecision;
+    private readonly StackPanel savePreview = new() { Spacing = 8 };
+    private WeakReference<AgentProfileSaveReview>? displayedReview;
+    private bool transferringDecision;
+    internal TextBox NameInput { get; } = new() { PlaceholderText = "new-lowercase-owned-id", IsUndoEnabled = false };
+    internal TextBox Source { get; } = new() { AcceptsReturn = true, Height = 250, IsUndoEnabled = false };
+    internal TextBox DescriptionRequest { get; } = new() { AcceptsReturn = true, Height = 100, IsUndoEnabled = false };
+    internal ComboBox Inventory { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    internal TextBox Review { get; } = new() { AcceptsReturn = true, Height = 250, IsReadOnly = true, IsUndoEnabled = false };
+    internal TextBlock Status { get; } = new() { TextWrapping = TextWrapping.Wrap };
+    internal Button Confirm { get; } = new() { Content = "Confirm Save as new...", IsEnabled = false };
+    private Window? dialog;
+
+    internal AgentProfileEditorView(Window owner, Action<string> run, Func<bool> admitted)
+    {
+        Owner = owner;
+        this.admitted = admitted;
+        lifetime = new(this, owner, () => !disposed && admitted());
+        lifetime.PresentationChanged += (_, _) =>
+        {
+            if (!lifetime.IsPresented)
+            {
+                RetireReview();
+                PresentationLost?.Invoke(this, EventArgs.Empty);
+            }
+        };
+        owner.Closing += OnOwnerClosing;
+        owner.Closed += OnOwnerClosed;
+        var panel = new StackPanel { Margin = new(20), Spacing = 10 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Author an inert local text profile: reference-free v1 with optional existing observation tools, "
+                + "or v4 declaring exact owned instruction IDs and existing observation tools. Conversational generation remains tool-free v1. "
+                + "Saving never resolves, enables or invokes references or grants tool authority. "
+                + "Create new files or explicitly edit the same inspected original under the private owned-agent directory.",
+            TextWrapping = TextWrapping.Wrap,
+        });
+        AutomationProperties.SetName(NameInput, "New owned agent ID");
+        AutomationProperties.SetName(Source, "Complete original agent source");
+        AutomationProperties.SetName(Review, "Complete exact original and proposed source review");
+        AutomationProperties.SetName(Inventory, "Owned inert agent originals");
+        panel.Children.Add(NameInput);
+        Add("Create new volatile draft", "Create");
+        AutomationProperties.SetName(DescriptionRequest, "Original agent description or refinement");
+        DescriptionRequest.PlaceholderText = "Describe a local text-only role, or refine this draft";
+        panel.Children.Add(DescriptionRequest);
+        Add("Ask Kora: review local authoring disclosure", "Ask");
+        panel.Children.Add(Source);
+        Add("Validate complete v1 or v4 source", "Validate");
+        Add("Review Save (new or existing original)", "Review");
+        savePreview.Children.Add(Review);
+        savePreview.Children.Add(Confirm);
+        panel.Children.Add(savePreview);
+        Confirm.Click += (_, _) => run("Confirm");
+        Add("Cancel proposal or save review", "Cancel");
+        Add("Refresh owned inventory", "List");
+        panel.Children.Add(Inventory);
+        Add("Reopen selected original read-only", "Inspect");
+        Add("Edit existing original", "Edit");
+        Add("Reload from disk (abandon draft)", "Reload");
+        var close = new Button { Content = "Close editor", Name = "CloseAgentEditor" };
+        close.Click += (_, _) => CloseRequested?.Invoke(this, EventArgs.Empty);
+        panel.Children.Add(close);
+        panel.Children.Add(Status);
+        Content = new ScrollViewer { Content = panel };
+        void Add(string label, string action)
+        {
+            var button = new Button { Content = label };
+            button.Click += (_, _) => run(action);
+            panel.Children.Add(button);
+        }
+    }
+
+    internal void ShowReview(AgentProfileSaveReview review)
+    {
+        var binding = new WeakReference<AgentProfileSaveReview>(review);
+        displayedReview = binding;
+        DisplayReview(review);
+        if (Owner is not ResponseWindow primary) { return; }
+        var native = CapturePresentation();
+        primary.ShowNativeReview(savePreview, "Complete agent original and proposed source", savePreview,
+            () => native() && binding.TryGetTarget(out var source) && source.IsCurrent,
+            shown =>
+            {
+                if (!ReferenceEquals(displayedReview, binding)) { return; }
+                if (shown && binding.TryGetTarget(out var source) && source.IsCurrent) { DisplayReview(source); }
+                else
+                {
+                    Review.Text = string.Empty;
+                    Confirm.IsEnabled = false;
+                    // The separate decision repeats the complete source and retains the same admitted save.
+                    if (!transferringDecision) { PresentationLost?.Invoke(this, EventArgs.Empty); }
+                }
+            });
+    }
+
+    private void DisplayReview(AgentProfileSaveReview review)
+    {
+        var profile = review.Document.Profile;
+        Review.Text = (review.Original is null
+            ? $"NEW ORIGINAL: {review.Destination.DisplayPath}\nCREATE ONLY; NO REPLACEMENT.\n"
+            : $"EXISTING ORIGINAL: {review.Destination.DisplayPath}\nUPDATE ONLY THIS EXACT REVIEWED BASE; NO NEW COPY.\n"
+                + $"BEFORE: COMPLETE ORIGINAL SOURCE\n{review.Original.Document.Document.Text}\n\nAFTER: COMPLETE PROPOSED SOURCE\n")
+            + "Local text -> text; references are unresolved declarations, not enabled guidance.\n"
+            + $"Declared references: {review.Document.Document.Metadata["references"]}\n"
+            + $"Declared tools: {review.Document.Document.Metadata["tools"]}\n"
+            + $"Host clamps: calls {profile.MaximumCalls}, rounds {profile.MaximumRounds}, input {profile.MaximumInputUtf8Bytes} bytes, "
+            + $"output {profile.MaximumOutputUtf8Bytes} bytes, deadline {profile.Deadline.TotalMilliseconds}ms.\n"
+            + $"Complete proposed UTF-8 source ({review.Document.Document.ByteCount} bytes, BOM: {review.Document.Document.HasBom}):\n\n"
+            + review.Document.Document.Text
+            + "\n\nSaving does not select, enable or invoke this profile. Separate native confirmation is required.";
+        Confirm.IsEnabled = true;
+        Confirm.Content = review.Original is null ? "Confirm Save as new..." : "Confirm Save existing original...";
+    }
+
+    internal async Task<int> Choose(string title, string message, string[] choices, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Choose(title, message, choices, token)); }
+        if (!IsNativePresented) { throw new InvalidOperationException("The private authoring view is not presented."); }
+        if (dialog is not null || cancelDecision is not null) { throw new InvalidOperationException("A native authoring decision is already open."); }
+        if (Owner is ResponseWindow primary)
+        {
+            var decision = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var body = new StackPanel { Margin = new(12), Spacing = 8 };
+            var text = new TextBox
+            { Text = message, AcceptsReturn = true, IsReadOnly = true, IsUndoEnabled = false, MinHeight = 120, MaxHeight = 450 };
+            body.Children.Add(text);
+            for (var index = 0; index < choices.Length; index++)
+            {
+                var value = index;
+                var button = new Button { Content = choices[index], IsDefault = false };
+                button.Click += (_, _) => decision.TrySetResult(value);
+                body.Children.Add(button);
+            }
+            cancelDecision = () => decision.TrySetResult(-1);
+            var native = CapturePresentation();
+            using var inlineRegistration = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => decision.TrySetResult(-1)));
+            try
+            {
+                transferringDecision = true;
+                try
+                {
+                    primary.ShowNativeReview(body, title, body, () => native() && admitted(),
+                        shown => { if (!shown) { decision.TrySetResult(-1); } });
+                }
+                finally { transferringDecision = false; }
+                var value = await decision.Task;
+                token.ThrowIfCancellationRequested();
+                return native() && admitted() ? value : -1;
+            }
+            finally
+            {
+                cancelDecision = null;
+                primary.RemoveNativeReview(body);
+                text.Text = string.Empty;
+                body.Children.Clear();
+            }
+        }
+        var choice = new Window { Title = title, Width = 800, Height = 650 };
+        dialog = choice;
+        var selected = -1;
+        var panel = new StackPanel { Margin = new(20), Spacing = 12 };
+        panel.Children.Add(new TextBox { Text = message, AcceptsReturn = true, IsReadOnly = true, IsUndoEnabled = false, Height = 450 });
+        for (var index = 0; index < choices.Length; index++)
+        {
+            var value = index;
+            var button = new Button { Content = choices[index], IsDefault = false };
+            button.Click += (_, _) => { selected = value; choice.Close(); };
+            panel.Children.Add(button);
+        }
+        choice.Content = new ScrollViewer { Content = panel };
+        using var registration = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(choice.Close));
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            await choice.ShowDialog(Owner);
+            token.ThrowIfCancellationRequested();
+            return selected;
+        }
+        finally { if (ReferenceEquals(dialog, choice)) { dialog = null; } panel.Children.Clear(); }
+    }
+
+    internal void RetireReview()
+    {
+        displayedReview = null;
+        Confirm.IsEnabled = false;
+        Review.Text = string.Empty;
+        dialog?.Close();
+        cancelDecision?.Invoke();
+    }
+
+    internal void ClearPrivateText()
+    {
+        RetireReview();
+        NameInput.Text = Source.Text = DescriptionRequest.Text = string.Empty;
+        Inventory.ItemsSource = null;
+        Status.Text = string.Empty;
+    }
+
+    private void OnOwnerClosing(object? sender, WindowClosingEventArgs args) => Closing?.Invoke(this, args);
+    private void OnOwnerClosed(object? sender, EventArgs args) => Dispose();
+    public void Dispose()
+    {
+        if (disposed) { return; }
+        disposed = true;
+        cancelDecision?.Invoke();
+        ClearPrivateText();
+        Owner.Closing -= OnOwnerClosing;
+        Owner.Closed -= OnOwnerClosed;
+        lifetime.Dispose();
+        if (Owner is ResponseWindow primary)
+        {
+            primary.RemoveNativeReview(savePreview);
+            primary.RemoveHostedView(this);
+        }
+        else if (Owner is AgentProfileEditorWindow) { Owner.Close(); }
+    }
+}

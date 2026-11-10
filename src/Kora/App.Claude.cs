@@ -19,6 +19,10 @@ public sealed partial class App
             Services.GetRequiredService<ILogger<ClaudeAccountWindowController>>());
         claudeTransmissionWindow = new(main, Services.GetRequiredService<HostedTransmissionReviewService>(),
             Services.GetRequiredService<ILogger<ClaudeTransmissionWindowController>>());
+        Avalonia.Controls.Window Owner() => (responseWindow
+            ?? throw new InvalidOperationException("Private Claude presentation requires the owning workbench.")).PrepareWorkbenchOwner();
+        claudeAccountWindow.BindWorkbench(Owner);
+        claudeTransmissionWindow.BindWorkbench(Owner);
     }
 
     private void DisposeClaudePresentation()

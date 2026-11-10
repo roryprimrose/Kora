@@ -21,5 +21,13 @@ public sealed partial class App
             () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
             Services.GetRequiredService<ILogger<InstructionUseController>>());
         instructionUse.Bind();
+        var responses = responseWindow ?? throw new InvalidOperationException("Instruction use requires the owning response workbench.");
+        instructionUse.BindWorkbench(responses.PrepareWorkbenchOwner, view =>
+        {
+            var owner = responses.PrepareWorkbenchOwner();
+            owner.ShowSessions(expanded: true);
+            owner.ShowNativeReview(view, "Review one owned instruction request", view,
+                () => main.CanRevealPrivatePresentation, _ => { });
+        });
     }
 }

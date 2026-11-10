@@ -52,6 +52,7 @@ public sealed class SettingsResetMenuTests
 
     public static TheoryData<string, string, string?> MigratedResets => new()
     {
+        { "ResetVoiceTimingCommand", "Review reset capture timing", "CanReviewVoiceTiming" },
         { "ResetAssistantNameCommand", "Reset name to Kora", null },
         { "ResetSpeechVoiceCommand", "Reset speech voice", null },
         { "ResetSummarySentencesCommand", "Reset sentence limit", null },
@@ -171,7 +172,7 @@ public sealed class SettingsResetMenuTests
                 "{Binding ResetMarkdownDisplayCommand}"]);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(42);
+            .Should().Be(43);
         elements.Where(element => element.Name.LocalName is nameof(SettingActionsButton))
             .Select(element => element.Attribute("SettingName")?.Value).Should().Contain(
                 ["Ordinary task deadline", "Ordinary conversation execution maximum",
@@ -234,7 +235,7 @@ public sealed class SettingsResetMenuTests
 
     [Theory]
     [InlineData("Appearance", 17, 17, 0, 0)]
-    [InlineData("Speech & audio", 9, 8, 5, 0)]
+    [InlineData("Speech & audio", 10, 9, 5, 0)]
     [InlineData("Responses", 6, 6, 3, 2)]
     [InlineData("Sessions", 2, 2, 2, 0)]
     [InlineData("Logging", 2, 2, 2, 0)]
@@ -575,7 +576,7 @@ public sealed class SettingsResetMenuTests
     }
 
     private static XDocument LoadSettings() =>
-        XDocument.Load(Path.Combine(FindSettingsDirectory(), "SettingsWindow.axaml"));
+        XDocument.Load(Path.Combine(FindSettingsDirectory(), "SettingsView.axaml"));
 
     private static string FindSettingsDirectory()
     {

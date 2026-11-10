@@ -57,9 +57,13 @@
       </Border>
     </DataTemplate>
   </UserControl.Resources>
-  <Grid Margin="12" ColumnDefinitions="230,Auto,*" ColumnSpacing="10">
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="8">
-      <TextBlock Text="Sessions" FontSize="20" FontWeight="SemiBold" />
+  <Grid x:Name="SessionLayout" Margin="12" ColumnDefinitions="230,Auto,*" ColumnSpacing="10">
+    <Grid x:Name="SessionSidebar" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="8">
+      <WrapPanel>
+        <TextBlock Text="Sessions" FontSize="20" FontWeight="SemiBold" />
+        <Button x:Name="HideSessionSidebar" Content="Chat" IsVisible="False" Click="OnToggleSessionSidebar"
+            AutomationProperties.Name="Return from session navigation to chat" />
+      </WrapPanel>
       <ComboBox Grid.Row="1" ItemsSource="{Binding SessionFilters}"
           SelectedItem="{Binding SessionFilter, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
           AutomationProperties.Name="Session list lifecycle filter" />
@@ -102,15 +106,19 @@
         <Button x:Name="ManageSessions" Content="Session management..." />
       </StackPanel>
     </Grid>
-    <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
+    <GridSplitter x:Name="SessionSidebarDivider" Grid.Column="1" Width="4" ResizeDirection="Columns" />
     <Grid x:Name="ReadingPanes" Grid.Column="2" ColumnDefinitions="*,0,0">
     <Grid x:Name="ConversationPane" MinWidth="320" RowDefinitions="Auto,Auto,3*,Auto,Auto,*" RowSpacing="8">
       <Grid ColumnDefinitions="*,Auto">
       <TextBlock Text="{Binding InteractionTarget}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"
           AutomationProperties.Name="Selected conversation; context is not a lock for general voice requests" />
-      <Button Grid.Column="1" x:Name="ShowSessionDetails" Content="Show details" IsEnabled="{Binding CanShowDetails}"
-          AutomationProperties.Name="Show details available for the selected session"
-          ToolTip.Tip="{Binding DetailsAvailability}" />
+      <WrapPanel Grid.Column="1">
+        <Button x:Name="ToggleSessionSidebar" Content="Sessions" IsVisible="False" Click="OnToggleSessionSidebar"
+            AutomationProperties.Name="Show or hide session navigation in the narrow workbench" />
+        <Button x:Name="ShowSessionDetails" Content="Show details" IsEnabled="{Binding CanShowDetails}"
+            AutomationProperties.Name="Show details available for the selected session"
+            ToolTip.Tip="{Binding DetailsAvailability}" />
+      </WrapPanel>
       </Grid>
       <StackPanel Grid.Row="1" Spacing="6">
         <TextBlock Text="{Binding Status}" Classes="muted" TextWrapping="Wrap"
@@ -180,7 +188,7 @@
             </StackPanel>
           </Grid>
         </TabItem>
-        <TabItem Header="Activity">
+        <TabItem x:Name="ActivityTab" Header="Activity">
           <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="8">
             <TextBlock Text="Retained host records: questions, answers, work and decisions. Historical records are read-only, never approval controls."
                 TextWrapping="Wrap" Classes="muted" />
@@ -241,10 +249,12 @@
     <GridSplitter x:Name="DetailsDivider" Grid.Column="1" Width="6" IsVisible="False" ResizeDirection="Columns"
         ResizeBehavior="PreviousAndNext" Focusable="True"
         AutomationProperties.Name="Resize conversation and Details panes" />
-    <Grid x:Name="DetailsPane" Grid.Column="2" IsVisible="False" MinWidth="400" RowDefinitions="Auto,Auto,*" RowSpacing="8">
+    <Grid x:Name="DetailsPane" Grid.Column="2" IsVisible="False" MinWidth="400" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8">
       <StackPanel Spacing="6">
         <TextBlock x:Name="DetailsHeading" Text="Details" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
         <WrapPanel>
+          <Button x:Name="ShowChatPane" Content="Chat" IsVisible="False" Click="OnShowChatPane"
+              AutomationProperties.Name="Return to chat without changing or submitting its unsent message" />
           <Button x:Name="ExpandSessionDetails" Content="Expand details" IsEnabled="False"
               AutomationProperties.HelpText="Give Details the available reading width while keeping the conversation and composer visible. Activate again to restore the previous split. Does not reread or submit content." />
           <Button x:Name="BackToConversation" Content="Back to conversation" IsEnabled="False"
@@ -253,9 +263,11 @@
               AutomationProperties.Name="Hide Details and return to the originating message or Show details" />
         </WrapPanel>
       </StackPanel>
-      <TextBlock Grid.Row="1" x:Name="DetailNavigationStatus" TextWrapping="Wrap" Classes="muted"
+      <TabControl Grid.Row="1" x:Name="DocumentTabs" IsVisible="False" SelectionChanged="OnDocumentTabChanged"
+          AutomationProperties.Name="Exact document tabs for this conversation; selecting re-admits the source" />
+      <TextBlock Grid.Row="2" x:Name="DetailNavigationStatus" TextWrapping="Wrap" Classes="muted"
           AutomationProperties.Name="Details return navigation availability" />
-      <ContentControl Grid.Row="2" x:Name="DetailsContent" />
+      <ContentControl Grid.Row="3" x:Name="DetailsContent" />
     </Grid>
     </Grid>
   </Grid>

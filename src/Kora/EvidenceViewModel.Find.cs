@@ -41,7 +41,7 @@ internal sealed partial class EvidenceViewModel
     public bool EnsureFindAdmission()
     {
         if (!closed && canInspect()) { return true; }
-        Clear("Evidence inspection retired by host ownership or privacy.");
+        Clear("Evidence inspection retired by host ownership, privacy or native presentation admission.");
         Notify();
         return false;
     }

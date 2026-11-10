@@ -5,7 +5,7 @@ namespace Kora;
 
 internal sealed partial class AgentRunController
 {
-    private void BindSharedSkillSelection(AgentRunWindow opened)
+    private void BindSharedSkillSelection(AgentRunView opened)
     {
         opened.SkillSources.SelectionChanged += (_, _) => { Retire(); opened.Skills.ItemsSource = null; };
         opened.Skills.SelectionChanged += (_, _) => Retire();
@@ -39,7 +39,7 @@ internal sealed partial class AgentRunController
             : throw new InvalidOperationException("Select one unambiguous displayed name from the current page.");
     }
 
-    private static void ShowSkillProfile(AgentRunWindow opened, BoundedAgentReview captured)
+    private static void ShowSkillProfile(AgentRunView opened, BoundedAgentReview captured)
     {
         opened.Review.Text = $"LOCAL TEXT -> TEXT; TOOL-FREE\nCOMPLETE PROFILE\n{captured.Profile.Document.Text}\n\n"
             + $"ORIGINAL INPUT\n{captured.Input}";
@@ -47,14 +47,15 @@ internal sealed partial class AgentRunController
         opened.Status.Text = "Select the exact declared skill from its registered catalogue, then review its declaration. No reference content was read.";
     }
 
-    private async Task<bool> RunSharedSkillActionAsync(string action, AgentRunWindow opened, Func<bool> current,
+    private async Task<bool> RunSharedSkillActionAsync(string action, AgentRunView opened, Func<bool> current,
         Func<bool> admission, CancellationToken token)
     {
         if (action is "SkillSources")
         {
             Retire();
             var revision = inputRevision;
-            bool Selected() => admission() && inputRevision == revision;
+            var native = opened.CapturePresentation();
+            bool Selected() => admission() && native() && inputRevision == revision;
             var sources = await workflow.ReadSkillSourcesAsync(Selected, token);
             if (!Selected()) { return true; }
             opened.SkillSources.ItemsSource = sources.Select(source => new SkillSourceRow(source)).ToArray();
@@ -67,7 +68,8 @@ internal sealed partial class AgentRunController
                 ?? throw new InvalidOperationException("Select a registered source first.");
             Retire();
             var revision = inputRevision;
-            bool Selected() => admission() && inputRevision == revision;
+            var native = opened.CapturePresentation();
+            bool Selected() => admission() && native() && inputRevision == revision;
             var catalogue = await workflow.ReadSkillCatalogueAsync(source, Selected, token);
             if (!Selected()) { return true; }
             opened.Skills.ItemsSource = catalogue.Packages.Select(snapshot => new SkillRow(source, snapshot)).ToArray();

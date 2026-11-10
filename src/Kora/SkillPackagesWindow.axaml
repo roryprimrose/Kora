@@ -1,51 +1,7 @@
-<Window
-    x:Class="Kora.SkillPackagesWindow"
+<Window x:Class="Kora.SkillPackagesWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:Kora.Controls"
-    Title="Skill packages - exact source review"
-    Icon="/Assets/Kora.ico"
-    Width="1100" Height="800" MinWidth="700" MinHeight="500"
-    WindowStartupLocation="CenterOwner"
-    Background="{DynamicResource KoraWindowBackgroundBrush}"
-    Foreground="{DynamicResource KoraForegroundBrush}">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-  <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" Margin="20" RowSpacing="12">
-    <StackPanel Orientation="Horizontal" Spacing="12">
-      <TextBlock Text="Skill packages - read-only embedded source review"
-                 FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
-      <Button x:Name="SharedSources" Content="Shared profile sources (read only)" />
-      <Button x:Name="ReviewBundledRuntime" Content="Runtime setup and readiness"
-              AutomationProperties.Name="Inspect, review, prepare, verify or forget the protected bundled runtime registration; never enable unqualified execution" />
-      <Button x:Name="ReviewBundledExecution" Content="Review/grant and run exact package"
-              AutomationProperties.Name="Review and grant the exact bundled scripts and fixed Windows effect; unavailable without a qualified contained runtime" />
-      <Button x:Name="ReviewBoundBundledExecution" Content="Run in last reviewed control session"
-              AutomationProperties.Name="Deliberately address the last reviewed computer-control session; current authority and exact grants are revalidated" />
-    </StackPanel>
-    <StackPanel Grid.Row="1" Spacing="6">
-      <TextBlock Text="Search admitted names, IDs and declared descriptions only: literal ordinal-ignore-case substring, no trimming. Runtime availability is not instruction compatibility." TextWrapping="Wrap" />
-      <WrapPanel Orientation="Horizontal">
-        <TextBox x:Name="PackageQuery" MinWidth="280" IsUndoEnabled="False" AutomationProperties.Name="Bundled metadata query, at most 256 UTF-16 units and 512 UTF-8 bytes" />
-        <ComboBox x:Name="PackageFilter" AutomationProperties.Name="Bundled runtime availability filter" />
-        <Button x:Name="SearchPackages" Content="Search" AutomationProperties.Name="Search admitted bundled metadata without reading resources" />
-        <Button x:Name="ClearPackageSearch" Content="Clear" AutomationProperties.Name="Clear bundled search and restore All and source order without selecting a result" />
-      </WrapPanel>
-      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-        <Label Content="Order" Target="{Binding #PackageOrder}" />
-        <ComboBox x:Name="PackageOrder" Grid.Column="1" HorizontalAlignment="Stretch"
-                  AutomationProperties.Name="Bundled metadata order; source default, ordinal names, unknown names last" />
-      </Grid>
-    </StackPanel>
-    <controls:NamedTextBlock x:Name="PackageSearchStatus" Grid.Row="2" TextWrapping="Wrap"
-                            AutomationProperties.Name="Bundled metadata search results and validation" />
-    <ComboBox x:Name="PackageSelector" Grid.Row="3" HorizontalAlignment="Stretch"
-              AutomationProperties.Name="Select an inspection-only bundled skill package" />
-    <controls:NamedTextBlock x:Name="PackageIdentity" Grid.Row="4" TextWrapping="Wrap"
-               AutomationProperties.Name="Exact package identities, unavailable invocation and transitive disclosure" />
-    <controls:IdentityMetadataFindPane x:Name="IdentityFind" Grid.Row="5"
-                                     AutomationProperties.Name="Find in selected displayed bundled identity metadata only" />
-    <controls:NavigableTabControl x:Name="SourceTabs" Grid.Row="6" MinHeight="160" MaxHeight="360"
-                AutomationProperties.Name="Every declared immutable package file including manifest and shared helper" />
-  </Grid>
-  </ScrollViewer>
+    Title="Skill packages - exact source review" Icon="/Assets/Kora.ico"
+    Width="1100" Height="800" MinWidth="700" MinHeight="500" WindowStartupLocation="CenterOwner"
+    Background="{DynamicResource KoraWindowBackgroundBrush}" Foreground="{DynamicResource KoraForegroundBrush}">
 </Window>

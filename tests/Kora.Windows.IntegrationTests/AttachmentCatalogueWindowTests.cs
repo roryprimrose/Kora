@@ -358,8 +358,10 @@ public sealed partial class AttachmentCatalogueWindowTests
         });
     }
 
-    [WindowsFact]
-    public async Task CatalogueControllerRevokesActualLifecyclePublisherAndPrivateClosureAndCannotReopenAfterDisposal()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CatalogueControllerRevokesActualLifecyclePublisherAndPrivateClosureAndCannotReopenAfterDisposal(bool hosted)
             {
                 await HeadlessSession.RunAsync(async () =>
                 {
@@ -396,22 +398,30 @@ public sealed partial class AttachmentCatalogueWindowTests
                     using var controller = new AttachmentCatalogueWindowController(fixture.Main, fixture.Sessions, files,
                         attachments, fixture.Access, NullLogger<AttachmentCatalogueViewModel>.Instance,
                         new(fixture.Sessions, files));
-                    AttachmentCatalogueWindow? window = null;
-                    using var opened = Window.WindowOpenedEvent.AddClassHandler<AttachmentCatalogueWindow>((view, _) => window = view);
+                    using var responses = hosted ? new ResponseWindowController(fixture.Main, NullLogger<ResponseWindowController>.Instance) : null;
+                    if (responses is not null)
+                    {
+                        controller.BindWorkbench(responses.PrepareWorkbenchOwner,
+                            view => responses.ShowHostedView(WorkbenchActivity.Attachments, view));
+                    }
+                    var windows = new List<Window>();
+                    using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) => windows.Add(view));
                     controller.Open();
+                    var window = controller.View!;
+                    var physicalOwner = window.Owner;
                     var model = (AttachmentCatalogueViewModel)window!.DataContext!;
                     model.Records.Should().BeEmpty();
                     var originalWindow = window;
                     var nativeLifetime = controller.CaptureLifetime();
                     controller.Prepare(owner.SessionId.Value, () => true);
-                    window.Should().BeSameAs(originalWindow);
+                    controller.View.Should().BeSameAs(originalWindow);
                     model.Records.Should().BeEmpty();
                     model.Status.Should().Contain("PREPARED");
                     model.QueryText.Should().Be(owner.SessionId.Value.ToString("D"));
                     fixture.Main.CommandText = "prepare attachment catalogue " + owner.SessionId.Value.ToString("D");
                     await fixture.Main.RunTypedCommand.ExecuteAsync();
                     fixture.Main.Transcript.Should().Contain("PREPARED");
-                    window.Should().BeSameAs(originalWindow);
+                    controller.View.Should().BeSameAs(originalWindow);
                     model.Records.Should().BeEmpty();
                     model.Mode = AttachmentCatalogueMode.ExactId;
                     model.QueryText = owner.SessionId.Value.ToString("D");
@@ -435,7 +445,7 @@ public sealed partial class AttachmentCatalogueWindowTests
                     fixture.Main.CloseForObservedPrivacyEvent("Synthetic privacy closure", hidePresentation: true);
                     await closed.Task.WaitAsync(fixture.Token);
                     await fixture.Main.PrivacyClosureTask;
-                    window.IsVisible.Should().BeFalse();
+                    window.IsNativePresented.Should().BeFalse();
                     nativeLifetime().Should().BeFalse();
                     model.Records.Should().BeEmpty();
                     model.Status.Should().BeEmpty();
@@ -445,7 +455,8 @@ public sealed partial class AttachmentCatalogueWindowTests
                     Action stalePreparation = () => controller.Prepare(owner.SessionId.Value, () => true);
                     stalePreparation.Should().Throw<InvalidOperationException>();
                     controller.Open();
-                    window.IsVisible.Should().BeFalse();
+                    window.IsNativePresented.Should().BeFalse();
+                    if (hosted) { windows.Distinct().Should().Equal(physicalOwner); }
                 });
             }
 

@@ -4,7 +4,7 @@ namespace Kora;
 
 internal sealed partial class NewRequestWindowController
 {
-    private void BindDraftFind(NewRequestWindow opened, NewRequestComposer state)
+    private void BindDraftFind(NewRequestView opened, NewRequestComposer state)
     {
         opened.BindDraftFind(() =>
         {

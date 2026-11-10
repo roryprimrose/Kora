@@ -62,6 +62,9 @@ An ordinary untargeted local request, typed globally or activated with the curre
 assistant name, first opens **Review local destination advice**. The same operation applies
 with the main conversation collapsed or expanded.
 
+Advice and destination acknowledgment use supporting tabs in the same expanded workbench, not additional application windows ([advice view](../src/Kora/SessionRouting/SessionRoutingAdviceView.cs), [destination view](../src/Kora/SessionRouting/SessionRoutingView.cs)).
+Changing or hiding that review retires its consent/acknowledgment; returning cannot submit an old choice. Original typed/voice channel and unchanged input stay bound through separate acknowledgment and submission ([hosted operations and withdrawal](../tests/Kora.Windows.IntegrationTests/SessionRoutingTests.Workbench.cs)).
+
 Exact conversation composers and `session request review "<name>" -- <body>`
 keep their existing exact-session route. **Open new request** still opens the
 separate fresh-only composer. Built-in commands, foreground Customizations editor
@@ -71,7 +74,7 @@ A denied or ambiguous editor route is never retried as a general request.
 ## Choose, acknowledge, correct, submit
 
 - Review the complete unchanged request, original channel and bounded Active conversation names before any adviser receives them. **Allow this LOCAL advice once** permits only one tools-free local relatedness inference over that exact metadata snapshot. It does not authorize submission, sources, history or an answering provider ([advice admission](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingService.cs)).
-- **Choose destination without advice** skips inference and opens the existing destination review. Choose New or use **Correct destination** for an exact Active conversation. **Cancel request** or Escape sends nothing to an adviser and submits nothing. Changed input, privacy, metadata, session generation or the 60-second disclosure lifetime invalidates this decision ([native disclosure](../src/Kora/SessionRouting/SessionRoutingAdviceWindow.cs)).
+- **Choose destination without advice** skips inference and opens the existing destination review. Choose New or use **Correct destination** for an exact Active conversation. **Cancel request** or Escape sends nothing to an adviser and submits nothing. Changed input, privacy, metadata, session generation or the 60-second disclosure lifetime invalidates this decision ([native disclosure](../src/Kora/SessionRouting/SessionRoutingAdviceView.cs)).
 - After that separate decision, **Review request destination** shows any advice.
   An admitted, qualified local provider may propose one related Active conversation
   or several exact candidates. The choice always includes **New conversation (fresh session)**.

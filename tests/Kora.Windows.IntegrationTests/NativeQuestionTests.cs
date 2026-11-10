@@ -414,10 +414,12 @@ public sealed class NativeQuestionTests
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(Path.Combine(root.FullName, "Kora.slnx"))) { root = root.Parent; }
         var path = Path.Combine(root!.FullName, "src", "Kora");
-        var xaml = File.ReadAllText(Path.Combine(path, "QuestionWindow.axaml"));
+        var xaml = File.ReadAllText(Path.Combine(path, "QuestionView.axaml"));
         var document = XDocument.Parse(xaml);
-        document.Root!.Attribute("Topmost")!.Value.Should().Be("False");
-        document.Root.Attribute("WindowStartupLocation")!.Value.Should().Be("CenterOwner");
+        document.Root!.Name.LocalName.Should().Be("UserControl");
+        var adapter = XDocument.Load(Path.Combine(path, "QuestionWindow.axaml"));
+        adapter.Root!.Attribute("Topmost")!.Value.Should().Be("False");
+        adapter.Root.Attribute("WindowStartupLocation")!.Value.Should().Be("CenterOwner");
         foreach (var name in new[] { "AnswerInput", "ExactReview", "ReviewQuestion", "SaveDraft", "SubmitAnswer", "CancelQuestion", "CloseQuestion" })
         {
             var control = document.Descendants().Single(e => e.Attributes().Any(a =>
@@ -426,7 +428,7 @@ public sealed class NativeQuestionTests
             control.Attribute("TabIndex").Should().NotBeNull();
             control.Attribute("MaxLength").Should().BeNull();
         }
-        var source = File.ReadAllText(Path.Combine(path, "QuestionWindow.axaml.cs"));
+        var source = File.ReadAllText(Path.Combine(path, "QuestionView.axaml.cs"));
         source.Should().Contain("new RadioButton").And.Contain("new CheckBox")
             .And.Contain("DetailContentKind.PlainText").And.Contain("Key.Escape")
             .And.Contain("CopyingToClipboard += BlockClipboard").And.Contain("expiry.Stop()")
@@ -452,7 +454,7 @@ public sealed class NativeQuestionTests
         return (await f.RunAsync(() => f.Questions.CreateAsync(f.Request, spec, f.Time.Now.AddMinutes(5), f.Token))).Question!;
     }
 
-    private static async Task PublishRealFixtureProposalAsync(InteractionStorageFixture f, HostOperationEffect effect = HostOperationEffect.BoundedRead)
+    internal static async Task PublishRealFixtureProposalAsync(InteractionStorageFixture f, HostOperationEffect effect = HostOperationEffect.BoundedRead)
     {
         // Each digest is actually computed over this disposable fixture's immutable canonical descriptor.
         static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

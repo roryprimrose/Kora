@@ -63,7 +63,7 @@ internal sealed partial class OwnedInstructionEditorController
         window?.ReportInventory(reason);
     }
 
-    private async Task RefreshInventory(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task RefreshInventory(OwnedInstructionEditorView opened, Func<bool> eligible, CancellationToken token)
     {
         InvalidateInventory("Refreshing the admitted bounded owned filename inventory and existing source reconciliation.");
         var observedKind = kind;
@@ -139,7 +139,7 @@ internal sealed partial class OwnedInstructionEditorController
         }
     }
 
-    private async Task InspectChoice(OwnedInstructionEditorWindow opened, bool reloadOriginal, string? exactName,
+    private async Task InspectChoice(OwnedInstructionEditorView opened, bool reloadOriginal, string? exactName,
         Func<bool> eligible, CancellationToken token)
     {
         var snapshot = inventory;

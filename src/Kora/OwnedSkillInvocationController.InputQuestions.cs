@@ -7,7 +7,7 @@ internal sealed partial class OwnedSkillInvocationController
 {
     private CancellationTokenSource? inputQuestions;
 
-    private async Task CollectMissingInputs(OwnedSkillInvocationWindow opened, OwnedSkillUseReview source,
+    private async Task CollectMissingInputs(OwnedSkillInvocationView opened, OwnedSkillUseReview source,
         SessionWorkspaceEntry target, OwnedSkillAuthoringAuthority authority, Func<bool> current, CancellationToken token)
     {
         var host = questions ?? throw new InvalidOperationException("The private skill input question host is unavailable. Enter fields manually.");
@@ -20,7 +20,7 @@ internal sealed partial class OwnedSkillInvocationController
         {
             values = await workflow.CollectInputsAsync(source, target, opened.Request.Text ?? "",
                 opened.LiteralInputs.Capture(), authority, Exact,
-                (collection, spec, admitted) => host.AskSkillInputAsync(opened, collection, spec, Exact, admitted),
+                (collection, spec, admitted) => host.AskSkillInputAsync(opened.Owner, collection, spec, Exact, admitted),
                 cancellation.Token);
             if (!Exact()) { throw new OperationCanceledException("The original skill input fields changed.", cancellation.Token); }
         }

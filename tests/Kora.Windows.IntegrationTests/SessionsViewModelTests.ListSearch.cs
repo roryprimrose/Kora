@@ -95,7 +95,7 @@ public sealed partial class SessionsViewModelTests
     [Fact]
     public void NativeMetadataControlsBindExplicitModesBoundedContinuationAndNoTruncationSeparatelyFromHistory()
     {
-        var source = Read("SessionsWindow.axaml");
+        var source = Read("SessionsManagementView.axaml");
         var document = XDocument.Parse(source);
         var field = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
             && element.Attribute("Text")?.Value.Contains("ListQuery", StringComparison.Ordinal) == true);
@@ -106,7 +106,7 @@ public sealed partial class SessionsViewModelTests
             .And.Contain("CanNextListSearch").And.Contain("including after zero matches")
             .And.Contain("CanCancelListSearch").And.Contain("Clear metadata search")
             .And.Contain("metadata-search scope across pages").And.Contain("HistoryQuery");
-        var code = Read("SessionsWindow.axaml.cs");
+        var code = Read("SessionsManagementView.axaml.cs");
         code.Should().Contain("SearchList.Click +=").And.Contain("model.SearchListAsync(next: true)")
             .And.Contain("model.CancelListSearch()").And.Contain("model.ClearListSearch(); ListQuery.Focus();")
             .And.Contain("field.KeyDown +=").And.Contain("model.CanSearchList");

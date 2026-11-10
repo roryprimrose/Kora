@@ -11,7 +11,7 @@ public sealed class InCallFeedbackUiContractTests
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Kora.slnx"))) { directory = directory.Parent; }
         var root = directory?.FullName ?? throw new InvalidOperationException("Source root unavailable.");
-        var tab = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants()
+        var tab = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants()
             .Single(control => string.Equals(control.Attribute("Header")?.Value, "Calls", StringComparison.Ordinal));
         var controls = tab.Descendants().ToArray();
         var selector = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value,

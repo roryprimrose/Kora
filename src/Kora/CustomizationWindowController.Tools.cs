@@ -61,7 +61,7 @@ internal sealed partial class CustomizationWindowController
         var revision = capabilityPresentationRevision;
         var sourceRevision = mcpConfiguration.CaptureCapabilityRevision(selected.ServerId);
         bool Current() => current() && revision == capabilityPresentationRevision;
-        var change = await McpCapabilityManagerWindow.ShowAsync(window, main, displayed.View, Current, token,
+        var change = await McpCapabilityManagerWindow.ShowAsync(window.Owner, main, displayed.View, Current, token,
             window.Search.Text, window.SelectedCapabilityCategory);
         RequireCurrent(Current, token);
         if (change is null) { return; }
@@ -94,11 +94,13 @@ internal sealed partial class CustomizationWindowController
     {
         Interlocked.Increment(ref capabilityPresentationRevision);
         if (publishingCapabilities) { return; }
-        Dispatcher.UIThread.Post(() =>
-        {
-            externalInventories.Clear();
-            displayedServers.Clear();
-            RenderSources();
-        });
+        Dispatcher.UIThread.Post(ClearCapabilityMetadata);
+    }
+
+    private void ClearCapabilityMetadata()
+    {
+        externalInventories.Clear();
+        displayedServers.Clear();
+        RenderSources();
     }
 }

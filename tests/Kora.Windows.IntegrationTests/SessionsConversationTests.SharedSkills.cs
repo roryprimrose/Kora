@@ -74,7 +74,7 @@ public sealed partial class SessionsConversationTests
             var opened = invocation ?? throw new InvalidOperationException("No reviewed-use window.");
             try
             {
-                var buttons = ((StackPanel)((ScrollViewer)opened.Content!).Content!).Children.OfType<Button>().ToArray();
+                var buttons = ((StackPanel)((ScrollViewer)opened.View.Content!).Content!).Children.OfType<Button>().ToArray();
                 var stop = buttons.Single(button => Equals(button.Content, "Stop and close reviewed use"));
                 if (references)
                 {

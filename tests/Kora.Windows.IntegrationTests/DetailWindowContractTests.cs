@@ -112,8 +112,8 @@ public sealed class DetailWindowContractTests
     [Fact]
     public void DocumentationOnlyOpensItsExactCurrentPageExplicitlyAndRendererIsSharedWithGrants()
     {
-        Read("DocumentationWindow.axaml").Should().Contain("Open details (native)");
-        Read("DocumentationWindow.axaml.cs").Should().Contain("OpenEmbeddedPage(currentPage, this)")
+        Read("DocumentationView.axaml").Should().Contain("Open details (native)");
+        Read("DocumentationView.axaml.cs").Should().Contain("OpenEmbeddedPage(currentPage, owner)")
             .And.Contain("currentPage = page").And.Contain("MarkdownDocumentRenderer.Render(page.Markdown)");
         Read("GrantListWindow.axaml.cs").Should().Contain("MarkdownDocumentRenderer.Render(markdown)");
         Read("MarkdownDocumentRenderer.cs").Should().Contain("Renderer.Render(markdown)").And.NotContain("Markdown.Parse");

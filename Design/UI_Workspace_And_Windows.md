@@ -24,7 +24,7 @@ private disclosure and input admission; extensions and model prose cannot own th
 
 The primary [response window](../src/Kora/ResponseWindow.axaml) now expands in place into
 a resizable two-column [session browser](../src/Kora/SessionInteractionView.axaml). Tray
-**Show sessions**, Ctrl+Shift+S, **Show sessions** in the response header and admitted
+**Show sessions**, Ctrl+Shift+S, **Expand view** in the compact chat/response header and admitted
 show/expand commands reuse that same window. Collapse returns to the original response,
 typed command and live interaction controls. The conversation view remains mounted:
 expansion/collapse does not recreate the session model, move input, save, submit or replay.
@@ -126,9 +126,15 @@ primary window, not another top-level window:
   automatic-detail preference. Background completion may indicate available content
   but never replaces the item being read, selects a session or steals focus.
 - Keep the conversation/message pane and its composer visible beside Details,
-  separated by a pointer- and keyboard-resizable divider. Enforce a minimum expanded
-  window width and minimum pane widths so neither collapses into an unreadable strip.
-  Do not replace conversation with a Details tab or stack the panes on narrow windows.
+  separated by a pointer- and keyboard-resizable divider when the panes fit.
+  The expanded shell permits a 320-by-300 minimum work area. Below the
+  1000-unit session-view width, session navigation collapses and Details takes
+  the main reading area rather than squeezing two panes into unreadable strips.
+  **Chat** hides and releases the private Details reader while preserving the
+  memory-only composer; **Show details** explicitly re-admits the exact source.
+  **Sessions** opens the bounded navigation page and its **Chat** control returns
+  without selecting, reading or submitting. Hiding navigation retires captured
+  positional-selection callbacks, including after an away-and-back resize.
   Native **Expand details** allocates surplus width to Details while keeping the
   conversation at its existing minimum. **Restore split** restores the prior
   column lengths; the divider stays usable in either state. Hide, replacement
@@ -136,9 +142,10 @@ primary window, not another top-level window:
   the ordinary split. Neither action rereads content, recreates the reader,
   changes selection/Find or resizes the window. Both remain within those minimums;
   **Back to conversation** focuses the originating message without hiding either pane.
-  If the available work area cannot fit the minimum layout, report the limitation
-  explicitly rather than placing controls off screen or silently using a different
-  layout. The session and item remain named.
+  Below the shell minimum, report the limitation explicitly and retain compact
+  recovery controls. Responsive layout does not change session selection,
+  source authority, retained data, input buffers or a saved preference.
+  The session and item remain named.
 - Provide native **Show details** when hidden and **Hide details** when visible.
   Hide returns space to the persistent conversation pane and focus to the originating
   message link or Show control. It does not clear unsent input or delete result links.
@@ -177,6 +184,179 @@ primary window, not another top-level window:
   invisible browsing. Privacy, ownership/source loss, deletion and lock revoke content
   and fence delayed publication under the existing viewer contract.
 
+### Expanded captions and two-mode placement
+
+The existing response/session shell now exposes an expanded-only caption row:
+Collapse, Minimize, Maximize/Restore and Close. The standard three caption
+controls use Avalonia native decoration roles, including maximize hit testing,
+and owner-drawn flat glyphs. Collapse has a separate user-control role and uses
+the same compact transition as existing navigation. Native Snap menu behavior
+still requires installed Windows evidence; headless role assertions do not
+establish that the OS displayed the menu.
+
+Expanded mode participates in the taskbar. Minimize removes private presenter
+eligibility and releases view-owned Details/capture/speech, not conversation
+work or unsent input. Explicit show restores the previous non-minimized state.
+Close retains the existing last-view unsent-input protection and tray lifetime.
+Unhandled Escape and Dismiss now hide presentation only; explicit task,
+question and grant cancellation/rejection controls retain their own authority.
+
+The shared atomic device-local preference store saves independently observed
+compact/expanded normal rectangles, render scale and expanded maximized state.
+Minimized or maximized client dimensions do not replace normal restore bounds.
+Restoration revalidates work-area fit without reading session bodies, restarting
+capture, replaying work or restoring approval. Legacy X/Y position remains the
+fallback when no new placement is saved. Malformed or unavailable saved state
+is reported and is not overwritten by a default.
+
+The production desktop now hosts Settings, embedded Help, exact Permissions,
+Audit/Evidence, unified Customizations and Work/Attention as native controls in the same expanded shell. Each view
+retains its own source/transaction owner. Native view lifetimes distinguish
+visible presentation from activation and expire on hide, detach or minimize;
+returning does not revive a captured review. Evidence and Permissions release
+private results and cancel their owned reads without changing retained sources
+or grants. Fresh Search/Refresh is explicit.
+
+The supporting reader has at most eight exact document descriptors, with only
+the selected conversation's tabs shown. Inactive readers release their bodies;
+tab selection revalidates the original source rather than selecting a newer result.
+Conversation, assistant, observation, answer-context, activity, bounded evidence,
+embedded guide and still-current response sources use their authoritative
+resolvers. A replaced response cannot be reopened as its replacement. Descriptors
+are memory-only and private closure clears labels, references and reading positions.
+Work/Attention withdraws its private overview and pending Stop All presentation
+on hide/detach/minimize; returning requires explicit Refresh and never renews a
+review or confirmation. Its narrow layout stacks the bounded reading panes.
+
+The [full session-management view](../src/Kora/SessionsManagementView.axaml) now shares the same owner and selected-session model with Chat. Create/rename, lifecycle, retention, work, providers and existing conversation controls remain available without another management window. Leaving or minimizing retires native reviews; narrow layouts stack the session list and selected work.
+
+Collapse retains the selected [compact named composer](../src/Kora/ResponseWindow.Sessions.cs), not an independent compact window. **Current interaction** explicitly shows the original response/question controls without changing the named composer's unsent text. Explicit model-action review returns to those original controls, never treating the named composer as its confirmation input.
+
+The [bounded workbench command routes](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs) include exact-session conversation history, focused Presence settings, registered MCP metadata and registered-first WorkIQ lookup through typed and activated-voice input. History reads a bounded exact page; Presence scrolls/focuses its existing subsection without writes; MCP lookup does not read endpoints into the editor, connect or invoke a model.
+
+The [prompt-operation regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.PromptNavigation.cs) exercise typed and activated voice for history, Presence and committed audit. [Registered MCP regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.WorkbenchNavigation.cs) distinguish found/not-found and reread after removal. Broader network discovery remains separately consented and unavailable.
+
+The [native question controls](../src/Kora/QuestionView.axaml) now support inline hosting under an actual response-window owner. The [controller](../src/Kora/QuestionWindowController.cs) and clipboard-answer permission presenter use this shared host; other owner types retain compatibility adapters until their own migrations. Selection never changes the original question, source, revision, expiry or channel.
+
+Hide/minimize withdraws native review acknowledgement, clipboard/voice eligibility and focus lifetime without answering or cancelling the original wait. Return requires an explicit original-question gesture; old focus admission does not revive. Source identities are retained in an expandable diagnostic section rather than the primary question label. Keyboard-readable schemas and explicit Submit/Cancel remain unchanged ([native contracts](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.Inline.cs)).
+
+The [production controller regression](../tests/Kora.Windows.IntegrationTests/PendingQuestionNavigationTests.Inline.cs) completes the original host question without a second native window. Complete question, MCP schema, policy-explanation and clipboard-snapshot reviews use the [supporting native review tabs](../src/Kora/NativeReviewTabsView.cs), separate from generated artifact controls. Hidden or switched review bodies are cleared and review/acceptance acknowledgement is retired.
+
+The supporting pane has at most eight native review entries and rejects another without eviction. **Return to main view** hides the pane; **Review tabs** reveals only its headers until an exact review is re-admitted. Narrow layouts use the main reading area with an explicit return path; wide layouts have a native divider ([review regressions](../tests/Kora.Windows.IntegrationTests/NativeReviewTabsTests.cs)).
+
+[Earlier-message selection](../src/Kora/ConversationHistoryView.axaml), [model-history advisory](../src/Kora/ModelHistoryContext/ModelHistoryContextView.axaml) and [mixed-context review](../src/Kora/ReviewedContext/ReviewedContextView.cs) now use supporting views when opened from session management. Native source selection and separate confirmation remain authoritative. Leaving the review clears its private selection and consent without altering independently unsent input or retained messages.
+
+The [isolated New request view](../src/Kora/NewRequestView.axaml) is hosted in the same shell. Hide/leave retires the review and dictation arm but keeps unsent memory; Close requires explicit Discard/Cancel for nonempty input. The [original-message reuse review](../src/Kora/OriginalMessageReuseView.cs) also uses supporting tabs, with no copy, new target or submission before separate confirmation ([hosted operation tests](../tests/Kora.Windows.IntegrationTests/NewRequestControllerTests.Workbench.cs)).
+
+The [bundled package inspector](../src/Kora/SkillPackagesView.axaml) and [shared-profile source inspector](../src/Kora/SharedSkillSourcesView.axaml) now use hosted controls. Their exact source snapshots, bounded metadata navigation and identity Find remain separate from enablement/invocation authority. Hide/minimize clears source bodies and selected targets; shared source reads are cancelled and physically joined, not restored on return ([shared source regressions](../tests/Kora.Windows.IntegrationTests/SkillReviewNavigationTests.SharedWorkbench.cs)).
+
+Shared read-consent withdrawal uses a supporting native review and separate confirmation; selecting or displaying its source never unregisters it. The OS folder picker remains external. Specialist invocation, account and setup surfaces remain part of the unfinished consolidation ([skill inspection contract](Definition_Management.md#delivered-native-skill-metadata-navigation)).
+
+The [dedicated agent-profile editor](../src/Kora/AgentProfileEditorView.cs) also uses the shared workbench and native supporting decision tabs. Complete save preview and final confirmation remain separate; hide/restore does not renew old review authority or discard independent edits ([hosted agent tests](../tests/Kora.Windows.IntegrationTests/AgentProfileHostedEditorTests.cs)).
+
+The [instruction/prompt editor](../src/Kora/OwnedInstructionEditorView.cs) and
+[owned-skill editor](../src/Kora/OwnedSkillEditorView.cs) now share that owner as well.
+Their comparisons, save/conflict/rename/copy/delete/model decisions and source-preserving
+Rebase use supporting reviews; genuine OS file selection remains external.
+Unsent editor drafts survive presentation loss, but pending reviews and old native
+callbacks do not revive on return ([instruction regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Workbench.cs),
+[skill regressions](../tests/Kora.Windows.IntegrationTests/OwnedSkillAuthoringNativeTests.Workbench.cs)).
+The exact already-display-reviewed Instruction Save question remains inline, using its
+original native or activated-voice answer channel and the same authoritative writer
+([channel regression](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.WorkbenchVoice.cs)).
+
+The [one-shot instruction-use review](../src/Kora/InstructionUseView.cs) and
+[required prompt parameter form](../src/Kora/PromptParameterView.cs) also use supporting
+tabs. Hidden unconfirmed instruction reviews cannot submit; hiding already confirmed
+instruction work does not stop its admitted task or republish its late answer into the old
+view ([instruction lifetime](../tests/Kora.Windows.IntegrationTests/InstructionUseHostedTests.cs)).
+Leaving prompt preparation instead discards its temporary values, preview and retention
+confirmation; fresh explicit preparation is required, with no autosave or target default
+([prompt lifetime](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/PromptParameterWindowTests.Workbench.cs)).
+
+The [single-agent review](../src/Kora/AgentRunView.cs) and
+[two-run surface](../src/Kora/AgentRunSetView.cs) also use supporting tabs, preserving
+named/model-recommended source choice, declared reference consent and separate exact
+invocation confirmation. Presentation loss retires unconfirmed reviews, not already
+admitted execution. Each confirmed run remains owned until it joins; retained answers
+stay in their original conversation and do not republish into restored old panels
+([single-agent tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AgentWorkbench.cs),
+[two-run tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AgentRunSetWorkbench.cs)).
+
+[Named skill](../src/Kora/NamedSkillInvocationView.cs),
+[saved owned-skill](../src/Kora/OwnedSkillInvocationView.cs) and
+[shared instruction/web/MCP skill](../src/Kora/SharedSkillInvocationView.cs) reviews
+also use supporting tabs. Opening an owned use review preserves its authoring
+view rather than navigating it away. Original source/channel/target and separate
+read/enable/approval/invocation checks remain unchanged; hiding a confirmed task is
+not Stop and cannot republish its late private answer on return
+([owned/shared regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillWorkbench.cs),
+[shared regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SharedSkillWorkbench.cs)).
+
+The [observation-workflow editor](../src/Kora/ObservationWorkflowView.cs) is hosted in
+the main area, with complete package/Save/discard and independent step decisions in
+supporting tabs. A lost review cannot approve an unseen step, disclose a late result
+or claim partial success; the draft remains volatile
+([full operation regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
+
+The [session instruction scope view](../src/Kora/SessionInstructionScopeView.cs) uses
+a supporting tab pinned to its original Active session. Presentation loss discards
+pending review and physically joins source reads; reopening is fresh. Confirmed
+applicability remains with the original session until explicit Stop or domain
+revocation ([scope regressions](../tests/Kora.Windows.IntegrationTests/SessionInstructionScopeWorkbenchTests.cs)).
+
+The [retained metadata catalogue](../src/Kora/AttachmentCatalogueView.axaml) uses the
+main area, with stacked list/details when narrow. Query preparation and Find remain
+metadata-only and read-free; presentation loss retires loaded rows and late reads
+([catalogue regressions](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Workbench.cs)).
+The [exact retained-answer export review](../src/Kora/ExactAnswerExportView.cs) uses a
+supporting tab, preserving separate original-UI consent, source revalidation,
+destination staging and truthful cancellation/uncertain outcomes. Genuine OS save
+selection remains external; an active writer remains owned until joined
+([export regressions](../tests/Kora.Windows.IntegrationTests/ExactAnswerExportControllerTests.cs)).
+
+The [shared file/folder/attachment reader](../src/Kora/LocalFilePreviewView.cs) now
+uses supporting tabs. Complete metadata and separate capture/persistence/replace/remove
+consent, retained source inspection, Find, wrapping, measurements, search, citations
+and local answer controls share the actual shell owner; genuine OS pickers remain
+external ([hosted retained operation](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.Workbench.cs)).
+Leaving its presentation clears private source and retires old controls/results.
+An ignoring retrieval remains owned until it returns, without late disclosure
+([file/folder regressions](../tests/Kora.Windows.IntegrationTests/LocalFileCitationWindowTests.cs)).
+
+The [clipboard snapshot view](../src/Kora/ClipboardPreviewView.cs) and
+[knowledge-source management view](../src/Kora/KnowledgeSources/KnowledgeSourcesView.cs)
+also use supporting tabs, with original source/consent/channel gates and genuine
+folder selection preserved. Clipboard retirement revokes volatile snapshot review;
+knowledge-source retirement is not deletion of its independently retained copies.
+Actual source/model work joins before disposal and cannot publish a late private
+answer ([clipboard regressions](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs),
+[knowledge-source regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/KnowledgeSourceAnswerWindowTests.cs)).
+
+The [exact-name conversation choice](../src/Kora/NamedConversationChoiceView.cs),
+[local routing advice](../src/Kora/SessionRouting/SessionRoutingAdviceView.cs) and
+[acknowledged destination review](../src/Kora/SessionRouting/SessionRoutingView.cs)
+use supporting tabs. They preserve original channels, exact metadata targets and
+separate acknowledgment; hidden or switched reviews cannot disclose another history
+or submit stale input ([navigation regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NamedOpening.cs),
+[routing regressions](../tests/Kora.Windows.IntegrationTests/SessionRoutingTests.Workbench.cs)).
+The [MCP capability-preference editor](../src/Kora/McpCapabilityManagerEditorView.cs)
+also uses a supporting tab; draft category/item edits still require complete review
+and separate Save and confer no connection, content or execution authority
+([preference regressions](../tests/Kora.Windows.IntegrationTests/McpCapabilityManagerTests.cs)).
+
+Private Copilot/Claude credential editors and final-send disclosures also use supporting tabs, preserving masked memory-only entry, independent account-use approval and fresh one-send consent. No credential enters chat content; presentation retirement clears fields while actual authentication work stays owned ([account regressions](../tests/Kora.Windows.IntegrationTests/AccountWorkbenchTests.cs),
+[send regressions](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)).
+The [handoff view](../src/Kora/ModelHandoffView.axaml) shares that owner, with exact envelope/evidence review, separate context approval and joined dismissal. Context approval grants no hosted send ([SQLite regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteNativeHandoffReviewTests.Workbench.cs)).
+
+Standalone adapters remain for direct compatibility tests. Microphone recovery,
+maintenance, bundled runtime/setup and some ordinary specialist review routes
+remain outside this increment. Their existing controllers are unchanged
+([recovery](../src/Kora/MicrophoneRecoveryWindowController.cs),
+[maintenance](../src/Kora/MaintenanceWindowController.cs),
+[runtime setup](../src/Kora/BundledRuntimeSetup/BundledRuntimeSetupWindow.cs)).
+This increment does not deliver the complete one-interactive-window budget.
+
 ### Explicit private workspace recovery
 
 Lock, unknown desktop state and owner loss retire the composed session, compact, response and Details presentations. Successful joined retirement is required before a new explicit **Show Kora**, **Settings** or **Sessions** gesture can release the private presentation hold under current host ownership and authoritative unlocked-session checks ([recovery](../src/Kora.Application/ViewModels/MainViewModel.PrivatePresentation.cs), [native regression](../tests/Kora.Windows.IntegrationTests/DesktopLockRecoveryTests.cs)).
@@ -207,9 +387,7 @@ a conversation link cannot preserve expired log bodies, recover deleted session
 content from longer-lived audit rows or renew access. Expired/revoked/unavailable
 results clear content and show their status; copy/export/model egress retain their
 separate admission. The delivered fixed `show session logs` / `show session audit`
-routes use existing Evidence queries for the selected session only. They require
-original LocalUi admission; activated voice is refused rather than relabelled.
-Other command/retrieval routes remain unavailable.
+routes use existing Evidence queries for the selected session only. Diagnostic logs require original LocalUi admission. Committed session audit and the separately application-wide **show me the audit history** operation allow original native/typed and activated voice through the [shared channel rule](../src/Kora.Core/Diagnostics/EvidenceReadAdmission.cs). No invocation, model, automatic speech or channel relabelling is authorized.
 
 ### Delivery boundary
 
@@ -363,7 +541,7 @@ This surface is metadata observation, not original-file access, retained-byte in
 
 ### Delivered Bounded Passive All Work / Attention Overview - 2026-10-11
 
-The [All work window](../src/Kora/AllWorkWindow.axaml) retains lifecycle, name/exact-session navigation, observed task state, Needs answer, loaded-page ordering and Find in displayed metadata. It observes bounded independent per-session snapshots; omissions, changed/unavailable sources and output bounds remain explicit, not an all-clear or atomic global inventory.
+The [Work/Attention view](../src/Kora/AllWorkView.axaml) retains lifecycle, name/exact-session navigation, observed task state, Needs answer, loaded-page ordering and Find in displayed metadata. It observes bounded independent per-session snapshots; omissions, changed/unavailable sources and output bounds remain explicit, not an all-clear or atomic global inventory.
 
 Raw retained task/request correlation queries, authority/queue/count ranges and technical availability/content query widgets are removed. Source identity and status remain visible where useful, and [query service](../src/Kora.Application/Hosting/SessionWorkspaceService.WorkOverview.cs) validation remains mandatory even for excluded rows.
 
@@ -590,7 +768,7 @@ Unanswered/unseen items remain accessible through the workspace/attention entry 
 The composer always names its session; New session is separate from sending to the selected session.
 An explicit New request entry from tray/compact/workspace offers an untargeted composer labeled Auto-route; show the accepted new/related destination before presenting it as a session message.
 The delivered [native New request fallback](Interaction_And_Sessions.md#delivered-native-new-request-fresh-session-fallback--2026-10-13) is narrower: tray and Sessions open/activate one isolated memory composer, explicitly disclose unavailable relatedness inference and offer only fresh **New conversation**.
-Its [native draft Find](../src/Kora/NewRequestWindow.Find.cs) searches only the current
+Its [native draft Find](../src/Kora/NewRequestView.Find.cs) searches only the current
 editable in-memory draft, even if dirty or invalid, using the authoritative
 `SnapshotLiteralFind.FindCounted` bounded ordinal one-line grammar and full
 nonoverlapping count/ordinal/no-wrap sequence. Explicit Ctrl+F/first/next/previous/clear

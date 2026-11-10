@@ -20,6 +20,8 @@ lease must bind the actual credential before a read-only Models request.
 Models success authenticates that credential for the approved workspace; it is
 not evidence of a claimed Console login or subscription.
 
+The credential editor uses a private supporting tab in the expanded workbench, not conversation input. Leaving, hiding or minimizing clears its password field and retires setup presentation; an admitted authentication operation remains owned until it actually joins ([account owner](../src/Kora/ClaudeAccountWindowController.cs), [hosted regressions](../tests/Kora.Windows.IntegrationTests/AccountWorkbenchTests.cs)).
+
 Credentials remain in memory only. They are not accepted through voice, chat,
 environment variables, Claude CLI, Copilot sign-in or saved settings. Forget,
 privacy retirement, expiry and approval revocation retire the volatile catalogue.
@@ -71,7 +73,7 @@ eligibility into native authority. Review confirmation is single-use.
 ## Ask one clarification explicitly
 
 In private Sessions or compact view, enter your original message and select **Ask Claude with one clarification (separate disclosure reviews)**. This separate operation allows `ask_user` once, with bounded text, radio-button choices or checkboxes ([native control](../src/Kora/SessionsWindow.axaml)).
-Reply in the existing session-owned question window, or use its exact voice reply when microphone/privacy/call admission permits ([question owner](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs)).
+Reply in the existing session-owned inline question, or use its exact voice reply when microphone/privacy/call admission permits ([question owner](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs)).
 
 **Answering does not send your answer.** The host rereads the canonical stored reply, then offers a new complete native Count Tokens disclosure and a separate Messages disclosure.
 Each physical POST needs fresh affirmative native consent, even when the answer was spoken. Deny/close/expiry/cancellation or changed authority stops continuation; earlier approvals are not reused ([send reviews](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs), [transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
@@ -88,6 +90,8 @@ review and affirmative one-send consent. Token counting is content egress:
 `POST https://api.anthropic.com/v1/messages/count_tokens` is reviewed first.
 Its exact counted input is reused for
 `POST https://api.anthropic.com/v1/messages`, which requires a **new** review.
+
+Each final-byte review uses a supporting tab in the same workbench. Displaying it, switching away, hiding or minimizing never approves a send. A retired control cannot approve or dismiss a newer physical-send review ([disclosure owner](../src/Kora/ClaudeTransmissionWindowController.cs), [native and hosted tests](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)).
 Each review displays method, exact destination, all noncredential headers and
 the complete actual UTF-8 JSON body, without truncation. Credentials are not
 displayed, logged or audited. There is no affirmative default; closing, Deny,

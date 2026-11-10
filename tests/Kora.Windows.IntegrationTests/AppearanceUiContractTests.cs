@@ -8,7 +8,7 @@ public sealed class AppearanceUiContractTests
     [Fact]
     public void Settings_omits_general_storage_disclosure_without_leaving_an_empty_layout_row()
     {
-        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Kora", "SettingsWindow.axaml"));
+        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Kora", "SettingsView.axaml"));
         document.Descendants().Attributes().Should().NotContain(attribute =>
             string.Equals(attribute.Value, "{Binding LocalStorageDisclosure}", StringComparison.Ordinal));
         var layout = document.Root!.Elements().Single(element =>
@@ -32,7 +32,7 @@ public sealed class AppearanceUiContractTests
     [Fact]
     public void Settings_copy_avoids_internal_implementation_terms()
     {
-        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Kora", "SettingsWindow.axaml"));
+        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Kora", "SettingsView.axaml"));
         var copy = string.Join("\n", document.Descendants().Attributes()
             .Where(attribute => attribute.Name.LocalName is "Text" or "Content" or "Header" or "SettingName" or "AutomationProperties.Name" or "AutomationProperties.HelpText")
             .Select(attribute => attribute.Value)
@@ -58,7 +58,7 @@ public sealed class AppearanceUiContractTests
     public void SettingsGroupAppearanceBeforePresence()
     {
         var root = FindRepositoryRoot();
-        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
+        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml"));
         XNamespace avalonia = "https://github.com/avaloniaui";
         var tab = document.Descendants(avalonia + "TabItem")
             .Single(element => string.Equals(element.Attribute("Header")?.Value, "Appearance", StringComparison.Ordinal));
@@ -94,7 +94,7 @@ public sealed class AppearanceUiContractTests
     public void Existing_direct_controls_bind_authoritative_domain_bounds_and_per_option_reset()
     {
         var root = FindRepositoryRoot();
-        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
+        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml"));
         var expected = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["ResponseTimeoutSeconds"] = "ResponseWindowSettings.MinimumTimeoutSeconds",
@@ -135,7 +135,7 @@ public sealed class AppearanceUiContractTests
     [InlineData("Speech scale amount", "ResetPresenceSpeechScaleAmountCommand", "Value", "PresenceSpeechScaleAmountPercent")]
     public void EachSettingHasItsOwnResetMenu(string label, string command, string attribute, string binding)
     {
-        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Kora", "SettingsWindow.axaml"));
+        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Kora", "SettingsView.axaml"));
         var actions = document.Descendants().Single(element =>
             string.Equals(element.Name.LocalName, "SettingActionsButton", StringComparison.Ordinal)
             && string.Equals(element.Attribute("SettingName")?.Value, label, StringComparison.Ordinal));
@@ -173,7 +173,7 @@ public sealed class AppearanceUiContractTests
     public void Appearance_registry_controls_expose_screen_reader_accessible_names()
     {
         var root = FindRepositoryRoot();
-        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
+        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml"));
         foreach (var binding in new[]
         {
             "ThemeMode", "ReaderTextScalePercent", "IsPresenceDisplayEnabled",

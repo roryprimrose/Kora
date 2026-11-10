@@ -64,6 +64,18 @@ public sealed class ThemeContrastContractTests
         AssertRatioAtLeast(brushes, "KoraWarningBrush", "KoraWindowBackgroundBrush", NormalTextMinimumRatio);
     }
 
+    [Theory]
+    [InlineData("Light")]
+    [InlineData("Dark")]
+    public void Flat_button_states_preserve_pressed_text_and_keyboard_outline_contrast(string themeKey)
+    {
+        var brushes = LoadThemeBrushes(themeKey);
+        AssertRatioAtLeast(brushes, "KoraForegroundBrush", "KoraBorderBrush", NormalTextMinimumRatio);
+        AssertRatioAtLeast(brushes, "KoraAccentBrush", "KoraWindowBackgroundBrush", 3);
+        AssertRatioAtLeast(brushes, "KoraAccentBrush", "KoraSurfaceBrush", 3);
+        AssertRatioAtLeast(brushes, "KoraAccentBrush", "KoraSurfaceAltBrush", 3);
+    }
+
     // These assertions cover opaque declared text pairs only, not rendered states, focus indicators,
     // gradients or component boundaries. Each non-text exemption requires its own usage assessment.
 
@@ -129,7 +141,7 @@ public sealed class ThemeContrastContractTests
             var color = brush.Attribute("Color")!.Value;
             if (key is "KoraForegroundBrush" or "KoraMutedForegroundBrush" or "KoraWindowBackgroundBrush"
                 or "KoraSurfaceBrush" or "KoraSurfaceAltBrush" or "KoraAccentForegroundBrush"
-                or "KoraAccentBrush" or "KoraPrimaryBrush" or "KoraStatusBrush" or "KoraWarningBrush")
+                or "KoraAccentBrush" or "KoraPrimaryBrush" or "KoraStatusBrush" or "KoraWarningBrush" or "KoraBorderBrush")
             {
                 brushes.Add(key, ParseHexColor(color));
             }

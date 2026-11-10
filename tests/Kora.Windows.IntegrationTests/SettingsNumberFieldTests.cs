@@ -276,7 +276,7 @@ public sealed class SettingsNumberFieldTests
                 var input = field.FindControl<TextBox>("NumberInput")!;
                 input.Bounds.Height.Should().BeInRange(30, 34);
                 var save = field.FindControl<Button>("ActionButton")!;
-                save.Padding.Should().Be(new Thickness(10, 4));
+                save.Padding.Should().Be(new Thickness(8, 3));
                 save.CornerRadius.Should().Be(new CornerRadius(3));
                 field.Width = 280;
                 window.UpdateLayout();

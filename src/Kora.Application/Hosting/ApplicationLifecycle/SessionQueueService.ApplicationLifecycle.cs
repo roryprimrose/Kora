@@ -88,7 +88,9 @@ public sealed partial class SessionQueueService
         SessionConversationService.RequireOriginalSource(origin);
         var control = access.ControlRevision;
         var expires = time.GetUtcNow().AddMinutes(1);
-        bool Current() => !disposed && access.CanControl && access.ControlRevision == control && admitted()
+        SessionQueueLifecycleReview? review = null;
+        // Joined receipts survive voluntary input closure, not changes to their private control source.
+        bool Current() => !disposed && (access.CanControl || review is { Joined: true }) && access.ControlRevision == control && admitted()
             && !token.IsCancellationRequested && time.GetUtcNow() < expires;
         long revision;
         long epoch;
@@ -109,7 +111,7 @@ public sealed partial class SessionQueueService
             {
                 if (!Current() || revision != lifecycleRevision || !lifecycleHeld || epoch != lifecycleEpoch)
                 { throw new InvalidOperationException("Compatibility work changed while reviewing. No work was stopped."); }
-                return lifecycleReview = new(queues, revision, epoch, origin, expires, Current, ReleaseLifecycleReview);
+                return review = lifecycleReview = new(queues, revision, epoch, origin, expires, Current, ReleaseLifecycleReview);
             }
         }
         catch

@@ -43,10 +43,12 @@ public sealed partial class AdaptiveInteractionTests
             var expand = window.FindControl<Button>("ExpandSessions")!;
             window.IsExpanded.Should().BeFalse();
             expand.IsEffectivelyVisible.Should().BeTrue();
-            expand.Content.Should().Be("Expand view");
+            expand.Content.Should().BeOfType<PathIcon>();
+            ToolTip.GetTip(expand).Should().Be("Expand to the full workbench");
             AutomationProperties.GetName(expand).Should().Be("Expand to the full workbench");
             expand.BringIntoView();
             window.UpdateLayout();
+            CompactResponseWorkingAreaTests.AssertCompactFrameContainsControls(window);
             expand.Focus().Should().BeTrue();
             if (keyboard)
             {

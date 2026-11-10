@@ -1,6 +1,7 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Input;
 using Avalonia.Media;
 
 namespace Kora;
@@ -9,7 +10,9 @@ public sealed partial class ResponseWindow
 {
     private void ConfigureChrome(bool expanded)
     {
+        Classes.Set("compact", !expanded);
         WorkbenchCaption.IsVisible = expanded;
+        WindowSurface.Cursor = new Cursor(expanded ? StandardCursorType.Arrow : StandardCursorType.SizeAll);
         ShowInTaskbar = expanded;
         WindowDecorations = expanded ? WindowDecorations.BorderOnly : WindowDecorations.None;
         ExtendClientAreaToDecorationsHint = expanded;

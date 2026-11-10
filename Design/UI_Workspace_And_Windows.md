@@ -15,6 +15,21 @@ Apply the [approved realignment](MVP_Scope.md#approved-retirement-and-simplifica
 
 Technical provenance and internal validation remain authoritative; Evidence retains its diagnostic purpose. Saved-draft and public diagnostic scheduling controls are removed. Unsent input follows the [conversation contract](Interaction_And_Sessions.md#conversation-input-realignment), not a document lifecycle.
 
+## Shared button theme
+
+The application, response window and settings editor reuse the
+[shared button styles](../src/Kora/Controls/ButtonStyles.axaml) in Light and Dark
+themes. Text buttons have a 28px minimum height, 3px corners, normal-weight 13px
+labels, compact padding and a single thin border. Secondary buttons are flat;
+primary actions retain the existing accent colour without raised or pill styling.
+Compact glyph buttons use an unboxed 28px target with a 16px glyph. Existing 32px
+settings-action targets and native caption dimensions remain unchanged.
+
+Hover, pressed, open-menu, disabled and keyboard-focus states stay explicit.
+Keyboard focus retains a contrasting outline without changing control size.
+Labels, tooltips, accessible names, command admission and confirmation behaviour
+are unchanged; a smaller visual style never supplies action authority.
+
 ## Adaptive primary interaction window - 2026-10-25
 
 Approved outcome: participate in independent session conversations and inspect readable results.
@@ -29,6 +44,17 @@ show/expand commands reuse that same window. Collapse returns to the original re
 typed command and live interaction controls. The conversation view remains mounted:
 expansion/collapse does not recreate the session model, move input, save, submit or replay.
 The expanded window does not use the ordinary response inactivity timer.
+
+The [compact response](../src/Kora/ResponseWindow.axaml) uses an opaque background and glyph buttons with tooltips and accessible names.
+One rounded frame contains the compact toolbar, response or selected conversation,
+and input controls. Expanding restores the workbench's separate response frame;
+collapsing restores the shared compact frame without moving or submitting input.
+
+- Expand, Dismiss, Send and the available microphone remain direct actions; Cancel task and Stop speaking appear only when relevant.
+- The More response actions menu contains response details, read-aloud, call-speech review and reviewed voice capture.
+- Submitted-work reports and management controls remain in the expanded workbench.
+- Blank compact-window areas use the move cursor and support mouse dragging; text, input and interactive controls retain their normal behavior.
+- Question choices and approval decisions retain readable text.
 
 - The left pane defaults to Active on its first list load, with All/Done filters and
   explicit Refresh/Next. Ordinary conversation-name substring Search/Clear/Next

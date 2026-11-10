@@ -160,7 +160,13 @@ public sealed class PushToTalkUiContractTests
                 response.Show();
                 response.Activate();
                 response.UpdateLayout();
-                response.FindControl<Button>("BeginReviewedVoiceCommand")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var more = response.FindControl<Button>("ResponseMoreActions")!;
+                var menu = (MenuFlyout)more.Flyout!;
+                menu.ShowAt(more);
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                menu.Items.OfType<MenuItem>().Single(item =>
+                    string.Equals(item.Header as string, "Review one spoken command", StringComparison.Ordinal))
+                    .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 await fixture.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
                 fixture.Main.IsReviewedVoiceCommandActive.Should().BeTrue(fixture.Main.ReviewedVoiceCommandStatus);
                 Avalonia.Threading.Dispatcher.UIThread.RunJobs();

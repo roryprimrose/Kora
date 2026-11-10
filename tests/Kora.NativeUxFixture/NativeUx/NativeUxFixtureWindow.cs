@@ -34,6 +34,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
     private readonly List<IDisposable> controllers = [];
     private readonly List<AsyncCommand> commands = [];
     private DetailWindowController? details;
+    private ResponseWindowController? responses;
     private NativeQuestionHost? questions;
     private DetailViewerState? retainedDetail;
     private bool ready;
@@ -107,6 +108,17 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
         {
             var window = new ResponseWindow(session.Main);
             window.ShowResponse();
+            return Task.CompletedTask;
+        });
+        AddAction(content, "Collapsed response workbench (scratch sessions)", () =>
+        {
+            if (responses is null)
+            {
+                responses = CreateResponseWorkbench(session.Main,
+                    controllers.OfType<SessionsWindowController>().Single(), details);
+                controllers.Add(responses);
+            }
+            responses.PrepareWorkbenchOwner().ShowResponse(restoreMinimized: true);
             return Task.CompletedTask;
         });
         if (session.ExactGrants)
@@ -390,6 +402,16 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
         foreach (var command in commands) { command.NotifyCanExecuteChanged(); }
     }
 
+    internal static ResponseWindowController CreateResponseWorkbench(MainViewModel main,
+        SessionsWindowController sessions, DetailWindowController? details)
+    {
+        var controller = new ResponseWindowController(main, NullLogger<ResponseWindowController>.Instance, details);
+        sessions.CreateInteraction = (state, owner) =>
+            controller.PrepareSessions(state, owner, sessions.Open, () => sessions.OpenNewRequest?.Invoke());
+        controller.PrepareDetailsHost = sessions.PrepareDetailsHost;
+        return controller;
+    }
+
     private void OnPrivacyClosure(object? sender, EventArgs args) => ClearPrivateWindows();
 
     private void ClearPrivateWindows()
@@ -461,6 +483,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
         foreach (var controller in controllers) { controller.Dispose(); }
         controllers.Clear();
         details = null;
+        responses = null;
         questions = null;
         retainedDetail = null;
     }

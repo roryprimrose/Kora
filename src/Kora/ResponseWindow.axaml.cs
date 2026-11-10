@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 using Kora.Application.ViewModels;
 using Kora.Application.Visuals;
@@ -323,12 +324,23 @@ public sealed partial class ResponseWindow : Window
         RestartResponseTimeout();
     }
 
-    private void OnDragHandlePointerPressed(object? sender, PointerPressedEventArgs eventArgs)
+    private void OnSurfacePointerPressed(object? sender, PointerPressedEventArgs eventArgs)
     {
-        if (eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        if (IsExpanded || eventArgs.Handled || eventArgs.Pointer.Type != PointerType.Mouse
+            || !eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        { return; }
+
+        for (var visual = eventArgs.Source as Visual; visual is not null && visual != WindowSurface;
+            visual = visual.GetVisualParent())
         {
-            BeginMoveDrag(eventArgs);
+            if (visual is TextBlock or SelectableTextBlock
+                or Avalonia.Controls.Primitives.RangeBase or Avalonia.Controls.Primitives.Thumb
+                || visual is InputElement { Focusable: true } and not ScrollViewer)
+            { return; }
         }
+
+        BeginMoveDrag(eventArgs);
+        eventArgs.Handled = true;
     }
 
     private void OnOpened(object? sender, EventArgs eventArgs)

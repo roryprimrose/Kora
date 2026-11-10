@@ -7,7 +7,8 @@ const fs = require('node:fs');
 const { checkpoint } = require('./checkpoint.cjs');
 const { applyEvent, digest, heldReservations } = require('./registry.cjs');
 const { refinementFixture, refinementEvent, tamperedStates,
-  candidateFixture, candidateEvent } = require('./refinement-fixture.cjs');
+  candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
+  supersessionBeneficiaryFixture } = require('./refinement-fixture.cjs');
 
 function fixture() {
   const files = new Map();
@@ -51,6 +52,100 @@ function candidateCheckpoint(released = true) {
       ...state.amendments.map(record => ({ id: record.eventId, type: 'extend-scopes' }))] }));
   return f;
 }
+
+function supersessionCheckpoint() {
+  const f = fixture();
+  f.files.set(f.file, JSON.stringify({ version: 1, revision: 41,
+    state: supersessionFixture(), actions: [], events: [] }));
+  return f;
+}
+
+test('supersession persists full journal binding before launch and exact replay is byte-idempotent', () => {
+  const f = supersessionCheckpoint();
+  const event = supersessionEvent(f.run({ operation: 'read' }).state);
+  const value = f.run({ operation: 'apply', expectedRevision: 41, event });
+  assert.equal(value.revision, 42);
+  assert.equal(value.events.at(-1).digest, digest(value.state.supersessions[0]));
+  assert.deepEqual(value.actions.map(action => action.command),
+    [{ type: 'launch', key: 'successor', pool: 'ready' }]);
+  const before = f.files.get(f.file);
+  f.run({ operation: 'apply', expectedRevision: 42, event });
+  assert.equal(f.files.get(f.file), before);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: 42,
+    event: { ...event, type: 'pause' } }), /replay/);
+  assert.equal(f.files.get(f.file), before);
+});
+
+test('supersession lock, stale revision, changed holder and atomic replacement failures preserve exact bytes', () => {
+  for (const failure of ['lock', 'revision', 'proof-revision', 'holder', 'replace']) {
+    const f = supersessionCheckpoint();
+    const state = f.run({ operation: 'read' }).state;
+    const event = supersessionEvent(state, failure === 'proof-revision' ? 40 : 41);
+    if (failure === 'holder') event.proof.localReservations[0].blocker = 'changed holder';
+    const before = f.files.get(f.file);
+    if (failure === 'lock') f.files.set(`${f.file}.lock`, 'other writer');
+    if (failure === 'replace') f.failReplacement();
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: failure === 'revision' ? 40 : 41,
+      event }));
+    assert.equal(f.files.get(f.file), before);
+    assert.deepEqual([...f.files.keys()].sort(),
+      (failure === 'lock' ? [f.file, `${f.file}.lock`] : [f.file]).sort());
+  }
+});
+
+test('supersession checkpoint rejects journal removal, altered history, launch omission and changed launch', () => {
+  for (const change of [
+    v => { v.events.pop(); },
+    v => { v.events.at(-1).digest = '0'.repeat(64); },
+    v => { v.state.supersessions[0].event.proof.head = '0'.repeat(40); },
+    v => { v.actions = []; },
+    v => { v.actions[0].command.key = 'prior-0'; },
+    v => {
+      v.actions[0].command.key = 'prior-0';
+      v.events.at(-1).commands[0].key = 'prior-0';
+    },
+    v => { v.actions.push(structuredClone(v.actions[0])); }
+  ]) {
+    const f = supersessionCheckpoint();
+    const state = f.run({ operation: 'read' }).state;
+    const value = f.run({ operation: 'apply', expectedRevision: 41, event: supersessionEvent(state) });
+    change(value);
+    f.files.set(f.file, JSON.stringify(value));
+    const before = f.files.get(f.file);
+    assert.throws(() => f.run({ operation: 'read' }));
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: 42,
+      event: { id: 'pause-corrupt', type: 'pause' } }));
+    assert.equal(f.files.get(f.file), before);
+  }
+});
+
+test('durable beneficiary cleanup releases its future fence only after accepted complete proof', () => {
+  const f = supersessionCheckpoint();
+  const { completion, published } = supersessionBeneficiaryFixture();
+  const before = f.run({ operation: 'read' });
+  f.run({ operation: 'apply', expectedRevision: 41, event: supersessionEvent(before.state) });
+  f.run({ operation: 'apply', expectedRevision: 42, event: { id: 'review-successor-attached',
+    type: 'attached', key: 'successor', owner: 'review-successor' } });
+  const held = f.run({ operation: 'apply', expectedRevision: 43, event: {
+    id: 'review-successor-published', type: 'published', key: 'successor', owner: 'review-successor',
+    proof: published.items.find(item => item.key === 'successor').publication } });
+  const oldBytes = f.files.get(f.file);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: 44,
+    event: { ...completion, proof: { ...completion.proof, branchAbsent: false } } }), /cleanup/);
+  assert.equal(f.files.get(f.file), oldBytes);
+  assert.ok(heldReservations(f.run({ operation: 'read' }).state, 'later-feature')
+    .some(item => item.key === 'supersession:supersede-once:successor'));
+  const completed = f.run({ operation: 'apply', expectedRevision: 44, event: completion });
+  assert.deepEqual(completed.state.supersessions, held.state.supersessions);
+  assert.equal(heldReservations(f.run({ operation: 'read' }).state, 'later-feature')
+    .some(item => item.key === 'supersession:supersede-once:successor'), false);
+  const later = f.run({ operation: 'apply', expectedRevision: 45, event: {
+    id: 'review-later-adopt', type: 'adopt', key: 'later-feature', owner: 'review-later-owner',
+    outcome: 'later independent outcome', head: before.state.head, scopes: ['src\\shared.cs'],
+    pool: 'ready', kind: 'feature', evidence: 'Independent admission after complete beneficiary cleanup.' } });
+  assert.equal(later.state.items.at(-1).phase, 'running');
+  assert.deepEqual(later.state.items.slice(0, 2), held.state.items.slice(0, 2));
+});
 
 test('atomic candidate readmission persists exact old-item/source binding and only normal launch actions', () => {
   const f = candidateCheckpoint();

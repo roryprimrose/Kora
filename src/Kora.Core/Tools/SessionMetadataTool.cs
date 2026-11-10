@@ -10,6 +10,12 @@ public static class SessionMetadataTool
     public static IReadOnlyList<CapabilityDescriptor> Descriptors { get; } =
         Array.AsReadOnly<CapabilityDescriptor>([Descriptor]);
 
+    public static void RequireMatch(CapabilityReply reply, string id)
+    {
+        if (!Matches(reply, id))
+        { throw new InvalidDataException("Metadata must match the one reviewed exact subject and closed output shape."); }
+    }
+
     public static bool Matches(CapabilityReply reply, string id)
     {
         if (reply.Outcome != CapabilityOutcome.Succeeded || !string.Equals(reply.Reason, ResultReason, StringComparison.Ordinal)

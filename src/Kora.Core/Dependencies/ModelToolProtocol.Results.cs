@@ -10,8 +10,9 @@ public static partial class ModelToolProtocol
         if (string.Equals(call.CapabilityId, SessionMetadataTool.Id, StringComparison.Ordinal))
         {
             var parsed = CapabilityInputPolicy.Read(SessionMetadataTool.Descriptor, call.InputJson);
-            if (parsed.Id is null || !SessionMetadataTool.Matches(reply, parsed.Id.Id))
+            if (parsed.Id is null)
             { throw new InvalidDataException("Metadata must match the one reviewed exact subject and closed output shape."); }
+            SessionMetadataTool.RequireMatch(reply, parsed.Id.Id);
             return;
         }
         if (reply.SessionMetadata is not null)

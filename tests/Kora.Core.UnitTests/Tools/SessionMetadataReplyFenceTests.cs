@@ -59,5 +59,24 @@ public sealed class SessionMetadataReplyFenceTests
             create.Should().Throw<InvalidDataException>();
         }
         SessionMetadataTool.Matches(valid with { Outcome = CapabilityOutcome.Denied }, SessionMetadataTests.Id).Should().BeFalse();
+        Action invalidInput = () => ModelToolProtocol.CreateToolResult(
+            new(call.CallId, call.CapabilityId, "{}"), valid);
+        invalidInput.Should().Throw<InvalidDataException>();
+
+        var customization = new CapabilityReply(CapabilityOutcome.Succeeded, CustomizationDiscoveryTools.ResultReason,
+            Customizations: new([new("10000000000000000000000000000001", Kora.Core.Customizations.CustomizationKind.Skill,
+                "Name", "Description", Kora.Core.Customizations.CustomizationScope.Kora,
+                true, false, CapabilityAvailability.NotObserved)], 1, null), SessionMetadata: valid.SessionMetadata);
+        CustomizationDiscoveryTools.Matches(customization, CustomizationDiscoveryTools.List,
+            new(null, Page: new(0, 1))).Should().BeFalse();
+        var maintenance = new Kora.Core.Maintenance.MaintenanceToolObservation("1.0.0", Kora.Core.Maintenance.ReleaseChannel.Production,
+            Kora.Core.Maintenance.ReleaseAvailability.UpToDate, "No installer started.");
+        CustomizationDiscoveryTools.Matches(customization with { SessionMetadata = null, Maintenance = maintenance },
+            CustomizationDiscoveryTools.List, new(null, Page: new(0, 1))).Should().BeFalse();
+        var metrics = new CapabilityReply(CapabilityOutcome.Succeeded, "observed",
+            SessionMetrics: new(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, 0, 0, 0, 0, 0, []),
+            SessionMetadata: valid.SessionMetadata);
+        SessionMetricsTool.Matches(metrics).Should().BeFalse();
+        SessionMetricsTool.Matches(metrics with { SessionMetadata = null, Maintenance = maintenance }).Should().BeFalse();
     }
 }

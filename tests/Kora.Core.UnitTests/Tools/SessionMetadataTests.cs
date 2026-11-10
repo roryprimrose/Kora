@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
+using System.Text.Json;
 
 using AwesomeAssertions;
 using Kora.Core.Dependencies;
@@ -62,6 +63,11 @@ public sealed class SessionMetadataTests
         (result with { PendingWork = 0 }).Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
         (result with { EarliestObservedQuestionExpiry = DateTimeOffset.UnixEpoch }).Invoking(value => value.Validate())
             .Should().Throw<InvalidDataException>();
+        SessionMetadataSnapshot.From(Row() with
+        {
+            Availability = availability, Work = null,
+            Session = Row().Session with { Metadata = null },
+        }).Name.Should().BeNull();
     }
 
     [Fact]
@@ -75,6 +81,7 @@ public sealed class SessionMetadataTests
             valid with { ObservedAt = DateTimeOffset.UnixEpoch.ToOffset(TimeSpan.FromHours(1)) },
             valid with { ObservedTaskCounts = null }, valid with { ObservedTaskCounts = default(ImmutableArray<SessionMetadataSnapshot.TaskCount>) },
             valid with { ObservedTaskCounts = [] },
+            valid with { ObservedTaskCounts = [null!, .. valid.ObservedTaskCounts!.Value.Skip(1)] },
             valid with { ObservedTaskCounts = [.. valid.ObservedTaskCounts!.Value.Reverse()] },
             valid with { ObservedTaskCounts = [.. Enum.GetValues<HostTaskState>().Select(state => new SessionMetadataSnapshot.TaskCount(state, -1))] },
             valid with { ObservedTaskCounts = [.. Enum.GetValues<HostTaskState>().Select(state => new SessionMetadataSnapshot.TaskCount(state, 50))] },
@@ -96,6 +103,43 @@ public sealed class SessionMetadataTests
         (row with { Session = row.Session with { Metadata = new(new(Guid.NewGuid()), new(1), new("Name")) } })
             .Invoking(value => { _ = SessionMetadataSnapshot.From(value); }).Should().Throw<InvalidDataException>();
         SessionMetadataSnapshot.From(row with { Session = row.Session with { Metadata = null } }).Name.Should().BeNull();
+        var unavailable = valid with
+        {
+            Availability = SessionWorkOverviewAvailability.ReadUnavailable,
+            ObservedAt = null, ObservedTaskCounts = null, PendingWork = null,
+            ObservedCurrentFixedReads = null, ObservedPendingQuestions = null,
+            OmittedTasks = null, OmittedQueueRecords = null, OmittedQuestions = null,
+            EarliestObservedQuestionExpiry = null,
+        };
+        SessionMetadataSnapshot[] invented =
+        [
+            unavailable with { ObservedAt = DateTimeOffset.UnixEpoch },
+            unavailable with { ObservedTaskCounts = [] },
+            unavailable with { ObservedCurrentFixedReads = 0 },
+            unavailable with { ObservedPendingQuestions = 0 },
+            unavailable with { OmittedTasks = 0 },
+            unavailable with { OmittedQueueRecords = 0 },
+            unavailable with { OmittedQuestions = 0 },
+        ];
+        foreach (var value in invented) { value.Invoking(snapshot => snapshot.Validate()).Should().Throw<InvalidDataException>(); }
+    }
+
+    [Fact]
+    public void Exact_subject_schema_excludes_other_fields_and_requires_one_canonical_id()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        { CapabilityInputSchema.Write(writer, SessionMetadataTool.Descriptor); }
+        using var schema = JsonDocument.Parse(stream.ToArray());
+        var root = schema.RootElement;
+        root.GetProperty("additionalProperties").GetBoolean().Should().BeFalse();
+        root.GetProperty("required").EnumerateArray().Select(value => value.GetString()).Should().Equal("id");
+        root.GetProperty("properties").EnumerateObject().Select(value => value.Name).Should().Equal("id");
+        var id = root.GetProperty("properties").GetProperty("id");
+        id.GetProperty("type").GetString().Should().Be("string");
+        id.GetProperty("minLength").GetInt32().Should().Be(36);
+        id.GetProperty("maxLength").GetInt32().Should().Be(36);
+        id.GetProperty("pattern").GetString().Should().Be("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
     }
 
     [Theory]

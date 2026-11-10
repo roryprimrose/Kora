@@ -18,4 +18,18 @@ public sealed class SessionMetadataCommandTests
         SessionMetadataCommand.Parse("review session metadata bad for bad: q", "Kora")!.Error.Should().NotBeNull();
         SessionMetadataCommand.Parse("ordinary", "Kora").Should().BeNull();
     }
+
+    [Theory]
+    [InlineData("10000000-0000-0000-0000-000000000001 for caller: question")]
+    [InlineData("10000000-0000-0000-0000-000000000001 for 10000000-0000-0000-0000-000000000002: ")]
+    [InlineData("10000000-0000-0000-0000-000000000001 for 10000000-0000-0000-0000-000000000002")]
+    public void Malformed_caller_or_missing_question_remains_an_explicit_command_error(string input)
+    {
+        var command = SessionMetadataCommand.Parse("review session metadata " + input, "Kora");
+        command.Should().NotBeNull();
+        command.Error.Should().NotBeNullOrWhiteSpace();
+        command.Subject.Should().BeEmpty();
+        command.Caller.Should().BeEmpty();
+        command.Question.Should().BeEmpty();
+    }
 }

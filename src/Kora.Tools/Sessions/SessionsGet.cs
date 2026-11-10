@@ -9,11 +9,11 @@ public sealed class SessionsGet
         ArgumentNullException.ThrowIfNull(reviewed);
         reviewed.Validate();
         var parsed = CapabilityInputPolicy.Read(SessionMetadataTool.Descriptor, input);
-        if (parsed.DenialReason is not null || !string.Equals(parsed.Id?.Id, reviewed.SessionId, StringComparison.Ordinal))
+        if (parsed.DenialReason is not null || !string.Equals(parsed.Id!.Id, reviewed.SessionId, StringComparison.Ordinal))
         { return new(CapabilityOutcome.Denied, parsed.DenialReason ?? "unreviewed-exact-session"); }
         var result = new CapabilityReply(CapabilityOutcome.Succeeded, SessionMetadataTool.ResultReason,
             SessionMetadata: reviewed);
-        return SessionMetadataTool.Matches(result, reviewed.SessionId) ? result
-            : new(CapabilityOutcome.Denied, "metadata-result-bound");
+        SessionMetadataTool.RequireMatch(result, reviewed.SessionId);
+        return result;
     }
 }

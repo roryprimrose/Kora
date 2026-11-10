@@ -230,6 +230,97 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData("owner")]
+    [InlineData("mode")]
+    [InlineData("provider")]
+    [InlineData("duplicate")]
+    public async Task SessionMetadata_binding_rejects_foreign_host_mode_provider_or_reuse(string fault)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var host = f.Host;
+        var turn = (await host.AdmitAsync(ModelProviderSelection.OllamaCandidate,
+            f.Context(toolMode: fault is "mode" ? ModelToolMode.ReadOnly : ModelToolMode.SessionMetadata), Token)).Turn!;
+        if (fault is "provider")
+        {
+            turn = new(turn.Owner, turn.Issuer, turn.Provenance with { Selection = ModelProviderSelection.CopilotCandidate },
+                turn.Context, turn.Wire, turn.SessionGeneration, turn.TaskRevision, turn.ControlRevision, turn.Registration);
+        }
+        var workspace = new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance);
+        using var invocation = new SessionMetadataInvocation(workspace, new(Guid.Parse(MetadataSubject)), () => true);
+        if (fault is "duplicate") { host.BindSessionMetadata(turn, invocation); }
+        var called = fault is "owner" ? f.Qualified(ModelProviderSelection.OllamaCandidate) : host;
+        Action bind = () => called.BindSessionMetadata(turn, invocation);
+        bind.Should().Throw<InvalidOperationException>();
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task SessionMetadata_requires_bound_review_and_canonical_execution_before_provider_access()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var turn = (await f.Host.AdmitAsync(ModelProviderSelection.OllamaCandidate,
+            f.Context(toolMode: ModelToolMode.SessionMetadata), Token)).Turn!;
+        var result = await f.Host.RunAsync(turn, Token);
+        result.Outcome.Should().Be(ModelTurnOutcome.Denied);
+        result.Reason.Should().Be(ModelTurnReason.SessionNotAdmitted);
+        f.Adapter.Calls.Should().Be(0);
+        await using var missingHost = f.ConversationService(new TestAdmission(ModelTurnOutcome.Unavailable));
+        await using var missingExecution = f.ConversationService(f.Host);
+        foreach (var service in new[] { missingHost, missingExecution })
+        {
+            await service.Invoking(value => value.SubmitSessionMetadataAsync(new(f.Session, null),
+                new(Guid.Parse(MetadataSubject)), "Original", RequestOrigin.LocalUi, () => true,
+                (_, _) => throw new InvalidOperationException("No review permitted"), Token))
+                .Should().ThrowAsync<InvalidOperationException>().WithMessage("*unavailable*");
+        }
+        f.RetainCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SessionMetadata_rename_intent_retires_only_the_exact_subject_before_mutation(bool exact)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        MetadataSource(f);
+        var workspace = new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance);
+        using var invocation = new SessionMetadataInvocation(workspace, new(Guid.Parse(MetadataSubject)), () => true);
+        await invocation.PrepareAsync("Original", Token);
+        await workspace.Invoking(value => value.RenameAsync(exact ? new(Guid.Parse(MetadataSubject)) : new(Guid.NewGuid()),
+            new(1), 0, new("Changed"), RequestOrigin.HostSystem, Token)).Should().ThrowAsync<InvalidOperationException>();
+        (await invocation.ValidateAsync(Token)).Should().Be(!exact);
+        if (exact)
+        {
+            await invocation.Invoking(value => value.PrepareAsync("replacement", Token)).Should().ThrowAsync<InvalidOperationException>();
+            (await invocation.InvokeAsync(SessionMetadataTool.Id, $$"""{"id":"{{MetadataSubject}}"}""", Token))
+                .Outcome.Should().Be(CapabilityOutcome.Denied);
+        }
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task SessionMetadata_unavailable_work_stays_unknown_through_confirmation_and_one_exact_result()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        MetadataSource(f);
+        f.RemainingProjection = _ => throw new IOException("private work is unreadable");
+        var workspace = new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance);
+        using var invocation = new SessionMetadataInvocation(workspace, new(Guid.Parse(MetadataSubject)), () => true);
+        var review = await invocation.PrepareAsync("Original", Token);
+        review.Snapshot.Availability.Should().Be(SessionWorkOverviewAvailability.ReadUnavailable);
+        review.Snapshot.ObservedTaskCounts.Should().BeNull();
+        (await invocation.ConfirmAsync(Token)).Should().BeTrue();
+        var result = await invocation.InvokeAsync(SessionMetadataTool.Id, $$"""{"id":"{{MetadataSubject}}"}""", Token);
+        result.Outcome.Should().Be(CapabilityOutcome.Succeeded);
+        result.SessionMetadata.Should().Be(review.Snapshot);
+        result.SessionMetadata!.EarliestObservedQuestionExpiry.Should().BeNull();
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task SessionMetadata_passive_timeout_or_cancellation_physically_joins_noncooperative_exact_metadata_read(bool deadline)

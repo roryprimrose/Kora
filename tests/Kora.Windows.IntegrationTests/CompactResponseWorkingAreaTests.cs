@@ -12,8 +12,11 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application.ViewModels;
 using Kora.Core.Voice;
 using Kora.NativeUxFixture;
+
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
@@ -21,6 +24,37 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class CompactResponseWorkingAreaTests
 {
     private static readonly string[] SubmittedActivityControls = ["RefreshSubmittedActivity", "StopSubmittedActivity"];
+
+    [Fact]
+    public async Task InteractiveFixtureWorkbenchExpandsAndCollapsesTheSameResponseWithoutSendingInput()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(ScratchParent(), silentCaption: true);
+            await fixture.InitializeAsync();
+            using var sessions = new SessionsWindowController(fixture.Main, fixture.Sessions, fixture.Evidence,
+                fixture.Access, NullLogger<SessionsViewModel>.Instance);
+            sessions.Bind();
+            using var responses = NativeUxFixtureWindow.CreateResponseWorkbench(fixture.Main, sessions, null);
+            var window = responses.PrepareWorkbenchOwner();
+            window.ShowResponse();
+            fixture.Main.CommandText = "Unsent fixture input";
+
+            window.FindControl<Button>("ExpandSessions")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await sessions.InteractionOperation;
+            responses.PrepareWorkbenchOwner().Should().BeSameAs(window);
+            window.IsExpanded.Should().BeTrue();
+            window.IsSessionListPresented.Should().BeTrue();
+            window.FindControl<WrapPanel>("ExpandedControls")!.IsEffectivelyVisible.Should().BeTrue();
+
+            window.FindControl<Button>("CollapseWorkbench")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.IsExpanded.Should().BeFalse();
+            window.FindControl<WrapPanel>("ExpandedControls")!.IsEffectivelyVisible.Should().BeFalse();
+            fixture.Main.CommandText.Should().Be("Unsent fixture input");
+            fixture.Voice.StartCalls.Should().Be(0);
+            fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
+        });
+    }
 
     [Fact]
     public async Task IdleCompactResponseHasOnlyCoreGlyphActionsAndExplicitOverflow()

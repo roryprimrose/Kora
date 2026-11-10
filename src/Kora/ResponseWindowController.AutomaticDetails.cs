@@ -38,10 +38,10 @@ public sealed partial class ResponseWindowController : IAutomaticDetailPresentat
                 && viewModel.CanRevealPrivatePresentation && native.SourceCurrent() };
     }
 
-    bool IAutomaticDetailPresentation.PublishAutomaticDetails(AutomaticDetailIntent intent)
+    async Task<bool> IAutomaticDetailPresentation.PublishAutomaticDetailsAsync(AutomaticDetailIntent intent)
     {
         if (disposed || details is null || window is not { IsVisible: true, IsActive: true } current
             || !intent.TryConsume()) { return false; }
-        return details.PublishAutomaticDetails(intent, current);
+        return await details.PublishAutomaticDetailsAsync(intent, current);
     }
 }

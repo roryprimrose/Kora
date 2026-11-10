@@ -174,7 +174,7 @@ public sealed partial class SessionsProviderProfileTests
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(Path.Combine(root.FullName, ".github", "copilot-instructions.md"))) { root = root.Parent; }
-        var controls = XDocument.Load(Path.Combine(root!.FullName, "src", "Kora", "SessionsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root!.FullName, "src", "Kora", "SessionsManagementView.axaml")).Descendants().ToArray();
         foreach (var (selected, source) in new[]
         {
             ("ProviderFieldModel", "ProviderModels"), ("ProviderFieldReasoning", "ProviderFieldReasonings"), ("ProviderFieldContext", "ProviderFieldContexts"),

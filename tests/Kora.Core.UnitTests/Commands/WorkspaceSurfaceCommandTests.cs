@@ -55,6 +55,16 @@ public sealed partial class WorkspaceSurfaceCommandTests
     [InlineData("hide details", WorkspaceSurfaceTarget.HideDetails)]
     [InlineData("show session logs", WorkspaceSurfaceTarget.SessionLogs)]
     [InlineData("show session audit", WorkspaceSurfaceTarget.SessionAudit)]
+    [InlineData("show me the audit history", WorkspaceSurfaceTarget.AuditHistory)]
+    [InlineData("show audit history", WorkspaceSurfaceTarget.AuditHistory)]
+    [InlineData("show me the conversation history for this session", WorkspaceSurfaceTarget.ConversationHistory)]
+    [InlineData("show conversation history for this session", WorkspaceSurfaceTarget.ConversationHistory)]
+    [InlineData("show me the settings for the Kora presence", WorkspaceSurfaceTarget.PresenceSettings)]
+    [InlineData("show presence settings", WorkspaceSurfaceTarget.PresenceSettings)]
+    [InlineData("show me the MCP servers", WorkspaceSurfaceTarget.McpServers)]
+    [InlineData("show MCP servers", WorkspaceSurfaceTarget.McpServers)]
+    [InlineData("Is there an MCP server for WorkIQ?", WorkspaceSurfaceTarget.WorkIqMcp)]
+    [InlineData("Is there an MCP server for WorkIQ", WorkspaceSurfaceTarget.WorkIqMcp)]
     public void ExactRoutesAreTypedAndCurrentNameQualified(string phrase, WorkspaceSurfaceTarget target)
     {
         WorkspaceSurfaceCommand.Parse(phrase, "Nova Prime")!.Target.Should().Be(target);
@@ -93,6 +103,16 @@ public sealed partial class WorkspaceSurfaceCommandTests
     [InlineData("hide details extra")]
     [InlineData("show session logs extra")]
     [InlineData("show session audit extra")]
+    [InlineData("show me the audit history extra")]
+    [InlineData("show audit history extra")]
+    [InlineData("show me the conversation history for this session extra")]
+    [InlineData("show conversation history for this session extra")]
+    [InlineData("show me the settings for the Kora presence extra")]
+    [InlineData("show presence settings extra")]
+    [InlineData("show me the MCP servers extra")]
+    [InlineData("show MCP servers extra")]
+    [InlineData("Is there an MCP server for WorkIQ? extra")]
+    [InlineData("Is there an MCP server for WorkIQ extra")]
     public void ReservedMalformedInputIsNotFreeForm(string phrase)
     {
         WorkspaceSurfaceCommand.Parse("Nova, " + phrase, "Nova")!.Target.Should().Be(WorkspaceSurfaceTarget.Invalid);

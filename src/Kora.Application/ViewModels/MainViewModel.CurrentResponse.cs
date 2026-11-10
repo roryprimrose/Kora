@@ -29,6 +29,7 @@ public sealed partial class MainViewModel
     private ICurrentResponsePresentation? currentResponsePresentation;
     private long currentResponseBindingRevision;
     private sealed record CurrentResponseInput(CurrentResponseSpeech? Source, Func<bool> Eligible);
+    private sealed record CurrentResponseTabInput(DetailContentReference Reference, Func<bool> Admitted);
 
     public void BindCurrentResponsePresentation(ICurrentResponsePresentation? presentation)
     {
@@ -59,17 +60,26 @@ public sealed partial class MainViewModel
 
     public Task DismissCurrentResponseAsync() => RunCurrentResponseUiAsync(CurrentResponseAction.Dismiss);
     public Task OpenCurrentResponseDetailsAsync() => RunCurrentResponseUiAsync(CurrentResponseAction.Details);
+    internal Task OpenExactCurrentResponseDetailsAsync(DetailContentReference reference, Func<bool> admitted) =>
+        RunCurrentResponseUiAsync(CurrentResponseAction.Details, new(reference, admitted));
 
-    private Task RunCurrentResponseUiAsync(CurrentResponseAction action)
+    private Task RunCurrentResponseUiAsync(CurrentResponseAction action, CurrentResponseTabInput? tab = null)
     {
         if (HostActivity.HasScope && HostActivity.Current?.Request.Origin != RequestOrigin.LocalUi)
         {
             Transcript = "Current response action unavailable: this is not an original native UI request.";
             return Task.CompletedTask;
         }
-        return Hosting.HostRequestRunner.RunAsync(RequestOrigin.LocalUi, () => ExecuteCurrentResponseAsync(action,
-                CaptureCurrentResponseInput(CaptureManualCallInput(RequestOrigin.LocalUi, CallPolicyRevision),
-                    Interlocked.Read(ref workspaceSurfaceInputRevision)), SecurityAuditInitiator.LocalUser));
+        var input = CaptureCurrentResponseInput(CaptureManualCallInput(RequestOrigin.LocalUi, CallPolicyRevision),
+            Interlocked.Read(ref workspaceSurfaceInputRevision));
+        var original = input;
+        if (tab is { } exact)
+        {
+            input = new(original.Source, () => original.Eligible() && exact.Admitted()
+                && original.Source is { } source && source.Id == exact.Reference.ItemId.Value && source.Revision == exact.Reference.Revision);
+        }
+        return Hosting.HostRequestRunner.RunAsync(RequestOrigin.LocalUi,
+            () => ExecuteCurrentResponseAsync(action, input, SecurityAuditInitiator.LocalUser));
     }
 
     private async Task ExecuteCurrentResponseCommandAsync(CurrentResponseCommand command, string original,
@@ -112,13 +122,14 @@ public sealed partial class MainViewModel
             SecurityAuditOutcome.Requested, initiator, source!.Id.ToString("D"));
         var continuation = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Presentation);
         var requested = false;
+        Func<bool> lifetime = static () => false;
         try
         {
-            var lifetime = presenter.CaptureLifetime();
+            lifetime = presenter.CaptureLifetime();
             await WriteAuditAsync(audit);
             requested = true;
             var confirmed = false;
-            await uiDispatcher.InvokeAsync(() =>
+            await uiDispatcher.InvokeAsync(async () =>
             {
                 using var activity = continuation();
                 activity.Complete(HostOperationOutcome.Failed);
@@ -141,11 +152,10 @@ public sealed partial class MainViewModel
                             source.ModelAnswer is null ? "Exact ordinary response" : "Exact model answer. Generated locally; verify important details.",
                             source.ModelAnswer?.Body ?? source.Title + Environment.NewLine + source.Body,
                             new(request.SessionId, request.RequestId, request.TaskId));
-                        confirmed = presenter.OpenDetails(content, Admitted) && Admitted() && lifetime();
+                        confirmed = await presenter.OpenDetailsAsync(content, Admitted) && Admitted() && lifetime();
                     }
                 }
                 activity.Complete(confirmed ? HostOperationOutcome.Completed : HostOperationOutcome.Cancelled);
-                return Task.CompletedTask;
             });
             await WriteAuditAsync(audit.WithOutcome(confirmed ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Cancelled));
             if (confirmed && HostAdmitted())
@@ -156,6 +166,8 @@ public sealed partial class MainViewModel
             or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
         {
             CurrentResponseActionLog.CurrentResponseActionFailed(logger, exception.GetType().Name);
+            if (exception is Configuration.MarkdownDisplayConfigurationService.CaptureUnavailableException && Admitted() && lifetime())
+            { Transcript = exception.Message + " The current response is unchanged; no new viewer was published."; }
             if (requested)
             {
                 try { await WriteAuditAsync(audit.WithOutcome(SecurityAuditOutcome.Failed)); }

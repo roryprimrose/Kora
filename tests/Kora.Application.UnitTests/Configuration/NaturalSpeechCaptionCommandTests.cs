@@ -15,6 +15,7 @@ public sealed class NaturalSpeechCaptionCommandTests
     [InlineData("show speech captions", "set display.speech-text to CurrentUtterance")]
     [InlineData("show speech text", "set display.speech-text to CurrentUtterance")]
     [InlineData("show the words you're saying", "set display.speech-text to CurrentUtterance")]
+    [InlineData("show the current sentence", "set display.speech-text to CurrentSentence")]
     [InlineData("turn off speech captions", "set display.speech-text to Off")]
     [InlineData("hide speech captions", "set display.speech-text to Off")]
     [InlineData("hide speech text", "set display.speech-text to Off")]
@@ -62,6 +63,36 @@ public sealed class NaturalSpeechCaptionCommandTests
             .And.Contain("reset saves Off only").And.Contain("pin current speech caption");
     }
 
+    [Fact]
+    public void ParseUsesEveryExactNumberWordWithStrictUnitsAndRecognitionParity()
+    {
+        string[] words =
+        [
+            "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+            "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+            "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two", "twenty-three",
+            "twenty-four", "twenty-five", "twenty-six", "twenty-seven", "twenty-eight", "twenty-nine", "thirty",
+        ];
+        for (var seconds = 0; seconds <= 30; seconds++)
+        {
+            foreach (var word in new[] { words[seconds], words[seconds].Replace('-', ' ') }.Distinct(StringComparer.Ordinal))
+            {
+                var phrase = "keep speech text visible for " + word + (seconds == 1 ? " second" : " seconds");
+                var expected = SpeechTextCommand.Parse("set display.speech-text-dismissal-delay to " + seconds, "Nova");
+                foreach (var input in new[] { phrase, "Nova, " + phrase, "nova " + phrase.ToUpperInvariant() })
+                {
+                    SpeechTextCommand.Parse(input, "Nova").Should().Be(expected);
+                }
+                expected!.CaptionValue.Should().Be(new SpeechCaptionValue.Delay(seconds));
+                SpeechTextCommand.FixedPhrases.Should().Contain(phrase);
+                SpeechTextCommand.Parse("Kora, " + phrase, "Nova").Should().BeNull();
+                var wrongUnits = "keep speech text visible for " + word + (seconds == 1 ? " seconds" : " second");
+                SpeechTextCommand.Parse(wrongUnits, "Nova")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
+            }
+        }
+        SpeechTextCommand.FixedPhrases.Should().OnlyHaveUniqueItems();
+    }
+
     [Theory]
     [InlineData("turn on speech captions please")]
     [InlineData("turn off speech captions and stop listening")]
@@ -78,7 +109,17 @@ public sealed class NaturalSpeechCaptionCommandTests
     [InlineData("put speech captions in the centre")]
     [InlineData("put speech captions in the top left")]
     [InlineData("put speech captions on display 2")]
-    [InlineData("keep speech text visible for ten seconds")]
+    [InlineData("show the current sentence please")]
+    [InlineData("show the current sentences")]
+    [InlineData("show the current sentence from yesterday")]
+    [InlineData("keep speech text visible for minus one seconds")]
+    [InlineData("keep speech text visible for thirty-one seconds")]
+    [InlineData("keep speech text visible for thirty one seconds")]
+    [InlineData("keep speech text visible for one half seconds")]
+    [InlineData("keep speech text visible for ten and a half seconds")]
+    [InlineData("keep speech text visible for twenty--one seconds")]
+    [InlineData("keep speech text visible for twenty  one seconds")]
+    [InlineData("keep speech text visible for ten seconds then hide")]
     [InlineData("keep speech text visible for -1 seconds")]
     [InlineData("keep speech text visible for 31 seconds")]
     [InlineData("keep speech text visible for 05 seconds")]
@@ -111,6 +152,9 @@ public sealed class NaturalSpeechCaptionCommandTests
     [InlineData("set response mode to VisualOnly")]
     [InlineData("show that")]
     [InlineData("pin current answer")]
+    [InlineData("\"show the current sentence\"")]
+    [InlineData("the webpage says keep speech text visible for ten seconds")]
+    [InlineData("please show the current sentence")]
     public void ParseLeavesUnrelatedOrEmbeddedTextUnmatched(string input) =>
         SpeechTextCommand.Parse(input, "Nova").Should().BeNull();
 
@@ -119,6 +163,8 @@ public sealed class NaturalSpeechCaptionCommandTests
     [InlineData("show speech text\t")]
     [InlineData("show speech text\0")]
     [InlineData("keep speech text visible for \t5 seconds")]
+    [InlineData("Nova, show the current sentence\n")]
+    [InlineData("keep speech text visible for ten seconds\0")]
     public void ParseRejectsControlsInOriginalInput(string input) =>
         SpeechTextCommand.Parse(input, "Nova")!.Error.Should().Contain("contains controls");
 
@@ -133,5 +179,9 @@ public sealed class NaturalSpeechCaptionCommandTests
         multibyte.Length.Should().BeLessThan(SessionCommand.MaximumInputBytes);
         Encoding.UTF8.GetByteCount(multibyte).Should().BeGreaterThan(SessionCommand.MaximumInputBytes);
         SpeechTextCommand.Parse(multibyte, "Nova")!.Error.Should().Contain("byte limit");
+        SpeechTextCommand.Parse("Nova, show the current sentence".PadRight(SessionCommand.MaximumInputBytes + 1), "Nova")!
+            .Error.Should().Contain("byte limit");
+        SpeechTextCommand.Parse("keep speech text visible for ten seconds".PadRight(SessionCommand.MaximumInputBytes + 1), "Nova")!
+            .Error.Should().Contain("byte limit");
     }
 }

@@ -6,6 +6,7 @@ The [reviewed one-tool workflow](../src/Kora.Application/Skills/ReviewedToolSkil
 
 The additive [native v4 owned observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) uses the same immutable two-file owned store, saves disabled and has its own closed review/execution owner.
 It accepts neither shared originals nor copied executable content; native results remain volatile, not conversation history or renewed action authority ([declaration](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs), [host consumer](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
+Its [hosted authoring view](../src/Kora/ObservationWorkflowView.cs), complete package/Save decisions and independent step approvals now share one workbench. Hiding retires unconfirmed reviews, not the volatile draft; no unseen step or late private result is published ([native and hosted lifetimes](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
@@ -21,6 +22,27 @@ independent grants/history/audit and immutable admitted tasks are unaffected
 source, UI/voice editing, activation, and external-reload contract for skills,
 prompts, instructions, and agent profiles. Dedicated reviewed writes do not
 expand source-read consent into generic profile editing or execution authority.
+
+The [owned-skill authoring view](../src/Kora/OwnedSkillEditorView.cs) is hosted by the
+shared interaction workbench through [production composition](../src/Kora/App.OwnedSkillAuthoring.cs).
+Complete save, rename, delete, refinement and simulated-example reviews use supporting native
+tabs with separate explicit decisions. Presentation loss retires review authority and fences
+late operation results without discarding the volatile draft; returning is not acceptance
+([hosted behavior](../tests/Kora.Windows.IntegrationTests/OwnedSkillAuthoringNativeTests.Workbench.cs)).
+The [compatibility window](../src/Kora/OwnedSkillEditorWindow.cs) delegates to the same control;
+it is not the production authoring route.
+
+[Owned use](../src/Kora/OwnedSkillInvocationView.cs) and
+[shared instruction/web/MCP use](../src/Kora/SharedSkillInvocationView.cs) now also
+share the workbench's native supporting pane. Exact source, target, endpoint,
+account, schema, per-action approval and separate invocation remain authoritative;
+the shared MCP presenter uses the actual owner for inline host questions
+([presenter](../src/Kora/McpSkillInvocationPresenter.cs)).
+Pending hidden review authority retires, while confirmed admitted work retains
+physical ownership and publishes its retained result only to the original conversation,
+not a restored old private pane
+([owned lifecycle](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillWorkbench.cs),
+[shared lifecycle](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SharedSkillWorkbench.cs)).
 
 ## Explicit local Markdown references v2
 
@@ -147,7 +169,7 @@ Credentials remain in the protected credential facility, never either skill part
 
 #### Selected displayed identity metadata literal Find - 2026-10-18
 
-The [bundled inspector](../src/Kora/SkillPackagesWindow.axaml.cs) and [shared inspector](../src/Kora/SharedSkillSourcesWindow.axaml.cs) freeze only their already displayed `PackageIdentity` / `SharedIdentity` text after selection. Shared identity includes only the path already explicitly displayed; no additional filename, path or content is disclosed by Find.
+The [bundled inspector](../src/Kora/SkillPackagesView.axaml.cs) and [shared inspector](../src/Kora/SharedSkillSourcesView.axaml.cs) freeze only their already displayed `PackageIdentity` / `SharedIdentity` text after selection. Shared identity includes only the path already explicitly displayed; no additional filename, path or content is disclosed by Find.
 
 The [private controls](../src/Kora/Controls/IdentityMetadataFindPane.axaml) expose query, First/Next/Previous/Clear, outcome with exact UTF-16 half-open location and one inert exact match. Enter finds First; F3/Shift+F3 navigate; Escape clears within Find without closing. Transfer/context gestures are blocked. Source tabs/bodies, uninspected entries, hidden fields, other packages and live files are not searched.
 
@@ -155,7 +177,7 @@ The [authoritative state](../src/Kora.Application/Presentation/AdmittedMetadataF
 
 Selection, filter/search/order/catalogue replacement, source changes, operation/busy start, cancellation/failure, admission/privacy/control revision change and close retire private Find state ([native tests](../tests/Kora.Windows.IntegrationTests/SkillIdentityMetadataFindTests.cs)).
 
-Busy completion never readmits an old Find snapshot. A catalogue delivered while busy leaves selection empty for explicit inspection. After rechecking an existing selection, use catalogue **Clear**, then select again to admit Find; retained stale controls alone cannot recover text ([window](../src/Kora/SharedSkillSourcesWindow.axaml.cs), [control](../src/Kora/Controls/IdentityMetadataFindPane.axaml.cs)).
+Busy completion never readmits an old Find snapshot. A catalogue delivered while busy leaves selection empty for explicit inspection. After rechecking an existing selection, use catalogue **Clear**, then select again to admit Find; retained stale controls alone cannot recover text ([view](../src/Kora/SharedSkillSourcesView.axaml.cs), [control](../src/Kora/Controls/IdentityMetadataFindPane.axaml.cs)).
 
 This bounded I increment adds no read/recheck/write, invocation, activation, model/tool/egress/session authority, activity renewal or catalogue filter change. Matches do not establish live validity, integrity, approval or execution readiness. Existing invocation remains unavailable; E/Q and unqualified runtime/provider/wake/profile writers remain unchanged ([inspector controllers](../src/Kora/SharedSkillSourcesWindowController.cs)).
 
@@ -331,7 +353,9 @@ This is an implementation path, not qualification of an installed model or appro
 
 ### Reviewed exact read-only MCP skill
 
-The separately admitted [MCP skill consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.Mcp.cs) accepts one registered single-file declarative skill using the closed `kora-mcp-read-only-v1` format. Its [reference](../src/Kora.Core/Skills/DeclarativeMcpToolReference.cs) pins one exact source-qualified server ID, full configuration revision, case-sensitive tool name and schema digest under MCP `2025-06-18`. These fields are dependency data, not inclusion, endpoint, account or execution authority.
+The separately admitted [MCP skill consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.Mcp.cs) accepts one registered single-file declarative skill using the closed `kora-mcp-read-only-v1` format, or one independently inspected immutable owned native v6 two-file package. Its [reference](../src/Kora.Core/Skills/DeclarativeMcpToolReference.cs) pins one exact source-qualified server ID, full configuration revision, case-sensitive tool name and schema digest under MCP `2025-06-18`. These fields are dependency data, not inclusion, endpoint, account or execution authority.
+
+Owned v6 uses eleven closed scalar fields: the existing eight metadata fields with `kora-skill-format: 6`, `tools: mcp.<exact-name>`, `references: none`, and `mcp-server`, `mcp-source-revision`, `mcp-schema-digest`. The package digest covers exact manifest/instruction bytes. No reference files, input bindings, scripts, multiple connectors, generation/refinement or simulated fixtures are admitted through this format. V1-v5 bytes and disabled publication remain unchanged. The trusted owned snapshot is validated through private owned-store/control admission, never a shared registration or name-derived source grant. Both source kinds reuse the same MCP binding, native presenter, account/schema/mapping/egress review and joined retained-terminal pipeline. [Owned authoring, reopen and invocation](../docs/owned-skill-authoring.md#author-and-use-one-exact-read-only-mcp-skill).
 
 The original user independently selects an existing Active target, an app-included server and a current delegated account, enters the unchanged request and exact bounded JSON arguments, reviews the complete skill revision and separately enables its local context. Confirmation preserves those exact choices; Save, revision review, enablement and preparation do not connect or approve an effect ([review](../src/Kora.Application/Skills/ReviewedToolSkillReview.cs), [invocation](../src/Kora.Application/Skills/ReviewedMcpSkillInvocation.cs)).
 
@@ -563,6 +587,10 @@ At enablement, safely read a bounded immutable package snapshot and compute its 
 Keep the approved snapshot in memory for invocation; do not read live changing instructions midway through a task.
 Include all permitted referenced package content in the revision identity.
 Recheck source content/access before new dispatch and reconcile watcher notifications; watchers alone are not authoritative.
+
+The [owned native package reader](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs) revalidates the final canonical binding of every captured primary and Markdown reference handle before returning a complete snapshot.
+A component moved away or replaced during capture is rejected even when the replacement has identical bytes and the directory membership names are unchanged.
+Reopening the replacement remains a different revision and does not enable use ([deterministic regressions](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillMarkdownPublicationTests.cs)).
 
 Use the [common reconciliation pipeline](Definition_Management.md#consistent-external-change-and-reload-contract)
 for owned and profile sources, manual reload, external changes, and saves.

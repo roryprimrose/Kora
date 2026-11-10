@@ -15,6 +15,7 @@ public sealed partial class MainViewModel
     private OrdinaryTurnDeadlineObservation? ordinaryDeadlineObservation;
     private Func<bool> ordinaryDeadlineNativeLifetime = static () => false;
     private bool ordinaryDeadlineControlActive;
+    private long ordinaryDeadlineControlRevision;
     private int selectedOrdinaryDeadlineMinutes = OrdinaryTurnDeadline.DefaultMinutes;
     private string ordinaryDeadlineStatus = "Refresh to review the future ordinary task deadline.";
 
@@ -31,7 +32,7 @@ public sealed partial class MainViewModel
     public bool IsOrdinaryDeadlineDraftChanged => SavedOrdinaryDeadlineMinutes is { } saved && saved != SelectedOrdinaryDeadlineMinutes;
     public string OrdinaryDeadlineStatus { get => ordinaryDeadlineStatus; private set => SetProperty(ref ordinaryDeadlineStatus, value); }
     private bool CanChangeOrdinaryDeadline => ordinaryDeadlineConfiguration is not null && IsCallMutationHostEligible
-        && !ordinaryDeadlineControlActive && !IsResponseInteractionPending;
+        && !ordinaryDeadlineControlActive && ordinaryDeadlineSuggestionWork.IsCompleted && !IsResponseInteractionPending;
     public bool CanChangeOrdinaryDeadlineNative => CanChangeOrdinaryDeadline && ordinaryDeadlineNativeLifetime();
     public AsyncCommand RefreshOrdinaryDeadlineCommand { get; }
     public AsyncCommand SaveOrdinaryDeadlineCommand { get; }
@@ -39,6 +40,7 @@ public sealed partial class MainViewModel
 
     public void BindOrdinaryDeadlineNativeLifetime(Func<bool> lifetime)
     {
+        Interlocked.Increment(ref ordinaryDeadlineControlRevision);
         ordinaryDeadlineNativeLifetime = lifetime;
         ordinaryDeadlineObservation = null;
         OnPropertyChanged(nameof(CanChangeOrdinaryDeadlineNative));
@@ -65,6 +67,7 @@ public sealed partial class MainViewModel
         bool Eligible() => hostEligible() && (initiator != SecurityAuditInitiator.LocalUser
             || ReferenceEquals(lifetime, ordinaryDeadlineNativeLifetime) && lifetime());
         ordinaryDeadlineControlActive = true;
+        Interlocked.Increment(ref ordinaryDeadlineControlRevision);
         OnPropertyChanged(nameof(CanChangeOrdinaryDeadlineNative));
         try
         {

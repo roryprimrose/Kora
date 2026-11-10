@@ -10,6 +10,10 @@ name while voice commands are eligible. This opens a native editor, not a model
 request. Create an exact new lowercase owned ID using **agent author create example**.
 The ID contains at most 64 ASCII letters, digits and hyphens; no paths or URLs.
 
+The [editor](../src/Kora/AgentProfileEditorView.cs) now opens inside Kora's shared workbench. Complete save previews and separate confirmation/disclosure decisions use supporting native tabs, including in narrow layouts. Hiding or leaving retires the review and pending decisions while preserving the editable draft; return and explicitly review again before Save.
+
+Closing a dirty editor still offers Save, Discard or Cancel. When you close the whole workbench, a confirmed discard resumes that original close rather than leaving another window behind. No save occurs merely from closing or restoring a view ([hosted regressions](../tests/Kora.Windows.IntegrationTests/AgentProfileHostedEditorTests.cs)).
+
 Enter the complete source in the editor, or use **agent author source** followed by
 the complete source. Kora keeps the original typed/activated-voice channel. If you started by voice,
 later on-screen input does not bypass voice consent, call protection or expiry.
@@ -142,7 +146,17 @@ Only a completed, still-admitted decision creates the requested new volatile dra
 
 Use the owned inventory or **agent author inspect example**, then explicitly choose **Edit existing original**.
 Edit the complete native v1 or v4 source in memory; the owned ID and destination cannot be changed.
-Conversational generation remains new-file-only. Generic Customizations editing is separate
+For a tool-free, reference-free native v1 original, enter an unchanged critique in
+**Original agent description or refinement**, or use **agent author describe Make the guidance shorter.**
+with exact typed input or the current assistant-name activated-voice prefix. Then use **agent author ask**
+or **Ask Kora: review local authoring disclosure**. Review the complete current draft/request and local disclosure,
+compare complete before/after source, and choose **Use proposed draft** or **Reject proposal**.
+Only description and guidance change; the current draft's identity, metadata, limits and original destination stay host-owned.
+Generation does not save. Independently use the existing-original native save controls below.
+The exact inspected directory/file/base is checked before disclosure, at model admission and continuations,
+and before proposal adoption. Changed/replaced/deleted/unreadable originals retire output; Reload does not renew a pending proposal.
+Source/request edits, original channel, expiry, privacy/call/catalogue/ownership loss still retire work and join the provider.
+Observation-capable v1 and v4 originals remain manually editable only. Generic Customizations editing is separate
 ([native editor](../src/Kora/AgentProfileEditorController.cs)).
 
 **Validate complete v1 or v4 source** writes nothing. **Review Save (new or existing original)** shows the

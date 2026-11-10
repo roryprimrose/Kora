@@ -17,6 +17,8 @@ namespace Kora.Windows.IntegrationTests;
 /// runtime checks assert automation-tree names, keyboard focus reachability and DPI-scale rendering
 /// stability, not actual pixel colour values (contrast ratios are verified separately, statically,
 /// against the theme's declared hex values without needing to render anything).
+/// Dedicated <see cref="DesktopBootstrapIntegrationTests"/> separately invoke production registration
+/// and framework binding on this dispatcher with isolated storage and fake platform ports.
 /// </summary>
 public sealed class HeadlessTestApp : Avalonia.Application
 {

@@ -260,7 +260,7 @@ public sealed partial class MainViewModel
                 "Review one call speech exception", "Exact host-owned single-response review; no settings change.",
                 description + "\n\nEXACT RESPONSE TO SPEAK (nothing else):\n\n" + text,
                 new(request.SessionId, request.RequestId, request.TaskId));
-            var acknowledged = presenter.OpenDetails(content, () => review.Available) && review.Available;
+            var acknowledged = await presenter.OpenDetailsAsync(content, () => review.Available) && review.Available;
             await WriteAuditAsync(audit.WithOutcome(acknowledged ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Cancelled,
                 acknowledged ? "exact-native-review-opened" : "native-review-unavailable"));
             audit = null;

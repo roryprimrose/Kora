@@ -48,10 +48,13 @@ public sealed partial class SessionsConversationTests
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             using var native = new NativeUxFixtureSession(Path.GetFullPath("."), syntheticVoice: true);
-            await native.InitializeAsync();
+            await using var markdownAdmission = new AudioControlAdmission(f.Store, f.Store, new(f.Tasks));
+            await using var markdown = new MarkdownDisplayConfigurationService(new MarkdownDisplaySettingsTests.Preferences(),
+                markdownAdmission, new AuditLog(), f.Time, NullLogger<MarkdownDisplayConfigurationService>.Instance);
+            await native.InitializeAsync(null, markdownDisplayConfiguration: markdown);
             using var details = new DetailWindowController(native.Documents, native.Main,
                 NullLogger<DetailWindowController>.Instance, NullLogger<NativeDetailRenderer>.Instance,
-                NullLogger<StaticHtmlDetailRenderer>.Instance);
+                NullLogger<StaticHtmlDetailRenderer>.Instance, markdown);
             using var responses = new ResponseWindowController(native.Main, NullLogger<ResponseWindowController>.Instance, details);
             ResponseWindow? primary = null;
             var adapter = new DetailAnswerAdapter();

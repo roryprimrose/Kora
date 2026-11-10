@@ -13,11 +13,14 @@ public partial class App
 
     private void BindSessionRouting(Kora.Application.ViewModels.MainViewModel main)
     {
+        main.BindSessionRoutingCaptureRelease(Kora.Application.Voice.HandsFreeVoiceContinuation.CaptureRelease.InvalidatedOnce);
         sessionRouting = new(main, Services.GetRequiredService<SessionWorkspaceService>(),
             Services.GetRequiredService<SessionConversationService>(), Services.GetRequiredService<ISessionWorkspaceAccess>(),
             Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ISessionRelatednessMatcher>(),
             Services.GetRequiredService<SessionRoutingControlAdmission>(),
             () => sessionsWindow?.RetainRoutingPresentation());
         sessionRouting.Bind();
+        sessionRouting.BindWorkbench((responseWindow
+            ?? throw new InvalidOperationException("Session routing requires the owning response workbench.")).PrepareWorkbenchOwner);
     }
 }

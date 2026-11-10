@@ -15,6 +15,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     private readonly Action clear;
     private readonly Func<Task> revoke;
     private readonly Func<IClipboardPreviewView> create;
+    private Func<IClipboardPreviewView>? createHosted;
     private readonly Action<string> reportFailure;
     private readonly Func<Guid, Task>? explain;
     private readonly Func<string?> explanation;
@@ -23,6 +24,14 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     private IClipboardPreviewView? window;
     private ClipboardSnapshot? showing;
     private bool disposed;
+    internal IClipboardPreviewView? View => window;
+
+    internal void BindWorkbench(Func<Avalonia.Controls.Window> owner)
+    {
+        var main = host ?? throw new InvalidOperationException("Clipboard workbench binding requires the composed private host.");
+        createHosted = () => new ClipboardPreviewView(owner(), exception => main.ReportHostInteractionFailure(
+            "Native clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name), main);
+    }
 
     public ClipboardPreviewWindowController(MainViewModel host)
         : this(() => host.ClipboardPreview, host.ReuseClipboardAsync, host.ClearClipboardPreview, host.RevokeClipboardAsync,
@@ -71,7 +80,13 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     {
         var view = window;
         var snapshot = showing;
-        if (disposed || view is not Avalonia.Controls.Window owner || snapshot is null)
+        var owner = view switch
+        {
+            ClipboardPreviewView hosted => hosted.Owner,
+            Avalonia.Controls.Window native => native,
+            _ => null,
+        };
+        if (disposed || owner is null || snapshot is null)
         { throw new InvalidOperationException("The original clipboard snapshot preview is unavailable."); }
         bool Current() => !disposed && ReferenceEquals(window, view) && ReferenceEquals(showing, snapshot)
             && ReferenceEquals(current(), snapshot) && admitted();
@@ -90,7 +105,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
             return;
         }
         var id = snapshot.SnapshotId;
-        var view = create();
+        var view = createHosted is { } hosted ? hosted() : create();
         window = view;
         showing = snapshot;
         view.Closed += OnClosed;

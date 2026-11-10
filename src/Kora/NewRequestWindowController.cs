@@ -12,7 +12,16 @@ internal sealed partial class NewRequestWindowController(
     MainViewModel main, SessionWorkspaceService workspace, ISessionWorkspaceAccess access,
     Func<NewRequestComposer> create, SessionsWindowController sessions, IUiDispatcher dispatcher) : IDisposable
 {
-    private NewRequestWindow? window;
+    private NewRequestView? window;
+    private NewRequestWindow? adapter;
+    private Func<Avalonia.Controls.Window>? getWorkbench;
+    private Action<NewRequestView>? presentWorkbench;
+    internal NewRequestView? View => window;
+    internal void BindWorkbench(Func<Avalonia.Controls.Window> owner, Action<NewRequestView> present)
+    {
+        getWorkbench = owner;
+        presentWorkbench = present;
+    }
     private NewRequestComposer? composer;
     private long openingEpoch;
     private bool disposed;
@@ -98,14 +107,23 @@ internal sealed partial class NewRequestWindowController(
                 if (seedTarget is null) { state.Dispose(); }
                 return false;
             }
-            var opened = new NewRequestWindow(new(state, dictation), () => Navigate(state),
-                exception => main.ReportHostInteractionFailure("New request native navigation/closing failed; memory edits remain recoverable unless privacy revoked. No implicit Save or selection. Failure type: " + exception.GetType().Name),
-                () =>
+            void Report(Exception exception) => main.ReportHostInteractionFailure(
+                "New request native navigation/closing failed; memory edits remain recoverable unless privacy revoked. No implicit Save or selection. Failure type: " + exception.GetType().Name);
+            Func<bool> Capture()
                 {
                     var revision = access.ControlRevision;
                     return () => !disposed && ReferenceEquals(composer, state) && access.CanInspect
                         && access.CanControl && access.ControlRevision == revision;
-                });
+                }
+            var model = new NewRequestViewModel(state, dictation);
+            NewRequestView opened;
+            if (getWorkbench is not null && presentWorkbench is not null)
+            { opened = new(model, getWorkbench(), () => Navigate(state), Report, Capture); }
+            else
+            {
+                adapter = new(model, () => Navigate(state), Report, Capture);
+                opened = adapter.View;
+            }
             opened.Closed += (_, _) =>
             {
                 if (ReferenceEquals(window, opened))
@@ -114,13 +132,23 @@ internal sealed partial class NewRequestWindowController(
                     Interlocked.Increment(ref openingEpoch);
                     window = null;
                     composer = null;
+                    adapter = null;
                 }
+            };
+            opened.CloseRequested += (_, _) =>
+            {
+                if (opened.Owner is ResponseWindow primary) { primary.RemoveHostedView(opened); }
             };
             composer = state;
             window = opened;
             BindDraftFind(opened, state);
             if (!Current()) { opened.ClosePrivate(); return false; }
-            try { opened.OpenPrivate(); }
+            try
+            {
+                opened.OpenPrivate();
+                if (presentWorkbench is not null) { presentWorkbench(opened); }
+                else { adapter!.OpenPrivate(); }
+            }
             catch
             {
                 if (ReferenceEquals(window, opened)) { window = null; composer = null; }
@@ -131,8 +159,9 @@ internal sealed partial class NewRequestWindowController(
         }
         var exactWindow = window;
         if (!Current()) { return false; }
+        if (exactWindow is not null && presentWorkbench is not null) { presentWorkbench(exactWindow); }
         exactWindow?.Activate();
-        return Current() && exactWindow is { IsVisible: true }
+        return Current() && exactWindow is { IsPresented: true }
             && ReferenceEquals(window, exactWindow) && (seedTarget is null || ReferenceEquals(composer, seedTarget));
     }
 

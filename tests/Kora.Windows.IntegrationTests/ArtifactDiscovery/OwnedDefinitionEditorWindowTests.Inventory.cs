@@ -87,7 +87,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await Run("list");
             editor.Should().NotBeNull();
             var native = editor!;
-            var statusBlock = ((DockPanel)native.Content!).Children.OfType<TextBlock>().Last();
+            var statusBlock = native.View.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name is "OwnedInstructionEditorStatus");
             OwnedDefinitionInventoryRow[] Rows() => native.Files.ItemsSource!.Cast<OwnedDefinitionInventoryRow>().ToArray();
             string Status() => string.Join("\n", native.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text));
             Rows().Select(row => row.Name).Should().Equal("enabled", "held", "other");
@@ -443,7 +443,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             native.ClearSearch();
             Rows().Should().Equal(first);
             native.NextPage.IsEnabled.Should().BeTrue();
-            var statusBlock = ((DockPanel)native.Content!).Children.OfType<TextBlock>().Last();
+            var statusBlock = native.View.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name is "OwnedInstructionEditorStatus");
             statusBlock.Text = "Before explicit native Refresh";
             var refreshed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             statusBlock.PropertyChanged += (_, change) =>

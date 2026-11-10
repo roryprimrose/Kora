@@ -9,6 +9,8 @@ In **Sessions**, select the exact **Active** session by its readable name.
 Choose **Apply or stop an instruction for this Active session**, refresh enabled
 owned instructions and select one. Selection does not read, enable or apply it.
 
+The controls open in a supporting tab of the same expanded workbench, not another window ([scope view](../src/Kora/SessionInstructionScopeView.cs)).
+
 Choose **Review complete source**. Inspect the complete pinned source, target
 session, ordinary local scope and lifetime. Instruction text is lower-trust
 guidance under host policy, never approval or authority. Separately choose
@@ -31,16 +33,19 @@ your saved provider profile.
 Choose **Stop applying**. The next ordinary request has no session instruction
 context. Stop revokes new admission immediately; an already captured answer may
 finish under the existing mandatory privacy and ownership guards. Closing the
-unconfirmed review discards it. Closing a confirmed review window does not stop
+unconfirmed review discards it. Hiding a confirmed scope tab does not stop
 applicability: use **Stop applying**, or inspect **Refresh scope status**.
 
-The scope window belongs to the exact conversation selection that opened it.
-Changing the Sessions selection, even away and back, retires that window's
+The scope tab belongs to the exact conversation selection that opened it.
+Changing the Sessions selection, even away and back, retires that tab's
 controls. Review, confirmation, Stop and refresh cannot silently target the new
-selection. Close the scope window, select the intended Active conversation and
+selection. Hide the scope tab, select the intended Active conversation and
 reopen its instruction controls. Rejected controls do not read a source, apply
 guidance or stop either conversation's existing scope. Confirmed applicability
-stays with its original conversation until separately stopped or revoked.
+stays with its original conversation until separately stopped or revoked ([session isolation](../src/Kora/SessionInstructionScopeController.cs)).
+
+Hiding/minimizing the workbench, hiding the scope tab or switching to another supporting review discards pending source review and confirmation.
+A cancellation-ignoring source read remains owned until it finishes and cannot publish late source or apply guidance. Reopening creates fresh controls, without reading or applying the source ([hosted regressions](../tests/Kora.Windows.IntegrationTests/SessionInstructionScopeWorkbenchTests.cs)).
 
 ## Typed and activated voice commands
 
@@ -59,7 +64,7 @@ are rejected, not substituted. For voice, prefix each command with your current
 assistant name, for example `Kora, session instruction apply "example"`.
 Stale queued voice, changed targets and expired reviews require a fresh review.
 No spoken GUID, revision or digest is required. Review content stays in the
-private native scope window for inspection; it does not grant model authority.
+private scope tab for inspection; it does not grant model authority ([shared command owner](../src/Kora.Application/Hosting/SessionInstructionScopeCommandService.cs)).
 
 ## Boundaries and recovery
 

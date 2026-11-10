@@ -20,7 +20,10 @@ internal sealed partial class CopilotTransmissionWindowController : IDisposable
     private readonly HostedTransmissionReviewService source;
     private readonly ILogger<CopilotTransmissionWindowController> logger;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(200) };
-    private Window? window;
+    private PrivateReviewView? view;
+    private Func<Window>? getWorkbench;
+    internal PrivateReviewView? PresentedView => view;
+    internal void BindWorkbench(Func<Window> owner) => getWorkbench = owner;
     private TextBox? content;
     private CopilotTransmissionReview? displayed;
     private Func<bool>? eligible;
@@ -52,7 +55,7 @@ internal sealed partial class CopilotTransmissionWindowController : IDisposable
 
     private void Show(CopilotTransmissionReview review)
     {
-        if (!main.CanRevealPrivatePresentation || window is not null) { Decline(review); return; }
+        if (!main.CanRevealPrivatePresentation || view is not null) { Decline(review); return; }
         eligible = main.CaptureHandoffPresentationEligibility();
         if (!eligible()) { Decline(review); return; }
         var transmission = review.Transmission;
@@ -74,24 +77,29 @@ internal sealed partial class CopilotTransmissionWindowController : IDisposable
         var approve = new Button { Content = "Transmit this exact request once" };
         deny.Click += (_, _) => Decide(review, false);
         approve.Click += (_, _) => Decide(review, true);
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { deny, approve } };
+        var buttons = new WrapPanel { Orientation = Orientation.Horizontal, Children = { deny, approve } };
         var panel = new DockPanel { Margin = new Thickness(16), LastChildFill = true };
         DockPanel.SetDock(buttons, Dock.Bottom);
         panel.Children.Add(buttons);
         panel.Children.Add(content);
         displayed = review;
-        window = new Window { Title = "Copilot - exact hosted disclosure", Width = 900, Height = 700, Content = panel };
-        window.Closed += (_, _) => { Decline(review); Clear(); };
-        window.Show();
+        var owner = getWorkbench?.Invoke() ?? new Window { Width = 900, Height = 700 };
+        var opened = new PrivateReviewView(owner, panel, () => !disposed && ReferenceEquals(displayed, review)
+            && eligible?.Invoke() == true && main.CanRevealPrivatePresentation && review.IsPending);
+        view = opened;
+        opened.Closed += (_, _) => { if (ReferenceEquals(view, opened)) { Decline(review); Clear(); } };
+        opened.Show("Copilot - exact hosted disclosure");
         timer.Start();
     }
 
     private void Decide(CopilotTransmissionReview review, bool approve)
     {
+        if (!ReferenceEquals(displayed, review))
+        { ReportFailure(new InvalidOperationException("The original Copilot transmission review retired.")); return; }
         try
         {
             using var presentation = review.Presentation();
-            source.Confirm(review, approve && ReferenceEquals(displayed, review) && eligible?.Invoke() == true
+            source.Confirm(review, approve && view?.IsPresented == true && ReferenceEquals(displayed, review) && eligible?.Invoke() == true
                 && main.CanRevealPrivatePresentation && review.IsPending, RequestOrigin.LocalUi);
             presentation.Complete(HostOperationOutcome.Completed);
         }
@@ -134,12 +142,12 @@ internal sealed partial class CopilotTransmissionWindowController : IDisposable
     private void Clear()
     {
         timer.Stop();
-        var opened = window;
-        window = null;
+        var opened = view;
+        view = null;
         displayed = null;
         eligible = null;
         if (content is not null) { content.Text = string.Empty; content = null; }
-        if (opened is not null) { opened.Content = null; opened.Close(); }
+        opened?.Dispose();
     }
     public void Dispose()
     {

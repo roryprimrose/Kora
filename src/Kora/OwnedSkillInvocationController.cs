@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Avalonia.Controls;
 using Kora.Application.Skills;
 using Kora.Application.ViewModels;
 using Kora.Core.Hosting;
@@ -14,7 +15,18 @@ internal sealed partial class OwnedSkillInvocationController(
     Func<long> ownershipRevision, ILogger<OwnedSkillInvocationController> logger,
     ReviewedToolSkillInvocationWorkflow? toolWorkflow = null, QuestionWindowController? questions = null) : IAsyncDisposable
 {
-    private OwnedSkillInvocationWindow? window;
+    private OwnedSkillInvocationView? window;
+    private OwnedSkillInvocationWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<OwnedSkillInvocationView>? presentWorkbench;
+    private Action<SharedSkillInvocationView>? presentMcpWorkbench;
+    private Func<bool>? operationPresentation;
+    private bool invoking;
+    internal OwnedSkillInvocationView? View => window;
+    internal void BindWorkbench(Func<Window> ownerWindow, Action<OwnedSkillInvocationView> present,
+        Action<SharedSkillInvocationView> presentMcp)
+    { getWorkbench = ownerWindow; presentWorkbench = present; presentMcpWorkbench = presentMcp; }
+    internal void RetirePendingPresentation() { if (!invoking) { Retire(); } }
     private OwnedSkillUseReview? review;
     private OwnedSkillInvocation? invocation;
     private ReviewedToolSkillReview? toolReview;
@@ -41,7 +53,8 @@ internal sealed partial class OwnedSkillInvocationController(
 
     private bool Eligible() => !disposed && ownsHost() && ownershipRevision() == ownerRevision
         && main.CallPolicyRevision == callRevision && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible
-        && !main.IsResponseInteractionPending && original?.IsCurrent() == true && lifetime?.IsCancellationRequested == false;
+        && !main.IsResponseInteractionPending && original?.IsCurrent() == true && lifetime?.IsCancellationRequested == false
+        && (invoking || operationPresentation?.Invoke() != false);
 
     internal async Task Handle(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority,
         Func<bool> sourceEligible)
@@ -58,6 +71,7 @@ internal sealed partial class OwnedSkillInvocationController(
     private async Task RunReported(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority,
         Func<bool> sourceEligible)
     {
+        operationPresentation = command.Operation is "use" ? null : window?.CapturePresentation() ?? mcpWindow?.CapturePresentation();
         try
         {
             if (command.Operation is "use")
@@ -75,7 +89,22 @@ internal sealed partial class OwnedSkillInvocationController(
                 { captured.Dispose(); throw new InvalidOperationException("Use owned skill workflow review for this exact observation workflow; the ordinary guidance/model route does not execute its steps."); }
                 if (!Eligible() || !sourceEligible()) { captured.Dispose(); return; }
                 review = captured;
-                var opened = new OwnedSkillInvocationWindow(action => Start(action), captured.Tool == OwnedSkillToolSelection.WebPageGet);
+                if (captured.Tool == OwnedSkillToolSelection.ReadOnlyMcp)
+                {
+                    OpenMcp(captured);
+                    return;
+                }
+                OwnedSkillInvocationView opened;
+                if (getWorkbench is not null && presentWorkbench is not null)
+                {
+                    opened = new(getWorkbench(), action => Start(action), () => main.CanRevealPrivatePresentation && !disposed,
+                        captured.Tool == OwnedSkillToolSelection.WebPageGet);
+                }
+                else
+                {
+                    adapter = new(action => Start(action), captured.Tool == OwnedSkillToolSelection.WebPageGet);
+                    opened = adapter.View;
+                }
                 window = opened;
                 opened.Instructions.Text = captured.Text;
                 opened.LiteralInputs.Configure(captured.RequiredNames, (_, _) =>
@@ -92,11 +121,18 @@ internal sealed partial class OwnedSkillInvocationController(
                 { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { RetireConfirmation(); } };
                 opened.Targets.SelectionChanged += (_, _) => { RetireConfirmation(); toolReview?.Dispose(); toolReview = null; };
                 opened.Closed += (_, _) => Retire();
-                opened.Show();
+                if (getWorkbench is not null) { opened.PresentationLost += OnPresentationLost; }
+                if (presentWorkbench is not null) { presentWorkbench(opened); }
+                else { adapter!.Show(); }
                 if (!Eligible()) { Retire(); return; }
                 opened.Status.Text = captured.RequiresReferenceConsent
                     ? "Only primary files were read. Review the declaration, then separately authorize exact owned component reads. Nothing enabled or invoked."
                     : "Review both complete files, then separately Enable. Nothing invoked.";
+                return;
+            }
+            if (mcpWindow is not null)
+            {
+                await RunOwnedMcp(command, authority, sourceEligible);
                 return;
             }
             var currentWindow = window ?? throw new InvalidOperationException("Review an exact saved ID/version with owned skill use first.");
@@ -219,19 +255,20 @@ internal sealed partial class OwnedSkillInvocationController(
                     currentWindow.Confirm.IsEnabled = false;
                     var revision = inputRevision;
                     bool ExactInvocation() => Current() && authority.IsCurrent() && inputRevision == revision;
+                    invoking = true;
                     var receipt = preparedTool is not null
                         ? await RequireToolWorkflow().InvokeAsync(preparedTool, ExactInvocation,
                             async (proposal, generation, address, admitted, approvalToken) =>
                             {
                                 if (questions is null) { throw new InvalidOperationException("Native per-action page approval is unavailable."); }
                                 var spec = new QuestionSpec("Exact page approval", QuestionKind.SingleChoice, [new("once", "Approve once")]);
-                                var presentation = await questions.AskConversationAsync(currentWindow, proposal.Request, generation,
+                                var presentation = await questions.AskConversationAsync(currentWindow.Owner, proposal.Request, generation,
                                     spec, proposal.ExpiresAt, admitted, approvalToken, proposal, address);
                                 return new(presentation.Presented, presentation.Completed);
                             }, token)
                         : await workflow.InvokeAsync(prepared ?? throw new InvalidOperationException("Preview the exact invocation before confirming."),
                             authority, ExactInvocation, token);
-                    if (Eligible() && ReferenceEquals(window, currentWindow))
+                    if (Eligible() && operationPresentation?.Invoke() != false && ReferenceEquals(window, currentWindow))
                     {
                         currentWindow.Confirmation.Text = string.Empty;
                         currentWindow.Status.Text = $"Retained in selected conversation: {receipt.Message.Outcome} / {receipt.Message.Reason}. "
@@ -257,7 +294,25 @@ internal sealed partial class OwnedSkillInvocationController(
                 { opened.Status.Text = "Owned skill use unavailable or unconfirmed: " + exception.Message + " Inspect the selected conversation before a fresh review; no automatic retry."; }
             }
             main.ReportHostInteractionFailure("Owned skill use unavailable or unconfirmed; inspect the selected conversation before any fresh review.");
+            if (mcpWindow is { } mcp)
+            {
+                mcp.Clear();
+                if (main.CanRevealPrivatePresentation)
+                { mcp.Status.Text = "Owned MCP skill unavailable or unconfirmed: " + exception.Message + " No automatic retry."; }
+            }
         }
+        finally { invoking = false; operationPresentation = null; }
+    }
+
+    private void OnPresentationLost(object? sender, EventArgs args)
+    {
+        if (invoking) { return; }
+        RetireConfirmation();
+        InvalidateMcp();
+        review?.Dispose();
+        review = null;
+        toolReview?.Dispose();
+        toolReview = null;
     }
 
 #pragma warning disable VSTHRD100 // Native event boundary; RunReported handles every operation failure explicitly.
@@ -286,8 +341,10 @@ internal sealed partial class OwnedSkillInvocationController(
 
     internal void Retire()
     {
+        RetireMcp();
         var opened = window;
         window = null;
+        adapter = null;
         lifetime?.Cancel();
         review?.Dispose();
         review = null;

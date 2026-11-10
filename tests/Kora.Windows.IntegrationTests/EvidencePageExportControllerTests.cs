@@ -15,6 +15,73 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class EvidencePageExportControllerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HostedExportUsesWorkbenchOwnerAndShutdownRetiresViewBeforeJoiningPhysicalWriter(bool replaceBinding)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var fixture = new NativeUxFixtureSession(OwnedStorageFixture.ScratchParent());
+            await fixture.InitializeAsync();
+            var writer = new Writer();
+            writer.Destination.Hold = true;
+            var query = new DurableEvidenceQuery(new Reader(), fixture.Access, TimeProvider.System, NullLogger<DurableEvidenceQuery>.Instance);
+            using var responses = new ResponseWindowController(fixture.Main, NullLogger<ResponseWindowController>.Instance);
+            using var controller = new EvidenceWindowController(fixture.Main, query, fixture.Access,
+                NullLogger<EvidenceViewModel>.Instance, fixture.Access, exports: Controller(writer, new Audit()));
+            EvidenceView? hosted = null;
+            controller.BindWorkbench(responses.PrepareWorkbenchOwner, view =>
+            {
+                hosted = view;
+                responses.ShowHostedView(WorkbenchActivity.Audit, view);
+            });
+            controller.Open();
+            var owner = responses.PrepareWorkbenchOwner();
+            var model = (EvidenceViewModel)hosted!.DataContext!;
+            model.Source = EvidenceSource.Log;
+            await model.SearchAsync();
+            model.CanExportPage.Should().BeTrue();
+            try
+            {
+                hosted.FindControl<Button>("ExportPage")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var review = owner.OwnedWindows.OfType<EvidencePageExportWindow>().Single();
+                writer.Destination.Calls.Should().Be(0);
+                var confirm = FindButton(review, "ConfirmEvidencePageExport");
+                confirm.IsEnabled.Should().BeTrue();
+                hosted.IsNativePresented.Should().BeTrue();
+                confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await Task.WhenAny(writer.Destination.Started.Task, review.Operation);
+                writer.Destination.Calls.Should().Be(1,
+                    $"review outcome was {review.Outcome}");
+                await writer.Destination.Started.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                if (replaceBinding)
+                {
+                    hosted.DataContext = new object();
+                    (await Task.Run(() => model.CanQuery, TestContext.Current.CancellationToken)).Should().BeFalse();
+                }
+                var shutdown = controller.PrepareShutdownAsync();
+                shutdown.IsCompleted.Should().BeFalse();
+                model.IsClosed.Should().BeTrue();
+                model.ResultText.Should().BeEmpty();
+                hosted.DataContext.Should().BeNull();
+                owner.IsVisible.Should().BeTrue();
+                writer.Destination.Disposals.Should().Be(0);
+                writer.Destination.Release.SetResult();
+                await shutdown.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                controller.CaptureShutdownEligibility()().Should().BeTrue();
+                writer.Destination.Disposals.Should().Be(1);
+                model.CanExportPage.Should().BeFalse();
+                owner.IsVisible.Should().BeTrue();
+            }
+            finally
+            {
+                writer.Destination.Release.TrySetResult();
+                owner.Close();
+            }
+        });
+    }
+
     [Fact]
     public async Task VoluntaryShutdownJoinsAnAlreadyClosedEvidenceWindowPhysicalWriter()
     {

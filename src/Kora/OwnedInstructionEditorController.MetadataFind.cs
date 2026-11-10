@@ -4,7 +4,7 @@ namespace Kora;
 
 internal sealed partial class OwnedInstructionEditorController
 {
-    private void AdmitSelectedMetadata(OwnedInstructionEditorWindow opened)
+    private void AdmitSelectedMetadata(OwnedInstructionEditorView opened)
     {
         opened.RetireMetadataFind();
         if (inventory is not { } snapshot || inventoryPage is not { } page

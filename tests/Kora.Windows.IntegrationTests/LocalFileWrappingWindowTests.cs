@@ -180,7 +180,7 @@ public sealed class LocalFileWrappingWindowTests
                 current = false;
                 revokedToggle.IsChecked = true;
                 revokedReader.Text.Should().BeNull();
-                window.Content.Should().BeNull();
+                window.View.Content.Should().BeNull();
                 failures.Should().ContainSingle().Which.Should().Contain("no longer current");
                 current = true;
                 Show();
@@ -191,7 +191,7 @@ public sealed class LocalFileWrappingWindowTests
                 window.ClearAndClose();
                 closing.IsChecked = true;
                 reader.Text.Should().BeNull();
-                window.Content.Should().BeNull();
+                window.View.Content.Should().BeNull();
             }
             finally { window.ClearAndClose(); }
         });

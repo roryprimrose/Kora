@@ -14,7 +14,7 @@ public sealed class DiagnosticImpactUiContractTests
             directory = directory.Parent;
         }
         var root = directory?.FullName ?? throw new InvalidOperationException("Repository source root unavailable.");
-        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants().ToArray();
         var proposal = controls.Single(control => string.Equals(control.Attribute("Value")?.Value,
             "{Binding ProposedDiagnosticImpactDays}", StringComparison.Ordinal));
         proposal.Name.LocalName.Should().Be("SettingsNumberField");

@@ -152,7 +152,7 @@ public sealed partial class MaintenanceViewModelTests
     [Theory]
     [InlineData(RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice)]
-    public async Task Governed_update_tools_check_using_saved_consent_but_never_approve_or_start_an_installer(RequestOrigin origin)
+    public async Task Governed_update_tools_require_the_native_installer_approval_surface(RequestOrigin origin)
     {
         using var f = new Fixture();
         using var downloader = new InstallerDownloader();
@@ -165,7 +165,7 @@ public sealed partial class MaintenanceViewModelTests
         f.Client.Calls.Should().Be(0);
         f.State.NetworkEnabled = true;
         var output = await upgrade.ExecuteAsync(ReleaseVersion.Parse("1.2.3"), origin, () => true, TestContext.Current.CancellationToken);
-        output.Should().Contain("Available").And.Contain("separately approve");
+        output.Should().Contain("Installer was not started");
         f.Client.Calls.Should().Be(1);
         f.State.UpgradeApproved.Should().BeFalse();
         downloader.Calls.Should().Be(0);
@@ -221,7 +221,7 @@ public sealed partial class MaintenanceViewModelTests
         using var state = new MaintenanceViewModel(f.Client, new AssemblyApplicationInfo(() => "1.0.0"),
             ReleaseArchitecture.X64, f.Opener, f.Time, new DroppedDispatcher(), f.Audit,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<MaintenanceViewModel>.Instance);
-        var action = () => state.ExecuteUpdateAsync(null, false, () => true, CancellationToken.None);
+        var action = () => state.ExecuteUpdateAsync(null, () => true, CancellationToken.None);
         await action.Should().ThrowAsync<InvalidOperationException>().WithMessage("*dispatch did not produce*");
         f.Client.Calls.Should().Be(0);
     }
@@ -429,14 +429,14 @@ public sealed partial class MaintenanceViewModelTests
         if (failure is "busy")
         {
             var check = f.State.CheckAsync();
-            var busy = await f.State.ExecuteUpdateAsync(null, false, () => true, cancellation.Token);
+            var busy = await f.State.ExecuteUpdateAsync(null, () => true, cancellation.Token);
             busy.Should().Contain("busy");
             pending.SetResult(f.Client.Success(f.Time.Now));
             await check;
         }
         else
         {
-            var task = f.State.ExecuteUpdateAsync(null, false, () => eligible, cancellation.Token);
+            var task = f.State.ExecuteUpdateAsync(null, () => eligible, cancellation.Token);
             if (failure is "late-eligibility" or "late-host")
             {
                 if (failure is "late-eligibility") { eligible = false; }

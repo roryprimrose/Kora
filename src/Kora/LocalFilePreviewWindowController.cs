@@ -12,7 +12,10 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
     private readonly MainViewModel host;
     private readonly Func<Window> getOwner;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
-    private LocalFilePreviewWindow? window;
+    private LocalFilePreviewView? window;
+    private Func<Window>? getWorkbench;
+    internal LocalFilePreviewView? View => window;
+    internal void BindWorkbench(Func<Window> owner) => getWorkbench = owner;
     private Guid showing;
     private bool disposed;
     private bool selecting;
@@ -131,7 +134,8 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         CloseView();
         if (id == Guid.Empty) { return; }
         showing = id;
-        var view = new LocalFilePreviewWindow(host.ReportHostInteractionFailure, host);
+        var view = getWorkbench is not null ? new LocalFilePreviewView(getWorkbench(), host.ReportHostInteractionFailure, host)
+            : new LocalFilePreviewWindow(host.ReportHostInteractionFailure, host).View;
         window = view;
         view.Closed += OnClosed;
         if (revision is not null)
@@ -169,7 +173,8 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
                 ? host.ConfirmFilePreviewAsync(exactId)
                 : Task.FromException(new InvalidOperationException("The exact file review is stale; no read was authorized.")));
         }
-        view.Show(getOwner());
+        if (getWorkbench is not null) { view.Show(); }
+        else { view.Owner.Show(getOwner()); }
         view.Activate();
         if (disposed || (host.FileRevision?.RevisionId ?? host.FileReview?.ReviewId
             ?? host.FolderRevision?.Reference.RevisionId ?? host.FolderReview?.ReviewId ?? Guid.Empty) != id) { CloseView(); }

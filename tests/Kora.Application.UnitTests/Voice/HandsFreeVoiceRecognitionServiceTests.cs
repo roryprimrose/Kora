@@ -1,7 +1,9 @@
 using System.Threading.Channels;
+using System.Diagnostics;
 using AwesomeAssertions;
 using Kora.Application.Voice;
 using Kora.Core.Hosting;
+using Kora.Core.Diagnostics;
 using Kora.Core.Voice;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -10,6 +12,320 @@ namespace Kora.Application.UnitTests.Voice;
 [Collection("Host tracing")]
 public sealed partial class HandsFreeVoiceRecognitionServiceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DirectHostedRoutingPinsActualNativeCaptureAndNeverConfusesAmbientGeneration(bool retire)
+    {
+        var native = new Activated { InvalidateOnStop = true };
+        await using var voice = Create(native, new());
+        var routing = new Kora.Application.Hosting.SessionRouting.SessionRoutingVoiceRequest(
+            "original", HostRequest.Create(RequestOrigin.LocalUi), () => true, voice,
+            release: HandsFreeVoiceContinuation.CaptureRelease.InvalidatedOnce);
+        routing.Capture.Should().BeSameAs(native);
+        routing.BeginHandover().Should().BeTrue();
+        await routing.OpenAsync(Admission.Microphone, ["1"], () => true, TestContext.Current.CancellationToken);
+        routing.Acknowledge(native.CaptureGeneration);
+        var foreign = new RoutingCaptureRelease(native, HandsFreeVoiceContinuation.CaptureRelease.InvalidatedOnce);
+        FluentActions.Invoking(() => voice.AttachRoutingCapture(foreign)).Should().Throw<InvalidOperationException>();
+        FluentActions.Invoking(() => voice.DetachRoutingCapture(foreign)).Should().Throw<InvalidOperationException>();
+        FluentActions.Invoking(() => voice.BindRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease.Preserved))
+            .Should().Throw<InvalidOperationException>();
+        await FluentActions.Awaiting(() => voice.BeginReplyAsync(Admission.Microphone, ["1"], () => true,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => voice.BeginPushToTalkAsync(Admission.Microphone, ["1"],
+            cancellationToken: TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => voice.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
+        if (retire)
+        {
+            routing.InvalidateHostCapture(voice);
+            await routing.StopHostCaptureAsync(voice);
+        }
+        await routing.ReleaseAsync(native.CaptureGeneration);
+        routing.IsCurrent.Should().Be(!retire);
+        native.IsCaptureQuiescent.Should().BeTrue();
+        if (!retire)
+        {
+            routing.BeginHandover().Should().BeTrue();
+            await routing.OpenAsync(Admission.Microphone, ["Cancel"], () => true, TestContext.Current.CancellationToken);
+            routing.Acknowledge(native.CaptureGeneration);
+            await routing.ReleaseAsync(native.CaptureGeneration);
+            routing.IsCurrent.Should().BeTrue();
+        }
+        routing.ReleaseOwner();
+    }
+
+    [Theory]
+    [InlineData("current")]
+    [InlineData("admission")]
+    [InlineData("generation")]
+    [InlineData("stop")]
+    [InlineData("host-privacy")]
+    [InlineData("incrementing-stop")]
+    [InlineData("lock-admission")]
+    [InlineData("competing-handover")]
+    public async Task ExactWakeRoutingSuccessorRestoresCurrencyOnlyAfterAcknowledgedRelease(string change)
+    {
+        using var tracing = RoutingHostTracing();
+        var stage = new Stage();
+        var native = new Activated();
+        await using var voice = Create(native, stage);
+        if (change is "incrementing-stop")
+        {
+            native.InvalidateOnStop = true;
+            voice.BindRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease.InvalidatedOnce);
+        }
+        HandsFreeVoiceAdmission? observation = Admission;
+        var revokeOnObservation = false;
+        var observations = 0;
+        var delivered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Exception? failure = null;
+        voice.Bind(() =>
+        {
+            if (revokeOnObservation && ++observations == 2) { observation = Admission with { ComposerRevision = 2 }; }
+            return observation;
+        }, async (utterance, request) =>
+        {
+            try
+            {
+                var originalCurrent = voice.ConsumeWakeActivation(utterance, request);
+                using var originalHost = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+                var continuation = voice.CaptureRoutingContinuation(utterance, request);
+                var routing = new Kora.Application.Hosting.SessionRouting.SessionRoutingVoiceRequest(
+                    utterance.Transcript, request, static () => true, native, continuation);
+                FluentActions.Invoking(() => voice.CaptureRoutingContinuation(utterance, request)).Should().Throw<InvalidOperationException>();
+                FluentActions.Invoking(() => voice.BindRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease.Preserved))
+                    .Should().Throw<InvalidOperationException>();
+                continuation.IsCurrent.Should().BeTrue();
+                routing.BeginHandover().Should().BeTrue();
+                routing.BeginHandover().Should().BeFalse();
+                if (change is "lock-admission" or "competing-handover")
+                {
+                    revokeOnObservation = change is "lock-admission";
+                    Task? competing = null;
+                    await FluentActions.Awaiting(() => routing.OpenAsync(Admission.Microphone, ["1"], () =>
+                    {
+                        if (change is "competing-handover")
+                        { competing ??= voice.BeginRoutingReplyAsync(continuation, Admission.Microphone, ["1"], static () => true, TestContext.Current.CancellationToken); }
+                        return true;
+                    }, TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+                    if (competing is not null)
+                    {
+                        await competing;
+                        routing.Acknowledge(native.CaptureGeneration);
+                    }
+                    routing.Retire();
+                    await routing.ReleaseAsync(native.CaptureGeneration);
+                    routing.ReleaseOwner();
+                    continuation.IsCurrent.Should().BeFalse();
+                }
+                else
+                {
+                await routing.OpenAsync(Admission.Microphone, ["1", "New", "Cancel"], static () => true, TestContext.Current.CancellationToken);
+                routing.Acknowledge(native.CaptureGeneration);
+                continuation.IsCurrent.Should().BeFalse("a currency query cannot retire an admitted owned successor");
+                originalCurrent().Should().BeFalse("the ordinary wake currency predicate is not relaxed for reply capture");
+                continuation.IsAdmitted.Should().BeTrue();
+                voice.Generation.Should().Be(utterance.Generation, "reply generations never become global activated input");
+                await FluentActions.Awaiting(() => voice.BeginReplyAsync(Admission.Microphone, ["foreign"], static () => true,
+                    TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+                await FluentActions.Awaiting(() => voice.BeginPushToTalkAsync(Admission.Microphone, ["foreign"],
+                    cancellationToken: TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+                if (change is "admission") { observation = Admission with { ComposerRevision = 2 }; }
+                if (change is "generation") { native.InvalidateCapture(); }
+                if (change is "stop") { await voice.StopAsync(TestContext.Current.CancellationToken); }
+                if (change is "host-privacy")
+                {
+                    routing.InvalidateHostCapture(voice);
+                    await routing.StopHostCaptureAsync(voice);
+                }
+                if (change is not ("current" or "incrementing-stop")) { continuation.IsAdmitted.Should().BeFalse(); }
+                await routing.ReleaseAsync(native.CaptureGeneration);
+                continuation.IsCurrent.Should().Be(change is "current" or "incrementing-stop");
+                observation = Admission;
+                if (change is not ("current" or "incrementing-stop")) { continuation.IsCurrent.Should().BeFalse("returning old values never revives retired successor authority"); }
+                routing.ReleaseOwner();
+                routing.IsLive.Should().BeFalse();
+                }
+            }
+            catch (Exception exception) { failure = exception; }
+            finally { delivered.TrySetResult(); }
+            await release.Task;
+        }, static () => true);
+        await voice.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var capture = await stage.NextAsync();
+        capture.Wake.SetResult(new(capture.Binding.Generation, 3, true));
+        capture.Result.SetResult(new("original body", 1, capture.Binding.Generation));
+        await delivered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await voice.StopAsync(TestContext.Current.CancellationToken);
+        release.SetResult();
+        await voice.Completion;
+        failure.Should().BeNull();
+        stage.Opens.Should().Be(1);
+        native.ReplyCalls.Should().Be(change is "lock-admission" ? 0 : 1);
+        native.PushToTalkCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task WakeContinuationCannotBeReconstructedFromValueEqualEvidenceOrRequests()
+    {
+        using var tracing = RoutingHostTracing();
+        var stage = new Stage();
+        await using var voice = Create(new(), stage);
+        var delivered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Exception? failure = null;
+        voice.Bind(() => Admission, async (utterance, request) =>
+        {
+            try
+            {
+                FluentActions.Invoking(() => voice.CaptureRoutingContinuation(utterance, request)).Should().Throw<InvalidOperationException>();
+                voice.ConsumeWakeActivation(utterance, request);
+                FluentActions.Invoking(() => voice.CaptureRoutingContinuation(new(utterance.Transcript, 1,
+                    utterance.Generation, utterance.ActivationEvidence), request)).Should().Throw<InvalidOperationException>();
+                FluentActions.Invoking(() => voice.CaptureRoutingContinuation(utterance, request with { })).Should().Throw<InvalidOperationException>();
+                var exact = voice.CaptureRoutingContinuation(utterance, request);
+                using var originalHost = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+                new Kora.Application.Hosting.SessionRouting.SessionRoutingVoiceRequest(
+                    utterance.Transcript, request, static () => true, null, exact).Request.Should().BeSameAs(request);
+                FluentActions.Invoking(() => new Kora.Application.Hosting.SessionRouting.SessionRoutingVoiceRequest(
+                    utterance.Transcript, request with { }, static () => true, null, exact))
+                    .Should().Throw<InvalidOperationException>();
+                exact.Retire();
+            }
+            catch (Exception exception) { failure = exception; }
+            finally { delivered.TrySetResult(); }
+            await release.Task;
+        }, static () => true);
+        await voice.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var capture = await stage.NextAsync();
+        capture.Wake.SetResult(new(capture.Binding.Generation, 3, true));
+        capture.Result.SetResult(new("original", 1, capture.Binding.Generation));
+        await delivered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await voice.StopAsync(TestContext.Current.CancellationToken);
+        release.SetResult();
+        await voice.Completion;
+        failure.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("denied")]
+    [InlineData("retired")]
+    [InlineData("changed-after-open")]
+    [InlineData("denied-after-open")]
+    [InlineData("wrong-ack")]
+    [InlineData("retired-ack")]
+    [InlineData("retire-before-join")]
+    [InlineData("failed-stop")]
+    [InlineData("unconfirmed-stop")]
+    [InlineData("release-generation")]
+    [InlineData("unbound")]
+    public async Task ExactRoutingWakeHandoverRejectsUnconfirmedSuccessors(string boundary)
+    {
+        var stage = new Stage();
+        var native = new Activated();
+        await using var voice = Create(native, stage, bindRouting: boundary is not "unbound");
+        var admitted = true;
+        HandsFreeVoiceAdmission observation = Admission;
+        var delivered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Exception? failure = null;
+        voice.Bind(() => observation, async (utterance, request) =>
+        {
+            try
+            {
+                voice.ConsumeWakeActivation(utterance, request);
+                var continuation = voice.CaptureRoutingContinuation(utterance, request);
+                if (boundary is "unbound")
+                {
+                    await FluentActions.Awaiting(() => continuation.BeginReplyAsync(Admission.Microphone, ["1"],
+                        static () => true, TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+                    native.ReplyCalls.Should().Be(0);
+                    continuation.Retire();
+                    return;
+                }
+                if (boundary is "denied") { admitted = false; }
+                if (boundary is "retired") { continuation.Retire(); }
+                if (boundary is "changed-after-open") { native.AfterReplyOpened = () => observation = Admission with { ComposerRevision = 2 }; }
+                if (boundary is "denied-after-open") { native.AfterReplyOpened = () => admitted = false; }
+                if (boundary is "denied" or "retired" or "changed-after-open" or "denied-after-open")
+                {
+                    await FluentActions.Awaiting(() => continuation.BeginReplyAsync(Admission.Microphone, ["1"],
+                        () => admitted, TestContext.Current.CancellationToken)).Should().ThrowAsync<OperationCanceledException>();
+                }
+                else
+                {
+                    await continuation.BeginReplyAsync(Admission.Microphone, ["1"], () => admitted, TestContext.Current.CancellationToken);
+                    if (boundary is "wrong-ack")
+                    { FluentActions.Invoking(() => continuation.Acknowledge(native.CaptureGeneration + 1)).Should().Throw<InvalidOperationException>(); }
+                    if (boundary is "retired-ack")
+                    {
+                        observation = Admission with { ComposerRevision = 2 };
+                        FluentActions.Invoking(() => continuation.Acknowledge(native.CaptureGeneration)).Should().Throw<OperationCanceledException>();
+                    }
+                    else { continuation.Acknowledge(native.CaptureGeneration); }
+                    if (boundary is "retire-before-join")
+                    { FluentActions.Invoking(continuation.Retire).Should().Throw<InvalidOperationException>(); }
+                }
+                if (boundary is "failed-stop") { native.BeforeStop = () => throw new IOException("Synthetic release failure"); }
+                if (boundary is "unconfirmed-stop") { native.NonQuiescent = true; }
+                if (boundary is "retired")
+                {
+                    await FluentActions.Awaiting(continuation.ReleaseAsync).Should().ThrowAsync<InvalidOperationException>();
+                    return;
+                }
+                var stopStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var stopRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                if (boundary is "release-generation")
+                {
+                    native.BeforeStop = async () =>
+                    {
+                        stopStarted.SetResult();
+                        await stopRelease.Task;
+                        native.InvalidateCapture();
+                    };
+                }
+                if (boundary is "release-generation")
+                {
+                    var stopped = continuation.ReleaseAsync();
+                    await stopStarted.Task;
+                    stopped.IsCompleted.Should().BeFalse();
+                    stopRelease.SetResult();
+                    await FluentActions.Awaiting(() => stopped).Should().ThrowAsync<InvalidOperationException>();
+                    native.BeforeStop = null;
+                    await continuation.ReleaseAsync();
+                    continuation.IsCurrent.Should().BeFalse();
+                }
+                else if (boundary is "failed-stop" or "unconfirmed-stop")
+                {
+                    await FluentActions.Awaiting(continuation.ReleaseAsync).Should().ThrowAsync<Exception>();
+                    continuation.IsCurrent.Should().BeFalse();
+                    native.BeforeStop = null;
+                    native.NonQuiescent = false;
+                    await continuation.ReleaseAsync();
+                    continuation.IsCurrent.Should().BeFalse("a later successful close cannot revive failed original ownership");
+                }
+                else { await continuation.ReleaseAsync(); }
+                continuation.Retire();
+                continuation.Retire();
+            }
+            catch (Exception exception) { failure = exception; }
+            finally { delivered.TrySetResult(); }
+            await release.Task;
+        }, static () => true);
+        await voice.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var capture = await stage.NextAsync();
+        capture.Wake.SetResult(new(capture.Binding.Generation, 3, true));
+        capture.Result.SetResult(new("original", 1, capture.Binding.Generation));
+        await delivered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await voice.StopAsync(TestContext.Current.CancellationToken);
+        release.SetResult();
+        await voice.Completion;
+        failure.Should().BeNull();
+    }
+
     [Fact]
     public async Task Native_gate_rechecks_live_admission_exclusion_generation_and_cancellation_without_a_policy_event()
     {
@@ -238,8 +554,23 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         stage.Opens.Should().Be(1);
     }
 
-    private static HandsFreeVoiceRecognitionService Create(Activated native, Stage stage) =>
-        new(native, stage, NullLogger<HandsFreeVoiceRecognitionService>.Instance);
+    private static ActivityListener RoutingHostTracing()
+    {
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+        };
+        ActivitySource.AddActivityListener(listener);
+        return listener;
+    }
+
+    private static HandsFreeVoiceRecognitionService Create(Activated native, Stage stage, bool bindRouting = true)
+    {
+        var voice = new HandsFreeVoiceRecognitionService(native, stage, NullLogger<HandsFreeVoiceRecognitionService>.Instance);
+        if (bindRouting) { voice.BindRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease.Preserved); }
+        return voice;
+    }
 
     private static HandsFreeVoiceAdmission Admission { get; } =
         new(new("mic", "Microphone"), "Kora", new(1, SpeechInputSelection.Default), 1, 1, 1, 1);
@@ -331,7 +662,11 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         public event EventHandler<VoiceCaptureStateChangedEventArgs>? ReplySpeechStarted { add { } remove { } }
         public bool IsAmbientListeningAvailable => false;
         public bool IsLiteralDictationAvailable { get; set; }
-        public bool IsCaptureQuiescent => !IsListening;
+        public bool IsCaptureQuiescent => !IsListening && !NonQuiescent;
+        public bool NonQuiescent { get; set; }
+        public bool InvalidateOnStop { get; set; }
+        public Action? AfterReplyOpened { get; set; }
+        public Func<Task>? BeforeStop { get; set; }
         public bool IsListening { get; private set; }
         public long Generation { get; private set; }
         public long CaptureGeneration => Generation;
@@ -358,7 +693,12 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         public IReadOnlyList<MicrophoneDevice> GetMicrophones() => [Admission.Microphone];
         public MicrophoneDevice? GetDefaultMicrophone() => Admission.Microphone;
         public void InvalidateCapture() { Generation++; IsListening = false; }
-        public Task StopAsync(CancellationToken cancellationToken = default) { IsListening = false; return Task.CompletedTask; }
+        public async Task StopAsync(CancellationToken cancellationToken = default)
+        {
+            if (InvalidateOnStop) { Generation++; }
+            if (BeforeStop is { } stop) { await stop(); }
+            IsListening = false;
+        }
         public Task EndCaptureAsync(CancellationToken cancellationToken = default) => StopAsync(cancellationToken);
         public Task EndPushToTalkAsync(CancellationToken cancellationToken = default) => StopAsync(cancellationToken);
         public Task StartAsync(MicrophoneDevice microphone, IEnumerable<string> phrases, string? assistantName = null,
@@ -371,7 +711,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         public Task BeginReplyAsync(MicrophoneDevice microphone, IEnumerable<string> phrases, Func<bool> isAdmitted,
             CancellationToken cancellationToken)
         {
-            ReplyCalls++; Generation++; IsListening = isAdmitted(); return Task.CompletedTask;
+            ReplyCalls++; Generation++; IsListening = isAdmitted(); AfterReplyOpened?.Invoke(); return Task.CompletedTask;
         }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

@@ -5,6 +5,7 @@ using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Core.Hosting;
 using Kora.Application.Voice;
+using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
 
@@ -281,6 +282,7 @@ public sealed partial class MainViewModel
             if (disposed) { return; }
             disposed = true;
         }
+        RetireSessionRoutingVoice();
         RetireDetailsOffer();
         PrivacyClosureRequested -= OnDetailsOfferPrivacyClosure;
         if (speechComparison is not null)
@@ -320,6 +322,8 @@ public sealed partial class MainViewModel
         RetireCurrentResponseSpeech();
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
+        handoffSubmittedWork?.Dispose();
+        handoffSubmittedWork = null;
         if (speechPreparation is not null)
         {
             speechPreparation.Changed -= OnSpeechPreparationChanged;
@@ -329,6 +333,9 @@ public sealed partial class MainViewModel
         CancelLogonStartupReview();
         CancelQuietHoursReview();
         CancelDetailPresentationReview();
+        CancelMarkdownDisplayReview();
+        PropertyChanged -= OnMarkdownDisplayHostChanged;
+        if (markdownDisplay is not null) { markdownDisplay.Changed -= OnMarkdownDisplayChanged; }
         NotifyDetailPresentationAvailability();
         PropertyChanged -= OnDetailPresentationHostChanged;
         if (composerDictation is not null) { composerDictation.Changed -= OnDetailPresentationDecisionChanged; }
@@ -405,6 +412,7 @@ public sealed partial class MainViewModel
 
     private void OnCaptureStateChanged(object? sender, VoiceCaptureStateChangedEventArgs eventArgs)
     {
+        if (sessionRoutingVoiceReply is not null) { return; }
         if (eventArgs.IsListening)
         {
             return;
@@ -424,6 +432,7 @@ public sealed partial class MainViewModel
 
     private void OnRecognitionCompleted(object? sender, VoiceRecognitionCompletedEventArgs eventArgs)
     {
+        if (sessionRoutingVoiceReply is not null) { return; }
         uiDispatcher.Post(() =>
         {
             if (eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
@@ -517,11 +526,12 @@ public sealed partial class MainViewModel
                 await Task.WhenAll(actionRetirement, grantRetirement);
             });
             // Capture release never waits for speech synthesis or the UI dispatcher.
-            var captureClosure = voiceRecognition.StopAsync();
+            var captureClosure = StopOwnedVoiceCaptureAsync();
             var outputClosure = textToSpeech.StopAsync();
             await Task.WhenAll(captureClosure, outputClosure, presentation);
             if (completionNotices is not null) { await completionNotices.RetireAndJoinAsync(); }
             await JoinCustomizationClarification();
+            await JoinSessionRoutingVoice();
             await ClosePromptPreparation();
             if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
             if (hidePresentation) { CompletePrivatePresentationRetirement(presentationRevision); }
@@ -577,8 +587,9 @@ public sealed partial class MainViewModel
             Interlocked.Exchange(ref acceptedTranscriptGeneration, -1);
             Interlocked.Exchange(ref pushToTalkHeld, 0);
         }
-        voiceRecognition.InvalidateCapture();
+        InvalidateOwnedVoiceCapture();
         captureOpenCancellation?.Cancel();
+        RetireSessionRoutingVoice();
         RetireQuestionVoiceReply();
         RetireComposerDictation();
         RetireReviewedVoiceCommand();
@@ -755,6 +766,11 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        if (sessionRoutingVoiceRequest is not null)
+        {
+            ReportHostInteractionFailure("The original destination review owns input. Use its exact native controls or explicit voice reply.");
+            return;
+        }
         var detailsTarget = CurrentDetailsOffer?.Key;
         if (!IsReviewedVoiceCaptureReleased)
         {
@@ -849,7 +865,7 @@ public sealed partial class MainViewModel
                 || !IsVoiceReadinessEligible(privacyObservation.Current)
                 || Volatile.Read(ref pushToTalkHeld) == 0 || !sessionController.IsCurrentSessionUnlocked())
             {
-                voiceRecognition.InvalidateCapture();
+                InvalidateOwnedVoiceCapture();
                 await TryStopFailedCaptureAsync("Closing an ineligible push-to-talk activation");
                 return;
             }
@@ -941,7 +957,7 @@ public sealed partial class MainViewModel
     {
         try
         {
-            await voiceRecognition.StopAsync();
+            await StopOwnedVoiceCaptureAsync();
             return true;
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -1065,6 +1081,7 @@ public sealed partial class MainViewModel
     private async Task CompleteListeningStopAsync(SecurityAuditInitiator initiator)
     {
         if (disposed) { return; }
+        RetireSessionRoutingVoice();
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Policy, OriginalOrigin(initiator));
         // Release must not wait for audit storage or be cancelled by an unrelated request.
         var release = listeningStop.DisableAsync(() =>
@@ -1083,6 +1100,7 @@ public sealed partial class MainViewModel
             ApplicationLog.Error(logger, exception, "Recording listening stop request");
         }
         var outcome = await release;
+        await JoinSessionRoutingVoice();
         if (audit is not null)
         {
             try
@@ -1272,11 +1290,63 @@ public sealed partial class MainViewModel
 
     public async Task<bool> TryPrepareHandoffAsync()
     {
-        if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return false; }
-        if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return false; }
-        if (customizationShutdown is not null && !await customizationShutdown()) { return false; }
-        await ClosePromptPreparation();
-        if (lifecycleAdmissionClosed || applyingAppearance || drainingPreferences || preferenceWriteActive
+        if (voluntaryShutdownRunning || !AreHandoffResourcesQuiescent)
+        {
+            ApplicationLog.Information(logger, "Handoff is blocked until current work finishes and Windows is eligible");
+            return false;
+        }
+        voluntaryShutdownRunning = true;
+        ApplicationLifecycleShutdown? submitted = null;
+        try
+        {
+            if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return false; }
+            var conversationCurrent = await PrepareConversationShutdown();
+            if (conversationCurrent is null) { return false; }
+            submitted = await PrepareSubmittedWorkShutdown(Hosting.ApplicationLifecycleOperation.DebugHandoff, conversationCurrent);
+            if (submitted is null) { return false; }
+            if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return false; }
+            if (customizationShutdown is not null && !await customizationShutdown()) { return false; }
+            await ClosePromptPreparation();
+            if (!AreHandoffResourcesQuiescent
+                || !RequireConversationShutdownCurrent(() => conversationCurrent() && submitted.IsCurrent)) { return false; }
+
+            RetireWebResultDetails();
+            ClearClipboardPreview();
+            ClearFilePreview();
+            HoldVoiceInput("Microphone closed · host handoff");
+            textToSpeech.InvalidateOutput();
+            try
+            {
+                await StopAudioAsync();
+                if (!RequireConversationShutdownCurrent(() => conversationCurrent() && submitted.IsCurrent)) { return false; }
+                if (AreHandoffResourcesQuiescent && voiceRecognition.IsCaptureQuiescent && !textToSpeech.IsSpeaking)
+                {
+                    handoffSubmittedWork = submitted;
+                    submitted = null;
+                    lifecycleAdmissionClosed = true;
+                    Interlocked.Exchange(ref handoffPreparationActive, 1);
+                    return true;
+                }
+                ShowFailure("Handoff could not confirm quiescence.",
+                    "The original retains ownership. Audio remains disabled; inspect readiness before trying again.");
+                return false;
+            }
+            catch (Exception exception) when (exception is InvalidOperationException or IOException)
+            {
+                ApplicationLog.Error(logger, exception, "Quiescing the host for handoff");
+                ShowFailure("Handoff could not release host resources.", exception.Message);
+                return false;
+            }
+        }
+        finally
+        {
+            submitted?.Dispose();
+            voluntaryShutdownRunning = false;
+        }
+    }
+
+    private bool AreHandoffResourcesQuiescent =>
+        !disposed && !(lifecycleAdmissionClosed || applyingAppearance || drainingPreferences || preferenceWriteActive
             || !consentPersistence.IsCompleted || Volatile.Read(ref activeApprovalPreparations) != 0
             || !outputCatalog.IsQuiescent || !OutputRefresh.IsCompleted || !outputDiscoveryPersistence.IsCompleted
             || Volatile.Read(ref pendingAuditWrites) != 0
@@ -1286,42 +1356,7 @@ public sealed partial class MainViewModel
             || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
-            || !sessionController.IsCurrentSessionUnlocked())
-        {
-            ApplicationLog.Information(logger, "Handoff is blocked until current work finishes and Windows is eligible");
-            return false;
-        }
-
-        Interlocked.Exchange(ref handoffPreparationActive, 1);
-        lifecycleAdmissionClosed = true;
-        RetireWebResultDetails();
-        ClearClipboardPreview();
-        ClearFilePreview();
-        HoldVoiceInput("Microphone closed · host handoff");
-        textToSpeech.InvalidateOutput();
-        try
-        {
-            await StopAudioAsync();
-            if (voiceRecognition.IsCaptureQuiescent && !textToSpeech.IsSpeaking)
-            {
-                return true;
-            }
-            lifecycleAdmissionClosed = false;
-            Interlocked.Exchange(ref handoffPreparationActive, 0);
-            ShowFailure("Handoff could not confirm quiescence.",
-                "The original retains ownership. Audio remains disabled; inspect readiness before trying again.");
-            return false;
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException)
-        {
-            ApplicationLog.Error(logger, exception, "Quiescing the host for handoff");
-            lifecycleAdmissionClosed = false;
-            Interlocked.Exchange(ref handoffPreparationActive, 0);
-            ShowFailure("Handoff could not release host resources.", exception.Message);
-            return false;
-        }
-
-    }
+            || !sessionController.IsCurrentSessionUnlocked());
 
     internal void AbandonHandoffPreparation()
     {
@@ -1329,6 +1364,8 @@ public sealed partial class MainViewModel
         {
             return;
         }
+        handoffSubmittedWork?.Dispose();
+        handoffSubmittedWork = null;
         lifecycleAdmissionClosed = false;
         ApplicationLog.Information(logger, "Handoff preparation was abandoned; original ownership and native recovery are retained");
         NotifyVoiceEnablementChanged();

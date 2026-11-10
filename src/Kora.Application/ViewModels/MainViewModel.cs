@@ -291,7 +291,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ForegroundPttConfigurationService? foregroundPtt = null,
         VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null,
         DetailPresentationConfigurationService? detailPresentationConfiguration = null,
-        QuietHoursConfigurationService? quietHoursConfiguration = null)
+        QuietHoursConfigurationService? quietHoursConfiguration = null,
+        MarkdownDisplayConfigurationService? markdownDisplayConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -459,6 +460,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         InitializeStartupPresentation(startupPresentationConfiguration, execute => CreateCommand(execute));
         InitializeQuietHours(quietHoursConfiguration, execute => CreateCommand(execute));
         InitializeDetailPresentation(detailPresentationConfiguration, execute => CreateCommand(execute));
+        InitializeMarkdownDisplay(markdownDisplayConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetReducedMotionCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReducedMotion));
@@ -646,6 +648,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.NamedSkillCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand.Parse(CommandText, AssistantName) is not null
+                      || KnowledgeSourceCaptureLimitsCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null),
@@ -786,6 +789,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         MicrophoneAccessStatus.State == MicrophoneAccessState.Denied;
 
     public event EventHandler<WindowAction>? WindowActionRequested;
+    public event EventHandler? ResponseRestoreRequested;
 
     public event EventHandler? SettingsRequested;
     public event EventHandler? ReadinessRequested;
@@ -2134,6 +2138,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         isInitializing = true;
         try
         {
+            if (markdownDisplay is not null)
+            {
+                try { await markdownDisplay.ObserveAsync(CancellationToken.None); }
+                catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
+                    or InvalidOperationException or OperationCanceledException)
+                { ApplicationLog.Error(logger, exception, "Reading Markdown display preference"); }
+            }
             if (communicationActivity is not null)
             {
                 try { communicationActivity.ObservePreferences(); }
@@ -2533,6 +2544,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
 
         ShowPresentation();
+        ResponseRestoreRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public void HideApplication() => new AsyncCommand(HideApplicationAsync, HandleCommandException).Execute(null);
@@ -3557,8 +3569,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private async Task StopListeningAsync()
     {
         Interlocked.Exchange(ref acceptedTranscriptGeneration, -1);
-        voiceRecognition.InvalidateCapture();
-        await voiceRecognition.StopAsync();
+        InvalidateOwnedVoiceCapture();
+        await StopOwnedVoiceCaptureAsync();
         IsListening = false;
         ApplicationLog.Information(logger, "Voice activation stopped");
     }
@@ -3915,6 +3927,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 #pragma warning disable VSTHRD003 // Await owned reply retirement asynchronously so no queued UI commit survives host handoff/close.
             if (questionVoiceReplies is not null) { await questionVoiceReplies.Quiescence; }
             await JoinCustomizationClarification();
+            await JoinSessionRoutingVoice();
             if (composerDictation is not null) { await composerDictation.Quiescence; }
             if (reviewedVoiceCommand is not null) { await reviewedVoiceCommand.Quiescence; }
 #pragma warning restore VSTHRD003
@@ -4122,7 +4135,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
         using var activity = HostActivity.BeginRoot(originalRequest ?? HostRequest.Create(RequestOrigin.ActivatedVoice),
             HostActivityLayer.Application, HostOperation.Request, causes);
-        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
+        if (sessionRoutingVoiceReply is not null || reviewedEligibility?.Invoke() == false || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
             || eventArgs.Generation != voiceRecognition.Generation)
         {
             ApplicationLog.Debug(logger, "Discarded an unactivated or retired voice callback before UI dispatch");
@@ -4167,6 +4180,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     manualInput = manualInput with
                     {
                         WakeActivationCurrent = wakeOwner.ConsumeWakeActivation(eventArgs, wakeRequest),
+                        RoutingWakeContinuation = () => wakeOwner.CaptureRoutingContinuation(eventArgs, wakeRequest),
                     };
                 }
                 return HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
@@ -4188,6 +4202,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private void OnRecognitionFailed(object? sender, VoiceRecognitionFailureEventArgs eventArgs)
     {
+        if (sessionRoutingVoiceReply is not null) { return; }
         if (eventArgs.Reason == VoiceRecognitionFailureReason.PrivacyTransition
             && privacyObservation.Current.SessionState == WindowsSessionState.Locked)
         {
@@ -4278,6 +4293,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             || QuietHoursCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || LogonStartupCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || DetailPresentationCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || MarkdownDisplayCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null
             || EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
@@ -4357,6 +4373,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             && string.Equals(spokenText.Trim(), "listening", StringComparison.OrdinalIgnoreCase))
         {
             await ExecuteAsync(commandCatalog.GetCommands(AssistantName).Single(command => command.Action == BuiltInAction.DisableListening), initiator);
+            return;
+        }
+        if (MarkdownDisplayCommand.Parse(spokenText, AssistantName) is { } markdownCommand)
+        {
+            if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
+                && !HasCurrentNameActivation(spokenText))
+            {
+                CancelMarkdownDisplayReview();
+                Transcript = "Markdown preferences require original typed input or the current assistant-name voice prefix.";
+                return;
+            }
+            await ExecuteMarkdownDisplay(markdownCommand, initiator, manualInput);
             return;
         }
         if (DetailPresentationCommand.Parse(spokenText, AssistantName) is { } detailCommand)
@@ -4488,6 +4516,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Application.Agents.AgentRunCommand.Parse(spokenText, AssistantName) is { } agentCommand)
         {
             await ExecuteAgentCommand(agentCommand, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
+        if (KnowledgeSourceCaptureLimitsCommand.Parse(spokenText, AssistantName) is { } captureLimits)
+        {
+            await ExecuteKnowledgeSourceCaptureLimits(captureLimits, spokenText, manualInput
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
@@ -5490,7 +5524,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     $"Generated locally; verify important details.\n\n{presentation.Brief}",
                     requestWindow: automaticDetails is null,
                     modelAnswer: new(decision.Answer!, HostActivity.RequireCurrent().Request));
-                PresentAutomaticResponse(automaticDetails);
+                await PresentAutomaticResponseAsync(automaticDetails);
                 await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token, expectedSpeechRevision: speechRevision);
             }
         }
@@ -6932,6 +6966,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(LogonStartupCommand.FixedPhrases)
             .Concat(DetailPresentationCommand.FixedPhrases)
+            .Concat(MarkdownDisplayCommand.FixedPhrases)
             .Concat(HasDetailsQuestion ? ["yes", "show it", "no", "not now"] : [])
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceUpdateCommand.FixedPhrases)

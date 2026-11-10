@@ -23,5 +23,8 @@ public sealed partial class App
             Services.GetRequiredService<Kora.Application.Definitions.CustomizationAuthoringService>(),
             Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(), Services.GetRequiredService<TimeProvider>());
         agentAuthoring.Bind();
+        var responses = responseWindow ?? throw new InvalidOperationException("Agent authoring requires the owning response workbench.");
+        agentAuthoring.BindWorkbench(responses.PrepareWorkbenchOwner,
+            view => responses.ShowHostedView(WorkbenchActivity.AgentEditor, view));
     }
 }

@@ -22,4 +22,5 @@ public abstract record RegisteredSettingProposal(RegisteredSetting Setting)
     public sealed record DetailPresentation(DetailPresentationMode Value) : RegisteredSettingProposal(RegisteredSetting.DetailPresentation);
     public sealed record CaptureTiming(RegisteredSetting Key, decimal Seconds) : RegisteredSettingProposal(Key);
     public sealed record InstalledVoice(SpeechSelection Value) : RegisteredSettingProposal(RegisteredSetting.SpeechVoice);
+    public sealed record OrdinaryDeadline(OrdinaryTurnDeadline Value) : RegisteredSettingProposal(RegisteredSetting.OrdinaryTurnDeadline);
 }

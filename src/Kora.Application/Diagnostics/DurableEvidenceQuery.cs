@@ -54,7 +54,7 @@ public sealed partial class DurableEvidenceQuery(
         var disclosure = query.Source == EvidenceSource.AuthorityAudit ? EvidencePage.AuthorityDisclosure : EvidencePage.StorageDisclosure;
         try
         {
-            RequireAccess(current.Request);
+            RequireAccess(current.Request, query.Source);
             Validate(query);
             cancellationToken.ThrowIfCancellationRequested();
             var now = time.GetUtcNow();
@@ -71,7 +71,7 @@ public sealed partial class DurableEvidenceQuery(
             }
             var batch = await reader.ReadAsync(query, continuation?.Checkpoint, current.Request, now, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            RequireAccess(current.Request);
+            RequireAccess(current.Request, query.Source);
             var records = batch.Candidates.Take(query.Limit).Select(item => item.Record).ToList();
             EvidencePage page;
             do
@@ -105,7 +105,7 @@ public sealed partial class DurableEvidenceQuery(
                 else { records.RemoveAt(records.Count - 1); }
             } while (true);
             cancellationToken.ThrowIfCancellationRequested();
-            RequireAccess(current.Request);
+            RequireAccess(current.Request, query.Source);
             Returned(logger, page.Records.Count, Serialize(page).Length, page.Status);
             var originalDigest = SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(batch, Format));
             var originalCheckpoint = new EvidenceReadCheckpoint(batch.Snapshot, continuation?.Checkpoint.After);
@@ -117,11 +117,11 @@ public sealed partial class DurableEvidenceQuery(
                 using var comparison = resumeRead();
                 comparison.Complete(HostOperationOutcome.Failed);
                 token.ThrowIfCancellationRequested();
-                RequireAccess(sourceRequest);
+                RequireAccess(sourceRequest, query.Source);
                 var reread = await reader.ReadAsync(query, originalCheckpoint, sourceRequest, time.GetUtcNow(), token)
                     .ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
-                RequireAccess(sourceRequest);
+                RequireAccess(sourceRequest, query.Source);
                 if (!originalDigest.AsSpan().SequenceEqual(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(reread, Format))))
                 { throw new InvalidOperationException("The original bounded evidence source or provenance changed; no replacement page was substituted."); }
                 comparison.Complete(HostOperationOutcome.Completed);
@@ -133,7 +133,7 @@ public sealed partial class DurableEvidenceQuery(
         catch (FileNotFoundException)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            RequireAccess(current.Request);
+            RequireAccess(current.Request, query.Source);
             Failed(logger, nameof(FileNotFoundException));
             activity.Complete(HostOperationOutcome.Failed);
             var sources = query.Source == EvidenceSource.All
@@ -156,11 +156,11 @@ public sealed partial class DurableEvidenceQuery(
         }
     }
 
-    private void RequireAccess(HostRequest request)
+    private void RequireAccess(HostRequest request, EvidenceSource source)
     {
-        if (!access.CanInspect || request.Origin != RequestOrigin.LocalUi)
+        if (!access.CanInspect || !EvidenceReadAdmission.IsAllowed(request, source))
         {
-            throw new InvalidOperationException("Evidence inspection requires live local-UI ownership and privacy admission.");
+            throw new InvalidOperationException("Evidence inspection requires live private ownership and original user-channel admission. Activated voice is limited to committed authority audit.");
         }
     }
 

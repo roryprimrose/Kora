@@ -176,15 +176,15 @@ public sealed class CompactResponseWorkingAreaTests
             using var fixture = new NativeUxFixtureSession(ScratchParent(), silentCaption: true);
             await fixture.InitializeAsync();
             fixture.Main.ReportHostInteractionFailure("Original admitted response");
-            var window = new ResponseWindow(fixture.Main, null, null, () => new(0, 0, 320, 400));
+            var window = new ResponseWindow(fixture.Main, null, null, () => new(0, 0, 300, 280));
             try
             {
                 window.ShowSessions(true, activate: false);
                 window.UpdateLayout();
                 window.IsExpanded.Should().BeFalse();
-                window.MinWidth.Should().Be(320);
+                window.MinWidth.Should().Be(300);
                 var status = window.FindControl<TextBlock>("CompactLayoutStatus")!;
-                status.Text.Should().Contain("Sessions unavailable").And.Contain("820 by 560");
+                status.Text.Should().Contain("Workbench unavailable").And.Contain("320 by 300");
                 status.BringIntoView();
                 window.UpdateLayout();
                 AssertVerticallyInside(window, status);
@@ -238,9 +238,11 @@ public sealed class CompactResponseWorkingAreaTests
     }
 
     [Theory]
-    [InlineData(1039, false)]
+    [InlineData(320, true)]
+    [InlineData(640, true)]
+    [InlineData(1039, true)]
     [InlineData(1040, true)]
-    public async Task SideBySideDetailsKeepsItsAuthoritativeMinimum(int width, bool fits)
+    public async Task DetailsAllowsResponsiveWorkbenchWidthsWithoutChangingSource(int width, bool fits)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -251,12 +253,9 @@ public sealed class CompactResponseWorkingAreaTests
             {
                 window.ShowSessions(true, activate: false);
                 window.PrepareDetailsLayout().Should().Be(fits);
-                if (fits)
-                {
-                    window.MinWidth.Should().Be(1040);
-                    window.Width.Should().Be(1040);
-                }
-                else { fixture.Main.ResponseBody.Should().Contain("minimum 1040-wide"); }
+                window.MinWidth.Should().Be(320);
+                window.Width.Should().BeLessThanOrEqualTo(width);
+                window.IsExpanded.Should().BeTrue();
             }
             finally { window.Close(); }
         });

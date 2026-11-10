@@ -19,7 +19,7 @@ internal sealed class OwnedInstructionBodyDictation : INotifyPropertyChanged, ID
     internal sealed record Binding(ComposerDictationTarget Target, HostRequest Request, Func<bool> Current,
         Func<CancellationToken, Task<bool>> Verify, Func<string, string> Proposed, string Label, CancellationToken Token);
 
-    private readonly OwnedInstructionEditorWindow window;
+    private readonly OwnedInstructionEditorView window;
     private readonly ComposerDictationService? service;
     private readonly Func<INotifyPropertyChanged, Binding?> capture;
     private readonly Action<Exception> failure;
@@ -49,7 +49,7 @@ internal sealed class OwnedInstructionBodyDictation : INotifyPropertyChanged, ID
         || ownsRelease && service?.Quiescence.IsCompletedSuccessfully != true;
     private bool OwnsTurn => binding is { } current && service?.IsActiveFor(current.Target) == true;
 
-    internal OwnedInstructionBodyDictation(OwnedInstructionEditorWindow window, ComposerDictationService? service,
+    internal OwnedInstructionBodyDictation(OwnedInstructionEditorView window, ComposerDictationService? service,
         Func<INotifyPropertyChanged, Binding?> capture, Action<Exception> failure)
     {
         this.window = window;
@@ -90,8 +90,8 @@ internal sealed class OwnedInstructionBodyDictation : INotifyPropertyChanged, ID
         hold.LostFocus += (_, _) => { if (held) { Cancel(); } };
         accept.Click += (_, _) => Run(Accept);
         cancel.Click += (_, _) => Cancel();
-        window.Deactivated += Deactivated;
-        window.PropertyChanged += WindowChanged;
+        window.ActivationLost += Deactivated;
+        window.PresentationLost += Deactivated;
         window.Source.PropertyChanged += SourceChanged;
         window.AddHandler(InputElement.KeyDownEvent, Escape, RoutingStrategies.Tunnel);
         if (service is not null) { service.Changed += Changed; }
@@ -108,7 +108,7 @@ internal sealed class OwnedInstructionBodyDictation : INotifyPropertyChanged, ID
 
     private Task Begin()
     {
-        if (held || disposed || !window.IsActive || !window.IsVisible || binding is not null
+        if (held || disposed || !window.IsNativeActive || !window.IsNativePresented || binding is not null
             || !opening.IsCompleted || service is null || service.IsActive || !service.Quiescence.IsCompletedSuccessfully)
         { return Task.CompletedTask; }
         return opening = Open();
@@ -224,8 +224,6 @@ internal sealed class OwnedInstructionBodyDictation : INotifyPropertyChanged, ID
                 || property == TextBox.IsReadOnlyProperty || property == InputElement.IsEnabledProperty))
         { Cancel(); }
     }
-    private void WindowChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
-    { if (args.Property == Visual.IsVisibleProperty && !window.IsVisible) { Cancel(); } }
     private void Deactivated(object? sender, EventArgs args) => Cancel();
     private void Escape(object? sender, KeyEventArgs args)
     {
@@ -267,8 +265,8 @@ internal sealed class OwnedInstructionBodyDictation : INotifyPropertyChanged, ID
         disposed = true;
         Cancel();
         timer.Tick -= Tick;
-        window.Deactivated -= Deactivated;
-        window.PropertyChanged -= WindowChanged;
+        window.ActivationLost -= Deactivated;
+        window.PresentationLost -= Deactivated;
         window.Source.PropertyChanged -= SourceChanged;
         window.RemoveHandler(InputElement.KeyDownEvent, Escape);
         if (service is not null) { service.Changed -= Changed; }

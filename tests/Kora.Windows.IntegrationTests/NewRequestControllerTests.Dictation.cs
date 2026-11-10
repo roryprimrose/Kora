@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 using AwesomeAssertions;
 
@@ -161,6 +162,9 @@ public sealed partial class NewRequestControllerTests
             var window = new NewRequestWindow(model, () => Task.CompletedTask, failures.Add);
             window.OpenPrivate();
             composer.Body = "private";
+            window.Activate();
+            Dispatcher.UIThread.RunJobs();
+            window.IsActive.Should().BeTrue();
             await window.BeginLiteralDictation();
             factory.OpenCount.Should().Be(unavailable ? 0 : 1);
             var late = native.QueueTranscript("late lock workstation");
@@ -168,21 +172,78 @@ public sealed partial class NewRequestControllerTests
             if (!unavailable) { native.ReleaseResult = release.Task; }
             var closed = false;
             window.Closed += (_, _) => closed = true;
-            window.ClosePrivate();
-            window.IsVisible.Should().BeFalse();
-            composer.Body.Should().BeEmpty();
-            if (!unavailable)
+            try
             {
-                window.Operation.IsCompleted.Should().BeFalse();
-                closed.Should().BeFalse();
-                release.SetResult();
+                window.ClosePrivate();
+                window.IsVisible.Should().BeFalse();
+                composer.Body.Should().BeEmpty();
+                if (!unavailable)
+                {
+                    window.Operation.IsCompleted.Should().BeFalse();
+                    closed.Should().BeFalse();
+                }
             }
+            finally { release.TrySetResult(); }
             await window.Operation;
             closed.Should().BeTrue();
             late();
             composer.Body.Should().BeEmpty();
             capture.IsCaptureQuiescent.Should().BeTrue();
             failures.Should().BeEmpty();
+        });
+    }
+
+    [Fact]
+    public async Task EmptyHostedComposerShutdownStillJoinsTheOriginalDictationReleaseBeforeClosing()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var desktop = new NativeUxFixtureSession(Path.GetFullPath("."), silentCaption: true);
+            await desktop.InitializeAsync();
+            using var fixture = new InteractionStorageFixture();
+            await fixture.InitializeAsync();
+            var access = new WindowsSqliteSessionWorkspaceTests.Access();
+            var workspace = WindowsSqliteSessionWorkspaceTests.Service(fixture, access);
+            var conversation = new SessionConversationService(fixture.Store, fixture.Store, workspace, access,
+                new NoAdmission(), TimeProvider.System, NullLogger<SessionConversationService>.Instance);
+            using var composer = new NewRequestComposer(workspace, conversation, access, NullLogger<NewRequestComposer>.Instance);
+            using var privacy = new ActivatedVoiceRecognitionTests.FakePrivacy();
+            var factory = new ActivatedVoiceRecognitionTests.FakeFactory();
+            var native = new ActivatedVoiceRecognitionTests.FakeCapture();
+            factory.OpenResult.SetResult(native);
+            await using var capture = new WindowsVoiceRecognitionService(NullLogger<WindowsVoiceRecognitionService>.Instance,
+                privacy, factory, VoiceCaptureLimits.Default);
+            await using var dictation = new ComposerDictationService(new QualifiedDictationCapture(capture),
+                new AvaloniaUiDispatcher(), () => new(new("mic", "Synthetic"), 1, 1, 1, 1, 1),
+                NullLogger<ComposerDictationService>.Instance);
+            using var model = new NewRequestViewModel(composer, dictation);
+            var failures = new List<Exception>();
+            var owner = new ResponseWindow(desktop.Main);
+            using var view = new NewRequestView(model, owner, static () => Task.CompletedTask, failures.Add);
+            owner.ShowHostedView(WorkbenchActivity.NewRequest, view);
+            owner.Activate();
+            Dispatcher.UIThread.RunJobs();
+            await view.BeginLiteralDictation();
+            factory.OpenCount.Should().Be(1);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            native.ReleaseResult = release.Task;
+            var closed = false;
+            view.Closed += (_, _) => closed = true;
+            var shutdown = view.PrepareShutdown();
+            try
+            {
+                await native.Released.Task.WaitAsync(TimeSpan.FromSeconds(5), fixture.Token);
+                shutdown.IsCompleted.Should().BeFalse();
+                closed.Should().BeFalse();
+                composer.Body.Should().BeEmpty();
+            }
+            finally { release.TrySetResult(); }
+            (await shutdown.WaitAsync(TimeSpan.FromSeconds(5), fixture.Token)).Should().BeTrue();
+            closed.Should().BeTrue();
+            capture.IsCaptureQuiescent.Should().BeTrue();
+            owner.IsVisible.Should().BeTrue();
+            failures.Should().BeEmpty();
+            owner.Close();
         });
     }
 

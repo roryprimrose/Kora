@@ -12,7 +12,7 @@ public sealed class SettingInspectionControl : UserControl
     public SettingInspectionControl() { Content = open; }
 
     internal void Bind(MainViewModel host, SettingInspectionWorkflow workflow, TimeProvider time,
-        SettingsWindow owner, Func<Func<bool>> captureLifetime)
+        Window owner, Func<Func<bool>> captureLifetime)
     {
         open.IsEnabled = true;
         open.Click += (_, _) =>

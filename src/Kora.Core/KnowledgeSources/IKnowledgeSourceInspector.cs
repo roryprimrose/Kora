@@ -6,4 +6,12 @@ public interface IKnowledgeSourceInspector
     /// <summary>Retains the complete metadata inventory without reading file bodies.</summary>
     Task<IKnowledgeSourceSelection> InspectSourceAsync(string selectedPath, KnowledgeSourceScope scope,
         CancellationToken cancellationToken);
+
+    Task<IKnowledgeSourceSelection> InspectSourceAsync(string selectedPath, KnowledgeSourceScope scope,
+        KnowledgeSourceCaptureLimits limits, CancellationToken cancellationToken)
+    {
+        if (limits != KnowledgeSourceCaptureLimits.HardMaximum)
+        { throw new InvalidOperationException("This inspector does not support lowered exact-source capture limits."); }
+        return InspectSourceAsync(selectedPath, scope, cancellationToken);
+    }
 }

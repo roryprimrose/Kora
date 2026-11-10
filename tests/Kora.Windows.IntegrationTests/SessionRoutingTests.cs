@@ -66,7 +66,7 @@ public sealed partial class SessionRoutingTests
             f.Model.Sessions.Should().Equal(rows);
             f.Window!.IsExpanded.Should().Be(expanded);
             (await f.Native.Interactions.ReadConversationDraftAsync(f.First.Authority.SessionId, f.Native.Token)).Should().Be(draft);
-            window.Content.Should().BeNull();
+            window.View.Content.Should().BeNull();
             window.IsVisible.Should().BeFalse();
         });
     }
@@ -143,7 +143,7 @@ public sealed partial class SessionRoutingTests
             (await operation).Should().BeNull();
             f.Admission.Calls.Should().Be(0);
             (await f.Native.Interactions.ReadMetadataPageAsync(null, 50, f.Native.Token)).Records.Should().HaveCount(5);
-            window.Content.Should().BeNull();
+            window.View.Content.Should().BeNull();
         });
     }
 

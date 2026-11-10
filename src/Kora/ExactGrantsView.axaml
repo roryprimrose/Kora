@@ -1,0 +1,235 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kora.Application.Interaction"
+        xmlns:auth="using:Kora.Core.Authorization"
+        xmlns:controls="using:Kora.Controls"
+        x:Class="Kora.ExactGrantsView" x:DataType="vm:ExactGrantsViewModel">
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding ClearHistoryFiltersCommand}" />
+  </UserControl.KeyBindings>
+  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+  <Grid x:Name="PermissionLayoutRoot" Margin="20" MinWidth="610" MinHeight="700"
+        RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="12">
+    <StackPanel Spacing="8">
+      <TextBlock Text="Permission grants — exact operations and URI rules, not legacy named-action preferences"
+                 AutomationProperties.Name="Permission grants" FontSize="18" TextWrapping="Wrap" />
+      <TextBlock Text="Stored Active is not a current allow decision. Applicability and running-work status are unknown. Revocation denies subsequent consumes; it does not stop or roll back already-running effects."
+                 AutomationProperties.Name="Exact grant scope and evidence limitations" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding PermissionContext}" TextWrapping="Wrap" AutomationProperties.Name="Permission inventory session boundary" />
+      <CheckBox Content="Show retained history (including consumed and revoked grants)" IsChecked="{Binding ShowRetainedHistory}"
+                AutomationProperties.Name="Explicit retained grant history mode; does not include unrelated sessions" />
+    </StackPanel>
+    <StackPanel Grid.Row="1" Spacing="8">
+      <WrapPanel>
+        <TextBlock Text="Group permissions by" VerticalAlignment="Center" Margin="0,0,12,0" />
+        <ComboBox x:Name="PermissionGrouping" ItemsSource="{Binding GroupingChoices}" SelectedItem="{Binding Grouping}"
+                  IsEnabled="{Binding CanGroup}" MinWidth="180"
+                  AutomationProperties.Name="Group this loaded permission inventory by None, artefact type or artefact scope; no read or group selection" />
+      </WrapPanel>
+      <TextBlock Text="{Binding GroupingDisclosure}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Permission grouping, scope, unknown metadata and independent policy limitations" />
+      <WrapPanel>
+        <StackPanel Margin="0,0,12,0">
+          <TextBlock Text="Exact grant lifetime" />
+          <ComboBox ItemsSource="{Binding ScopeFilters}" SelectedItem="{Binding ScopeFilter}"
+                    AutomationProperties.Name="Exact stored grant scope filter, Any by default" MinWidth="120" />
+        </StackPanel>
+        <StackPanel Margin="0,0,12,0">
+          <TextBlock Text="Stored status (not applicability)" />
+          <ComboBox ItemsSource="{Binding StatusFilters}" SelectedItem="{Binding StatusFilter}"
+                    IsEnabled="{Binding CanFilterStoredStatus}"
+                    AutomationProperties.Name="Exact stored grant status filter, Any by default" MinWidth="180" />
+        </StackPanel>
+        <StackPanel Margin="0,0,12,0">
+          <TextBlock Text="Canonical ActionId (empty means any)" />
+          <TextBox Text="{Binding ActionIdFilter}" PlaceholderText="bounded.read"
+                   AutomationProperties.Name="Exact canonical lowercase ActionId filter" MinWidth="200" />
+        </StackPanel>
+        <StackPanel Margin="0,0,12,0">
+          <TextBlock Text="Original session GUID (correlation only)" />
+          <TextBox Text="{Binding OriginatingSessionFilter}" PlaceholderText="lowercase D GUID, or empty"
+                   AutomationProperties.Name="Exact original session GUID filter, not current session authority" MinWidth="300" />
+        </StackPanel>
+        <Button Content="Clear filters" Command="{Binding ClearFiltersCommand}"
+                AutomationProperties.Name="Clear exact inventory filters and retire prior results and confirmations" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding InventorySummary}" TextWrapping="Wrap"
+                              AutomationProperties.Name="Exact inventory query scan bounds, omitted rows and continuation" />
+      <WrapPanel>
+      <Button Content="Refresh inventory" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh permission inventory: exact page and device URI rules" />
+      <Button Content="Next bounded page" Command="{Binding NextCommand}" AutomationProperties.Name="Read next bounded exact grant page" />
+      <Button Content="Inspect selected exact ID" Command="{Binding InspectCommand}" AutomationProperties.Name="Inspect current selected exact grant ID" />
+      <Button Content="Preview exact selected batch" Command="{Binding PreviewBatchCommand}" AutomationProperties.Name="Preview every explicitly selected exact grant" />
+      </WrapPanel>
+    </StackPanel>
+    <Grid Grid.Row="2" ColumnDefinitions="350,*" ColumnSpacing="12">
+      <controls:ScrollableListBox x:Name="PermissionInventory" ItemsSource="{Binding PermissionRows}" SelectedItem="{Binding SelectedPermission}"
+                                 SelectionMode="Multiple" SelectionChanged="OnSelectionChanged"
+                                 AutomationProperties.Name="Permission grants: exact operation grants and URI rules">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:PermissionGrantRow">
+            <StackPanel Margin="4">
+              <TextBlock Text="{Binding GroupHeading}" IsVisible="{Binding HasGroupHeading}" FontWeight="SemiBold" Margin="0,8,0,4" />
+              <TextBlock Text="{Binding Grant.Name}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Grant.Summary}" />
+              <TextBlock Text="{Binding Grant.Detail}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Grant.ArtifactType, StringFormat='Type: {0}'}" />
+              <TextBlock Text="{Binding Grant.ArtifactScope, StringFormat='Artefact scope: {0}'}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </controls:ScrollableListBox>
+      <Grid Grid.Column="1" RowDefinitions="*,*,2*" RowSpacing="12">
+        <TextBox x:Name="ExactInspection" Text="{Binding Inspection, Mode=OneWay}" IsReadOnly="True"
+                 AcceptsReturn="True" IsUndoEnabled="False" TextWrapping="Wrap"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 AutomationProperties.Name="Current exact grant inspection" />
+        <TextBox x:Name="ExactBatchInspection" Grid.Row="1" Text="{Binding BatchInspection, Mode=OneWay}" IsReadOnly="True"
+                 AcceptsReturn="True" IsUndoEnabled="False" TextWrapping="Wrap"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 AutomationProperties.Name="Complete exact selected batch preview" />
+        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8">
+          <ScrollViewer MaxHeight="180">
+          <WrapPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Committed event outcome" />
+              <ComboBox ItemsSource="{Binding HistoryOutcomeFilters}" SelectedItem="{Binding HistoryOutcomeFilter}"
+                        AutomationProperties.Name="Exact grant history committed event outcome filter, Any by default" MinWidth="160" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Committed event initiator" />
+              <ComboBox ItemsSource="{Binding HistoryInitiatorFilters}" SelectedValue="{Binding HistoryInitiatorFilter}"
+                        SelectedValueBinding="{Binding Label}" DisplayMemberBinding="{Binding Label}"
+                        AutomationProperties.Name="Exact grant history committed event initiator filter, Any by default" MinWidth="160" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact ReasonCode (empty means any)" />
+              <TextBox Text="{Binding HistoryReasonCodeFilter}" PlaceholderText="canonical lowercase reason, or empty"
+                       AutomationProperties.Name="Exact grant history canonical ReasonCode filter, typing performs no read" MinWidth="220" />
+            </StackPanel>
+            <Button Content="Clear history filters" Command="{Binding ClearHistoryFiltersCommand}"
+                    AutomationProperties.Name="Clear exact history filters and retire rows continuation selection and reviews" />
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Retained envelope state" />
+              <ComboBox ItemsSource="{Binding HistoryRetentionFilters}" SelectedItem="{Binding HistoryRetentionFilter}"
+                        AutomationProperties.Name="Exact grant history retention state filter, Any by default" MinWidth="180" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Committed from UTC (inclusive)" />
+              <TextBox Text="{Binding HistoryCommittedFromUtc}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00"
+                       AutomationProperties.Name="Exact grant history committed from canonical UTC inclusive, empty means Any" MinWidth="280" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Committed until UTC (inclusive)" />
+              <TextBox Text="{Binding HistoryCommittedUntilUtc}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00"
+                       AutomationProperties.Name="Exact grant history committed until canonical UTC inclusive, empty means Any" MinWidth="280" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Due from UTC (inclusive)" />
+              <TextBox Text="{Binding HistoryDueFromUtc}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00"
+                       AutomationProperties.Name="Exact grant history due from canonical UTC inclusive, empty means Any" MinWidth="280" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Due until UTC (inclusive)" />
+              <TextBox Text="{Binding HistoryDueUntilUtc}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00"
+                       AutomationProperties.Name="Exact grant history due until canonical UTC inclusive, empty means Any" MinWidth="280" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact committed audit correlation ID (empty means Any)" />
+              <TextBox Text="{Binding HistoryAuditCorrelationId}" PlaceholderText="canonical lowercase D GUID, or empty"
+                       AutomationProperties.Name="Exact grant history committed audit correlation ID, typing performs no read" MinWidth="300" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Committed approval metadata" />
+              <ComboBox ItemsSource="{Binding HistoryApprovalFilters}" SelectedItem="{Binding HistoryApprovalFilter}"
+                        AutomationProperties.Name="Exact grant history committed approval metadata choice, Any by default" MinWidth="180" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact committed approval ID (required only for Exact)" />
+              <TextBox Text="{Binding HistoryApprovalId}" PlaceholderText="canonical lowercase D GUID; otherwise empty"
+                       AutomationProperties.Name="Exact grant history committed approval ID, required only for Exact metadata choice" MinWidth="300" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact committed request session ID (empty means Any)" />
+              <TextBox Text="{Binding HistorySessionId}" PlaceholderText="canonical lowercase D GUID, or empty"
+                       AutomationProperties.Name="Exact grant history committed request session ID, passive correlation only, typing performs no read" MinWidth="300" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact committed request ID (empty means Any)" />
+              <TextBox Text="{Binding HistoryRequestId}" PlaceholderText="canonical lowercase D GUID, or empty"
+                       AutomationProperties.Name="Exact grant history committed request ID, passive correlation only, typing performs no read" MinWidth="300" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Exact committed request task ID (empty means Any)" />
+              <TextBox Text="{Binding HistoryTaskId}" PlaceholderText="canonical lowercase D GUID, or empty"
+                       AutomationProperties.Name="Exact grant history committed request task ID, passive correlation only, typing performs no read" MinWidth="300" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Other committed changes Min (inclusive)" />
+              <TextBox Text="{Binding HistoryMinimumOtherChanges}" PlaceholderText="nonnegative integer; empty means Any"
+                       AutomationProperties.Name="Exact grant history other committed changes Min inclusive, empty means Any, typing performs no read" MinWidth="220" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Other committed changes Max (inclusive)" />
+              <TextBox Text="{Binding HistoryMaximumOtherChanges}" PlaceholderText="nonnegative integer; empty means Any"
+                       AutomationProperties.Name="Exact grant history other committed changes Max inclusive, empty means Any, typing performs no read" MinWidth="220" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Other requested grant references Min (inclusive)" />
+              <TextBox Text="{Binding HistoryMinimumOtherRequestedGrants}" PlaceholderText="nonnegative integer; empty means Any"
+                       AutomationProperties.Name="Exact grant history other requested grant references Min inclusive, empty means Any, typing performs no read" MinWidth="220" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Other requested grant references Max (inclusive)" />
+              <TextBox Text="{Binding HistoryMaximumOtherRequestedGrants}" PlaceholderText="nonnegative integer; empty means Any"
+                       AutomationProperties.Name="Exact grant history other requested grant references Max inclusive, empty means Any, typing performs no read" MinWidth="220" />
+            </StackPanel>
+            <TextBlock Text="Collateral counts concern only the validated committed envelope, not identities, details, execution, completeness or authority. Correlation metadata only, not authority or session selection. Request IDs match only the committed envelope, not the viewer or original grant proposal. Absent means a validated committed event without an approval ID, not unknown."
+                       TextWrapping="Wrap" MaxWidth="400" />
+          </WrapPanel>
+          </ScrollViewer>
+          <WrapPanel Grid.Row="1">
+            <Button Content="Read history for this exact grant ID" Command="{Binding ReadHistoryCommand}"
+                    AutomationProperties.Name="Read passive committed history for this exact inspected grant ID" />
+            <Button Content="Next bounded history page" Command="{Binding NextHistoryCommand}"
+                    AutomationProperties.Name="Continue the same finite exact grant history snapshot" />
+          </WrapPanel>
+          <ScrollViewer Grid.Row="2" MaxHeight="120">
+            <controls:NamedTextBlock Text="{Binding HistorySummary}" TextWrapping="Wrap"
+                                    AutomationProperties.Name="Exact grant history snapshot, scan bounds and evidence limitations" />
+          </ScrollViewer>
+          <controls:ScrollableListBox Grid.Row="3" ItemsSource="{Binding HistoryRows}"
+                                     AutomationProperties.Name="Read-only committed exact grant history rows">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="4" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </controls:ScrollableListBox>
+        </Grid>
+      </Grid>
+    </Grid>
+    <StackPanel Grid.Row="3" Spacing="8">
+      <TextBlock Text="{Binding UriInspection}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Selected exact URI permission pattern and enforcement limitations" />
+      <WrapPanel>
+        <TextBox x:Name="UriPermissionPattern" Text="{Binding UriPatternInput}" PlaceholderText="https://*.example.com/*" MinWidth="300"
+                 AutomationProperties.Name="New device-local URI permission pattern; typing grants nothing" />
+        <Button x:Name="AddUriPermission" Content="Add URI rule" Command="{Binding AddUriRuleCommand}"
+                AutomationProperties.Name="Add this URI permission rule using existing address preapproval policy" />
+        <Button x:Name="RemoveUriPermission" Content="Remove selected URI rule" Command="{Binding RemoveUriRuleCommand}"
+                AutomationProperties.Name="Remove only the selected exact canonical URI permission rule, not exact operation grants" />
+        <Button Content="Clear all URI rules" Command="{Binding ClearUriRulesCommand}"
+                AutomationProperties.Name="Clear only device-local URI permission rules, never exact operation grants or selected groups" />
+      </WrapPanel>
+      <CheckBox Content="I reviewed the exact displayed ID and revision. Revoke only this active record."
+                IsChecked="{Binding Reviewed}" AutomationProperties.Name="Explicit confirmation of the displayed exact approval ID and revision" />
+      <Button Content="Confirm: revoke this exact inspected ID/revision" Command="{Binding RevokeCommand}" AutomationProperties.Name="Confirm revocation of only this exact inspected ID and revision" />
+      <CheckBox Content="I reviewed EVERY displayed exact batch ID, revision, scope, action and status. Revoke only this complete selected batch."
+                IsChecked="{Binding BatchReviewed}" AutomationProperties.Name="Separate explicit confirmation of the complete exact selected batch" />
+      <Button Content="Confirm: revoke entire reviewed exact batch" Command="{Binding RevokeBatchCommand}" AutomationProperties.Name="Atomically revoke only the complete exact reviewed selected batch" />
+    </StackPanel>
+    <controls:NamedTextBlock Grid.Row="4" Text="{Binding Message}" AutomationProperties.Name="Exact grant operation status" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
+  </Grid>
+  </ScrollViewer>
+</UserControl>

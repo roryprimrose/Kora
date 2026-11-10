@@ -8,6 +8,8 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AwesomeAssertions;
+using Kora.Application.Configuration;
+using Kora.Application.Voice;
 using Kora.Application.Network.ExternalBrowser;
 using Kora.Application.Presentation;
 using Kora.CodeHighlighting;
@@ -372,7 +374,10 @@ public sealed partial class FinalDocumentInteractionTests
         HeadlessSession.RunAsync(async () =>
     {
         using var fixture = new NativeUxFixtureSession(Path.GetFullPath("."));
-        await fixture.InitializeAsync();
+        await using var admission = new AudioControlAdmission(fixture.Interactions, fixture.Interactions, new(fixture.Tasks));
+        await using var markdown = new MarkdownDisplayConfigurationService(new MarkdownDisplaySettingsTests.Preferences(),
+            admission, fixture.Audit, TimeProvider.System, NullLogger<MarkdownDisplayConfigurationService>.Instance);
+        await fixture.InitializeAsync(null, markdownDisplayConfiguration: markdown);
         var launcher = new Launcher();
         fixture.Main.BindExternalBrowserWorkflow(new(launcher, new Network(), fixture.Audit, TimeProvider.System));
         var content = State(Link, () => true, retained: true).Content!;
@@ -392,7 +397,8 @@ public sealed partial class FinalDocumentInteractionTests
         using var controller = new DetailWindowController(fixture.Documents, () => fixture.Main.CanRevealPrivatePresentation,
             new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance), new DeniedClipboard(),
             (state, result, copy) => detail = new(state, result, copy, fixture.Main),
-            NullLogger<DetailWindowController>.Instance, finalizedMarkdownFormat: NativeDetailFormat.TextV1);
+            NullLogger<DetailWindowController>.Instance, finalizedMarkdownFormat: NativeDetailFormat.TextV1,
+            markdownDisplay: markdown.CaptureAsync);
         var owner = new Window();
         owner.Show();
         try

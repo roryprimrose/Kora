@@ -53,9 +53,12 @@ public sealed partial class MainViewModel
     private void SetForegroundRequestReview(SessionRequestReview? review)
     {
         foregroundRequestReview = review;
-        OnPropertyChanged(nameof(HasForegroundRequestReview));
-        OnPropertyChanged(nameof(HasSessionOperationReview));
-        OnPropertyChanged(nameof(ForegroundRequestReviewText));
-        OnPropertyChanged(nameof(OfferDetailsOnce));
+        uiDispatcher.Post(() =>
+        {
+            OnPropertyChanged(nameof(HasForegroundRequestReview));
+            OnPropertyChanged(nameof(HasSessionOperationReview));
+            OnPropertyChanged(nameof(ForegroundRequestReviewText));
+            OnPropertyChanged(nameof(OfferDetailsOnce));
+        });
     }
 }

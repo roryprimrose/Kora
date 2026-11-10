@@ -22,4 +22,14 @@ public enum WorkspaceSurfaceTarget
     WaitingQuestions,
     /// <summary>Open an exact named observation from the foreground host-presented conversation page.</summary>
     ObservedResult,
+    /// <summary>Read a bounded page from the exact selected session conversation.</summary>
+    ConversationHistory,
+    /// <summary>Show and focus the existing Presence settings without changing them.</summary>
+    PresenceSettings,
+    /// <summary>Show registered MCP metadata without inspecting endpoints or connecting.</summary>
+    McpServers,
+    /// <summary>Look up WorkIQ only in the registered MCP metadata.</summary>
+    WorkIqMcp,
+    /// <summary>Read an explicitly application-wide bounded page of committed authority audit.</summary>
+    AuditHistory,
 }

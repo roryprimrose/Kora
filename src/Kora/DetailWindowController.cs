@@ -26,11 +26,20 @@ public sealed partial class DetailWindowController : IDisposable
     private readonly IDetailClipboard clipboard;
     private readonly Func<DetailViewerState, NativeDocumentResult, DetailCopy, IDetailView> createView;
     private readonly ILogger<DetailWindowController> logger;
+    private readonly Func<Func<bool>, CancellationToken, Task<MarkdownDisplayMode>>? markdownDisplay;
+    private readonly Lock preferenceGate = new();
+    private readonly List<CancellationTokenSource> preferenceReads = [];
+    private readonly HashSet<Task> preferenceCompletions = [];
+
+    internal Task JoinPreferenceReadsAsync()
+    {
+        lock (preferenceGate) { return Task.WhenAll(preferenceCompletions); }
+    }
     private readonly DetailViewerRegistry registry = new();
     private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View, NativeDocumentResult Document)> windows = [];
     private readonly Dictionary<string, (HostId<EvidenceIdentity> Id, long Revision, string Digest, string Title)> pages =
         new(StringComparer.Ordinal);
-    private bool disposed;
+    private volatile bool disposed;
     private long sourceEpoch;
     private long conversationLease;
     private bool validatingConversation;
@@ -59,12 +68,14 @@ public sealed partial class DetailWindowController : IDisposable
     internal DetailWindowController(
         IUserDocumentationProvider documentation, MainViewModel viewModel,
         ILogger<DetailWindowController> logger, ILogger<NativeDetailRenderer> rendererLogger,
-        ILogger<StaticHtmlDetailRenderer> staticHtmlLogger)
+        ILogger<StaticHtmlDetailRenderer> staticHtmlLogger,
+        Kora.Application.Configuration.MarkdownDisplayConfigurationService? markdownDisplay = null)
         : this(documentation, () => viewModel.CanRevealPrivatePresentation,
             new NativeDetailRenderer(rendererLogger), new NativeDetailClipboard(),
             (state, result, copy) => new DetailWindow(state, result, copy, viewModel), logger,
             new StaticHtmlDetailRenderer(staticHtmlLogger),
-            finalizedMarkdownFormat: NativeDetailFormat.MarkdownStrikethroughV4)
+            finalizedMarkdownFormat: NativeDetailFormat.MarkdownStrikethroughV4,
+            markdownDisplay: markdownDisplay is null ? null : markdownDisplay.CaptureAsync)
     {
         this.viewModel = viewModel;
         viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
@@ -78,7 +89,8 @@ public sealed partial class DetailWindowController : IDisposable
         IUserDocumentationProvider documentation, Func<bool> canAccess, NativeDetailRenderer renderer,
         IDetailClipboard clipboard, Func<DetailViewerState, NativeDocumentResult, DetailCopy, IDetailView> createView,
         ILogger<DetailWindowController> logger, StaticHtmlDetailRenderer? staticHtmlRenderer = null,
-        NativeDetailFormat finalizedMarkdownFormat = NativeDetailFormat.MarkdownChecklistsV3)
+        NativeDetailFormat finalizedMarkdownFormat = NativeDetailFormat.MarkdownChecklistsV3,
+        Func<Func<bool>, CancellationToken, Task<MarkdownDisplayMode>>? markdownDisplay = null)
     {
         this.documentation = documentation;
         this.canAccess = canAccess;
@@ -88,6 +100,7 @@ public sealed partial class DetailWindowController : IDisposable
         this.clipboard = clipboard;
         this.createView = createView;
         this.logger = logger;
+        this.markdownDisplay = markdownDisplay;
     }
 
     // This is a host-only route from the guide's explicit button, never an action/schema/model route.
@@ -142,7 +155,11 @@ public sealed partial class DetailWindowController : IDisposable
         conversationSources[content.Reference] = (lease, content, admitted, resolve);
         try
         {
-            var result = OpenContent(content, owner, deferPublication: true);
+            var initialMode = await CaptureMarkdownModeAsync(content, token);
+            token.ThrowIfCancellationRequested();
+            if (disposed || epoch != sourceEpoch || !CanAccess(content))
+            { throw new InvalidOperationException("Exact conversation admission changed during Markdown preference capture."); }
+            var result = OpenContent(content, owner, deferPublication: true, initialMode: initialMode);
             if (!windows.TryGetValue(content.Reference, out _))
             {
                 conversationSources.Remove(content.Reference);
@@ -160,10 +177,24 @@ public sealed partial class DetailWindowController : IDisposable
             conversationValidation?.Start();
             return result;
         }
-        catch
+        catch (Exception exception)
         {
-            if (conversationSources.TryGetValue(content.Reference, out var failed) && failed.Lease == lease)
-            { RevokeReference(content.Reference); }
+            try
+            {
+                if (exception is Kora.Application.Configuration.MarkdownDisplayConfigurationService.CaptureUnavailableException)
+                {
+                    current = await resolve(token);
+                    token.ThrowIfCancellationRequested();
+                    if (disposed || epoch != sourceEpoch || !CanAccess(content) || !content.IsSameSnapshot(current)
+                        || !conversationSources.TryGetValue(content.Reference, out var failedSource) || failedSource.Lease != lease)
+                    { throw new InvalidOperationException("Exact conversation source admission changed while preference capture failed.", exception); }
+                }
+            }
+            finally
+            {
+                if (conversationSources.TryGetValue(content.Reference, out var failed) && failed.Lease == lease)
+                { RevokeReference(content.Reference); }
+            }
             throw;
         }
     }
@@ -242,32 +273,111 @@ public sealed partial class DetailWindowController : IDisposable
         if (windows.Remove(reference, out var entry)) { entry.View.ClearAndClose(); }
     }
 
-    internal bool OpenCurrentResponse(AdmittedDetailContent content, Window? owner, Func<bool> admitted)
+    internal async Task<bool> OpenCurrentResponseAsync(AdmittedDetailContent content, Window? owner, Func<bool> admitted,
+        CancellationToken token = default)
     {
-        if (disposed || content.Origin != DetailContentOrigin.FinalizedResponse || !admitted()) { return false; }
+        if (disposed || content.Origin != DetailContentOrigin.FinalizedResponse || !admitted() || !canAccess()) { return false; }
         if (currentResponses.TryGetValue(content.Reference, out var previous)
             && !previous.Content.IsSameSnapshot(content)) { return false; }
         if (windows.TryGetValue(content.Reference, out var stale) && stale.State.Content is null)
         { RevokeReference(content.Reference); }
         currentResponses[content.Reference] = (content, admitted);
-        var acknowledged = false;
-        _ = OpenContent(content, owner, acknowledge: () => acknowledged = true);
-        if (!acknowledged) { RevokeReference(content.Reference); }
-        return acknowledged;
+        var epoch = sourceEpoch;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, conversationLifetime.Token);
+        try
+        {
+            var mode = await CaptureMarkdownModeAsync(content, cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (disposed || epoch != sourceEpoch || !admitted() || !CanAccess(content))
+            { throw new InvalidOperationException("Exact final-answer admission changed during Markdown preference capture."); }
+            var acknowledged = false;
+            _ = OpenContent(content, owner, acknowledge: () => acknowledged = true, initialMode: mode);
+            if (!acknowledged) { RevokeReference(content.Reference); }
+            return acknowledged;
+        }
+        catch
+        {
+            if (epoch == sourceEpoch) { RevokeReference(content.Reference); }
+            throw;
+        }
     }
 
-    internal bool PublishAutomaticDetails(AutomaticDetailIntent intent, ResponseWindow owner)
+    internal async Task<bool> PublishAutomaticDetailsAsync(AutomaticDetailIntent intent, ResponseWindow owner)
     {
         var content = intent.Content;
         if (disposed || !intent.IsCurrent() || !owner.IsVisible || !owner.IsActive
             || !owner.IsSessionListPresented || windows.ContainsKey(content.Reference))
         { return false; }
         currentResponses[content.Reference] = (content, intent.IsSourceCurrent);
-        var acknowledged = false;
-        _ = OpenContent(content, owner, acknowledge: () => acknowledged = true, automatic: intent);
-        if (!acknowledged) { AutomaticPublicationUnavailable(logger); }
-        if (!acknowledged) { RevokeReference(content.Reference); }
-        return acknowledged;
+        var epoch = sourceEpoch;
+        try
+        {
+            var mode = await CaptureMarkdownModeAsync(content, conversationLifetime.Token);
+            if (disposed || epoch != sourceEpoch || !intent.IsCurrent() || !CanAccess(content)
+                || !owner.IsVisible || !owner.IsActive || !owner.IsSessionListPresented
+                || windows.ContainsKey(content.Reference))
+            { throw new InvalidOperationException("Automatic final-answer admission changed during Markdown preference capture."); }
+            var acknowledged = false;
+            _ = OpenContent(content, owner, acknowledge: () => acknowledged = true, automatic: intent, initialMode: mode);
+            if (!acknowledged) { AutomaticPublicationUnavailable(logger); RevokeReference(content.Reference); }
+            return acknowledged;
+        }
+        catch
+        {
+            if (epoch == sourceEpoch) { RevokeReference(content.Reference); }
+            throw;
+        }
+    }
+
+    private async Task<MarkdownDisplayMode?> CaptureMarkdownModeAsync(AdmittedDetailContent content, CancellationToken token)
+    {
+        if (content.Kind != DetailContentKind.Markdown
+            || content.Origin is not (DetailContentOrigin.FinalizedResponse or DetailContentOrigin.RetainedAssistant)
+            || windows.ContainsKey(content.Reference))
+        { return null; }
+        var admittedEpoch = Interlocked.Read(ref sourceEpoch);
+        try { return await CaptureAsync(); }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or InvalidDataException
+            or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
+        {
+            token.ThrowIfCancellationRequested();
+            if (disposed || admittedEpoch != Interlocked.Read(ref sourceEpoch) || !CanAccess(content))
+            { throw new InvalidOperationException("Exact source admission changed while Markdown preference capture failed.", exception); }
+            throw new Kora.Application.Configuration.MarkdownDisplayConfigurationService.CaptureUnavailableException(exception);
+        }
+
+        async Task<MarkdownDisplayMode?> CaptureAsync()
+        {
+            var capture = markdownDisplay ?? throw new InvalidOperationException("Markdown display preference is not composed; no saved default was applied.");
+            if (!CanAccess(content)) { throw new InvalidOperationException("Markdown preference capture requires exact current source admission."); }
+            var epoch = Interlocked.Read(ref sourceEpoch);
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+            var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (preferenceGate)
+            {
+                preferenceReads.Add(cancellation);
+                preferenceCompletions.Add(completed.Task);
+            }
+            try
+            {
+                // Native source callbacks are UI-owned; every caller revalidates them after this physically joined read.
+                var mode = await capture(() => !disposed && epoch == Interlocked.Read(ref sourceEpoch), cancellation.Token).ConfigureAwait(false);
+                cancellation.Token.ThrowIfCancellationRequested();
+                _ = MarkdownDisplayPreference.Format(mode);
+                if (disposed || epoch != Interlocked.Read(ref sourceEpoch))
+                { throw new InvalidOperationException("Markdown preference capture lost exact source admission."); }
+                return mode;
+            }
+            finally
+            {
+                lock (preferenceGate)
+                {
+                    preferenceReads.Remove(cancellation);
+                    preferenceCompletions.Remove(completed.Task);
+                    completed.SetResult();
+                }
+            }
+        }
     }
 
     internal void RetireUnavailableCurrentResponses()
@@ -284,6 +394,7 @@ public sealed partial class DetailWindowController : IDisposable
         {
             return "Exact web-result details unavailable: this volatile reference is no longer current.";
         }
+        if (owner is ResponseWindow primary && viewModel is not null) { primary.PrepareDocumentHost?.Invoke(); }
         return OpenContent(content, owner);
     }
 
@@ -301,7 +412,7 @@ public sealed partial class DetailWindowController : IDisposable
     }
 
     private string OpenContent(AdmittedDetailContent content, Window? owner, bool deferPublication = false,
-        Action? acknowledge = null, AutomaticDetailIntent? automatic = null)
+        Action? acknowledge = null, AutomaticDetailIntent? automatic = null, MarkdownDisplayMode? initialMode = null)
     {
         if (disposed || !CanAccess(content)) { return "Details unavailable: the privacy/input gate is closed."; }
         DetailViewerState state;
@@ -342,6 +453,8 @@ public sealed partial class DetailWindowController : IDisposable
             registry.Close(content.Reference);
             return "Details unavailable: the privacy/input gate closed.";
         }
+        if (initialMode is { } mode)
+        { state.SetSource(mode == MarkdownDisplayMode.Source); }
         var reference = content.Reference;
         IDetailView view;
         try
@@ -349,8 +462,6 @@ public sealed partial class DetailWindowController : IDisposable
             Task Copy(bool confirmed, int? selectionStart, int selectionLength, DetailCopyRepresentation representation) =>
                 CopyAsync(reference, generation, confirmed, selectionStart, selectionLength, representation);
             view = owner is ResponseWindow primary && viewModel is not null
-                && content.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
-                    or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext or DetailContentOrigin.SessionHistory or DetailContentOrigin.FinalizedResponse
                 ? new SessionDetailView(primary.SessionView, state, result, Copy, viewModel)
                 : createView(state, result, Copy);
         }
@@ -540,7 +651,7 @@ public sealed partial class DetailWindowController : IDisposable
 
     internal void RevokeConversationSession(HostId<SessionIdentity> session)
     {
-        sourceEpoch++;
+        Interlocked.Increment(ref sourceEpoch);
         foreach (var source in conversationSources.Where(pair =>
             pair.Value.Content.ConversationMessage?.Request.SessionId == session).ToArray())
         { RevokeReference(source.Key); }
@@ -548,7 +659,7 @@ public sealed partial class DetailWindowController : IDisposable
 
     internal void RevokeSession(HostId<SessionIdentity> session)
     {
-        sourceEpoch++;
+        Interlocked.Increment(ref sourceEpoch);
         foreach (var entry in windows.Where(pair => pair.Value.State.Content?.HistorySession == session
             || pair.Value.State.Content?.SessionSource?.SessionId == session
             || conversationSources.TryGetValue(pair.Key, out var source)
@@ -563,7 +674,11 @@ public sealed partial class DetailWindowController : IDisposable
 
     internal void ClearForPrivacy()
     {
-        sourceEpoch++;
+        Interlocked.Increment(ref sourceEpoch);
+        lock (preferenceGate)
+        {
+            foreach (var read in preferenceReads) { read.Cancel(); }
+        }
         conversationValidation?.Stop();
         conversationSources.Clear();
         currentResponses.Clear();

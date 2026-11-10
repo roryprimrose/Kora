@@ -11,7 +11,7 @@ public sealed class SpeechInputUiContractTests
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md"))) { directory = directory.Parent; }
         var root = directory?.FullName ?? throw new InvalidOperationException("Source root unavailable.");
-        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants().ToArray();
         foreach (var selection in new[] { "SelectedSpeechInputProfile", "SelectedSpeechInputResource", "SelectedSpeechInputResidency" })
         {
             var selector = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding " + selection + "}", StringComparison.Ordinal));

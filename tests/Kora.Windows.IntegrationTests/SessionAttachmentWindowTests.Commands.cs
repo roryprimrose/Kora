@@ -135,7 +135,7 @@ public sealed partial class SessionAttachmentWindowTests
                     .Should().NotContain("Replace retained attachment").And.NotContain("Review Remove attachment and Kora copies");
                 cancellation.Cancel();
                 await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-                current.Content.Should().BeNull();
+                current.View.Content.Should().BeNull();
                 current.IsVisible.Should().BeFalse();
             }
             capture.Reads.Should().Be(reads);

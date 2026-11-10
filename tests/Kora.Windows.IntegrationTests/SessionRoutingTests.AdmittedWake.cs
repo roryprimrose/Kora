@@ -272,7 +272,7 @@ public sealed partial class SessionRoutingTests
             Dispatcher.UIThread.RunJobs();
             route.IsActive.Should().BeTrue();
             original.IsActive.Should().BeFalse();
-            advice.Content.Should().BeNull();
+            advice.View.Content.Should().BeNull();
             f.Composition.Adapter.Calls.Should().Be(1);
             await Choose(route);
             var answering = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -399,7 +399,7 @@ public sealed partial class SessionRoutingTests
                 await f.Voice.Completion;
                 f.Composition.Adapter.Calls.Should().Be(0);
                 f.Stage.Opens.Should().Be(1);
-                advice.Content.Should().BeNull();
+                advice.View.Content.Should().BeNull();
                 f.Voice.IsCaptureQuiescent.Should().BeTrue();
                 native.Main.HasReviewedVoiceCommand.Should().BeFalse();
                 native.Main.ReviewedVoiceCommandText.Should().BeEmpty();
@@ -461,9 +461,9 @@ public sealed partial class SessionRoutingTests
         private readonly SpeechInputConfigurationService configuration;
         internal SpeechInputConfigurationService Configuration => configuration;
 
-        internal WakeNativeComposition()
+        internal WakeNativeComposition(IQuestionVoiceRecognitionService? replyCapture = null)
         {
-            Voice = new(new NativeWakeAdapter(), Stage, NullLogger<HandsFreeVoiceRecognitionService>.Instance);
+            Voice = new(replyCapture ?? new NativeWakeAdapter(), Stage, NullLogger<HandsFreeVoiceRecognitionService>.Instance);
             StatusRuntime = new(Voice);
             var native = Composition.Ui.Native;
             native.MainLogger = Diagnostics;
@@ -506,6 +506,7 @@ public sealed partial class SessionRoutingTests
             Composition.Ui.AutoAllowAdvice = false;
             await Composition.Initialize(expanded, voiceRecognition: Voice, speechInputConfiguration: configuration);
             var main = Composition.Ui.Native.Main;
+            main.BindSessionRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease.Preserved);
             main.BindReviewedVoiceCommand(NullLogger<ReviewedVoiceCommandCapture>.Instance, TimeProvider.System);
             await main.SetAssistantNameAsync("Nova");
             Composition.Ui.Window!.ShowSessions(expanded);

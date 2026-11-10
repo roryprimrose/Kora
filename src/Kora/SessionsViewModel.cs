@@ -230,22 +230,27 @@ internal sealed partial class SessionsViewModel(
         Notify();
     }
 
-    public Task OpenHistoryDetailAsync() => RunAsync(async () =>
+    public Task OpenHistoryDetailAsync(Func<bool>? detailAdmission = null, DetailContentReference? expectedReference = null,
+        SessionHistoryEvent? exactRecord = null) => RunAsync(async () =>
     {
         var subject = RequireSelected().Authority.SessionId;
-        var record = selectedHistory ?? throw new InvalidOperationException("Select an exact retained history receipt.");
+        var record = exactRecord ?? selectedHistory ?? throw new InvalidOperationException("Select an exact retained history receipt.");
         if (record.SessionId != subject || history?.SessionId != subject)
         {
             throw new InvalidOperationException("History details require the exact selected session, not another history subject.");
         }
+        if (exactRecord is not null && !HistoryRecords.Any(item => ReferenceEquals(item, exactRecord)))
+        { throw new InvalidOperationException("The original activity receipt is not on the current exact history page."); }
         var present = openHistoryDetail ?? throw new InvalidOperationException("The native history detail viewer is unavailable.");
         var epoch = selectionEpoch;
         var content = await service.ReadHistoryDetailAsync(subject, record.Id, lifetime.Token);
         if (closed || !access.CanInspect || selectionEpoch != epoch || selected?.Authority.SessionId != subject
-            || selectedHistory?.Id != record.Id)
+            || (detailAdmission?.Invoke() == false) || exactRecord is null && selectedHistory?.Id != record.Id)
         {
             throw new OperationCanceledException("The selected history receipt or private presentation changed.");
         }
+        if (expectedReference is { } reference && content.Reference != reference)
+        { throw new InvalidDataException("The original activity revision is unavailable; no replacement was opened."); }
         status = present(content);
         RememberSelectedDetail(DetailPart.History, record.Id);
     }, passive: true);

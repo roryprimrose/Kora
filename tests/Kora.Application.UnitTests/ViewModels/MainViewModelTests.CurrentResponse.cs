@@ -277,6 +277,37 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task CurrentResponsePreferenceFailureReportsRecoveryOnlyWhileOriginalSourceAndNativeOwnerRemainLive()
+    {
+        foreach (var boundary in new[] { "live", "source", "native" })
+        {
+            var f = await CreateReadableResponseAsync();
+            var original = f.ViewModel.ResponseBody;
+            var native = new ResponsePresenter(f.ViewModel)
+            {
+                Failure = new Kora.Application.Configuration.MarkdownDisplayConfigurationService.CaptureUnavailableException(
+                    new InvalidDataException("Unconfirmed saved preference"))
+            };
+            native.BeforeFailure = () =>
+            {
+                if (boundary is "source") { f.ViewModel.RetireCurrentResponseSpeech(); }
+                if (boundary is "native") { native.Alive = false; }
+            };
+            f.ViewModel.BindCurrentResponsePresentation(native);
+            await f.RunAsync("open current response details");
+            if (boundary is "live")
+            {
+                f.ViewModel.Transcript.Should().Contain("Markdown display preference unavailable")
+                    .And.Contain("no new viewer was published");
+                f.ViewModel.ResponseBody.Should().Be(original);
+            }
+            else { f.ViewModel.Transcript.Should().NotContain("saved default was not applied"); }
+            f.Reasoner.Requests.Should().BeEmpty();
+            f.Audit.Events.Should().NotContain(a => a.ActionId == "response.details" && a.Outcome == SecurityAuditOutcome.Succeeded);
+        }
+    }
+
+    [Fact]
     public async Task CurrentResponseHelpAndRenamedGrammarAreExactAndNonDestructive()
     {
         var f = await CreateReadableResponseAsync();
@@ -543,6 +574,55 @@ public sealed partial class MainViewModelTests
         activity.GetTagItem("kora.outcome").Should().Be(cancelled ? "Cancelled" : "Completed");
     }
 
+    [Theory]
+    [InlineData("current")]
+    [InlineData("wrong-id")]
+    [InlineData("wrong-revision")]
+    [InlineData("replaced")]
+    [InlineData("removed")]
+    [InlineData("revoked")]
+    [InlineData("revoked-at-audit")]
+    public async Task ExactResponseTabUsesOriginalReferenceAndNativeAdmissionWithoutSelectingLatest(string boundary)
+    {
+        var f = await CreateReadableResponseAsync();
+        var native = new ResponsePresenter(f.ViewModel);
+        f.ViewModel.BindCurrentResponsePresentation(native);
+        await f.ViewModel.OpenCurrentResponseDetailsAsync();
+        var original = native.Content!;
+        var reference = original.Reference;
+        var allowed = true;
+        switch (boundary)
+        {
+            case "wrong-id": reference = new(new(Guid.NewGuid()), reference.Revision); break;
+            case "wrong-revision": reference = new(reference.ItemId, reference.Revision + 1); break;
+            case "replaced": await f.RunAsync("what version are you running"); break;
+            case "removed": f.ViewModel.RetireCurrentResponseSpeech(); break;
+            case "revoked": allowed = false; break;
+            case "revoked-at-audit":
+                f.Audit.BeforeWrite = audit =>
+                {
+                    if (string.Equals(audit.ActionId, "response.details", StringComparison.Ordinal)
+                        && audit.Outcome == SecurityAuditOutcome.Requested)
+                    { allowed = false; }
+                };
+                break;
+        }
+        var calls = native.Calls;
+        var speech = f.TextToSpeech.SpeakCalls;
+        var audits = f.Audit.Events.Count(audit => string.Equals(audit.ActionId, "response.details", StringComparison.Ordinal));
+        await f.ViewModel.OpenExactCurrentResponseDetailsAsync(reference, () => allowed);
+        var current = string.Equals(boundary, "current", StringComparison.Ordinal);
+        native.Calls.Should().Be(calls + (current ? 1 : 0));
+        native.Content!.Reference.Should().Be(original.Reference);
+        native.Content.Source.Should().Be(original.Source);
+        f.TextToSpeech.SpeakCalls.Should().Be(speech);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Audit.Events.Count(audit => string.Equals(audit.ActionId, "response.details", StringComparison.Ordinal)).Should().Be(audits
+            + (boundary is "current" or "revoked-at-audit" ? 2 : 0));
+        f.ViewModel.Transcript.Should().Be(current ? "Exact current response details opened."
+            : "Current response action unavailable: the exact ordinary source, input, privacy, ownership or native acknowledgement is no longer valid. Nothing was replaced or approved.");
+    }
+
     private sealed class ResponsePresenter(MainViewModel main) : ICurrentResponsePresentation
     {
         public bool Alive { get; set; } = true;
@@ -551,6 +631,7 @@ public sealed partial class MainViewModelTests
         public bool RetireOnDismiss { get; set; } = true;
         public Action? AfterNative { get; set; }
         public Action? BeforeOpen { get; set; }
+        public Action? BeforeFailure { get; set; }
         public int Calls { get; private set; }
         public AdmittedDetailContent? Content { get; private set; }
         public Func<bool> CaptureLifetime() => () => Alive;
@@ -563,14 +644,14 @@ public sealed partial class MainViewModelTests
             AfterNative?.Invoke();
             return Acknowledge;
         }
-        public bool OpenDetails(AdmittedDetailContent content, Func<bool> admitted)
+        public Task<bool> OpenDetailsAsync(AdmittedDetailContent content, Func<bool> admitted)
         {
             BeforeOpen?.Invoke();
             Calls++;
             admitted().Should().BeTrue();
-            if (Failure is { } failure) { throw failure; }
+            if (Failure is { } failure) { BeforeFailure?.Invoke(); throw failure; }
             Content = content;
-            return Acknowledge;
+            return Task.FromResult(Acknowledge);
         }
     }
 }

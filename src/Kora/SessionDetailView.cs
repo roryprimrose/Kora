@@ -31,7 +31,7 @@ internal sealed class SessionDetailView : IDetailView
         if (closed || owner is not ResponseWindow window || Content is not { } content)
         { throw new InvalidOperationException("The exact session detail source or primary window is unavailable."); }
         window.ShowSessions(expanded: true);
-        if (!window.IsVisible || !window.IsSessionListPresented || !host.ShowDetails(this, content))
+        if (!window.IsVisible || !window.IsSessionWorkspacePresented || !host.ShowDetails(this, content))
         { throw new InvalidOperationException("Session details cannot be shown in this selected conversation or work area."); }
     }
 

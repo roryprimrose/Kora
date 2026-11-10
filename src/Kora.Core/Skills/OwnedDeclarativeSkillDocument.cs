@@ -47,6 +47,7 @@ public sealed class OwnedDeclarativeSkillDocument
     public bool IsComplete => ReferenceDeclaration is null || References.Count == ReferenceDeclaration.Paths.Count;
     public int TotalBytes => manifest.Length + instructions.Length + References.Sum(item => item.Bytes.Length);
     public ObservationWorkflowDefinition? ObservationWorkflow { get; private init; }
+    public DeclarativeMcpToolReference? McpReference { get; private init; }
     public string RevisionDigest { get; }
     public string ManifestText => Encoding.GetString(manifest);
     public string Guidance => Encoding.GetString(instructions);
@@ -121,7 +122,7 @@ public sealed class OwnedDeclarativeSkillDocument
         if (string.IsNullOrWhiteSpace(guidance))
         { throw new InvalidDataException("Literal skill guidance is required."); }
         var lines = metadata.Split('\n');
-        if (lines.Length is not (9 or 10) || lines[^1].Length != 0)
+        if (lines.Length is not (9 or 10 or 12) || lines[^1].Length != 0)
         { throw new InvalidDataException("The native manifest requires its exact versioned scalar fields and a final newline."); }
         var fields = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var line in lines[..^1])
@@ -134,6 +135,14 @@ public sealed class OwnedDeclarativeSkillDocument
             : throw new InvalidDataException("Unknown or missing native skill metadata.");
         var format = Field("kora-skill-format");
         var workflow = format is "4" ? ObservationWorkflowDefinition.Parse(guidance) : null;
+        DeclarativeMcpToolReference? mcp = null;
+        if (format is "6")
+        {
+            var declared = Field("tools");
+            if (!declared.StartsWith("mcp.", StringComparison.Ordinal))
+            { throw new InvalidDataException("Native v6 requires exactly one read-only MCP tool reference."); }
+            mcp = new(Field("mcp-server"), Field("mcp-source-revision"), declared["mcp.".Length..], Field("mcp-schema-digest"));
+        }
         var tool = (format, Field("tools")) switch
         {
             ("1", "none") => OwnedSkillToolSelection.None,
@@ -142,7 +151,8 @@ public sealed class OwnedDeclarativeSkillDocument
             ("4", var toolDeclaration) when string.Equals(toolDeclaration, workflow!.ToolDeclaration, StringComparison.Ordinal)
                 => OwnedSkillToolSelection.ReadOnlyObservations,
             ("5", "none") => OwnedSkillToolSelection.None,
-            _ => throw new InvalidDataException("Only native v1 literal, v2 exact host WebPageGet, v3 required literal inputs, v4 original host observation workflows or v5 declared Markdown guidance are supported here. Unknown formats require explicit migration, not reinterpretation."),
+            ("6", _) when mcp is not null => OwnedSkillToolSelection.ReadOnlyMcp,
+            _ => throw new InvalidDataException("Only native v1 literal, v2 exact host WebPageGet, v3 required literal inputs, v4 original host observation workflows, v5 declared Markdown guidance or v6 exact read-only MCP are supported here. Unknown formats require explicit migration, not reinterpretation."),
         };
         OwnedPromptTemplate? template = null;
         if (format is "3")
@@ -153,7 +163,7 @@ public sealed class OwnedDeclarativeSkillDocument
             if (template.RequiredNames.IsEmpty)
             { throw new InvalidDataException("Native v3 requires at least one declared ${input:name} literal input."); }
         }
-        else if (fields.Count != 8)
+        else if (fields.Count != (format is "6" ? 11 : 8))
         { throw new InvalidDataException("Literal native v1/v2 skills cannot declare inputs."); }
         SharedSkillReferenceDeclaration? declaration = null;
         if (format is "5")
@@ -183,7 +193,7 @@ public sealed class OwnedDeclarativeSkillDocument
         RequireScalar(description, 1024);
         var document = new OwnedDeclarativeSkillDocument(id, version, name, description,
             manifest.ToArray(), instructions.ToArray(), tool, template, declaration, references)
-        { ObservationWorkflow = workflow };
+        { ObservationWorkflow = workflow, McpReference = mcp };
         if (declaration is not null && document.IsComplete) { OwnedSkillGuidanceContext.RequirePackageLimit(document); }
         return document;
     }
@@ -197,6 +207,18 @@ public sealed class OwnedDeclarativeSkillDocument
         RequireScalar(description, 1024);
         var metadata = $"kora-skill-format: 4\nid: {id}\nversion: {version}\nname: {name}\ndescription: {description}\nruntime: local\ntools: {workflow.ToolDeclaration}\nreferences: none\n";
         return ParseText(metadata, source);
+    }
+
+    public static OwnedDeclarativeSkillDocument CreateMcp(string id, string version, string name,
+        string description, string guidance, DeclarativeMcpToolReference reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        RequireIdentity(id, version);
+        RequireScalar(name, 128);
+        RequireScalar(description, 1024);
+        var metadata = $"kora-skill-format: 6\nid: {id}\nversion: {version}\nname: {name}\ndescription: {description}\nruntime: local\ntools: mcp.{reference.ToolName}\nreferences: none\n"
+            + $"mcp-server: {reference.ServerId}\nmcp-source-revision: {reference.SourceRevision}\nmcp-schema-digest: {reference.SchemaDigest}\n";
+        return ParseText(metadata, guidance);
     }
 
     private static OwnedDeclarativeSkillDocument ParseText(string metadata, string source)

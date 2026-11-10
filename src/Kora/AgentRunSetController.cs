@@ -16,7 +16,14 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
     SessionWorkspaceService workspace, Func<bool> ownsHost, Func<long> ownerRevision,
     ILogger<AgentRunSetController> logger)
 {
-    private AgentRunSetWindow? window;
+    private AgentRunSetView? window;
+    private AgentRunSetWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<AgentRunSetView>? presentWorkbench;
+    private readonly bool[] invoking = new bool[2];
+    internal AgentRunSetView? View => window;
+    internal void BindWorkbench(Func<Window> ownerWindow, Action<AgentRunSetView> present)
+    { getWorkbench = ownerWindow; presentWorkbench = present; }
     private AgentRunSet? runs;
     private readonly Task[] operations = [Task.CompletedTask, Task.CompletedTask];
     private Task cleanup = Task.CompletedTask;
@@ -59,9 +66,29 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
                 runs = factory.Create();
                 var created = runs;
 #pragma warning disable MA0147 // Native button callbacks have a void boundary; Route owns and reports their asynchronous work.
-                window = new(command => Start(command, () => ReferenceEquals(runs, created) && Eligible()));
+                void Execute(AgentRunSetCommand nextCommand) => Start(nextCommand, () => ReferenceEquals(runs, created) && Eligible());
+                if (getWorkbench is not null && presentWorkbench is not null)
+                { window = new(getWorkbench(), Execute, () => main.CanRevealPrivatePresentation); }
+                else
+                {
+                    adapter = new(Execute);
+                    window = adapter.View;
+                }
 #pragma warning restore MA0147
                 window.Closed += (_, _) => Close();
+                if (getWorkbench is not null)
+                {
+                    var presented = window;
+                    window.PresentationLost += (_, _) =>
+                    {
+                        if (!ReferenceEquals(window, presented)) { return; }
+                        for (var index = 0; index < presented.Runs.Length; index++)
+                        {
+                            presentations[index] = null;
+                            if (!invoking[index]) { Retire(index + 1, presented.Runs[index]); }
+                        }
+                    };
+                }
                 for (var index = 0; index < 2; index++)
                 {
                     var number = index + 1;
@@ -70,13 +97,15 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
                     panel.Input.PropertyChanged += (_, args) => Changed(number, panel, args, true);
                     panel.Targets.SelectionChanged += (_, _) => Retire(number, panel);
                 }
-                window.Show();
+                if (presentWorkbench is not null) { presentWorkbench(window); }
+                else { adapter!.Show(); }
                 if (!Eligible() || !eligible()) { Close(); }
                 return;
             }
             if (!Eligible() || command.Number is not (1 or 2))
             { throw new InvalidOperationException("Open independent agents and select run 1 or run 2."); }
             var opened = window!;
+            if (presentWorkbench is not null) { presentWorkbench(opened); }
             var panelRun = opened.Runs[command.Number - 1];
             opened.Selection.SelectedIndex = command.Number - 1;
             if (command.Action is "Select") { return; }
@@ -95,7 +124,7 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
             { panelRun.Input.Text = command.Argument; Retire(command.Number, panelRun); panelRun.InputOrigin = origin; return; }
             if (command.Action is "Target")
             {
-                var matches = (panelRun.Targets.ItemsSource as AgentRunSetWindow.Target[] ?? [])
+                var matches = (panelRun.Targets.ItemsSource as AgentRunSetView.Target[] ?? [])
                     .Where(item => string.Equals(item.Label, command.Argument, StringComparison.OrdinalIgnoreCase)).ToArray();
                 if (matches.Length != 1) { throw new InvalidOperationException("Choose one unambiguous displayed Active conversation name using native selection."); }
                 panelRun.Targets.SelectedItem = matches[0];
@@ -114,7 +143,7 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
         }
     }
 
-    private void Changed(int number, AgentRunSetWindow.RunPanel panel,
+    private void Changed(int number, AgentRunSetView.RunPanel panel,
         Avalonia.AvaloniaPropertyChangedEventArgs args, bool input)
     {
         if (args.Property != TextBox.TextProperty) { return; }
@@ -122,7 +151,7 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
         if (input) { panel.InputOrigin = RequestOrigin.LocalUi; }
     }
 
-    private void Retire(int number, AgentRunSetWindow.RunPanel panel)
+    private void Retire(int number, AgentRunSetView.RunPanel panel)
     {
         if (!ReferenceEquals(window?.Runs[number - 1], panel)) { return; }
         presentations[number - 1] = null;
@@ -143,7 +172,10 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
         var captured = runs!;
         var panel = opened.Runs[command.Number - 1];
         var revision = panel.Revision;
-        bool Current() => Eligible() && eligible() && ReferenceEquals(window, opened) && panel.Revision == revision;
+        var indexRun = command.Number - 1;
+        var native = opened.CapturePresentation();
+        bool Current() => Eligible() && eligible() && ReferenceEquals(window, opened) && panel.Revision == revision
+            && (invoking[indexRun] || native());
         try
         {
             using var activity = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
@@ -157,7 +189,7 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
                 if (!Current()) { return; }
                 panel.Next = page.Next;
                 var records = page.Records.Where(item => item.Authority.IsActive).ToArray();
-                panel.Targets.ItemsSource = records.Select((item, index) => new AgentRunSetWindow.Target(item,
+                panel.Targets.ItemsSource = records.Select((item, index) => new AgentRunSetView.Target(item,
                     item.Metadata?.Name.Value ?? $"Unnamed conversation {index + 1}")).ToArray();
                 panel.Status.Text = "Select an existing Active conversation. No session was created or resumed.";
             }
@@ -167,7 +199,7 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
                 revision = panel.Revision;
                 await captured.StopAsync(command.Number);
                 if (!Current()) { throw new InvalidOperationException("Original review eligibility expired while joining resources."); }
-                var target = (panel.Targets.SelectedItem as AgentRunSetWindow.Target)?.Entry
+                var target = (panel.Targets.SelectedItem as AgentRunSetView.Target)?.Entry
                     ?? throw new InvalidOperationException("Select a distinct existing Active conversation.");
                 panel.Status.Text = "Reading the explicitly selected profile.";
                 await captured.ReviewAsync(command.Number, panel.Source.Text ?? string.Empty, target,
@@ -188,8 +220,9 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
                 RequireCurrentPresentation(command.Number, panel);
                 panel.Confirm.IsEnabled = panel.Resolve.IsEnabled = false;
                 panel.Status.Text = "Invocation requested; canonical admission may report unavailable or resource-blocked. No running state inferred.";
+                invoking[indexRun] = true;
                 await captured.InvokeAsync(command.Number, origin, CancellationToken.None);
-                if (Current()) { ShowStatus(command.Number, panel); }
+                if (Current() && native()) { ShowStatus(command.Number, panel); }
             }
             else { throw new InvalidOperationException("Unsupported independent agent command."); }
             activity.Complete(HostOperationOutcome.Completed);
@@ -197,16 +230,17 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             Failed(logger, exception.GetType().Name);
-            if (Current())
+            if (Current() && native())
             {
                 presentations[command.Number - 1] = null;
                 panel.ClearReview();
                 panel.Status.Text = "Unavailable, resource-blocked, revoked, cancelled or unconfirmed. Inspect the selected conversation. No success or rollback claimed.";
             }
         }
+        finally { invoking[indexRun] = false; }
     }
 
-    private static void ShowReview(AgentRunSet.AgentRunSnapshot snapshot, AgentRunSetWindow.RunPanel panel)
+    private static void ShowReview(AgentRunSet.AgentRunSnapshot snapshot, AgentRunSetView.RunPanel panel)
     {
         var review = snapshot.Review!;
         panel.Review.Text = $"LOCAL TEXT -> TEXT; NO TOOLS\n{review.Profile.Document.Text}\n\nORIGINAL TASK\n{review.Input}\n\n"
@@ -233,6 +267,7 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
         var opened = window;
         var captured = runs;
         window = null;
+        adapter = null;
         runs = null;
         Array.Clear(presentations);
         var prior = cleanup;

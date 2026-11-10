@@ -26,11 +26,19 @@ public static class SettingsDiscoveryTools
     public static RegisteredSettingDescriptor? FindSetting(string id) =>
         RegisteredSettingRegistry.Settings.SingleOrDefault(item => string.Equals(item.Id, id, StringComparison.Ordinal));
 
-    public static bool HasConfirmedReader(RegisteredSetting setting) =>
-        SettingInspectionReview.InspectedSettings.Contains(setting);
+    public static bool HasConfirmedReader(RegisteredSetting setting,
+        SettingInspectionProfile profile = SettingInspectionProfile.ConfirmedSettings) =>
+        SettingInspectionReview.ExpectedSettings(profile).Contains(setting);
 
-    public static CapabilityReply Read(ImmutableArray<SettingObservation> observations, string id, string json)
+    public static IReadOnlyList<RegisteredSettingDescriptor> Metadata(SettingInspectionProfile profile) =>
+        profile == SettingInspectionProfile.ConfirmedSettings ? RegisteredSettingRegistry.Settings
+            : SettingInspectionReview.ExpectedSettings(profile).Select(RegisteredSettingRegistry.Get).ToArray();
+
+    public static CapabilityReply Read(ImmutableArray<SettingObservation> observations, string id, string json,
+        SettingInspectionProfile profile = SettingInspectionProfile.ConfirmedSettings)
     {
+        if (profile != SettingInspectionProfile.ConfirmedSettings)
+        { SettingInspectionReview.ValidateSource(observations, profile); }
         var descriptor = FindExact(id);
         if (descriptor is null) { return new(CapabilityOutcome.Denied, "unknown-capability"); }
         var input = CapabilityInputPolicy.Read(descriptor, json);
@@ -39,18 +47,20 @@ public static class SettingsDiscoveryTools
         if (string.Equals(id, Get, StringComparison.Ordinal))
         {
             var setting = FindSetting(input.Id!.Id)!;
-            var observation = observations.SingleOrDefault(item => item.Setting == setting.Setting);
+            var observation = HasConfirmedReader(setting.Setting, profile)
+                ? observations.SingleOrDefault(item => item.Setting == setting.Setting) : null;
             if (observation is null) { return new(CapabilityOutcome.Unavailable, "setting-value-unavailable"); }
-            result = new([new(setting, HasConfirmedReader(setting.Setting))], 1, null, observation);
+            result = new([new(setting, HasConfirmedReader(setting.Setting, profile))], 1, null, observation,
+                profile == SettingInspectionProfile.WindowsRate ? profile : null);
         }
         else
         {
-            var settings = RegisteredSettingRegistry.Settings;
+            var settings = Metadata(profile);
             if (CapabilityPagePolicy.Resolve(input.Page!, settings.Count) is not { } page)
             { return new(CapabilityOutcome.Denied, "page-out-of-range"); }
             result = new(settings.Skip(input.Page!.Offset).Take(page.Count)
-                .Select(item => new RegisteredSettingMetadata(item, HasConfirmedReader(item.Setting))).ToImmutableArray(),
-                settings.Count, page.NextOffset);
+                .Select(item => new RegisteredSettingMetadata(item, HasConfirmedReader(item.Setting, profile))).ToImmutableArray(),
+                settings.Count, page.NextOffset, Profile: profile == SettingInspectionProfile.WindowsRate ? profile : null);
         }
         return new(CapabilityOutcome.Succeeded, ResultReason, Settings: result);
     }
@@ -62,21 +72,23 @@ public static class SettingsDiscoveryTools
             || reply.Capabilities is not null || reply.Descriptor is not null || reply.Version is not null
             || reply.Readiness is not null || reply.Runtimes is not null || reply.Runtime is not null
             || reply.WebPage is not null || reply.Mcp is not null || reply.Sessions is not null || reply.Customizations is not null
-            || reply.SessionMetrics is not null || reply.ProviderSettings is not null)
+            || reply.SessionMetrics is not null || reply.ProviderSettings is not null || reply.Maintenance is not null)
         { return false; }
+        if (result.Profile is not (null or SettingInspectionProfile.WindowsRate)) { return false; }
+        var profile = result.Profile ?? SettingInspectionProfile.ConfirmedSettings;
         if (string.Equals(id, Get, StringComparison.Ordinal))
         {
             return result.TotalRecords == 1 && result.NextOffset is null && result.Records.Length == 1
                 && result.Records[0] == new RegisteredSettingMetadata(FindSetting(input.Id!.Id)!, true)
                 && result.Observation is { } observation
-                && HasConfirmedReader(observation.Setting)
+                && HasConfirmedReader(observation.Setting, profile)
                 && observation.Setting == result.Records[0].Descriptor.Setting;
         }
-        var settings = RegisteredSettingRegistry.Settings;
+        var settings = Metadata(profile);
         return result.Observation is null && result.TotalRecords == settings.Count
             && CapabilityPagePolicy.Resolve(input.Page!, settings.Count) is { } page
             && result.NextOffset == page.NextOffset
             && result.Records.SequenceEqual(settings.Skip(input.Page!.Offset).Take(page.Count)
-                .Select(item => new RegisteredSettingMetadata(item, HasConfirmedReader(item.Setting))));
+                .Select(item => new RegisteredSettingMetadata(item, HasConfirmedReader(item.Setting, profile))));
     }
 }

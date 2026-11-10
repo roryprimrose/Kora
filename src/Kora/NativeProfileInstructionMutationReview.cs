@@ -4,7 +4,7 @@ using Kora.Core.Customizations;
 
 namespace Kora;
 
-internal sealed class NativeProfileInstructionMutationReview(OwnedInstructionEditorWindow window, Func<bool> current)
+internal sealed class NativeProfileInstructionMutationReview(OwnedInstructionEditorView window, Func<bool> current)
     : IProfileInstructionMutationReview
 {
     public async Task<bool> Confirm(CustomizationSnapshot expected, ArtifactFileDocument proposed, CancellationToken token)

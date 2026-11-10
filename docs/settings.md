@@ -9,6 +9,8 @@ or sending information to an AI service.
 [approvals](#approvals), [session retention](#per-session-retention-status-and-hold),
 or [setup](#readiness). For named local folders, see [Knowledge sources](knowledge-sources.md).
 
+**Source-specific capture limits:** in **Knowledge > Manage knowledge sources**, reload and select one source, get its desired/current-captured limits, then review lower file-count/per-file-byte/total-byte limits or reset and separately confirm/cancel. [Exact controls and commands](knowledge-sources.md#lower-the-next-capture-limits-for-one-source) affect only its next separately reviewed refresh, never a pending/pinned capture. They are not shared generic model settings.
+
 **AI answers are unavailable in this build.** You can inspect and save supported
 preferences, but a saved choice is not proof that its model or service can run.
 
@@ -64,6 +66,18 @@ The status shows the confirmed saved/default value; editing the field alone chan
 
 Typed or activated voice can use `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes`.
 These routes use the same host admission, preference readback and required audit ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs)).
+
+An original local user can also select an exact retained model answer containing
+`set work.active-deadline-minutes to 10` (canonical whole minutes 1-60), or
+`reset work.active-deadline-minutes`, using **Review setting suggestion...**.
+Read current saved/default and proposed values, then separately confirm or
+cancel in that same current native conversation surface within 60 seconds.
+Review is inert; only confirmed audited atomic write/readback changes the
+future preference. A replaced source, returned surface, changed preference or
+host/call authority requires fresh review. Unconfirmed saves require Settings
+and audit inspection, not retry, rollback or a default success.
+There is no model/voice write authority or deadline undo
+([complete workflow](setting-proposals.md)).
 
 This preference applies only when an ordinary conversation turn dispatches, including its admitted read-only tools.
 Pending work has no active budget; running turns do not change when you save a new default.
@@ -359,6 +373,17 @@ Exact typed or current-name activated commands are `list speech text settings`,
 `set display.speech-text to CurrentSentence`,
 and `reset display.speech-text`. These only inspect/save the device-local
 preference; they never speak, replay or open the microphone.
+
+The exact natural command `show the current sentence` saves **CurrentSentence**.
+`keep speech text visible for ten seconds` saves a **10-second** dismissal delay
+without changing caption mode. Delay commands accept canonical numerals 0-30 or
+English number words zero through thirty. Use `one second` / `1 second`;
+all other values use `seconds`. Compounds twenty-one through twenty-nine accept
+one hyphen or one space (`twenty one`). Extra words, fractions, signs and
+out-of-range values are rejected without clamping. Typed input may omit the
+current name; activated voice retains the current-name and protected-channel
+gates. These aliases use the same native save, audit and readback operation
+([exact grammar](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
 
 **Current sentence (unavailable in this build)** is also an explicit native
 choice in Speech and audio settings. It requests the exact source sentence
@@ -866,7 +891,7 @@ Voice requires the current configured assistant-name prefix ([grammar](../src/Ko
 It submits the existing revision-bound proposal; stale concurrent changes refuse, not overwrite or silently clamp.
 Number words and vague/selected-window requests are not inferred ([proposal workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
-It scales only shared native DetailWindow Rendered/Source/continuous text, file/folder/retained attachment source bodies and exact cited/literal-match spans, the native clipboard snapshot source body, admitted complete serialized Evidence page bodies and their inert focused literal-Find spans, and the currently observed native speech-caption content text. New windows and live confirmed changes use original typography, never cumulative scaling. Trusted chrome, search inputs/result navigation, identity/location labels, consent/approval/question/error controls and caption labels, Pin/Unpin and display selector/status retain their own typography. Strings, bytes, digests and offsets are unchanged; the preference grants no content access/copy/export or persistence consent ([detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
+It scales only shared native DetailWindow Rendered/Source/continuous text, file/folder/retained attachment source bodies and exact cited/literal-match spans, the native clipboard snapshot source body, admitted complete serialized Evidence page bodies and their inert focused literal-Find spans, and the currently observed native speech-caption content text. New windows and live confirmed changes use original typography, never cumulative scaling. Trusted chrome, search inputs/result navigation, identity/location labels, consent/approval/question/error controls and caption labels, Pin/Unpin and display selector/status retain their own typography. Strings, bytes, digests and offsets are unchanged; the preference grants no content access/copy/export or persistence consent ([detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewView.cs), [span](../src/Kora/LocalFilePreviewView.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewView.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
 Unlike the older appearance options, reader-scale writes retain an unconfirmed marker until exact readback and the success audit complete. Invalid or unconfirmed state blocks new scaled readers with an explicit error; inspect saved evidence and audit receipts before repair, never blindly retry. The prior confirmed UI value is not evidence of successful persistence ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 
@@ -1240,7 +1265,7 @@ host-catalogued optional model data. The existing **Hands-free CPU assets**
 offer supports preparation and removal, not qualified listening. Preparing it
 does not make it a selectable speech-input profile
 ([catalogue](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs),
-[Settings panel](../src/Kora/SettingsWindow.SpeechComponents.cs)).
+[Settings panel](../src/Kora/SettingsView.SpeechComponents.cs)).
 
 **Inspect** reports installed bytes, integrity,
 compatibility, qualification and ownership separately. **Prepare / retry**,
@@ -1310,6 +1335,16 @@ Settings window refreshes their availability; reopening is not required.
 Exact typed commands are listed in [the command reference](commands.md#detail-presentation-preference); voice requires the current assistant name and existing microphone/privacy/call eligibility. Protected calls reject voice-originated setting changes. One-off **Not now** or opening Details changes no preference. Restoring Offer never replays old offers or speech; already published response text is not rewritten ([workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [consumer](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs)).
 
 Malformed or unconfirmed saved state holds proactive presentation with explicit recovery status; it does not hide manual access or reinterpret corrupt data as Offer. Spoken Offer questions remain unavailable. This preference does not qualify a model, microphone or provider ([persistence](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs), [scope](../Design/Information_Display.md#implemented-opt-in-nonactivating-foreground-expansion)).
+
+### Future final-answer Markdown Details
+
+In **Responses > Future final-answer Markdown Details**, choose **Review Source** or **Review Rendered**, read the saved/default-to-proposed review, then separately **Save Markdown display change** or **Cancel Markdown display change**. The cog menu offers **Inspect** and **Review reset to Rendered**; reset also requires Save. Reviews expire after 60 seconds; original channel, call, privacy and owner checks still apply. Closing Settings retires its native review ([shared controls](../src/Kora.Application/ViewModels/MainViewModel.MarkdownDisplay.cs)).
+
+**Rendered** is the default when the legacy preference file is missing. A saved choice is device-local and applies only to NEW already-admitted final-answer and retained-assistant Markdown Details in either the separate window or primary conversation reader. Saving does not open any result, change an active viewer, or reset Find. Reopening the same already-open exact viewer preserves its explicit Source/Rendered and continuous-reading choices ([native admission](../src/Kora/DetailWindowController.cs)).
+
+The atomic store retains an unconfirmed-write hold until required audit and exact readback complete. Malformed, pending, externally changed or unavailable saved evidence blocks applying the default to a new eligible viewer with a distinct error; it never becomes implicit Rendered. A preference failure preserves an older admitted reader, retained page and unsent input only while their original source/privacy admission remains valid; actual withdrawal still retires them. Inspect state and audit before explicit recovery; no automatic retry or rewrite is claimed ([persistence](../src/Kora.Application/Configuration/LocalMarkdownDisplayPreferences.cs)).
+
+This bounded preference does **not** affect embedded help, original USER/history/context readers, raw file previews, plain text, HTML, Mermaid or browser renderers. It confers no source disclosure, consent, export/clipboard/link authority or renderer/provider qualification. Existing truthful renderer source fallback and source/privacy gates remain authoritative. [Exact typed and activated commands](commands.md#future-final-answer-markdown-display-default) use the same reviewed writer, not model-generated setting instructions.
 
 ### Device default
 

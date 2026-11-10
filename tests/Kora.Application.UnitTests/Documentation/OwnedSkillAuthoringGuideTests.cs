@@ -29,6 +29,14 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("Exact page approval")
             .And.Contain("saved disabled")
             .And.Contain("implementation only");
+        guide.Markdown.Should().Contain("owned skill tool read-only-mcp")
+            .And.Contain("owned skill mcp-source-revision:")
+            .And.Contain("owned skill mcp-schema-digest:")
+            .And.Contain("owned skill mcp-options")
+            .And.Contain("owned skill mcp-account:")
+            .And.Contain("owned skill mcp-arguments:")
+            .And.Contain("eleven-field v6")
+            .And.Contain("joins the owned operation");
         guide.Markdown.Should().Contain("owned skill inputs required-literal")
             .And.Contain("owned skill input topic: <literal>")
             .And.Contain("single-pass")

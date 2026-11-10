@@ -33,6 +33,8 @@ public sealed class McpTransportTests
         await using (var connection = await f.Broker.ConnectAsync(f.Account, Token))
         {
             connection.Account.Should().Be(f.Account);
+            connection.AdmissionWithdrawn.CanBeCanceled.Should().BeTrue();
+            connection.AdmissionWithdrawn.IsCancellationRequested.Should().BeFalse();
             connection.Endpoint.Should().Be(f.Account.Destination);
             connection.RemoteAddresses.Should().Equal(IPAddress.Parse("8.8.8.8"));
             (await connection.IsCurrentAsync(Token)).Should().BeTrue();
@@ -195,6 +197,11 @@ public sealed class McpTransportTests
         await FluentActions.Awaiting(() => f.Broker.ConnectAsync(f.Account, Token)).Should().ThrowAsync<InvalidOperationException>();
         f.Connected.Should().BeFalse();
         f.Disposed.Should().BeTrue();
+        f.Lease.Disposals.Should().Be(1);
+        f.Lease.CredentialReads.Should().Be(0);
+        f.Acquisitions.Should().Be(1);
+        f.HandlerCreations.Should().Be(0);
+        f.Requests.Should().BeEmpty();
     }
 
     [Fact]
@@ -215,6 +222,9 @@ public sealed class McpTransportTests
         f.Resolutions.Should().Be(0);
         f.Requests.Should().BeEmpty();
         f.Disposed.Should().BeTrue();
+        f.Lease.Disposals.Should().Be(others.Length);
+        f.HandlerCreations.Should().Be(0);
+        f.Lease.CredentialReads.Should().Be(0);
     }
 
     [Theory]

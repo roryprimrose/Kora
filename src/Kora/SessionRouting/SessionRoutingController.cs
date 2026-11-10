@@ -14,8 +14,10 @@ internal sealed class SessionRoutingController : IDisposable
     private readonly MainViewModel main;
     private readonly SessionWorkspaceService workspace;
     private readonly SessionRoutingService routing;
-    private SessionRoutingWindow? window;
-    private SessionRoutingAdviceWindow? adviceWindow;
+    private SessionRoutingView? window;
+    private SessionRoutingAdviceView? adviceWindow;
+    private Func<Avalonia.Controls.Window>? getWorkbench;
+    internal void BindWorkbench(Func<Avalonia.Controls.Window> owner) => getWorkbench = owner;
     private bool adviceCancelled;
     private bool busy;
     private bool disposed;
@@ -83,15 +85,20 @@ internal sealed class SessionRoutingController : IDisposable
             var review = await routing.PrepareAsync(body, origin, () => !disposed && admitted(), cancellation.Token);
             if (!routing.IsCurrent(review)) { throw new OperationCanceledException("Original routing admission changed."); }
             var result = new TaskCompletionSource<SessionRoutingSelection?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var opened = new SessionRoutingWindow(routing, review, () => !disposed && admitted(),
-                exception => main.ReportHostInteractionFailure("Destination review stopped. No rerouting or submission retry. Failure type: " + exception.GetType().Name));
+            void Failure(Exception exception) => main.ReportHostInteractionFailure(
+                "Destination review stopped. No rerouting or submission retry. Failure type: " + exception.GetType().Name);
+            var opened = getWorkbench is not null
+                ? new SessionRoutingView(getWorkbench(), routing, review, () => !disposed && admitted(), Failure,
+                    main.CreateSessionRoutingVoiceReply, main.ReleaseSessionRoutingVoiceReply)
+                : new SessionRoutingWindow(routing, review, () => !disposed && admitted(), Failure,
+                    main.CreateSessionRoutingVoiceReply, main.ReleaseSessionRoutingVoiceReply).View;
             window = opened;
             opened.Closed += (_, _) => result.TrySetResult(opened.Result);
-            Show(opened);
+            if (getWorkbench is not null) { opened.Show(); } else { Show(opened.Owner); }
 #pragma warning disable VSTHRD003 // Exact native close completion; awaiting leaves the dispatcher responsive.
             var selection = await result.Task;
 #pragma warning restore VSTHRD003
-            await opened.ChoiceOperation;
+            await opened.JoinAsync();
             if (opened.Failure is { } failure) { throw new InvalidOperationException("The exact destination review failed; no submission.", failure); }
             if (selection is null) { return null; }
             return await routing.SubmitAsync(selection, CancellationToken.None);
@@ -101,9 +108,13 @@ internal sealed class SessionRoutingController : IDisposable
         {
             routing.Retire();
             lock (inferenceGate) { inference = null; }
-            if (window is { } destination) { Withdraw(destination); }
+            if (window is { } destination)
+            {
+                Withdraw(destination.Owner);
+                await destination.JoinAsync();
+            }
             window = null;
-            if (adviceWindow is { } advice) { Withdraw(advice); }
+            if (adviceWindow is { } advice) { Withdraw(advice.Owner); }
             adviceWindow = null;
             presentation = null;
             busy = false;
@@ -116,10 +127,11 @@ internal sealed class SessionRoutingController : IDisposable
             token.ThrowIfCancellationRequested();
             if (disposed || !admitted()) { throw new OperationCanceledException("Local advice disclosure admission changed."); }
             var result = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var opened = new SessionRoutingAdviceWindow(advice, () => !disposed && admitted());
+            var opened = getWorkbench is not null ? new SessionRoutingAdviceView(getWorkbench(), advice, () => !disposed && admitted())
+                : new SessionRoutingAdviceWindow(advice, () => !disposed && admitted()).View;
             adviceWindow = opened;
             opened.Closed += (_, _) => result.TrySetResult(opened.Result);
-            Show(opened);
+            if (getWorkbench is not null) { opened.Show(); } else { Show(opened.Owner); }
             try
             {
                 var choice = await result.Task.WaitAsync(token);
@@ -129,7 +141,7 @@ internal sealed class SessionRoutingController : IDisposable
             }
             finally
             {
-                Withdraw(opened);
+                Withdraw(opened.Owner);
                 adviceWindow = null;
             }
         });
@@ -142,6 +154,12 @@ internal sealed class SessionRoutingController : IDisposable
 
     private void Withdraw(Avalonia.Controls.Window opened)
     {
+        if (opened is ResponseWindow)
+        {
+            if (window is { } destination && ReferenceEquals(destination.Owner, opened)) { destination.Withdraw(); }
+            if (adviceWindow is { } advice && ReferenceEquals(advice.Owner, opened)) { advice.Withdraw(); }
+            return;
+        }
         if (presentation is { } retained) { retained.Withdraw(opened); }
         else if (opened is SessionRoutingAdviceWindow advice) { advice.Withdraw(); }
         else if (opened is SessionRoutingWindow destination) { destination.Withdraw(); }

@@ -37,6 +37,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     internal void ForgetMetrics(HostId<SessionIdentity> session) => metrics.Forget(session);
     private readonly McpCapabilityPreferences? capabilities;
     private readonly Kora.Application.Mcp.KoraMcpServer? builtInMcp;
+    private readonly Kora.Core.Maintenance.IApplicationMaintenanceMcp? maintenance;
     private static readonly TimeSpan Deadline = ModelToolProtocol.Deadline;
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -76,7 +77,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         IRuntimeCapacityQualification? runtimeCapacity = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
         McpCapabilityPreferences? capabilities = null,
-        Kora.Application.Mcp.KoraMcpServer? builtInMcp = null)
+        Kora.Application.Mcp.KoraMcpServer? builtInMcp = null,
+        Kora.Core.Maintenance.IApplicationMaintenanceMcp? maintenance = null)
     {
         this.workspace = workspace;
         this.access = access;
@@ -95,6 +97,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         metrics = new(time, workspace as ISessionModelMetricsStore);
         this.capabilities = capabilities;
         this.builtInMcp = builtInMcp;
+        this.maintenance = maintenance;
         resources = new(owner, time, audit, runtimeCapacity, conversationExecution);
         if (conversationExecution is not null) { conversationExecution.Changed += resources.PreferenceChanged; }
     }
@@ -136,7 +139,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             else if (context!.ToolMode == ModelToolMode.HostedClarification
                 && selection.Provider != ModelProviderIdentity.Claude)
             { result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.InvalidPolicy, provenance); }
-            else if (context.ToolMode == ModelToolMode.ProviderSettings && selection.Provider != ModelProviderIdentity.Ollama)
+            else if (context.ToolMode is ModelToolMode.ProviderSettings or ModelToolMode.ApplicationMaintenance
+                && selection.Provider != ModelProviderIdentity.Ollama)
             { result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.InvalidPolicy, provenance); }
             else if (!Eligible(revision))
             {
@@ -390,6 +394,14 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         var useRevision = capabilities?.Revision;
         turn.PublishExecutionStep?.Invoke(Kora.Core.Conversation.ConversationExecutionStep.ReadingObservation);
         async ValueTask<CapabilityReply> Invoke(CancellationToken toolToken) =>
+            MaintenanceTools.FindExact(id) is not null
+            ? turn.Context.ToolMode == ModelToolMode.ApplicationMaintenance && maintenance is not null
+                ? await maintenance.InvokeAsync(id, input,
+                    () => !disposed && turn.IsRunning && host.IsCurrentHost && access.CanControl && access.CanInspect
+                        && access.ControlRevision == turn.ControlRevision && time.GetUtcNow() < turn.Context.ExpiresAt,
+                    toolToken).ConfigureAwait(false)
+                : new(CapabilityOutcome.Denied, "maintenance-mcp-unavailable")
+            :
             ProviderSettingsTools.FindExact(id) is not null
             ? turn.Provenance.Selection.Provider == ModelProviderIdentity.Ollama && providerProfileConfiguration is not null
                 ? await providerProfileConfiguration.InvokeToolAsync(id, input,
@@ -397,7 +409,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                         && access.ControlRevision == turn.ControlRevision, toolToken).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "local-provider-settings-workflow-required")
             : settingDiscoveries.TryGetValue(turn, out var settings)
-            ? SettingsDiscoveryTools.Read(settings.Observations, id, input)
+            ? SettingsDiscoveryTools.Read(settings.Observations, id, input, settings.Profile)
             : customizationDiscoveries.TryGetValue(turn, out var customizations)
             ? await customizations.Invoke(id, input, toolToken).ConfigureAwait(false)
             : sessionDiscoveries.TryGetValue(turn, out var discovery)

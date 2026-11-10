@@ -32,20 +32,26 @@ public sealed partial class MainWindow : Window
     private readonly bool useNativePresence;
     private readonly PresenceControl presence;
     private readonly PresenceMotionBinding? motionPreference;
+    private readonly Func<nint, AvaloniaPresencePresenter.IBitmapTarget>? createBitmapTarget;
     private readonly DispatcherTimer presenceTimeoutTimer;
     private readonly PresentationInactivityTimeout presenceInactivity = new();
     private readonly DispatcherTimer positionSaveTimer;
     private readonly DispatcherTimer presenceInputTimer;
-    private WindowsPresenceWindowInput? presenceInput;
+    private IWindowsPresenceWindowInput? presenceInput;
     private bool presenceInputFailed;
     private bool windowActionFailed;
     private bool isOptionalSpeechOfferVisible;
     private CancellationTokenSource? pendingHide;
     private bool initialized;
+    private bool initializationStarted;
+    private readonly TaskCompletionSource initializationQuiescence = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool positionInitialized;
     private bool shutdownRequested;
     private readonly PresenceReviewGesture reviewGesture;
     internal Func<Task>? ApplyStartupPresentation { get; set; }
+#pragma warning disable VSTHRD003 // Exposes this window's owned latch for asynchronous teardown while its dispatcher remains active.
+    internal Task InitializationQuiescence => initializationQuiescence.Task;
+#pragma warning restore VSTHRD003
 
     public MainWindow()
         : this(
@@ -61,12 +67,15 @@ public sealed partial class MainWindow : Window
     }
 
     internal MainWindow(MainViewModel viewModel, ILogger<MainWindow> logger, bool useNative, bool initializeHost,
-        ILogger<PresenceRenderWorker> rendererLogger, IMotionPreferenceSource? motionSource = null)
+        ILogger<PresenceRenderWorker> rendererLogger, IMotionPreferenceSource? motionSource = null,
+        Func<Window, IWindowsPresenceWindowInput>? createPresenceInput = null,
+        Func<nint, AvaloniaPresencePresenter.IBitmapTarget>? createBitmapTarget = null)
     {
         this.viewModel = viewModel;
         reviewGesture = new(viewModel);
         this.logger = logger;
         this.rendererLogger = rendererLogger;
+        this.createBitmapTarget = createBitmapTarget;
         this.initializeHost = initializeHost;
         useNativePresence = useNative;
         AvaloniaXamlLoader.Load(this);
@@ -103,9 +112,8 @@ public sealed partial class MainWindow : Window
         try
         {
             Win32Properties.AddWindowStylesCallback(this, ConfigurePresenceWindowStyles);
-            var handle = TryGetPlatformHandle()?.Handle
-                ?? throw new InvalidOperationException("The presence window has no Windows handle.");
-            presenceInput = WindowsPresenceWindowInput.CreateForNonLayeredHost(handle);
+            presenceInput = (createPresenceInput ?? CreatePresenceInput)(this)
+                ?? throw new InvalidOperationException("The presence input adapter is unavailable.");
             InitializeNativePresence();
             InitializeAvaloniaPresence();
             motionPreference = new PresenceMotionBinding(presence, motionSource ?? new WindowsMotionPreferenceSource(),
@@ -122,6 +130,13 @@ public sealed partial class MainWindow : Window
             }
             throw;
         }
+    }
+
+    internal static IWindowsPresenceWindowInput CreatePresenceInput(Window window)
+    {
+        var handle = window.TryGetPlatformHandle()?.Handle
+            ?? throw new InvalidOperationException("The presence window has no Windows handle.");
+        return WindowsPresenceWindowInput.CreateForNonLayeredHost(handle);
     }
 
     private (uint Style, uint ExtendedStyle) ConfigurePresenceWindowStyles(uint style, uint extendedStyle) =>
@@ -186,7 +201,13 @@ public sealed partial class MainWindow : Window
         Justification = "Avalonia Loaded requires void; initialization failures are logged and retire the unusable window.")]
     private async void OnLoaded(object? sender, RoutedEventArgs eventArgs)
     {
-        if (!initializeHost) { return; }
+        if (!initializeHost || retiring || resourcesDisposed)
+        {
+            if (!initializationStarted) { initializationQuiescence.TrySetResult(); }
+            return;
+        }
+        if (initializationStarted) { return; }
+        initializationStarted = true;
         try
         {
             await HostRequestRunner.RunAsync(RequestOrigin.HostSystem, InitializeWindowAsync,
@@ -206,12 +227,17 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            initializationCompleted = true;
-            if (!presenceInputFailed && !nativePresenceFailed && !avaloniaPresenceFailed && !windowActionFailed)
+            try
             {
-                viewModel.ReportPresenceRendererStatus(useNativePresence
-                    ? "Experimental animation mode is active." : "Standard animation mode is active.");
+                initializationCompleted = true;
+                if (!retiring && !resourcesDisposed && !presenceInputFailed && !nativePresenceFailed
+                    && !avaloniaPresenceFailed && !windowActionFailed)
+                {
+                    viewModel.ReportPresenceRendererStatus(useNativePresence
+                        ? "Experimental animation mode is active." : "Standard animation mode is active.");
+                }
             }
+            finally { initializationQuiescence.TrySetResult(); }
         }
     }
 
@@ -225,6 +251,7 @@ public sealed partial class MainWindow : Window
         initialized = true;
         DesktopLog.Information(logger, "Main window loaded");
         await viewModel.InitializeAsync();
+        if (retiring || resourcesDisposed) { return; }
         motionPreference?.Refresh();
         if (windowActionFailed)
         {

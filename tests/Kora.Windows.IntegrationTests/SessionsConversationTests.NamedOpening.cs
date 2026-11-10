@@ -281,7 +281,7 @@ public sealed partial class SessionsConversationTests
         private SessionConversationService? passiveReader;
         private AllWorkWindowController? all;
         private WorkspaceSurfaceCommandController? commands;
-        private IDisposable? openingObservation;
+        private EventHandler? openingObservation;
 
         internal NamedOpeningFixture(bool voice) => Native = new(Path.GetFullPath("."), syntheticVoice: voice);
 
@@ -346,10 +346,15 @@ public sealed partial class SessionsConversationTests
             return page;
         }
 
-        internal Task<NamedConversationChoiceWindow> ObserveOpening()
+        internal Task<NamedConversationChoiceView> ObserveOpening()
         {
-            var opened = new TaskCompletionSource<NamedConversationChoiceWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
-            openingObservation = Avalonia.Controls.Window.WindowOpenedEvent.AddClassHandler<NamedConversationChoiceWindow>((window, _) => opened.TrySetResult(window));
+            var opened = new TaskCompletionSource<NamedConversationChoiceView>(TaskCreationOptions.RunContinuationsAsynchronously);
+            openingObservation = (_, _) =>
+            {
+                var choice = Window?.GetVisualDescendants().OfType<NamedConversationChoiceView>().FirstOrDefault();
+                if (choice is not null) { opened.TrySetResult(choice); }
+            };
+            Window!.LayoutUpdated += openingObservation;
             return opened.Task;
         }
 
@@ -366,7 +371,7 @@ public sealed partial class SessionsConversationTests
 
         public async ValueTask DisposeAsync()
         {
-            openingObservation?.Dispose();
+            if (Window is not null) { Window.LayoutUpdated -= openingObservation; }
             commands?.Dispose();
             all?.Dispose();
             Controller?.Dispose();
@@ -381,7 +386,7 @@ public sealed partial class SessionsConversationTests
         }
     }
 
-    private static T NamedControl<T>(NamedConversationChoiceWindow window, string name) where T : Control =>
+    private static T NamedControl<T>(NamedConversationChoiceView window, string name) where T : Control =>
         window.GetVisualDescendants().OfType<T>().Single(control => string.Equals(control.Name, name, StringComparison.Ordinal));
 
     private sealed class NamedOpeningClock : TimeProvider

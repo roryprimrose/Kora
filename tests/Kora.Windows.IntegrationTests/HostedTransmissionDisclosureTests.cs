@@ -33,7 +33,30 @@ public sealed class HostedTransmissionDisclosureTests
     [InlineData(false, "close")]
     [InlineData(false, "cancel")]
     [InlineData(false, "privacy")]
-    public async Task CompleteDisclosureIsKeyboardReadableBeforeSeparateOneSendDecision(bool claude, string disposition)
+    public async Task CompleteDisclosureIsKeyboardReadableBeforeSeparateOneSendDecision(bool claude, string disposition) =>
+        await RunDisclosure(claude, disposition, hosted: false);
+
+    [Theory]
+    [InlineData(true, "approve")]
+    [InlineData(true, "deny")]
+    [InlineData(true, "close")]
+    [InlineData(true, "cancel")]
+    [InlineData(true, "privacy")]
+    [InlineData(true, "hide")]
+    [InlineData(true, "minimize")]
+    [InlineData(true, "tab")]
+    [InlineData(false, "approve")]
+    [InlineData(false, "deny")]
+    [InlineData(false, "close")]
+    [InlineData(false, "cancel")]
+    [InlineData(false, "privacy")]
+    [InlineData(false, "hide")]
+    [InlineData(false, "minimize")]
+    [InlineData(false, "tab")]
+    public async Task WorkbenchDisclosureReadsCompleteBytesButOnlyOriginalVisibleConfirmationAuthorizesOneSend(bool claude, string disposition) =>
+        await RunDisclosure(claude, disposition, hosted: true);
+
+    private static async Task RunDisclosure(bool claude, string disposition, bool hosted)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -41,11 +64,16 @@ public sealed class HostedTransmissionDisclosureTests
             await native.InitializeAsync();
             var f = new ClaudeAccountBrokerTests.Fixture();
             var reviews = new HostedTransmissionReviewService(f, f.Time);
-            using IDisposable controller = claude
-                ? new ClaudeTransmissionWindowController(native.Main, reviews, NullLogger<ClaudeTransmissionWindowController>.Instance)
-                : new CopilotTransmissionWindowController(native.Main, reviews, NullLogger<CopilotTransmissionWindowController>.Instance);
+            using var claudeController = claude ? new ClaudeTransmissionWindowController(native.Main, reviews,
+                NullLogger<ClaudeTransmissionWindowController>.Instance) : null;
+            using var copilotController = !claude ? new CopilotTransmissionWindowController(native.Main, reviews,
+                NullLogger<CopilotTransmissionWindowController>.Instance) : null;
+            var shell = hosted ? new ResponseWindow(native.Main) : null;
+            if (shell is not null)
+            { claudeController?.BindWorkbench(() => shell); copilotController?.BindWorkbench(() => shell); }
             Window? window = null;
-            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) => window = view);
+            var windows = new List<Window>();
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) => { window = view; windows.Add(view); });
             var request = HostRequest.Create(RequestOrigin.ActivatedVoice);
             using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
             var now = f.Time.GetUtcNow();
@@ -66,19 +94,22 @@ public sealed class HostedTransmissionDisclosureTests
                 Dispatcher.UIThread.RunJobs();
                 window.Should().NotBeNull();
                 window!.UpdateLayout();
-                var reader = window.GetLogicalDescendants().OfType<TextBox>().Single();
+                var view = claudeController?.PresentedView ?? copilotController?.PresentedView;
+                view.Should().NotBeNull();
+                var reader = view!.GetLogicalDescendants().OfType<TextBox>().Single();
                 reader.IsReadOnly.Should().BeTrue();
                 reader.IsUndoEnabled.Should().BeFalse();
                 reader.Text.Should().EndWith(Encoding.UTF8.GetString(body));
                 reader.Text.Should().Contain(transmission.Destination.AbsoluteUri).And.Contain("exact-model");
                 ControlAutomationPeer.CreatePeerForElement(reader)!.GetName().Should().Contain("Complete").And.Contain("disclosure");
                 var original = reader.Text;
-                var buttons = window.GetLogicalDescendants().OfType<Button>().ToArray();
+                var buttons = view.GetLogicalDescendants().OfType<Button>().ToArray();
                 var deny = buttons.Single(button => Equals(button.Content, "Deny"));
                 var consent = buttons.Single(button => !ReferenceEquals(button, deny));
                 deny.IsDefault.Should().BeTrue();
                 consent.IsDefault.Should().BeFalse();
-                for (var tab = 0; tab < 4 && !reader.IsFocused; tab++) { Press(window, Key.Tab, PhysicalKey.Tab); }
+                if (hosted) { reader.Focus().Should().BeTrue(); }
+                else { for (var tab = 0; tab < 4 && !reader.IsFocused; tab++) { Press(window, Key.Tab, PhysicalKey.Tab); } }
                 reader.IsFocused.Should().BeTrue();
                 Press(window, Key.End, PhysicalKey.End, RawInputModifiers.Control);
                 window.UpdateLayout();
@@ -90,7 +121,8 @@ public sealed class HostedTransmissionDisclosureTests
                 transmission.Body.ToArray().Should().Equal(body);
                 decision.IsCompleted.Should().BeFalse();
                 f.Audits.Where(item => item.Outcome == SecurityAuditOutcome.Succeeded).Should().BeEmpty();
-                for (var tab = 0; tab < 4 && !consent.IsFocused; tab++) { Press(window, Key.Tab, PhysicalKey.Tab); }
+                if (hosted) { consent.Focus().Should().BeTrue(); }
+                else { for (var tab = 0; tab < 4 && !consent.IsFocused; tab++) { Press(window, Key.Tab, PhysicalKey.Tab); } }
                 consent.IsFocused.Should().BeTrue();
                 switch (disposition)
                 {
@@ -102,7 +134,8 @@ public sealed class HostedTransmissionDisclosureTests
                         Press(window, Key.Space, PhysicalKey.Space);
                         break;
                     case "close":
-                        window.Close();
+                        if (hosted) { view.Dispose(); }
+                        else { window.Close(); }
                         break;
                     case "cancel":
                         cancellation.Cancel();
@@ -110,6 +143,16 @@ public sealed class HostedTransmissionDisclosureTests
                     case "privacy":
                         native.Access.SetOpen(false);
                         await native.Main.PrivacyClosureTask;
+                        break;
+                    case "hide":
+                        window.Hide(); window.Show(); window.Activate();
+                        break;
+                    case "minimize":
+                        window.WindowState = WindowState.Minimized; window.WindowState = WindowState.Normal;
+                        break;
+                    case "tab":
+                        var other = new TextBlock { Text = "Another private review" };
+                        shell!.ShowNativeReview(other, "Another private review", other, static () => true, _ => { });
                         break;
                     default:
                         throw new InvalidOperationException("Unknown test disposition.");
@@ -122,10 +165,30 @@ public sealed class HostedTransmissionDisclosureTests
                 else { (await decision).Should().Be(disposition is "approve"); }
                 Dispatcher.UIThread.RunJobs();
                 reader.Text.Should().BeNullOrEmpty();
-                window.Content.Should().BeNull();
-                f.Audits.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested,
+                view.Content.Should().BeNull();
+                if (hosted) { windows.Distinct().Should().ContainSingle().Which.Should().BeSameAs(shell); }
+                else { window.Content.Should().BeNull(); }
+                if (hosted && disposition is "tab")
+                {
+                    var fresh = reviews.ReviewAsync(authorization, transmission, _ => ValueTask.FromResult(true),
+                        cancellation.Token).AsTask();
+                    Dispatcher.UIThread.RunJobs();
+                    var freshView = claudeController?.PresentedView ?? copilotController?.PresentedView;
+                    freshView.Should().NotBeNull().And.NotBeSameAs(view);
+                    try
+                    {
+                        consent.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                        fresh.IsCompleted.Should().BeFalse("an old button cannot authorize or dismiss the new physical-send review");
+                        freshView!.Content.Should().NotBeNull();
+                    }
+                    finally { freshView!.Dispose(); }
+                    (await fresh).Should().BeFalse();
+                    f.Audits.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested,
+                        SecurityAuditOutcome.Denied, SecurityAuditOutcome.Requested, SecurityAuditOutcome.Denied);
+                }
+                else { f.Audits.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested,
                     disposition is "approve" ? SecurityAuditOutcome.Succeeded
-                        : disposition is "cancel" ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Denied);
+                        : disposition is "cancel" ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Denied); }
                 f.Audits.Select(item => item.ActionId).Should().NotContain(action => action.Contains("complete request", StringComparison.Ordinal));
             }
             finally

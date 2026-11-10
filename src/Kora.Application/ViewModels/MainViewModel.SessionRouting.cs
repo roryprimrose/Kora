@@ -3,6 +3,7 @@ using Kora.Application.Hosting.SessionRouting;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
 
@@ -45,23 +46,53 @@ public sealed partial class MainViewModel
             ShowInformation("No request was heard.", "Provide a request after the assistant name. No destination was selected.");
             return true;
         }
-        var eligible = CaptureNewRequestOpeningEligibility(original ?? CaptureManualCallInput(origin, CallPolicyRevision));
+        var input = original ?? CaptureManualCallInput(origin, CallPolicyRevision);
+        var originalEligible = CaptureNewRequestOpeningEligibility(input);
+        if (!originalEligible())
+        {
+            ShowInformation("Session routing stopped.", "The original input or host admission changed. Nothing was submitted.");
+            return true;
+        }
+        var openingEligible = CaptureNewRequestOpeningEligibility(input with { Eligible = input.RoutingStableEligible });
+        bool stable() => openingEligible()
+            && input.OwnershipBindingRevision == Interlocked.Read(ref settingsOwnershipBindingRevision)
+            && input.RoutingVoiceOwnerRevision == Interlocked.Read(ref voiceOwnershipBindingRevision);
+        var voiceRequest = new SessionRoutingVoiceRequest(body, HostActivity.RequireCurrent().Request,
+            stable, voiceRecognition as Kora.Core.Voice.IQuestionVoiceRecognitionService,
+            input.RoutingWakeContinuation?.Invoke(), routingCaptureRelease);
+        var eligible = CaptureNewRequestOpeningEligibility(input with { Eligible = () => voiceRequest.IsLive });
         var inputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision);
         var composerRevision = Interlocked.Read(ref attachmentCatalogueComposerRevision);
         bool Live() => eligible() && Interlocked.Read(ref workspaceSurfaceInputRevision) == inputRevision
             && (origin != RequestOrigin.LocalUi || Interlocked.Read(ref attachmentCatalogueComposerRevision) == composerRevision)
-            && (wakeCurrent?.Invoke() ?? true);
+            && (input.RoutingWakeContinuation is not null || wakeCurrent?.Invoke() != false);
         if (!Live())
         {
+            voiceRequest.ReleaseOwner();
             ShowInformation("Session routing stopped.", "The original input or host admission changed. Nothing was submitted.");
             return true;
         }
         try
         {
             var automaticDetails = CaptureAutomaticResponse();
+            sessionRoutingVoiceRequest = voiceRequest;
+            PropertyChanged += RevalidateSessionRoutingVoice;
+            PrivacyClosureRequested += RoutingVoicePrivacyClosed;
+            var wasBusy = IsBusy;
+            IsBusy = true;
             using var routingPresentationLease = retainRoutingPresentation?.Invoke();
-            var result = await route(body, origin, Live);
-            if (!Live()) { return true; }
+            SessionRoutingReceipt? result;
+            try { result = await route(body, origin, Live); }
+            finally
+            {
+                await JoinSessionRoutingVoice();
+                voiceRequest.ReleaseOwner();
+                sessionRoutingVoiceRequest = null;
+                PropertyChanged -= RevalidateSessionRoutingVoice;
+                PrivacyClosureRequested -= RoutingVoicePrivacyClosed;
+                IsBusy = wasBusy;
+            }
+            if (!stable()) { return true; }
             if (result is null)
             {
                 ShowInformation("Session routing cancelled.", "No request was submitted. Other sessions' unsent input and permissions are unchanged.");
@@ -78,7 +109,7 @@ public sealed partial class MainViewModel
                         status + "\n\nAssistant answer (generated locally; verify important details):\n" + answerPresentation.Brief,
                         requestWindow: automaticDetails is null,
                         modelAnswer: new(answer.Body, result.Submission.Message.Request));
-                    PresentAutomaticResponse(automaticDetails);
+                    await PresentAutomaticResponseAsync(automaticDetails);
                 }
                 else { ShowInformation("Request destination: " + name + ".", status); }
             }
@@ -86,7 +117,7 @@ public sealed partial class MainViewModel
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             ApplicationLog.Error(logger, exception, "Routing an original session request");
-            if (eligible())
+            if (stable())
             {
                 ShowFailure("Session routing stopped.",
                     "The reviewed destination or original admission is unavailable or changed. "

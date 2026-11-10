@@ -35,6 +35,7 @@ public sealed class SettingInspectionTests
         new(RegisteredSetting.PlaybackVolume, 100, saved, 11), new(RegisteredSetting.ResponseMode, 0, saved, 19),
         new(RegisteredSetting.PresenceDisplay, presence, saved, 3),
         new(RegisteredSetting.PresenceTimeout, 10, saved, 3), new(RegisteredSetting.PresenceSize, 360, saved, 3),
+        new(RegisteredSetting.ResponseTimeout, 5, saved, 3),
         new(RegisteredSetting.DotSize, 100, saved, 3), new(RegisteredSetting.DotDensity, 100, saved, 3),
         new(RegisteredSetting.MovementSpeed, 100, saved, 3), new(RegisteredSetting.SpeechScaling, 1, saved, 3),
         new(RegisteredSetting.SpeechScaleAmount, 100, saved, 3), new(RegisteredSetting.ReducedMotion, 0, saved, 3),
@@ -59,12 +60,12 @@ public sealed class SettingInspectionTests
             HostRequest.Create(origin), Now);
         values[0] = new(RegisteredSetting.Theme, 2, !saved, 100);
         review.Observations[0].Value.Should().Be(0);
-        review.Observations.Should().HaveCount(22);
+        review.Observations.Should().HaveCount(23);
         review.Observations.Select(item => item.Setting).Should().Equal(
             RegisteredSetting.Theme, RegisteredSetting.ReaderTextScale,
             RegisteredSetting.SummaryWords, RegisteredSetting.SummarySentences,
             RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode, RegisteredSetting.PresenceDisplay,
-            RegisteredSetting.PresenceTimeout, RegisteredSetting.PresenceSize, RegisteredSetting.DotSize,
+            RegisteredSetting.PresenceTimeout, RegisteredSetting.PresenceSize, RegisteredSetting.ResponseTimeout, RegisteredSetting.DotSize,
             RegisteredSetting.DotDensity, RegisteredSetting.MovementSpeed, RegisteredSetting.SpeechScaling,
             RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion, RegisteredSetting.QuietHours,
             RegisteredSetting.CommandStartWait, RegisteredSetting.ReplyStartWait, RegisteredSetting.TrailingSilence,
@@ -125,7 +126,8 @@ public sealed class SettingInspectionTests
     [InlineData(RegisteredSetting.SpeechScaleAmount, 201)]
     [InlineData(RegisteredSetting.ReducedMotion, -1)]
     [InlineData(RegisteredSetting.ReducedMotion, 2)]
-    [InlineData(RegisteredSetting.ResponseTimeout, 10)]
+    [InlineData(RegisteredSetting.ResponseTimeout, 0)]
+    [InlineData(RegisteredSetting.ResponseTimeout, 61)]
     [InlineData(RegisteredSetting.WindowsSpeechRate, 0)]
     [InlineData(RegisteredSetting.SpeechVoice, 0)]
     [InlineData(RegisteredSetting.QuietHours, 0)]
@@ -198,6 +200,35 @@ public sealed class SettingInspectionTests
         observation.Value.Should().Be(value);
         observation.Revision.Should().Be(42);
         observation.Text.Should().Be($"{RegisteredSettingRegistry.Get(setting).Id} = {value} {units} (confirmed saved; matches live service)");
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(5, false)]
+    [InlineData(5, true)]
+    [InlineData(60, true)]
+    public void ResponseHideDelayUsesExactValidatedScalarProvenanceAndStrictWire(int value, bool saved)
+    {
+        var observation = new SettingObservation(RegisteredSetting.ResponseTimeout, value, saved, 42);
+        observation.Value.Should().Be(value);
+        observation.Revision.Should().Be(42);
+        observation.Text.Should().Be($"appearance.response-timeout = {value} seconds "
+            + (saved ? "(confirmed saved; matches live service)" : "(confirmed absent; live default)")
+            + "; configured response-window inactivity hide delay, not presence inactivity or a task/provider deadline; no current visibility or visibility-exception claim");
+        var wire = JsonSerializer.Serialize(observation);
+        JsonSerializer.Deserialize<SettingObservation>(wire).Should().Be(observation);
+        foreach (var invalid in new[]
+        {
+            wire.Replace($"\"Value\":{value}", "\"Value\":1.5", StringComparison.Ordinal),
+            wire.Replace($"\"Value\":{value}", "\"Value\":\"5\"", StringComparison.Ordinal),
+            wire.Replace($"\"Value\":{value}", "\"Value\":null", StringComparison.Ordinal),
+            wire.Replace("configured response-window", "current response-window", StringComparison.Ordinal),
+        })
+        {
+            FluentActions.Invoking(() => JsonSerializer.Deserialize<SettingObservation>(invalid)).Should().Throw<JsonException>();
+        }
+        FluentActions.Invoking(() => new SettingObservation(RegisteredSetting.ResponseTimeout, value, saved, -1))
+            .Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Theory]

@@ -6,4 +6,5 @@ public enum OwnedSkillToolSelection
     None,
     WebPageGet,
     ReadOnlyObservations,
+    ReadOnlyMcp,
 }

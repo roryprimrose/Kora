@@ -16,14 +16,17 @@ using Kora.NativeUxFixture;
 using Kora.Windows.Context;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.KnowledgeSources;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.KnowledgeSources;
 
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class KnowledgeSourcesWindowTests
 {
-    [Fact]
-    public Task ExplicitNativeDescendantAddReadSaveRestartSearchAndCitationSelectExactRetainedItem() =>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task ExplicitNativeDescendantAddReadSaveRestartSearchAndCitationSelectExactRetainedItem(bool hosted) =>
         HeadlessSession.RunAsync(async () =>
         {
             using var listener = new ActivityListener
@@ -34,6 +37,9 @@ public sealed class KnowledgeSourcesWindowTests
             ActivitySource.AddActivityListener(listener);
             using var fixture = new NativeUxFixtureSession(OwnedStorageFixture.ScratchParent());
             await fixture.InitializeAsync();
+            using var responses = hosted ? new ResponseWindowController(fixture.Main, NullLogger<ResponseWindowController>.Instance) : null;
+            var windows = new List<Window>();
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) => windows.Add(window));
             var root = Path.Combine(OwnedStorageFixture.ScratchParent(), ".knowledge-recursive-ui-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             try
@@ -47,7 +53,9 @@ public sealed class KnowledgeSourcesWindowTests
                 var store = new WindowsKnowledgeSourceStore(fixture);
                 var picker = new Picker(root);
                 var manager = new KnowledgeSourceManager(new WindowsLocalFileInspector(fixture), store, new Audit(), TimeProvider.System);
-                var window = new KnowledgeSourcesWindow(fixture.Main, manager, picker);
+                var window = responses is not null ? new KnowledgeSourcesView(responses.PrepareWorkbenchOwner(), fixture.Main, manager, picker)
+                    : new KnowledgeSourcesWindow(fixture.Main, manager, picker).View;
+                var physicalOwner = window.Owner;
                 window.Show();
                 window.UpdateLayout();
                 try
@@ -79,8 +87,11 @@ public sealed class KnowledgeSourcesWindowTests
                 }
                 finally { await window.StopAsync(); }
 
-                var reopened = new KnowledgeSourcesWindow(fixture.Main,
-                    new(new WindowsLocalFileInspector(fixture), new WindowsKnowledgeSourceStore(fixture), new Audit(), TimeProvider.System));
+                var restartedManager = new KnowledgeSourceManager(new WindowsLocalFileInspector(fixture),
+                    new WindowsKnowledgeSourceStore(fixture), new Audit(), TimeProvider.System);
+                var reopened = responses is not null
+                    ? new KnowledgeSourcesView(physicalOwner, fixture.Main, restartedManager)
+                    : new KnowledgeSourcesWindow(fixture.Main, restartedManager).View;
                 reopened.Show();
                 reopened.UpdateLayout();
                 try
@@ -116,11 +127,12 @@ public sealed class KnowledgeSourcesWindowTests
                     (await File.ReadAllTextAsync(second, fixture.Token)).Should().Be("alpha second saved text");
                 }
                 finally { await reopened.StopAsync(); }
+                if (hosted) { windows.Distinct().Should().Equal(physicalOwner); }
             }
             finally { Directory.Delete(root, recursive: true); }
         });
 
-    private static TextBox Preview(Window window) => window.GetVisualDescendants().OfType<TextBox>().Single(item =>
+    private static TextBox Preview(Control window) => window.GetVisualDescendants().OfType<TextBox>().Single(item =>
         string.Equals(AutomationProperties.GetName(item), "Exact admitted untrusted text, never executed", StringComparison.Ordinal));
 
     private sealed class Picker(string root) : IUserFolderPicker
@@ -205,7 +217,7 @@ public sealed class KnowledgeSourcesWindowTests
             finally { Directory.Delete(originalDirectory, recursive: true); }
         });
 
-    private static Task Press(Window window, string caption) =>
+    private static Task Press(Control window, string caption) =>
         ((AsyncCommand)window.GetVisualDescendants().OfType<Button>()
             .Single(button => string.Equals(button.Content?.ToString(), caption, StringComparison.Ordinal)).Command!).ExecuteAsync();
 

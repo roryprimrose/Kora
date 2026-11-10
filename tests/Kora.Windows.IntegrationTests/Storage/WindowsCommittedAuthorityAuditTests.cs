@@ -166,7 +166,7 @@ public sealed class WindowsCommittedAuthorityAuditTests
     }
 
     [WindowsFact]
-    public async Task Reader_requires_exact_live_original_local_ui_context_and_unknown_session_refuses()
+    public async Task Reader_requires_exact_live_original_user_context_and_unknown_session_refuses()
     {
         using var fixture = new InteractionStorageFixture();
         await fixture.InitializeAsync();
@@ -182,6 +182,11 @@ public sealed class WindowsCommittedAuthorityAuditTests
             await unknownSession.Should().ThrowAsync<InvalidDataException>();
         }
         using (var host = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice), HostActivityLayer.Desktop, HostOperation.Evidence))
+        {
+            var batch = await source.ReadAsync(target, null, host.Request, fixture.Time.Now, fixture.Token);
+            batch.Snapshot.AuthorityCeiling.Should().NotBeNull();
+        }
+        using (var host = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem), HostActivityLayer.Desktop, HostOperation.Evidence))
         {
             var wrongOrigin = () => source.ReadAsync(target, null, host.Request, fixture.Time.Now, fixture.Token).AsTask();
             await wrongOrigin.Should().ThrowAsync<InvalidOperationException>();

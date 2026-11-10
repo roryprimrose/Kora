@@ -20,6 +20,9 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
     private readonly Action? chooseMicrophone;
     private readonly SpeechCaptionWindowController? captionDisplay;
     private SettingsWindow? window;
+    private SettingsView? view;
+    private Func<Window>? getWorkbench;
+    private Action<SettingsView>? presentWorkbench;
     private bool disposed;
     private int nativeVisible;
     private long nativeVisibilityRevision;
@@ -28,6 +31,12 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
 
     internal void BindSettingInspection(SettingInspectionWorkflow workflow, TimeProvider time)
     { settingInspection = workflow; inspectionTime = time; }
+
+    internal void BindWorkbench(Func<Window> owner, Action<SettingsView> present)
+    {
+        getWorkbench = owner;
+        presentWorkbench = present;
+    }
 
     internal Action? EditOwnedInstructions { get; set; }
     internal Action? InspectSkillPackages { get; set; }
@@ -50,6 +59,7 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         viewModel.VoiceRecoveryRequested += OnVoiceRecoveryRequested;
         viewModel.BindSettingsSectionNavigation(this);
         viewModel.KnowledgeSourceAnswerRequested += OnKnowledgeSourceAnswer;
+        viewModel.KnowledgeSourceCaptureLimitsRequested += OnKnowledgeSourceCaptureLimits;
     }
 
     public void Dispose()
@@ -62,11 +72,20 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         disposed = true;
         viewModel.BindSettingsSectionNavigation(null);
         viewModel.KnowledgeSourceAnswerRequested -= OnKnowledgeSourceAnswer;
+        viewModel.KnowledgeSourceCaptureLimitsRequested -= OnKnowledgeSourceCaptureLimits;
         BindNativeLifetime(false);
         DesktopLog.Debug(logger, "Disposing the settings window controller");
         viewModel.SettingsRequested -= OnSettingsRequested;
         viewModel.ReadinessRequested -= OnReadinessRequested;
         viewModel.VoiceRecoveryRequested -= OnVoiceRecoveryRequested;
+        if (view is not null)
+        {
+            view.PresentationChanged -= OnViewPresentationChanged;
+            view.Closed -= OnViewClosed;
+            if (view.Owner is ResponseWindow workbench) { workbench.RemoveHostedView(view); }
+            view.Dispose();
+            view = null;
+        }
         if (window is not null)
         {
             window.PropertyChanged -= OnWindowPropertyChanged;
@@ -89,6 +108,9 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
     private Task OnKnowledgeSourceAnswer(Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand command,
         Func<bool> eligible) => OpenWindow(eligible).OpenKnowledgeSourceAnswerAsync(command, eligible);
 
+    private Task OnKnowledgeSourceCaptureLimits(Kora.Application.Configuration.KnowledgeSourceCaptureLimitsCommand command,
+        Func<bool> eligible) => OpenWindow(eligible).OpenKnowledgeSourceCaptureLimitsAsync(command, eligible);
+
     public Func<bool> CaptureLifetime()
     {
         var revision = Volatile.Read(ref nativeVisibilityRevision);
@@ -102,35 +124,62 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         var target = OpenWindow(admitted);
         if (!admitted())
         {
-            target.Hide();
+            HideSettings(target);
             throw new InvalidOperationException("Settings navigation was revoked before tab selection.");
         }
+
         target.ShowSection(section);
         if (!admitted())
         {
-            target.Hide();
+            HideSettings(target);
             throw new InvalidOperationException("Settings navigation was revoked during tab selection.");
         }
     }
 
-    private SettingsWindow OpenWindow(Func<bool> admitted)
+    internal void ShowPresence(Func<bool> admitted)
+    {
+        var target = OpenWindow(admitted);
+        target.ShowPresence(admitted);
+    }
+
+    private SettingsView OpenWindow(Func<bool> admitted)
     {
         if (disposed || !viewModel.CanRevealPrivatePresentation || !admitted())
         { throw new InvalidOperationException("The native Settings host is unavailable."); }
         DesktopLog.Information(logger, "Settings window was requested");
-        var target = window ??= CreateWindow();
-        if (!admitted()) { throw new InvalidOperationException("Settings navigation was revoked before showing."); }
-        if (!target.IsVisible)
+        if (view is null)
         {
-            target.Show();
-            BindNativeLifetime(target.IsVisible);
+            if (getWorkbench is not null)
+            {
+                view = new SettingsView(viewModel, getWorkbench(), chooseMicrophone, captionDisplay);
+                ConfigureView(view);
+            }
+            else
+            {
+                window = CreateWindow();
+                view = window.View;
+                ConfigureView(view);
+            }
         }
-        if (disposed || !ReferenceEquals(window, target) || !target.IsVisible || !admitted())
+        var target = view;
+        if (!admitted()) { throw new InvalidOperationException("Settings navigation was revoked before showing."); }
+        if (presentWorkbench is not null)
         {
-            target.Hide();
+            presentWorkbench(target);
+        }
+        else
+        {
+            var native = window ?? throw new InvalidOperationException("The legacy Settings adapter is unavailable.");
+            if (!native.IsVisible) { native.Show(); }
+            native.Activate();
+            native.UpdateLayout();
+        }
+        if (disposed || !ReferenceEquals(view, target) || !target.IsNativePresented || !admitted())
+        {
+            HideSettings(target);
             throw new InvalidOperationException("The native Settings view is not visible or admission was revoked.");
         }
-        target.Activate();
+        BindNativeLifetime(target.IsNativePresented);
         return target;
     }
 
@@ -149,16 +198,41 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
     private SettingsWindow CreateWindow()
     {
         var settingsWindow = new SettingsWindow(viewModel, chooseMicrophone, captionDisplay);
-        settingsWindow.BindNavigation(EditOwnedInstructions, InspectSkillPackages, InspectExactGrants,
-            ReviewLocalVersion, ReturnToVersionQuestion);
-        if (settingInspection is { } inspection)
-        {
-            settingsWindow.FindControl<SettingInspectionControl>("SettingInspection")!.Bind(
-                viewModel, inspection, inspectionTime, settingsWindow, CaptureLifetime);
-        }
         settingsWindow.PropertyChanged += OnWindowPropertyChanged;
         settingsWindow.Closed += OnWindowClosed;
         return settingsWindow;
+    }
+
+    private static void HideSettings(SettingsView target)
+    {
+        target.IsVisible = false;
+        if (!target.Owner.IsVisible) { return; }
+        if (target.Owner is ResponseWindow workbench) { workbench.HideResponse(); }
+        else { target.Owner.Hide(); }
+    }
+
+    private void ConfigureView(SettingsView settingsView)
+    {
+        settingsView.BindNavigation(EditOwnedInstructions, InspectSkillPackages, InspectExactGrants,
+            ReviewLocalVersion, ReturnToVersionQuestion);
+        if (settingInspection is { } inspection)
+        {
+            settingsView.FindControl<SettingInspectionControl>("SettingInspection")!.Bind(
+                viewModel, inspection, inspectionTime, settingsView.Owner, CaptureLifetime);
+        }
+        settingsView.PresentationChanged += OnViewPresentationChanged;
+        settingsView.Closed += OnViewClosed;
+    }
+
+    private void OnViewPresentationChanged(object? sender, EventArgs args) =>
+        BindNativeLifetime(view?.IsNativePresented == true);
+    private void OnViewClosed(object? sender, EventArgs args)
+    {
+        if (!ReferenceEquals(view, sender)) { return; }
+        view!.PresentationChanged -= OnViewPresentationChanged;
+        view.Closed -= OnViewClosed;
+        view = null;
+        BindNativeLifetime(false);
     }
 
     private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs eventArgs)
@@ -199,6 +273,8 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         viewModel.BindConversationalReplyNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindDetailPresentationNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindMarkdownDisplayNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindSpeechComponentNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);

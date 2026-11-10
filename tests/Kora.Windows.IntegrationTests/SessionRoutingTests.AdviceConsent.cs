@@ -38,7 +38,7 @@ public sealed partial class SessionRoutingTests
             ClickAdvice(advice, "RoutingAdviceAllow");
             var route = await AwaitOpening(operation, routeOpening.Task);
             f.Adapter.Calls.Should().Be(1);
-            advice.Content.Should().BeNull();
+            advice.View.Content.Should().BeNull();
             await Choose(route);
             f.Adapter.Calls.Should().Be(1, "destination acknowledgment is not task submission or chained advice consent");
             Click(route, "RoutingSubmit");
@@ -114,7 +114,7 @@ public sealed partial class SessionRoutingTests
             try { (await operation).Should().BeNull(); }
             catch (OperationCanceledException) when (change is not "cancel") { }
             f.Adapter.Calls.Should().Be(0);
-            window.Content.Should().BeNull();
+            window.View.Content.Should().BeNull();
             (await f.Ui.Native.Interactions.ReadConversationPageAsync(f.Ui.First.Authority.SessionId, null, 50, f.Ui.Native.Token))
                 .Messages.Should().BeEmpty();
         });

@@ -30,7 +30,7 @@ are available.
 
 ## Separately export one evidence page
 
-In **Evidence**, explicitly search a permitted bounded page and choose **Review
+In the workbench **Evidence** view, explicitly search a permitted bounded page and choose **Review
 page export**. Choose a **new** local fixed-drive `.json` destination outside
 Kora/protected storage. The separate native review shows every UTF-8 JSON byte,
 record/source/gap provenance, the exact destination and independent retention.
@@ -46,7 +46,7 @@ uncertain file may exist: inspect the destination before any fresh review;
 there is no automatic retry or rollback claim. No file is opened or copied
 to the clipboard. This operation does not call a model or grant authority.
 
-Filters, paging, privacy closure and window closure cancel and clear the
+Filters, paging, privacy closure, leaving the Evidence view and window closure cancel and clear the
 review. Voluntary shutdown joins physical writes and destination disposal,
 including work that ignores cancellation. Exported copies leave Kora retention:
 deleting evidence or conversations does not delete files, backups or synced

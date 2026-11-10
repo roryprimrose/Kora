@@ -79,9 +79,9 @@ internal sealed partial class SessionsViewModel
     public bool CanNextConversation => CanReadConversation && ConversationReadingAvailable && conversationPage?.Next is not null;
     public bool CanOpenConversationDetails => CanReadConversation && openConversationDetail is not null;
     internal bool CanPresentDetails => !closed && access.CanInspect;
-    public bool CanShowDetails => CanRead && selected is not null
-        && (CanOpenConversationDetails && ObservedConversationMessages.Any() || CanOpenHistoryDetail || HasEvidenceDetails);
-    public string DetailsAvailability => CanShowDetails ? "Open an exact result from this session's observed messages or selected activity."
+    public bool CanShowDetails => CanPresentDetails && (hasDocumentTabs || CanRead && selected is not null
+        && (CanOpenConversationDetails && ObservedConversationMessages.Any() || CanOpenHistoryDetail || HasEvidenceDetails));
+    public string DetailsAvailability => CanShowDetails ? "Select an exact document tab or open a result from this session's observed messages or selected activity."
         : "No available details on the selected session's observed page. Select a session and explicitly read conversation or activity.";
     public ConversationMessage? DetailsOfferMessage => ConversationReadingAvailable
         && completedDetailPublication is { Dismissed: false, Message: { AssistantResponse: { } response } message } publication
@@ -95,7 +95,8 @@ internal sealed partial class SessionsViewModel
         NotifyConversation();
     }
     public Task OpenConversationDetailAsync(ConversationMessage message, bool assistant = false, Guid? observationId = null,
-        Func<bool>? detailAdmission = null, bool submittedContext = false) => RunConversationAsync(async (target, live) =>
+        Func<bool>? detailAdmission = null, bool submittedContext = false,
+        Kora.Core.Presentation.DetailContentReference? expectedReference = null) => RunConversationAsync(async (target, live) =>
     {
         var offered = ReferenceEquals(message, DetailsOfferMessage);
         if (!offered && !ObservedConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
@@ -109,6 +110,8 @@ internal sealed partial class SessionsViewModel
         if (searchMatch) { conversationSearchDetailTarget = target; }
         var content = await conversation!.ReadDetailAsync(target, message, DetailLive, lifetime.Token,
             assistant, observationId, submittedContext);
+        if (expectedReference is { } reference && content.Reference != reference)
+        { throw new InvalidDataException("The exact document tab revision is unavailable; no replacement was opened."); }
         if (!DetailLive()) { throw new OperationCanceledException("The original conversation selection or search changed."); }
         var beginValidation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Storage);
         async Task<Kora.Core.Presentation.AdmittedDetailContent> Resolve(CancellationToken token)
@@ -163,15 +166,17 @@ internal sealed partial class SessionsViewModel
         NotifyConversation();
     }
 
-    public Task ReadConversationAsync(bool next = false) => RunConversationAsync(async (target, live) =>
+    public Task ReadConversationAsync(bool next = false, RequestOrigin origin = RequestOrigin.LocalUi,
+        Func<bool>? admitted = null) => RunConversationAsync(async (target, live) =>
     {
+        if (admitted?.Invoke() == false) { throw new OperationCanceledException("The original conversation read input was retired."); }
         if (next && !ConversationReadingAvailable)
         { throw new InvalidOperationException("The original private conversation page is retired. Read again explicitly."); }
         var observedCompletion = completedConversationMessage;
         var page = await conversation!.ReadPageAsync(target.Authority.SessionId,
             next ? conversationPage?.Next ?? throw new InvalidOperationException("No conversation continuation; refresh the exact source.") : null,
             25, lifetime.Token);
-        if (!live() || page.Session != target.Authority)
+        if (!live() || admitted?.Invoke() == false || page.Session != target.Authority)
         { throw new OperationCanceledException("Conversation source or exact selected generation changed."); }
         conversationPage = page;
         conversationReadingControl = access.ControlRevision;
@@ -186,7 +191,7 @@ internal sealed partial class SessionsViewModel
             + " exact immutable user messages with any separately retained ASSISTANT answer. HOST status is not assistant prose. "
             + (page.Next is null ? "End of this sequence snapshot." : "More bounded records available.")
             + (conversationHeld ? " Submission uncertainty remains held; inspect task receipts/restart recovery, never retry automatically." : string.Empty);
-    }, sourceRead: true);
+    }, sourceRead: true, origin: origin);
 
     public Task SubmitConversationAsync() => assistantReply ? ReviewAssistantReplyAsync() : SubmitOrdinaryConversationAsync(localAnswer: false);
     public Task SubmitLocalAnswerAsync() => assistantReply
@@ -320,6 +325,12 @@ internal sealed partial class SessionsViewModel
             {
                 conversationStatus = "Legacy recovery unavailable: " + exception.Message
                     + " Unsent input and conversation history unchanged. Nothing saved, removed or submitted; a fresh explicit recovery reads the source again.";
+            }
+            else if (sourceRead && exception is Kora.Application.Configuration.MarkdownDisplayConfigurationService.CaptureUnavailableException
+                && Live())
+            {
+                conversationStatus = exception.Message
+                    + " Existing admitted readers, retained page and unsent input are unchanged. No new reader was published; no automatic retry.";
             }
             else if (sourceRead && exception is ConversationSnapshotChangedException && Live())
             {

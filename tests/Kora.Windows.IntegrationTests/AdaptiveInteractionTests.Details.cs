@@ -123,7 +123,7 @@ public sealed partial class AdaptiveInteractionTests
             await f.Model.OpenConversationDetailAsync(messages[0]);
             f.Window.IsExpanded.Should().BeTrue();
             view.DetailsVisible.Should().BeTrue();
-            f.Window.MinWidth.Should().Be(1040);
+            f.Window.MinWidth.Should().Be(320, "narrow workbench layouts switch between chat and Details");
             f.Window.UpdateLayout();
             var firstReader = view.GetVisualDescendants().OfType<DetailContentView>().Single();
             firstReader.FindControl<TextBox>("ContentReader")!.Text.Should().Be(messages[0].Body);
@@ -302,7 +302,7 @@ public sealed partial class AdaptiveInteractionTests
             await f.Run("select the first session");
             using var voice = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
                 HostActivityLayer.Desktop, HostOperation.Request);
-            await f.Sessions.ShowDetailsAsync(WorkspaceSurfaceTarget.SessionAudit, () => true);
+            await f.Sessions.ShowDetailsAsync(WorkspaceSurfaceTarget.SessionLogs, () => true);
             f.Native.Main.ResponseBody.Should().Contain("requires an original local UI request");
             f.Model.EvidenceDetails.Should().BeEmpty();
             f.Window!.SessionView.DetailsVisible.Should().BeFalse();

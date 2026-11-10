@@ -9,29 +9,27 @@ public sealed partial class ResponseWindow
     private Size compactSize = new(560, 690);
     private Size expandedSize = new(1120, 820);
     private long sessionPresentationEpoch;
-    private bool sessionWindowClosed;
+    private volatile bool sessionWindowClosed;
     internal bool IsExpanded { get; private set; }
-    internal bool IsSessionListPresented => IsVisible && SessionWorkspace.IsVisible;
+    internal bool IsSessionWorkspacePresented => IsVisible && WindowState != WindowState.Minimized && SessionWorkspace.IsVisible;
+    internal bool IsSessionListPresented => IsSessionWorkspacePresented && SessionWorkspace.IsSessionSidebarPresented;
     internal SessionInteractionView SessionView => SessionWorkspace;
     internal bool PrepareDetailsLayout()
     {
-        const double minimumWidth = 1040;
-        var area = getWorkingArea();
-        if (area is not null && area.Value.Width / RenderScaling < minimumWidth)
-        {
-            viewModel.ReportHostInteractionFailure("Details unavailable: the current display work area cannot fit the minimum 1040-wide side-by-side conversation and Details layout.");
-            return false;
-        }
-        MinWidth = minimumWidth;
-        Width = Math.Max(Width, minimumWidth);
-        KeepOnScreen();
-        return true;
+        SessionWorkspace.UpdateResponsiveLayout();
+        return IsExpanded && IsSessionWorkspacePresented;
     }
     internal Func<bool> CaptureSessionListPresentation()
     {
         var epoch = sessionPresentationEpoch;
         var presented = IsSessionListPresented;
         return () => presented && IsSessionListPresented && epoch == sessionPresentationEpoch;
+    }
+    internal Func<bool> CaptureSessionWorkspacePresentation()
+    {
+        var epoch = Interlocked.Read(ref sessionPresentationEpoch);
+        var presented = IsSessionWorkspacePresented;
+        return () => presented && epoch == Interlocked.Read(ref sessionPresentationEpoch);
     }
 
     internal void AttachSessions(SessionsViewModel model, SessionsPresentationOwner owner,
@@ -41,10 +39,11 @@ public sealed partial class ResponseWindow
         SessionDictation.DataContext = model;
         SessionWorkspace.ManagementRequested += (_, _) => management();
         SessionWorkspace.NewConversationRequested += (_, _) => newConversation();
+        SessionWorkspace.PresentationChanged += (_, _) => sessionPresentationEpoch++;
         owner.Attach(this);
     }
 
-    internal void ShowSessions(bool expanded, bool activate = true)
+    internal void ShowSessions(bool expanded, bool activate = true, bool preservePresentation = false)
     {
         if (sessionWindowClosed || !viewModel.CanRevealPrivatePresentation) { return; }
         if (!IsVisible)
@@ -62,20 +61,23 @@ public sealed partial class ResponseWindow
             HideResponse();
             return;
         }
-        SetExpanded(expanded);
+        RestoreMinimizedState();
+        SetExpanded(expanded, preservePresentation);
         if (activate) { Activate(); }
     }
 
-    private void SetExpanded(bool expanded)
+    private void SetExpanded(bool expanded, bool preservePresentation = false)
     {
+        var wasExpanded = IsExpanded;
         var area = getWorkingArea();
         if (expanded && area is { } available
-            && (available.Width / RenderScaling < 820 || available.Height / RenderScaling < 560))
+            && (available.Width / RenderScaling < 320 || available.Height / RenderScaling < 300))
         {
-            CompactLayoutStatus.Text = "Sessions unavailable: the current display work area cannot fit the minimum 820 by 560 conversation layout. The current response and controls remain available here.";
+            CompactLayoutStatus.Text = "Workbench unavailable: the display cannot fit the minimum 320 by 300 layout. Current response controls remain available.";
             return;
         }
         CompactLayoutStatus.Text = string.Empty;
+        if (!preservePresentation) { ClearHostedView(); }
         ResponseViewport.HorizontalScrollBarVisibility = expanded
             ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
         ResponseViewport.VerticalScrollBarVisibility = expanded
@@ -84,27 +86,53 @@ public sealed partial class ResponseWindow
         ResponseLayout.MinHeight = expanded ? 0 : 570;
         if (IsExpanded != expanded)
         {
-            if (IsExpanded) { expandedSize = new(Width, Height); }
-            else { compactSize = new(Width, Height); }
-            IsExpanded = expanded;
-            CanResize = expanded;
-            MinWidth = expanded ? 820 : 480;
-            MinHeight = expanded ? 560 : 570;
-            var size = expanded ? expandedSize : compactSize;
-            Width = size.Width;
-            Height = size.Height;
-            KeepOnScreen();
+            placementRevision++;
+            CaptureModePlacement();
+            if (WindowState == WindowState.Normal)
+            {
+                if (IsExpanded) { expandedSize = new(Width, Height); }
+                else { compactSize = new(Width, Height); }
+            }
+            applyingPlacement = true;
+            try
+            {
+                WindowState = WindowState.Normal;
+                IsExpanded = expanded;
+                CanResize = expanded;
+                MinWidth = expanded ? 320 : 480;
+                MinHeight = expanded ? 300 : 570;
+                var size = expanded ? expandedSize : compactSize;
+                var bounds = expanded ? expandedBounds : compactBounds;
+                Width = placementLoaded && bounds is not null ? bounds.Width : size.Width;
+                Height = placementLoaded && bounds is not null ? bounds.Height : size.Height;
+                if (placementLoaded && bounds is not null) { Position = new(bounds.X, bounds.Y); }
+                KeepOnScreen();
+                if (placementLoaded && expanded && expandedRestoreState == WindowState.Maximized)
+                { WindowState = WindowState.Maximized; }
+            }
+            finally { applyingPlacement = false; }
+            CaptureNormalBounds();
         }
+        ConfigureChrome(expanded);
         ResponseLayout.Width = expanded ? double.NaN : Math.Max(480, Width);
-        if (SessionWorkspace.IsVisible != expanded) { sessionPresentationEpoch++; }
+        var conversation = expanded || SessionWorkspace.DataContext is SessionsViewModel { SelectedSessionRecord: not null };
+        if (wasExpanded != expanded || SessionWorkspace.IsVisible != conversation) { sessionPresentationEpoch++; }
         if (!expanded) { SessionWorkspace.HideDetails(); }
-        SessionWorkspace.IsVisible = expanded;
-        SessionDictation.IsVisible = expanded;
-        CurrentInteractionContent.IsVisible = !expanded;
+        SessionWorkspace.SetCompactPresentation(!expanded);
+        SessionWorkspace.Height = expanded ? double.NaN : Math.Max(420, Height - 160);
+        if (!preservePresentation)
+        {
+            SessionWorkspace.IsVisible = conversation;
+            SessionDictation.IsVisible = conversation;
+            CurrentInteractionContent.IsVisible = !conversation;
+        }
         CollapseSessions.IsVisible = expanded;
-        ShowCurrentInteraction.IsVisible = expanded;
-        HideInteraction.IsVisible = expanded;
+        ShowCurrentInteraction.IsVisible = conversation;
+        HideInteraction.IsVisible = conversation;
         ExpandSessions.IsVisible = !expanded;
+        SessionWorkspace.UpdateResponsiveLayout();
+        UpdateNativeReviewLayout();
+        FlushPlacement();
         RestartResponseTimeout();
     }
 
@@ -141,7 +169,11 @@ public sealed partial class ResponseWindow
     private void OnExpandSessionsClicked(object? sender, RoutedEventArgs args) => viewModel.ShowSessions();
     private void OnCollapseSessionsClicked(object? sender, RoutedEventArgs args) => SetExpanded(false);
     private void OnCurrentInteractionClicked(object? sender, RoutedEventArgs args)
+        => PresentCurrentInteraction();
+
+    private void PresentCurrentInteraction()
     {
+        ClearHostedView();
         sessionPresentationEpoch++;
         SessionWorkspace.IsVisible = false;
         SessionDictation.IsVisible = false;
@@ -153,7 +185,7 @@ public sealed partial class ResponseWindow
 
     private void OnSessionPresentationChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
     {
-        if (args.Property == IsVisibleProperty)
+        if (args.Property == IsVisibleProperty || args.Property == WindowStateProperty)
         {
             sessionPresentationEpoch++;
             if (!IsVisible) { SessionWorkspace.HideDetails(); }

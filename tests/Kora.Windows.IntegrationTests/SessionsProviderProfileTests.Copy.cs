@@ -100,7 +100,7 @@ public sealed partial class SessionsProviderProfileTests
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(Path.Combine(root.FullName, ".github", "copilot-instructions.md"))) { root = root.Parent; }
-        var controls = XDocument.Load(Path.Combine(root!.FullName, "src", "Kora", "SessionsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root!.FullName, "src", "Kora", "SessionsManagementView.axaml")).Descendants().ToArray();
         var picker = controls.Single(control => control.Attribute("SelectedItem")?.Value is "{Binding ProviderCopySource, Mode=TwoWay}");
         picker.Attribute("ItemsSource")!.Value.Should().Be("{Binding ProviderCopySources}");
         picker.Attribute("AutomationProperties.Name")!.Value

@@ -26,4 +26,5 @@ public enum RegisteredSetting
     QuietHours,
     DetailPresentation,
     MaximumCapture,
+    OrdinaryTurnDeadline,
 }

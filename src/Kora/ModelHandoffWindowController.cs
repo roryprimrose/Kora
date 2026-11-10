@@ -16,7 +16,13 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
     private readonly ModelHandoffPresentation source;
     private readonly ILogger<ModelHandoffWindowController> logger;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(1) };
-    private ModelHandoffWindow? window;
+    private ModelHandoffView? window;
+    private PrivateReviewView? presentation;
+    private Func<Window>? getWorkbench;
+    internal ModelHandoffView? View => window;
+    internal Task Operation { get; private set; } = Task.CompletedTask;
+    internal Task CloseOperation { get; private set; } = Task.CompletedTask;
+    internal void BindWorkbench(Func<Window> owner) => getWorkbench = owner;
     private ModelHandoffReviewSession? review;
     private ModelHandoffOffer? displayedOffer;
     private Func<bool> eligible = static () => false;
@@ -41,13 +47,20 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
     private void OnRequested(object? sender, EventArgs args)
     {
         if (disposed || !main.CanRevealPrivatePresentation) { return; }
-        if (window is not null) { window.Activate(); return; }
+        if (window is not null) { presentation?.Activate(); return; }
+        if (Volatile.Read(ref operations) != 0)
+        { main.ReportHostInteractionFailure("The previous handoff review still owns work. Wait for actual completion before a new review."); return; }
         var hostEligible = main.CaptureHandoffPresentationEligibility();
         lifetime = new();
-        window = new();
+        var owner = getWorkbench?.Invoke() ?? new ModelHandoffWindow();
+        window = owner is ModelHandoffWindow adapter ? adapter.View : new();
+        if (owner is ModelHandoffWindow) { owner.Content = null; }
         var opened = window;
-        eligible = () => ReferenceEquals(window, opened) && opened.IsVisible && hostEligible();
-        opened.Closed += OnClosed;
+        bool OriginalLive() => ReferenceEquals(window, opened) && hostEligible();
+        var panel = new PrivateReviewView(owner, opened, OriginalLive);
+        presentation = panel;
+        eligible = () => OriginalLive() && panel.IsPresented;
+        panel.Closed += OnClosed;
         Bind("Inspect", Inspect);
         Bind("Approve", () => Decide(ModelHandoffDecision.Approve));
         Bind("Decline", () => Decide(ModelHandoffDecision.Decline));
@@ -55,15 +68,20 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
         Bind("Remove", Remove);
         opened.FindControl<ComboBox>("Offers")!.SelectionChanged += (_, _) => UpdateButtons();
         SetStatus("Inspecting current host-issued offers. No handoff approval or hosted transmission is implied.");
-        opened.Show();
+        panel.Show("Exact local provider handoff review");
         timer.Start();
-        new AsyncCommand(() => Run(ReadPending), exception => ReportFailure(opened, exception)).Execute(null);
+        new AsyncCommand(() => Operation = Run(ReadPending), exception => ReportFailure(opened, exception)).Execute(null);
     }
 
     private void Bind(string name, Func<Task> action)
     {
         var opened = window!;
-        opened.FindControl<Button>(name)!.Command = new AsyncCommand(() => Run(action),
+        opened.FindControl<Button>(name)!.Command = new AsyncCommand(() =>
+        {
+            if (!ReferenceEquals(window, opened))
+            { throw new InvalidOperationException("The original handoff controls retired. No new offer was changed."); }
+            return Operation = Run(action);
+        },
             exception => ReportFailure(opened, exception));
     }
 
@@ -204,7 +222,7 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
         window.FindControl<StackPanel>("Evidence")!.Children.Clear();
     }
 
-    private void ReportFailure(ModelHandoffWindow opened, Exception exception)
+    private void ReportFailure(ModelHandoffView opened, Exception exception)
     {
         Failure(logger, exception.GetType().Name);
         if (ReferenceEquals(window, opened))
@@ -221,7 +239,7 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
         source.RevokeAll();
         review?.Revoke();
         ClearContent();
-        window?.Close();
+        presentation?.Dispose();
     }
 
     private void OnClosed(object? sender, EventArgs args)
@@ -233,8 +251,11 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
         lifetime = null;
         ClearContent();
         window = null;
+        presentation = null;
         busy = false;
         Interlocked.Increment(ref operations);
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        CloseOperation = completed.Task;
         // Dismissal follows the same workflow, then deterministically retires the volatile lifetime.
         new AsyncCommand(async () =>
         {
@@ -252,7 +273,7 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
                 {
                     if (cancellation is not null) { await cancellation.CancelAsync().ConfigureAwait(false); cancellation.Dispose(); }
                 }
-                finally { Interlocked.Decrement(ref operations); }
+                finally { Interlocked.Decrement(ref operations); completed.TrySetResult(); }
             }
         }, exception => Failure(logger, exception.GetType().Name)).Execute(null);
     }

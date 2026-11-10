@@ -1,0 +1,94 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Style Selector="Button:not(.settings-actions)">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,3" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Normal" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraForegroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Button.compact-action">
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Padding" Value="5" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.compact-action PathIcon">
+    <Setter Property="Width" Value="16" />
+    <Setter Property="Height" Value="16" />
+  </Style>
+  <Style Selector="Button.toolbar">
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Padding" Value="6,3" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.primary, Button.pending">
+    <Setter Property="Background" Value="{DynamicResource KoraPrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraAccentForegroundBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button:not(.caption):not(.settings-actions):pointerover /template/ ContentPresenter#PART_ContentPresenter, Button:not(.caption):not(.settings-actions):flyout-open /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KoraSurfaceAltBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraForegroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+  </Style>
+  <Style Selector="Button:not(.caption):not(.settings-actions):pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KoraBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraForegroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraMutedForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.primary:flyout-open /template/ ContentPresenter#PART_ContentPresenter, Button.pending:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KoraAccentBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraAccentForegroundBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.pending:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KoraPrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraAccentForegroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraAccentForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.compact-action:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.compact-action:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.compact-action:flyout-open /template/ ContentPresenter#PART_ContentPresenter, Button.toolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button:not(.caption):not(.settings-actions):focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraAccentBrush}" />
+  </Style>
+  <Style Selector="Button.primary:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Button.pending:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraAccentForegroundBrush}" />
+  </Style>
+  <Style Selector="Button:not(.caption):not(.settings-actions):disabled">
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+  <Style Selector="Button:not(.caption):not(.settings-actions):disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+  </Style>
+  <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.pending:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KoraPrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraAccentForegroundBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.compact-action:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.response-link">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraAccentBrush}" />
+    <Setter Property="Padding" Value="0,3" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+  </Style>
+  <Style Selector="Button.response-link:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.response-link:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource KoraAccentBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.response-link:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource KoraAccentBrush}" />
+  </Style>
+</Styles>

@@ -20,6 +20,7 @@
     KeyDown="OnCancelTaskKeyDown"
     WindowStartupLocation="Manual">
   <Window.Styles>
+    <StyleInclude Source="/Controls/ButtonStyles.axaml" />
     <Style Selector="Border#CurrentInteractionContent">
       <Setter Property="Margin" Value="12" />
       <Setter Property="Background" Value="{DynamicResource KoraPresencePanelBrush}" />
@@ -40,12 +41,6 @@
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="0" />
     </Style>
-    <Style Selector="Button.compact-action">
-      <Setter Property="Width" Value="32" />
-      <Setter Property="Height" Value="32" />
-      <Setter Property="Padding" Value="6" />
-      <Setter Property="Cursor" Value="Arrow" />
-    </Style>
     <Style Selector="TextBlock">
       <Setter Property="Cursor" Value="Arrow" />
       <Setter Property="Background" Value="Transparent" />
@@ -64,10 +59,10 @@
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="Background" Value="Transparent" />
     </Style>
-    <Style Selector="Button.caption:pointerover">
+    <Style Selector="Button.caption:pointerover /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource KoraSurfaceAltBrush}" />
     </Style>
-    <Style Selector="Button#CloseWorkbench:pointerover">
+    <Style Selector="Button#CloseWorkbench:pointerover /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="#C42B1C" />
       <Setter Property="Foreground" Value="White" />
     </Style>

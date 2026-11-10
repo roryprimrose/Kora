@@ -111,8 +111,8 @@ public sealed class CompactResponseWorkingAreaTests
                     { button.Content.Should().BeOfType<PathIcon>(); }
                     ToolTip.GetTip(button).Should().NotBeNull();
                     AutomationProperties.GetName(button).Should().NotBeNullOrWhiteSpace();
-                    button.Width.Should().Be(32);
-                    button.Height.Should().Be(32);
+                    button.Width.Should().Be(28);
+                    button.Height.Should().Be(28);
                 }
                 window.FindControl<TextBlock>("SubmittedActivityStatus")!.IsEffectivelyVisible.Should().BeFalse();
                 window.FindControl<Button>("CancelResponseTask")!.IsEffectivelyVisible.Should().BeFalse();

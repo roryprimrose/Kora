@@ -1,6 +1,7 @@
 ﻿using System.Runtime.ExceptionServices;
 
 using Avalonia;
+using Avalonia.Controls;
 
 using Kora.Application;
 using Kora.Application.Auditing;
@@ -24,6 +25,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Maintenance;
 using Kora.Core.Storage;
 using Kora.Core.Platform;
+using Kora.Core.Presentation;
 using Kora.Core.Skills;
 using Kora.Application.Skills;
 using Kora.Windows.Skills;
@@ -38,6 +40,8 @@ using Kora.Windows.Identity;
 using Kora.Windows.Maintenance;
 using Kora.Windows.Session;
 using Kora.Windows.Storage;
+using Kora.Windows.Presentation;
+using Kora.Controls;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -99,7 +103,14 @@ internal static class Program
                         var fileLogger = DailyFileLoggerFactory.Create(paths, fileHealth);
                         Log.Logger = fileLogger;
                         var services = new ServiceCollection();
-                        ConfigureServices(services, paths, fileLogger, fileHealth, ownershipBridge, coordinator);
+                        ConfigureServices(services, paths, fileLogger, fileHealth, ownershipBridge, coordinator,
+#if DEBUG
+                            () => new WindowsPowerShellSetupService(coordinator.DebugRecovery),
+                            () => new WindowsOllamaSetupService(coordinator.DebugRecovery));
+#else
+                            static () => new WindowsPowerShellSetupService(),
+                            static () => new WindowsOllamaSetupService());
+#endif
                         provider = services.BuildServiceProvider();
                         App.Services = provider;
                         App.IsManualStartup = ManualStartupPresentationController.IsManualLaunch(args);
@@ -254,6 +265,9 @@ internal static class Program
         using var shutdown = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Recovery);
         try
         {
+#pragma warning disable VSTHRD003 // Join the desktop owner's thread-pool preference reads after its synchronous privacy revocation.
+            await App.DetailPreferenceQuiescence.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
             await provider.DisposeAsync();
             shutdown.Complete(HostOperationOutcome.Completed);
         }
@@ -264,14 +278,20 @@ internal static class Program
         }
     }
 
-    private static void ConfigureServices(
+    internal static void ConfigureServices(
         IServiceCollection services,
-        ApplicationDataPaths paths,
+        IApplicationDataPaths paths,
         Serilog.Core.Logger fileLogger,
         FileEvidenceHealth fileHealth,
         DesktopInstanceOwnershipBridge ownershipBridge,
-        WindowsInstanceCoordinator coordinator)
+        IInstanceLifecycleController coordinator,
+        Func<WindowsPowerShellSetupService> createPowerShellSetup,
+        Func<ILocalModelSetup> createLocalModelSetup)
     {
+        ArgumentNullException.ThrowIfNull(createPowerShellSetup);
+        ArgumentNullException.ThrowIfNull(createLocalModelSetup);
+        var installerShutdown = coordinator as IWindowsInstallerShutdownHost
+            ?? throw new InvalidOperationException("The Windows installer lifecycle owner is unavailable.");
         var diagnosticPolicy = new DiagnosticRetentionPolicy();
         var auditPolicy = new AuditRetentionPolicy();
         var sessionPolicy = new SessionRetentionPolicy();
@@ -299,6 +319,7 @@ internal static class Program
         services.AddSingleton(ownershipBridge);
         services.AddSingleton<IInstanceHostCallbacks>(ownershipBridge);
         services.AddSingleton<IInstanceLifecycleController>(coordinator);
+        services.AddSingleton(installerShutdown);
         services.AddSingleton<BuiltInCommandCatalog>();
         services.AddSingleton<BuiltInCommandRouter>();
         services.AddSingleton<IArtifactDirectoryPreferences>(provider =>
@@ -417,6 +438,7 @@ internal static class Program
         services.AddSingleton<StartupPresentationConfigurationService>();
         services.AddSingleton<MaintenanceCommands>();
         services.AddSingleton<IApplicationMaintenance>(provider => provider.GetRequiredService<MaintenanceCommands>());
+        services.AddSingleton<IApplicationMaintenanceMcp>(provider => provider.GetRequiredService<MaintenanceCommands>());
         services.AddSingleton<IMaintenancePreferences>(provider =>
             new LocalMaintenancePreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<Kora.Tools.Application.ApplicationCheckForUpdates>();
@@ -428,6 +450,9 @@ internal static class Program
         services.AddSingleton<Kora.Core.Presentation.IDetailPresentationPreferences>(provider =>
             new LocalDetailPresentationPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<DetailPresentationConfigurationService>();
+        services.AddSingleton<Kora.Core.Presentation.IMarkdownDisplayPreferences>(provider =>
+            new LocalMarkdownDisplayPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<MarkdownDisplayConfigurationService>();
         services.AddSingleton<ProviderModeConfigurationService>();
         ProviderProfileComposition.Configure(services);
         services.AddSingleton<IModelProviderModePreferences>(provider =>
@@ -555,11 +580,7 @@ internal static class Program
         services.AddSingleton<ISecurityAuditLog, LoggerSecurityAuditLog>();
         services.AddSingleton<IDependencyProbe, StorageDependencyProbe>();
         services.AddSingleton<IDependencyProbe, SqliteDependencyProbe>();
-#if DEBUG
-        services.AddSingleton(_ => new WindowsPowerShellSetupService(coordinator.DebugRecovery));
-#else
-        services.AddSingleton<WindowsPowerShellSetupService>();
-#endif
+        services.AddSingleton(_ => createPowerShellSetup());
         services.AddSingleton<IPowerShellSetup>(provider =>
             provider.GetRequiredService<WindowsPowerShellSetupService>());
         services.AddSingleton<IDependencyProbe>(provider =>
@@ -607,7 +628,8 @@ internal static class Program
             provider.GetRequiredService<HostedTransmissionReviewService>(),
             conversationExecution: provider.GetRequiredService<ConversationExecutionConfigurationService>(),
             capabilities: provider.GetRequiredService<McpCapabilityPreferences>(),
-            builtInMcp: provider.GetRequiredService<Kora.Application.Mcp.KoraMcpServer>()));
+            builtInMcp: provider.GetRequiredService<Kora.Application.Mcp.KoraMcpServer>(),
+            maintenance: provider.GetRequiredService<IApplicationMaintenanceMcp>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
@@ -628,11 +650,7 @@ internal static class Program
         services.AddSingleton<ModelProviderHandoffWorkflow>();
         services.AddSingleton<VerifiedLocalHandoffOperation>();
         services.AddSingleton<ModelHandoffPresentation>();
-#if DEBUG
-        services.AddSingleton<ILocalModelSetup>(_ => new WindowsOllamaSetupService(coordinator.DebugRecovery));
-#else
-        services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
-#endif
+        services.AddSingleton<ILocalModelSetup>(_ => createLocalModelSetup());
         services.AddSingleton<DependencySetupWorkflow>();
         services.AddSingleton(SpeechComponentCatalogue.Production);
         services.AddSingleton<ISpeechComponentFiles, WindowsSpeechComponentFiles>();
@@ -642,6 +660,8 @@ internal static class Program
         services.AddSingleton<SpeechComponentSetupService>();
         services.AddSingleton<ILocalModelReasoner, UnavailableLocalModelReasoner>();
         services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
+        services.AddSingleton<IWorkbenchPlacementPreferences>(provider =>
+            new LocalWorkbenchPlacementPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<IPlaybackVolumePreferences>(provider =>
             new LocalPlaybackVolumePreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<PlaybackVolumeConfigurationService>();
@@ -764,6 +784,9 @@ internal static class Program
         services.AddSingleton<IApplicationProcessController, DesktopApplicationProcessController>();
         services.AddSingleton<ICurrentUserNameProvider, WindowsCurrentUserNameProvider>();
         services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
+        services.AddSingleton<Func<Window, IWindowsPresenceWindowInput>>(MainWindow.CreatePresenceInput);
+        services.AddSingleton<Func<IMotionPreferenceSource>>(static () => new WindowsMotionPreferenceSource());
+        services.AddSingleton<Func<nint, AvaloniaPresencePresenter.IBitmapTarget>>(AvaloniaPresencePresenter.CreateNativeTarget);
         services.AddSingleton<IApplicationInfo, AssemblyApplicationInfo>();
         services.AddSingleton<Kora.Core.Context.IPlainTextClipboardReader, Kora.Windows.Context.WindowsPlainTextClipboardReader>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardSnapshotBroker>();

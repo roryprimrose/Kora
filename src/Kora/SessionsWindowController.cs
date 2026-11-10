@@ -31,6 +31,10 @@ internal sealed partial class SessionsWindowController(
     ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
+    private SessionsManagementView? managementView;
+    private Avalonia.Controls.Window? managementOwner;
+    internal SessionsManagementView? ManagementView => managementView;
+    private Avalonia.Controls.Window? ManagementOwner => managementOwner ?? window;
     private CompactSessionWindow? compact;
     private ResponseWindow? interaction;
     private bool interactionListInitialized;
@@ -161,10 +165,13 @@ internal sealed partial class SessionsWindowController(
             main.ReportHostInteractionFailure("Details unavailable: select a session and explicitly read its conversation or activity first.");
             return;
         }
+
+        var request = HostActivity.Current?.Request;
         if (target is WorkspaceSurfaceTarget.SessionLogs or WorkspaceSurfaceTarget.SessionAudit
-            && HostActivity.Current?.Request.Origin != RequestOrigin.LocalUi)
+            && (request is null || !EvidenceReadAdmission.IsAllowed(request, target == WorkspaceSurfaceTarget.SessionAudit
+                ? EvidenceSource.AuthorityAudit : EvidenceSource.Log)))
         {
-            main.ReportHostInteractionFailure("Log/audit inspection requires an original local UI request. Voice cannot be relabelled as native evidence admission.");
+            main.ReportHostInteractionFailure("Diagnostic inspection requires an original local UI request; activated voice may inspect committed authority audit only. No input was relabelled.");
             return;
         }
         await ShowInteractionAsync(true, Current);
@@ -173,10 +180,28 @@ internal sealed partial class SessionsWindowController(
         else if (target is WorkspaceSurfaceTarget.SessionLogs or WorkspaceSurfaceTarget.SessionAudit)
         {
             await state!.ReadEvidenceDetailsAsync(target == WorkspaceSurfaceTarget.SessionLogs
-                ? Kora.Core.Diagnostics.EvidenceSource.Log : Kora.Core.Diagnostics.EvidenceSource.AuthorityAudit);
+                ? Kora.Core.Diagnostics.EvidenceSource.Log : Kora.Core.Diagnostics.EvidenceSource.AuthorityAudit,
+                request!.Origin);
         }
         else if (state!.CanShowDetails) { await interaction.SessionView.ShowAvailableDetailsAsync(state, acceptOffer: true); }
         else { main.ReportHostInteractionFailure(state.DetailsAvailability); }
+    }
+
+    internal async Task ReadSelectedConversationAsync(RequestOrigin origin, Func<bool> admitted)
+    {
+        var source = model;
+        var target = source?.SelectedSessionRecord;
+        var sourceAdmission = source?.CaptureNavigationEligibility();
+        bool Current() => !disposed && admitted() && source is not null && target is not null
+            && ReferenceEquals(model, source) && sourceAdmission!() && source.SelectedSessionRecord == target;
+        if (!Current())
+        {
+            main.ReportHostInteractionFailure("Conversation history unavailable: select an exact session first. No other session was read.");
+            return;
+        }
+        await ShowInteractionAsync(true, Current);
+        if (!Current() || interaction is null) { return; }
+        await source!.ReadConversationAsync(origin: origin, admitted: Current);
     }
 
     internal async Task OpenObservedResultAsync(string name, Func<bool> admitted)
@@ -269,7 +294,7 @@ internal sealed partial class SessionsWindowController(
         {
             instructionScopes = new(main.CaptureSessionInstructionScopeEligibility, () => main.CanRevealPrivatePresentation,
                 main.ReportHostInteractionFailure, scopeCommands, scopeBroker,
-                () => model, () => window ?? (Avalonia.Controls.Window?)compact);
+                () => model, () => ManagementOwner ?? (Avalonia.Controls.Window?)compact ?? interaction);
             main.BindSessionInstructionScopes(instructionScopes.ExecuteAsync, instructionScopes.RevokeAll);
         }
         main.SessionsRequested += OnOpen;
@@ -324,6 +349,36 @@ internal sealed partial class SessionsWindowController(
             return;
         }
 
+        if (CreateInteraction is not null)
+        {
+            EnsurePresentation();
+            if (DetailOwner() is not ResponseWindow primary)
+            { throw new InvalidOperationException("The owning workbench is unavailable for session management."); }
+            if (managementView is null)
+            {
+                var opened = new SessionsManagementView(model!, presentation!, primary);
+                managementView = opened;
+                managementOwner = primary;
+                opened.AllWorkRequested += (_, _) => OpenAllWork?.Invoke();
+                opened.NewRequestRequested += (_, _) => OpenNewRequest?.Invoke();
+                opened.CompactConversationRequested += (_, _) => OpenCompact();
+                opened.CloseRequested += (_, _) => main.ShowSessions();
+                opened.FindControl<Button>("RetainedAttachments")!.IsVisible = OpenRetainedAttachments is not null;
+                opened.RetainedAttachmentsRequested += (_, _) => HostRequestRunner.Run(RequestOrigin.LocalUi, () =>
+                {
+                    if (!ReferenceEquals(managementView, opened) || !opened.CapturePresentation()()
+                        || !access.CanInspect || !main.CanRevealPrivatePresentation || OpenRetainedAttachments is null)
+                    { main.ReportHostInteractionFailure("Retained attachments navigation is no longer admitted."); return; }
+                    OpenRetainedAttachments();
+                });
+                opened.PresentationChanged += OnManagementPresentationChanged;
+                primary.BindSessionManagement(opened);
+                primary.Closed += OnManagementOwnerClosed;
+            }
+            primary.ShowHostedView(WorkbenchActivity.SessionManagement, managementView);
+            return;
+        }
+
         if (window is null)
         {
             EnsurePresentation();
@@ -369,6 +424,31 @@ internal sealed partial class SessionsWindowController(
             opened.Show();
         }
         window.Activate();
+    }
+
+    private void OnManagementPresentationChanged(object? sender, EventArgs args)
+    {
+        Volatile.Write(ref dispositionOwnerOpen, managementView?.CapturePresentation()() == true ? 1 : 0);
+        Interlocked.Increment(ref dispositionOwnerEpoch);
+    }
+
+    private void OnManagementOwnerClosed(object? sender, EventArgs args) => CloseManagementView();
+
+    private void CloseManagementView()
+    {
+        if (managementView is not { } retired) { return; }
+        managementView = null;
+        retired.PresentationChanged -= OnManagementPresentationChanged;
+        if (managementOwner is { } owner) { owner.Closed -= OnManagementOwnerClosed; }
+        if (managementOwner is ResponseWindow primary)
+        {
+            primary.BindSessionManagement(null);
+            primary.RemoveHostedView(retired);
+        }
+        managementOwner = null;
+        retired.Dispose();
+        Volatile.Write(ref dispositionOwnerOpen, 0);
+        Interlocked.Increment(ref dispositionOwnerEpoch);
     }
 
     internal void OpenCompact() => OpenCompact(static () => true);
@@ -584,7 +664,7 @@ internal sealed partial class SessionsWindowController(
         if (disposed || !access.CanInspect || !access.CanControl || !main.CanRevealPrivatePresentation || !admitted())
         { throw new OperationCanceledException("Exact retention navigation is no longer admitted."); }
         Open();
-        if (window?.DataContext is not SessionsViewModel target)
+        if (model is not { } target)
         { throw new InvalidOperationException("The native Sessions window is unavailable."); }
         await target.OpenRetentionReviewAsync(review, admitted, token);
     }
@@ -597,11 +677,11 @@ internal sealed partial class SessionsWindowController(
             || command.Error is not null || !access.CanControl || !main.CanRevealPrivatePresentation || !admitted())
         { throw new OperationCanceledException("Private native disposition review is unavailable."); }
         Open();
-        var owner = window ?? throw new InvalidOperationException("The native Sessions window is unavailable.");
+        var owner = ManagementOwner ?? throw new InvalidOperationException("The native Sessions presentation is unavailable.");
         var state = model ?? throw new InvalidOperationException("The native Sessions presentation is unavailable.");
         var ownerEpoch = Volatile.Read(ref dispositionOwnerEpoch);
         // Storage callbacks consume native-event observations, never Avalonia properties off-thread.
-        bool NativeAdmission() => !disposed && ReferenceEquals(window, owner)
+        bool NativeAdmission() => !disposed && ReferenceEquals(ManagementOwner, owner)
             && Volatile.Read(ref dispositionOwnerOpen) == 1 && ownerEpoch == Volatile.Read(ref dispositionOwnerEpoch)
             && ReferenceEquals(model, state) && access.CanInspect && access.CanControl && main.CanRevealPrivatePresentation;
         return command.StopRunningWork
@@ -666,6 +746,7 @@ internal sealed partial class SessionsWindowController(
         SynchronizePermissionGrants?.Invoke();
         SynchronizePermissionGrants = null;
         OpenPermissionGrants = null;
+        CloseManagementView();
         window = null;
         compact = null;
         interaction = null;

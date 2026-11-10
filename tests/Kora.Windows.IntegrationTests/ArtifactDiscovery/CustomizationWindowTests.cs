@@ -524,6 +524,15 @@ public sealed partial class CustomizationWindowTests
             using var controller = new CustomizationWindowController(f.Main, management, authoring, catalogue, reload,
                 () => true, () => 1, NullLogger<CustomizationWindowController>.Instance);
             CustomizationWindow? editor = null;
+            using var settings = new SettingsWindowController(f.Main, NullLogger<SettingsWindowController>.Instance);
+            using var sessions = new SessionsWindowController(f.Main, f.Sessions, f.Evidence, f.Access,
+                NullLogger<SessionsViewModel>.Instance);
+            sessions.Bind();
+            using var allWork = new AllWorkWindowController(f.Main, f.Sessions, f.Access,
+                NullLogger<AllWorkViewModel>.Instance, sessions);
+            using var navigation = new WorkspaceSurfaceCommandController(f.Main, f.Access, allWork, sessions);
+            navigation.BindManagement(settings, controller);
+            navigation.Bind();
             var nextReview = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) =>
             {

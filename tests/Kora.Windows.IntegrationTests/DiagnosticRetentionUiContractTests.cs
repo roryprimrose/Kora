@@ -9,7 +9,7 @@ public sealed class DiagnosticRetentionUiContractTests
     public void Native_future_SQLite_only_draft_and_explicit_controls_use_the_shared_policy_and_current_surface_lifetime()
     {
         var root = SourceRoot();
-        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants().ToArray();
         var selector = controls.Single(control =>
             string.Equals(control.Attribute("Value")?.Value, "{Binding SelectedDiagnosticRetentionDays}", StringComparison.Ordinal));
         selector.Name.LocalName.Should().Be("SettingsNumberField");

@@ -13,7 +13,15 @@ public static class CapabilityInputSchema
         writer.WriteString("type", "object");
         writer.WriteBoolean("additionalProperties", false);
         writer.WriteStartObject("properties");
-        if (descriptor.Input == CapabilityInputShape.Page)
+        if (descriptor.Input == CapabilityInputShape.ReleaseVersion)
+        {
+            writer.WriteStartObject("version");
+            writer.WriteString("type", "string");
+            writer.WriteNumber("minLength", 5);
+            writer.WriteNumber("maxLength", 64);
+            writer.WriteEndObject();
+        }
+        else if (descriptor.Input == CapabilityInputShape.Page)
         {
             Integer(writer, "offset", 0, boundedOffset ? int.MaxValue : null);
             Integer(writer, "count", 1, descriptor.Limits.MaximumRecords);

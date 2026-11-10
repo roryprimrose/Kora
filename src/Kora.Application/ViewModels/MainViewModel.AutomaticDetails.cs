@@ -47,7 +47,7 @@ public sealed partial class MainViewModel
         return new(preference, epoch, host, lease, () => admission() && SourceCurrent(), SourceCurrent);
     }
 
-    private void PresentAutomaticResponse(AutomaticResponseCapture? capture)
+    private async Task PresentAutomaticResponseAsync(AutomaticResponseCapture? capture)
     {
         if (capture is null || Volatile.Read(ref ordinaryResponse) is not
             { ModelAnswer: { } answer } source || !capture.Current() || !AnswerPresentation.From(answer.Body).HasDetails
@@ -68,6 +68,17 @@ public sealed partial class MainViewModel
             return;
         }
         bool Current() => capture.SourceCurrent() && ReferenceEquals(source, Volatile.Read(ref ordinaryResponse));
-        _ = capture.Host.PublishAutomaticDetails(new(request, content, capture.Preference, capture.Epoch, capture.Lease, Current));
+        try
+        {
+            if (!await capture.Host.PublishAutomaticDetailsAsync(new(request, content, capture.Preference, capture.Epoch, capture.Lease, Current)))
+            { CurrentResponseActionLog.CurrentResponseActionFailed(logger, "automatic-publication-unavailable"); }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or InvalidDataException or IOException
+            or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
+        {
+            CurrentResponseActionLog.CurrentResponseActionFailed(logger, exception.GetType().Name);
+            if (Current())
+            { Transcript = "Automatic Markdown Details unavailable; the saved default was not applied. Inspect preference state and audit. The completed answer is unchanged."; }
+        }
     }
 }

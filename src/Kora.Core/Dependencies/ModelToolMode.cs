@@ -30,5 +30,8 @@ public enum ModelToolMode
     /// <summary>Explicit original local AI-service settings request; observations, refresh and inert proposals only.</summary>
     ProviderSettings,
 
+    /// <summary>Explicit local application maintenance, with native approval before exact installer startup.</summary>
+    ApplicationMaintenance,
+
     SessionMetadata,
 }

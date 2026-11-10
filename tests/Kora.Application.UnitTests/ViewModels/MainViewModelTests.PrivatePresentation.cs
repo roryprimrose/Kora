@@ -8,6 +8,26 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task ShowApplicationRestoresExplicitlyHiddenStateWithoutSubmittingInput()
+    {
+        var fixture = new Fixture();
+        fixture.ViewModel.CommandText = "Unsent input remains private";
+        await fixture.ViewModel.HideApplicationAsync();
+        fixture.ViewModel.State.Should().Be(Kora.Core.AssistantState.Hidden);
+        fixture.WindowActions.Clear();
+        var restores = 0;
+        fixture.ViewModel.ResponseRestoreRequested += (_, _) => restores++;
+
+        fixture.ViewModel.ShowApplication();
+
+        fixture.ViewModel.State.Should().Be(Kora.Core.AssistantState.Information);
+        fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
+        restores.Should().Be(1);
+        fixture.ViewModel.CommandText.Should().Be("Unsent input remains private");
+        fixture.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, "model.turn", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData("show")]
     [InlineData("settings")]

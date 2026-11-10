@@ -227,7 +227,7 @@ Tool use still requires a host-owned read-only mapping pinned to endpoint/accoun
 Kora owns persisted consideration choices: server inclusion is the master gate; Tools, Resources (including resource templates) and Prompts have default-enabled category defaults and individual exceptions.
 Category Enable all/Disable all resets exceptions and applies to newly discovered entries. Server exclusion preserves child choices. Capability mutations advance category revisions so disable/re-enable cannot revive old reviews ([policy](../src/Kora.Core/Mcp/McpCapabilitySelection.cs)).
 
-The [private manager](../src/Kora/McpCapabilityManagerWindow.cs) completes explicit discovery, server/category/item editing, full change review and separate confirmed audited Save/readback. Choices live in device-local preferences, never external MCP JSON.
+The [private manager](../src/Kora/McpCapabilityManagerEditorView.cs) completes explicit discovery, server/category/item editing, full change review and separate confirmed audited Save/readback. Choices live in device-local preferences, never external MCP JSON.
 Enabled preference, supported definition, fresh discovery, host policy, session selection and operation/disclosure approval are distinct states; unknown or corrupt control state is unavailable.
 
 The [canonical content workflow](../src/Kora.Application/Hosting/SessionConversationService.McpCapabilities.cs) completes resource selection/review/read/display, scalar resource-template parameter expansion/read, and prompt argument review/retrieval/preview.
@@ -298,6 +298,10 @@ its existing cancellation policy. The existing 30-second per-exchange deadline
 also covers serial waiters. Lifetime/account withdrawal cancels waiting
 exchanges before any new send, and disposal retains the handler and credential
 lease until cancellation-ignoring work actually terminates.
+
+[Windows connection establishment](../src/Kora.Windows/Mcp/WindowsMcpConnectionBroker.cs) has one fixed 30-second overall deadline spanning delegated account acquisition, account/egress qualification checks and public-DNS admission.
+Cancellation signals do not release startup ownership or an acquired credential lease until cancellation-ignoring startup work actually terminates; late success is rejected without publishing a connection.
+This deadline is separate from the independent 30-second per-exchange deadline and adds no automatic retry, reconnect or profile enablement.
 
 The separately reviewed [declarative MCP skill bridge](Skill_Storage.md#reviewed-exact-read-only-mcp-skill)
 reuses this route for one closed exact tool/source/schema dependency and the original user's independently selected account and arguments.

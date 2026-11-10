@@ -15,7 +15,7 @@ public sealed class SessionRetentionPlannerUiContractTests
             directory = directory.Parent;
         }
         var root = directory?.FullName ?? throw new InvalidOperationException("Source root unavailable.");
-        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants().ToArray();
         foreach (var proposal in new[] { "ProposedSessionArchiveDays", "ProposedSessionDeleteDays" })
         {
             var control = controls.Single(c =>

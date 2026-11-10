@@ -62,6 +62,9 @@ An ordinary untargeted local request, typed globally or activated with the curre
 assistant name, first opens **Review local destination advice**. The same operation applies
 with the main conversation collapsed or expanded.
 
+Advice and destination acknowledgment use supporting tabs in the same expanded workbench, not additional application windows ([advice view](../src/Kora/SessionRouting/SessionRoutingAdviceView.cs), [destination view](../src/Kora/SessionRouting/SessionRoutingView.cs)).
+Changing or hiding that review retires its consent/acknowledgment; returning cannot submit an old choice. Original typed/voice channel and unchanged input stay bound through separate acknowledgment and submission ([hosted operations and withdrawal](../tests/Kora.Windows.IntegrationTests/SessionRoutingTests.Workbench.cs)).
+
 Exact conversation composers and `session request review "<name>" -- <body>`
 keep their existing exact-session route. **Open new request** still opens the
 separate fresh-only composer. Built-in commands, foreground Customizations editor
@@ -71,7 +74,7 @@ A denied or ambiguous editor route is never retried as a general request.
 ## Choose, acknowledge, correct, submit
 
 - Review the complete unchanged request, original channel and bounded Active conversation names before any adviser receives them. **Allow this LOCAL advice once** permits only one tools-free local relatedness inference over that exact metadata snapshot. It does not authorize submission, sources, history or an answering provider ([advice admission](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingService.cs)).
-- **Choose destination without advice** skips inference and opens the existing destination review. Choose New or use **Correct destination** for an exact Active conversation. **Cancel request** or Escape sends nothing to an adviser and submits nothing. Changed input, privacy, metadata, session generation or the 60-second disclosure lifetime invalidates this decision ([native disclosure](../src/Kora/SessionRouting/SessionRoutingAdviceWindow.cs)).
+- **Choose destination without advice** skips inference and opens the existing destination review. Choose New or use **Correct destination** for an exact Active conversation. **Cancel request** or Escape sends nothing to an adviser and submits nothing. Changed input, privacy, metadata, session generation or the 60-second disclosure lifetime invalidates this decision ([native disclosure](../src/Kora/SessionRouting/SessionRoutingAdviceView.cs)).
 - After that separate decision, **Review request destination** shows any advice.
   An admitted, qualified local provider may propose one related Active conversation
   or several exact candidates. The choice always includes **New conversation (fresh session)**.
@@ -98,7 +101,39 @@ original request is routed. Other unsent input stays in its own memory buffer;
 grants, provider state, history, sources and permissions are not moved.
 
 The native confirmation may confirm an activated-voice request but cannot relabel
-it as a local-UI request. This feature does not add hands-free routing replies.
+it as a local-UI request.
+
+### Explicit voice replies in destination review
+
+In **Review request destination**, choose **Answer by voice** to open one bounded
+reply capture. Speak exactly a displayed destination number, **New**, or **Cancel**.
+Names, number-word aliases, assistant-name prefixes and other commands are not
+accepted. The host uses the exact displayed ordinal object, including when names
+are duplicated; it does not reconstruct a list or guess a destination.
+
+Capture must physically close before **Review this destination** acknowledges the
+exact name. Nothing has been submitted. To continue by voice, choose **Answer by
+voice** again and speak exactly **Submit original request**, **Correct destination**,
+or **Cancel**. No microphone opens automatically at acknowledgment.
+
+**Correct destination** retires that selection and confirmation, shows the existing
+fixed Active inventory, and requires another exact choice and name acknowledgment.
+The original review's 60-second expiry is never renewed. Native selection,
+correction, submission and cancellation remain available; changing a native choice
+retires and joins the current reply before acting.
+
+Submission executes the same one-use original-request operation, preserving its
+unchanged USER body and LocalUi/ActivatedVoice channel. Spoken choices are not new
+requests, global commands, provider input, source consent or tool approval. The
+independent local-advice disclosure still requires its own native decision.
+
+An unavailable or unqualified capture service explicitly leaves the microphone
+closed and offers native controls. Invalid replies terminate without fallback or
+submission. Original source, private presentation, ownership, name, profile,
+privacy, call and capture changes invalidate the operation rather than reviving
+it later. Cancellation, close, shutdown and disposal join any opening or delayed
+release before late recognition can act. Deterministic fakes establish implementation
+behavior, not runtime voice-profile enablement.
 
 ## Privacy and unavailable boundaries
 

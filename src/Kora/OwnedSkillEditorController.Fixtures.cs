@@ -18,7 +18,7 @@ internal sealed partial class OwnedSkillEditorController
         if (fixtureLifetime is not null) { window?.RetireReview(); }
     }
 
-    private async Task TestFixture(OwnedSkillEditorWindow opened, OwnedSkillAuthoringAuthority request, CancellationToken token)
+    private async Task TestFixture(OwnedSkillEditorView opened, OwnedSkillAuthoringAuthority request, CancellationToken token)
     {
         CancelFixture();
         if (fixtures is null || uncertain || fixtureAuthority is not { } input)

@@ -14,6 +14,25 @@ operation](#author-a-markdown-component-package), not one combined guidance fiel
 The [file format](#native-v1-format) is needed only if you inspect the saved
 files; the native editor prepares them for you.
 
+The owned-skill editor opens inside the expanded Kora workbench. Complete source reviews,
+publication confirmations, rename/deletion decisions and local model disclosures use its
+supporting review tabs, not additional Kora windows ([editor](../src/Kora/OwnedSkillEditorView.cs),
+[production binding](../src/Kora/App.OwnedSkillAuthoring.cs)).
+Hiding, minimizing or leaving the editor retains the volatile draft but expires its pending
+reviews; returning never saves or accepts them. **Close editor** offers Save, Discard or Cancel
+for an unsaved draft, and Cancel keeps the workbench open
+([hosted lifecycle regressions](../tests/Kora.Windows.IntegrationTests/OwnedSkillAuthoringNativeTests.Workbench.cs)).
+
+Saved owned-skill use opens in a supporting review tab as well, including the
+separate owned read-only MCP route ([use view](../src/Kora/OwnedSkillInvocationView.cs),
+[MCP presentation](../src/Kora/OwnedSkillInvocationController.Mcp.cs)).
+The authoring view stays in place; opening a supporting review is not leaving or
+closing that editor. Hiding or changing review tabs retires unconfirmed use,
+but does not stop an already confirmed admitted task. Late answers remain in their
+exact original conversation, not the restored old review. Explicit **Cancel and close use**
+still retires authority and joins actual resources
+([hosted use regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillWorkbench.cs)).
+
 ## Rename one complete owned native package
 
 Rename changes a saved package's canonical ID, not its readable name, version or unsaved draft. It supports the current native v1/v2/v3/v4 two-file formats only, never a primary-only `SKILL.md` move or a shared/profile/reference-package mutation
@@ -44,7 +63,7 @@ Rename does not run a model/tool, register or enable a definition, import execut
 
 ## Author and run an ordered host observation workflow
 
-Use the separate **Kora-owned observation workflow** window, typed commands below, or the same commands with the current assistant-name voice prefix.
+Use the **Kora-owned observation workflow** view in the expanded workbench, typed commands below, or the same commands with the current assistant-name voice prefix ([hosted editor](../src/Kora/ObservationWorkflowView.cs)).
 This native v4 package declares actual ordered actions, not executable guidance inferred from model text ([declaration](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs), [host owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
 
 1. `owned skill workflow create inspection 1.0.0` opens a volatile draft. Set `owned skill workflow name: Inspect host readiness` and `owned skill workflow description: Read the version and recorded local runtime`.
@@ -65,10 +84,10 @@ This native v4 package declares actual ordered actions, not executable guidance 
 7. Choose **Invoke** (`owned skill workflow invoke`). Each step opens **Approve exact observation step**, showing its exact action/input and original request/target. Approve only that step once, or Cancel. While that exact step review is pending, `owned skill workflow approve-step` or `owned skill workflow deny-step` accepts or declines it through the same gate.
 8. Inspect the complete source-labelled result and typed state. `owned skill workflow status` reports whether owned work has joined. **Cancel** or `owned skill workflow cancel` closes further dispatch and joins actual work, including cancellation-ignoring source reads. It never claims physical termination merely from a cancellation request.
 
-Package review, separate Save confirmation, each step approval and unsaved-draft discard are native modal decisions: input to the workflow window stays blocked until the exact review actually closes.
-Keyboard focus starts on the complete read-only review; Tab reaches the explicit decision buttons. **Cancel**, Escape or the review's native close declines that decision.
-Closing/hiding the original owner or cancelling its operation retires the review; a clicked approval cannot outlive that owner or bypass native closure.
-Focus returns to the original control only while the original presentation remains visible and eligible. Declining the first step launches no observation; declining a later step never approves remaining steps or publishes partial success.
+Package review, separate Save confirmation, each step approval and unsaved-draft discard use supporting review tabs in the same window. No action is approved by displaying its tab ([review owner](../src/Kora/ObservationWorkflowView.cs)).
+Keyboard focus starts on the complete read-only review; Tab reaches its explicit decision buttons. **Cancel**, Escape, hiding/minimizing the owner or switching away from the review retires that decision; a clicked approval cannot outlive its original presentation ([lifetime tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
+Leaving the editor retains the volatile draft, but retires pending validation/review/enablement. Already admitted work remains owned until it joins; an unseen next step cannot gain approval or publish a late result. Returning requires fresh review, not replay ([controller](../src/Kora/ObservationWorkflowController.cs)).
+Focus returns to the original control only while its presentation remains visible and eligible. Declining the first step launches no observation; declining a later step never approves remaining steps or publishes partial success ([execution owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
 
 The only admitted IDs are `capabilities.list`, `capabilities.get`, `application.get_version`, `readiness.get`, `runtime.list`, and `runtime.get_status`. Inputs and complete results use their existing [registry schemas](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs).
 Pages remain explicit; there is no automatic pagination or guessed continuation ([execution tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ObservationWorkflows.cs)).
@@ -80,10 +99,10 @@ Excess output fails the entire workflow; earlier observations are not presented 
 Source replacement/change/removal, dependency observation changes, held/changed session profiles, target changes, original channel loss, policy revocation, privacy/call/ownership loss, denial, expiry and cancellation close the next step and suppress a late complete result ([host tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ObservationWorkflows.cs)).
 Failed or cancelled runs require fresh explicit review; no retry or alternate destination occurs ([native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
 
-Results stay in this private native window. The selected conversation binds the reviewed operation; its history is neither read nor written ([native forbidden-effect tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
+Results stay in this private workbench view. The selected conversation binds the reviewed operation; its history is neither read nor written ([native and hosted forbidden-effect tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
 These actions read already-recorded host state, without setup probes, network, new tool registration, settings writes, arbitrary file access, scripts, references, branches, loops, models or hosted disclosure. Provider/tool-loop E/Q remains unavailable; native deterministic evidence does not enable it ([workflow owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
 
-`owned skill workflow editor` opens this separate owner. **Close** (`owned skill workflow close`) offers explicit discard for an unsaved volatile draft; cancel keeps it open.
+`owned skill workflow editor` opens this view in the same workbench. **Close** (`owned skill workflow close`) offers explicit discard for an unsaved volatile draft; cancel keeps it open. Nothing is autosaved ([editor lifecycle](../src/Kora/ObservationWorkflowController.cs)).
 Exit/restart/handoff likewise cannot silently discard it. Save first to retain the package. Cancellation retires the original owner: Close/discard and open a fresh workflow before another operation. No draft is autosaved ([controller](../src/Kora/ObservationWorkflowController.cs)).
 
 ## Delete one saved owned source
@@ -359,6 +378,44 @@ The complete model envelope must fit **32768 bytes**; output uses the existing m
 
 This is **SIMULATED structure/example behavior only**, not a real observation, proof of harmlessness, qualification, trust or permission. No actual tools, network, shell, files, MCP, grants, history, memory, attachments, hosted fallback or source expansion are authorized. Fixtures stay in memory, separate from the unchanged skill format. Both the draft and any reopened source must be native v1; native v5 declaration or complete reference packages are refused before source reads, review or inference, even if their primary text is inert. **Save**, **Enable**, **Use** and any independently admitted real trial retain their own reviews and normal permissions; passing a fixture does none of them.
 
+### Refine a reopened native v6 MCP skill's literal guidance
+
+This same **Refine** operation also supports one already owned, reopened native
+v6 read-only MCP skill. Select a **new immutable version** natively and keep the
+complete original manifest unchanged apart from that version. Server, tool,
+source revision and schema digest remain exactly native-selected. The model
+receives only the unchanged critique and complete literal guidance, with **tools
+none**; declared MCP capability is not authoring permission.
+
+An exact, still-held trusted runtime descriptor must already be available from
+an independently admitted MCP operation. Authoring never connects, discovers,
+refreshes, reads account-bound configuration or references, or invokes a tool
+to make this prerequisite available. Missing or withdrawn proof is explicitly
+unavailable; this build does not qualify an MCP provider or local model.
+
+The descriptor is ephemeral and retains the original runtime expiry. Every
+runtime validation attempt retires the previous observation before I/O; only
+successful complete validation of an already approved, unused selected tool
+can produce another observation. A captured authoring proposal cannot follow
+that replacement. Source/control observation attempts, policy replacement,
+account/transport withdrawal, cancellation, disposal or unknown state retire
+it. This is observed host state, **not unobserved disk or remote freshness**.
+Separate invocation still physically revalidates source, account, schema and
+permission ([trusted policy](../src/Kora.Application/Mcp/McpReadOnlyPolicy.cs),
+[runtime owner](../src/Kora.Application/Mcp/McpInvocation.cs)).
+
+Review compares the complete unchanged new-version manifest and old/new
+guidance, distinguishing the declared MCP capability from tools-none authoring.
+Acceptance stages only volatile guidance. **Validate**, complete original/new
+package comparison, separate publication confirmation and immutable readback
+remain required. The original stays unchanged; the new version is disabled,
+without inherited grants, enablement or invocation.
+
+New arbitrary tool-bearing drafts and initial MCP generation remain refused,
+as do v2 HTTP, v4 ordered workflows, v5 reference packages and unknown formats.
+Native v4's ordered steps/inputs are not free prose and cannot be model-refined
+through this operation.
+
 ## Review and invoke one saved revision
 
 For an exact readable-name request spanning owned and registered shared instruction-only skills, use the [named invocation operation](commands.md#invoke-an-instruction-only-skill-by-readable-name).
@@ -411,6 +468,62 @@ review and enablement. Cancelling or closing retains ownership until actual
 read/model work joins, even if cancellation is ignored. If retention is
 unconfirmed, inspect that exact conversation before starting any fresh review;
 an unconfirmed result is not a rollback.
+
+## Author and use one exact read-only MCP skill
+
+Native v6 declares **one existing included read-only MCP server/tool** and literal
+inert guidance. It does not install a connector, acquire credentials, connect,
+enable a provider, or grant any tool permission. Unknown account, schema or
+read-only mapping remains unavailable; this is implementation only, not runtime
+qualification.
+
+1. Create a fresh ID/version in the owned editor, supply name, description and
+   guidance, and select **One exact read-only MCP tool (native v6)** or
+   `owned skill tool read-only-mcp`.
+2. Enter the exact existing server ID, full source revision, case-sensitive tool
+   name and schema digest in the labelled declaration fields. Exact commands are
+   `owned skill mcp-server: <sha256>`,
+   `owned skill mcp-source-revision: <sha256>`,
+   `owned skill mcp-tool: <exact-name>` and
+   `owned skill mcp-schema-digest: <sha256>`. Digests are 64 lowercase hexadecimal
+   characters; a readable alias or endpoint is not a source identity.
+3. Validate, review both complete files, and separately confirm Save. The exact
+   immutable revision is **saved disabled**. List and Reopen that ID/version;
+   reopening preserves every original byte and does not enable it.
+4. Choose **Use**, or `owned skill use <id> <version>`. The host independently
+   reads the exact private saved source. Refresh Active targets and choose one.
+   Refresh included servers/accounts with `owned skill mcp-options`; neither list
+   selects an item automatically. Select the existing permitted server/account
+   natively, or use `owned skill mcp-server: <displayed-server-id>` and
+   `owned skill mcp-account: <displayed-account-id>` in the open use window.
+5. Enter the unchanged original request and exact JSON object arguments, using
+   `owned skill request: <literal>` and `owned skill mcp-arguments: <json>`.
+   Review the exact target/tool revision (`owned skill review-tool`), then
+   separately Enable (`owned skill enable`). Review the complete invocation
+   (`owned skill review-use`), then confirm once (`owned skill invoke`).
+6. The native host separately reviews the current source/account connection,
+   selects the real discovered read-only tool, reviews its actual schema and
+   mapping, and obtains exact outgoing argument/egress permission. After the one
+   exchange joins, result-use consent remains separate before local continuation.
+   The window shows the actual inert result and truthful retained conversation
+   terminal, not a fabricated answer or automatic retry.
+
+The eleven-field v6 manifest adds `mcp-server`, `mcp-source-revision` and
+`mcp-schema-digest` to the existing eight fields, with `kora-skill-format: 6`,
+`tools: mcp.<exact-name>`, local runtime and references none. Guidance is literal:
+input markers never bind arguments or confer authority. V1-v5 remain unchanged.
+Generation, refinement, simulation, observation workflows, Markdown components
+and automatic named invocation do not gain MCP support. The optional shared
+result-question workflow is not exposed for owned v6.
+
+Source, original channel, account, target, arguments and host admission must stay
+current throughout. Editing a reviewed selection revokes confirmation and the
+source review; start a fresh Use rather than renewing it. Stop/close cancels and
+joins the owned operation; late output is fenced and never replayed. Native MCP
+authentication/privacy/permission reviews remain mandatory even when original
+commands use deliberately activated voice. No credential, install or automatic
+connection effect occurs on Save, Reopen, revision review, enablement or
+preparation. [Common host pipeline](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.Mcp.cs).
 
 ## Native v1 format
 

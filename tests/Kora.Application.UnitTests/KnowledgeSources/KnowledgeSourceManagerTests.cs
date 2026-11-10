@@ -513,6 +513,69 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
         fixture.Disposed.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task NextExplicitRefreshFreezesDesiredLimitsAndPinnedAnswerIgnoresLaterPreferenceChanges()
+    {
+        using var host = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, RequestOrigin.LocalUi);
+        var fixture = new Fixture();
+        var preferences = new LimitsPreferences { Desired = new(2, 100, 200) };
+        using var manager = new KnowledgeSourceManager(fixture, fixture, fixture, fixture.Time, preferences);
+        var source = fixture.Source();
+        var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.InspectWait = released.Task;
+        var reviewing = manager.ReviewAsync("notes", @"C:\Team", source, () => true, Token);
+        preferences.Desired = new(1, 1, 1);
+        released.SetResult();
+        var review = await reviewing;
+        review.Metadata.CaptureLimits.Should().Be(new KnowledgeSourceCaptureLimits(2, 100, 200));
+        var snapshot = await manager.CaptureAsync(review.ReviewId, () => true, Token);
+        var published = await manager.PublishAsync(snapshot, () => true, Token);
+        preferences.Desired = KnowledgeSourceCaptureLimits.HardMaximum;
+        (await manager.OpenAsync(published, () => true, Token)).Should().BeSameAs(snapshot);
+        await using var use = await manager.OpenAnswerUseAsync(published, () => true, Token);
+        await use.ValidateAsync(Token);
+        use.Sources.Single().Revision.Review.Metadata.CaptureLimits.Should().Be(new KnowledgeSourceCaptureLimits(2, 100, 200));
+        fixture.CaptureLimits.Should().Be(snapshot.Review.Metadata.CaptureLimits);
+        var reads = fixture.Reads;
+        preferences.Desired = new(1, 1, 1);
+        await use.ValidateAsync(Token);
+        fixture.Reads.Should().Be(reads);
+        await use.DisposeAsync();
+        await FluentActions.Awaiting(() => manager.ReviewAsync("notes", @"C:\Team", published, () => true, Token))
+            .Should().ThrowAsync<InvalidDataException>();
+        fixture.Reads.Should().Be(reads);
+        fixture.Published.Should().BeSameAs(snapshot);
+        manager.Review.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task MalformedDesiredPreferenceFailsBeforeRevocationOrInspectionAndAddKeepsHardDefaults()
+    {
+        using var host = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, RequestOrigin.LocalUi);
+        var fixture = new Fixture();
+        var preferences = new LimitsPreferences { FailLoad = true };
+        using var manager = new KnowledgeSourceManager(fixture, fixture, fixture, fixture.Time, preferences);
+        await FluentActions.Awaiting(() => manager.ReviewAsync("notes", @"C:\Team", fixture.Source(), () => true, Token))
+            .Should().ThrowAsync<InvalidDataException>();
+        fixture.RefreshStarted.Should().BeFalse();
+        fixture.Inspections.Should().Be(0);
+        var added = await manager.ReviewAsync("notes", @"C:\Team", null, () => true, Token);
+        added.Metadata.CaptureLimits.Should().Be(KnowledgeSourceCaptureLimits.HardMaximum);
+    }
+
+    private sealed class LimitsPreferences : IKnowledgeSourceCaptureLimitsPreferences
+    {
+        internal KnowledgeSourceCaptureLimits? Desired;
+        internal bool FailLoad;
+        public KnowledgeSourceCaptureLimits? Load(Guid sourceId) => FailLoad
+            ? throw new InvalidDataException("Synthetic malformed limits.") : Desired;
+        public KnowledgeSourceCaptureLimits? ReadBack(Guid sourceId) => Desired;
+        public void BeginWrite(Guid sourceId) { }
+        public void Save(Guid sourceId, KnowledgeSourceCaptureLimits? limits) => Desired = limits;
+        public void ConfirmWrite(Guid sourceId) { }
+        public void Remove(Guid sourceId) => Desired = null;
+    }
+
     private sealed class Clock : TimeProvider
     {
         private DateTimeOffset now = new(2026, 10, 26, 0, 0, 0, TimeSpan.Zero);
@@ -581,10 +644,11 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
         internal KnowledgeSourceRevision? Published;
         internal KnowledgeSource? ExpectedAtPublish;
         internal readonly List<SecurityAuditEvent> Events = [];
+        internal KnowledgeSourceCaptureLimits CaptureLimits = KnowledgeSourceCaptureLimits.HardMaximum;
         public KnowledgeSourceMetadata Metadata => new(@"C:\Team", DirectoryIdentity, Scope,
             Scope == KnowledgeSourceScope.ImmediateFiles ? [new(@"C:\Team", DirectoryIdentity)]
                 : [new(@"C:\Team", DirectoryIdentity), new(@"C:\Team\Empty", DescendantIdentity)],
-            [new(@"C:\Team\notes.md", "file-identity", Encoding.UTF8.GetByteCount(Body), Time.GetUtcNow())]);
+            [new(@"C:\Team\notes.md", "file-identity", Encoding.UTF8.GetByteCount(Body), Time.GetUtcNow())], CaptureLimits);
         internal KnowledgeSourceManager Manager() => new(this, this, this, Time);
         internal KnowledgeSource Source() => new(Guid.NewGuid(), 1, "notes", Metadata, KnowledgeSourceState.Enabled, Time.GetUtcNow(), 100);
         public async Task<IKnowledgeSourceSelection> InspectSourceAsync(string selectedPath, KnowledgeSourceScope scope,
@@ -596,6 +660,12 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
             if (ThrowInspect) { throw new IOException("Synthetic inaccessible source."); }
             AfterInspect?.Invoke();
             return this;
+        }
+        public Task<IKnowledgeSourceSelection> InspectSourceAsync(string selectedPath, KnowledgeSourceScope scope,
+            KnowledgeSourceCaptureLimits limits, CancellationToken cancellationToken)
+        {
+            CaptureLimits = limits;
+            return InspectSourceAsync(selectedPath, scope, cancellationToken);
         }
         public Task ValidateAsync(CancellationToken cancellationToken)
         {

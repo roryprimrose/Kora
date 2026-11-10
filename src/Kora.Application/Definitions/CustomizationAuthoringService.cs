@@ -49,10 +49,10 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
         + "Never claim saving, enabling or invocation. Unsupported requests must not invent executable capability.";
 
     public Task<OwnedAgentProfileDocument> ProposeAgent(string name, string source, string requestText,
-        Func<bool> eligible, CancellationToken token)
+        Func<bool> eligible, CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
     {
         _ = OwnedAgentProfileDocument.ProposeToolFree(name, source, "Authoring validation", "Inert validation");
-        return Generate(requestText, source, AgentPolicy, answer => ParseAgentProposal(name, source, answer), eligible, token);
+        return Generate(requestText, source, AgentPolicy, answer => ParseAgentProposal(name, source, answer), eligible, token, validateSource);
     }
 
     public static OwnedAgentProfileDocument ParseAgentProposal(string name, string source, string answer)
@@ -168,9 +168,9 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
         Func<bool> eligible, CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
     {
         if (string.IsNullOrWhiteSpace(requestText)) { throw new InvalidDataException("Describe the definition or the change to discuss."); }
+        if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
         var control = await admission.Run(eligible, async (request, session, current, admitted) =>
         {
-            if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
             await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
             return (Session: session, request.Origin, Link: new ActivityLink(HostActivity.RequireCurrent().Activity!.Context));
         }, token).ConfigureAwait(false);

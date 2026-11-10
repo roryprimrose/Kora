@@ -48,6 +48,8 @@ public sealed class SessionMetadataReplyFenceTests
             valid with { Settings = new([], 0, null) },
             valid with { SessionMetrics = new(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, 0, 0, 0, 0, 0, []) },
             valid with { ProviderSettings = new() },
+            valid with { Maintenance = new("1.0.0", Kora.Core.Maintenance.ReleaseChannel.Production,
+                Kora.Core.Maintenance.ReleaseAvailability.UpToDate, "No installer started.") },
             valid with { Reason = "wrong" }, valid with { SessionMetadata = null },
             valid with { SessionMetadata = valid.SessionMetadata! with { SessionId = "10000000-0000-0000-0000-000000000002" } },
         ];

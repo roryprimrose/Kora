@@ -9,7 +9,8 @@ using Kora.Core.KnowledgeSources;
 namespace Kora.Application.KnowledgeSources;
 
 public sealed partial class KnowledgeSourceManager(
-    IKnowledgeSourceInspector inspector, IKnowledgeSourceStore store, ISecurityAuditLog audit, TimeProvider time) : IDisposable
+    IKnowledgeSourceInspector inspector, IKnowledgeSourceStore store, ISecurityAuditLog audit, TimeProvider time,
+    IKnowledgeSourceCaptureLimitsPreferences? captureLimitsPreferences = null) : IDisposable
 {
     private IKnowledgeSourceSelection? selection;
     private KnowledgeSource? expected;
@@ -46,6 +47,8 @@ public sealed partial class KnowledgeSourceManager(
             var host = HostActivity.RequireCurrent();
             original = host.Request;
             cause = host.Activity!.Context;
+            var limits = refresh is null ? KnowledgeSourceCaptureLimits.HardMaximum
+                : captureLimitsPreferences?.Load(refresh.Id) ?? KnowledgeSourceCaptureLimits.HardMaximum;
             if (refresh is not null)
             {
                 if (!string.Equals(selectedPath, refresh.Folder.CanonicalPath, StringComparison.OrdinalIgnoreCase)
@@ -60,9 +63,9 @@ public sealed partial class KnowledgeSourceManager(
                 { throw new InvalidDataException("Refresh admission disagrees with the exact registered root and policy."); }
             }
             Check(eligible, cancellationToken);
-            selection = await inspector.InspectSourceAsync(selectedPath, scope, cancellationToken).ConfigureAwait(false);
+            selection = await inspector.InspectSourceAsync(selectedPath, scope, limits, cancellationToken).ConfigureAwait(false);
             Check(eligible, cancellationToken);
-            if (selection.Metadata.Scope != scope
+            if (selection.Metadata.Scope != scope || selection.Metadata.CaptureLimits != limits
                 || !string.Equals(selection.Metadata.CanonicalPath, selectedPath, StringComparison.OrdinalIgnoreCase))
             { throw new InvalidDataException("Discovery did not return the exact selected root and policy."); }
             if (refresh is not null && !string.Equals(selection.Metadata.DirectoryIdentity,
@@ -167,7 +170,7 @@ public sealed partial class KnowledgeSourceManager(
             return await Audited("inspect", async () =>
             {
                 using var access = await inspector.InspectSourceAsync(exact.Folder.CanonicalPath, exact.Folder.Scope,
-                    cancellationToken).ConfigureAwait(false);
+                    exact.Folder.CaptureLimits, cancellationToken).ConfigureAwait(false);
                 if (!access.Metadata.Matches(exact.Folder))
                 { throw new InvalidDataException("The original source membership or access changed; explicitly refresh before reuse."); }
                 var snapshot = await store.ReadAsync(exact, cancellationToken).ConfigureAwait(false);

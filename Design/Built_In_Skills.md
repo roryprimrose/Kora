@@ -3,7 +3,7 @@
 Status: immutable package inspection and the [script-preserving fixed-action implementation](../src/Kora/BundledFixedActionController.cs) exist.
 All bundled execution remains unavailable because the [production worker](../src/Kora.Windows/Skills/WindowsBundledScriptWorker.cs) has no qualified installed profile.
 Direct Lock and model-proposed Lock use the same exact host gate, preserving the original request channel; a model cannot grant or self-confirm it. Direct shutdown/restart retain that gate; model power suggestions still open inspection only and require a subsequent original-user execution gesture. There is no legacy native-lock fallback.
-The [source inspector](../src/Kora/SkillPackagesWindow.axaml.cs) retains every original manifest, instruction, fixture, entry and shared-helper tab. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+The [hosted source inspector](../src/Kora/SkillPackagesView.axaml.cs) retains every original manifest, instruction, fixture, entry and shared-helper tab. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 
 The structural migration preserves all 13 resource IDs/bytes and package
 digest golden vectors. `Kora.Definitions.Skills` owns the explicit embedded
@@ -236,6 +236,9 @@ A shared helper is embedded once but reviewed and grant-bound as part of each de
 
 Treat every worker message as untrusted. Bind the authenticated worker and request/receipt to the original host-resolved session, task, invocation and current exact package approval.
 Independently validate the requested fixed effect, original intent, current mandatory confirmation/authentication, grant, privacy/channel and ownership. Revalidate after awaited work and immediately before the effect; stale, repeated, changed, malformed or uncorrelated messages authorize nothing.
+
+The [fixed bundled worker](../src/Kora.Windows/Skills/WindowsBundledScriptWorker.cs) revalidates current source/host authority, the exact qualified profile and cancellation after asynchronous startup, before delivering any helper or entry snapshot. Retirement denies delivery, acknowledgment and a script receipt; the acquired process remains owned until physical join and disposal.
+The [deterministic startup regressions](../tests/Kora.Windows.IntegrationTests/Skills/WindowsBundledScriptWorkerTests.cs) cover typed and activated-voice requests for all three fixed actions. These fakes prove admission and resource ownership only; the production qualification source remains unavailable and no real containment or Windows effect is qualified.
 
 Before any power effect, reuse the existing application work review/barriers and physical joins; application Exit/Restart/StopAll confirmation is not computer-power consent. The executing worker must not be made to wait on its own inclusion in the work being joined. No cancellation-request, worker exit, output string or script success alone proves quiescence or a physical Windows outcome.
 

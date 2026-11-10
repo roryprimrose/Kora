@@ -15,6 +15,7 @@ using Kora.Core.Commands;
 using Kora.Controls;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
@@ -28,6 +29,7 @@ public sealed partial class ResponseWindow : Window
     private bool positionInitialized;
     private readonly DetailWindowController? details;
     private readonly Func<PixelRect?> getWorkingArea;
+    internal Action? PrepareDocumentHost { get; set; }
 
     public ResponseWindow()
         : this(App.Services.GetRequiredService<MainViewModel>(), (Avalonia.Application.Current as App)?.Details)
@@ -41,13 +43,20 @@ public sealed partial class ResponseWindow : Window
     }
 
     internal ResponseWindow(MainViewModel viewModel, DetailWindowController? detailController,
-        TimeProvider? timeProvider, Func<PixelRect?>? workingArea)
+        TimeProvider? timeProvider, Func<PixelRect?>? workingArea,
+        IWorkbenchPlacementPreferences? placementPreferences = null, ILogger? placementLogger = null)
     {
         this.viewModel = viewModel;
         details = detailController;
         getWorkingArea = workingArea ?? (() => (Screens.ScreenFromWindow(this) ?? Screens.Primary)?.WorkingArea);
         responseInactivity = new(timeProvider ?? TimeProvider.System);
         InitializeComponent();
+        if (details is not null)
+        {
+            SessionWorkspace.ReopenHostDocumentAsync = (tab, admitted) =>
+                details.ReopenHostDocumentAsync(tab, this, admitted);
+        }
+        ConfigurePlacement(placementPreferences, placementLogger);
         DataContext = viewModel;
         var pushToTalkButton = this.FindControl<Button>("PushToTalkButton")
             ?? throw new InvalidOperationException("The push-to-talk control is unavailable.");
@@ -80,17 +89,11 @@ public sealed partial class ResponseWindow : Window
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnDismissClicked(object? sender, RoutedEventArgs eventArgs) =>
-        await RunResponseActionAsync(async () =>
-    {
-        if (!await viewModel.RejectPendingModelActionAsync())
+        await RunResponseActionAsync(() =>
         {
-            return;
-        }
-
-        await viewModel.RejectPendingGrantChangeAsync();
-        await viewModel.CancelModelQuestionAsync();
-        await viewModel.HideApplicationAsync();
-    });
+            HideResponse();
+            return Task.CompletedTask;
+        });
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
@@ -286,14 +289,18 @@ public sealed partial class ResponseWindow : Window
             eventArgs.Handled = true;
             return;
         }
-        if (eventArgs.Key != Key.Escape || !viewModel.IsCancelTaskVisible)
+        if (eventArgs.Handled || eventArgs.Key != Key.Escape)
         {
             return;
         }
 
         eventArgs.Handled = true;
         viewModel.NotifyPresenceInteraction();
-        await RunResponseActionAsync(viewModel.CancelCurrentTaskAsync);
+        await RunResponseActionAsync(() =>
+        {
+            HideResponse();
+            return Task.CompletedTask;
+        });
     }
 
     private void OnInteraction(object? sender, PointerPressedEventArgs eventArgs)
@@ -329,11 +336,15 @@ public sealed partial class ResponseWindow : Window
         RestorePosition();
         FitCompactWorkingArea();
         RestartResponseTimeout();
+        BeginPlacementRestore();
     }
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
+        FlushPlacement();
         sessionWindowClosed = true;
+        placementLifetime.Cancel();
+        placementLifetime.Dispose();
         viewModel.RetireCurrentResponseSpeech();
         pushToTalk.Dispose();
         viewModel.RetireWebResultDetails();
@@ -418,6 +429,11 @@ public sealed partial class ResponseWindow : Window
 
     private void OnPositionChanged(object? sender, PixelPointEventArgs eventArgs)
     {
+        if (!applyingPlacement)
+        {
+            placementRevision++;
+            CaptureNormalBounds();
+        }
         if (!positionInitialized)
         {
             return;
@@ -430,16 +446,23 @@ public sealed partial class ResponseWindow : Window
     private void OnPositionSaveTimer(object? sender, EventArgs eventArgs)
     {
         positionSaveTimer.Stop();
-        viewModel.QueueResponseWindowPosition(
-            new ResponseWindowPosition(Position.X, Position.Y));
+        if (WindowState == WindowState.Normal && positionInitialized)
+        {
+            if (placementPreferences is null)
+            {
+                viewModel.QueueResponseWindowPosition(new ResponseWindowPosition(Position.X, Position.Y));
+            }
+            else { FlushPlacement(); }
+        }
     }
 
-    internal void ShowResponse()
+    internal void ShowResponse(bool restoreMinimized = false)
     {
         if (!IsVisible)
         {
             Show();
         }
+        if (restoreMinimized) { RestoreMinimizedState(); }
 
         RestartResponseTimeout();
     }
@@ -448,6 +471,7 @@ public sealed partial class ResponseWindow : Window
     {
         if (sessionWindowClosed || !viewModel.IsModelActionReviewCurrent(target)) { return false; }
         SetExpanded(false);
+        PresentCurrentInteraction();
         ShowResponse();
         if (sessionWindowClosed || !viewModel.IsModelActionReviewCurrent(target))
         {
@@ -461,6 +485,7 @@ public sealed partial class ResponseWindow : Window
 
     internal void HideResponse()
     {
+        FlushPlacement();
         viewModel.RetireCurrentResponseSpeech();
         responseTimeoutTimer.Stop();
         responseInactivity.Stop();

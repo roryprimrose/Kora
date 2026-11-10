@@ -52,6 +52,9 @@ public sealed record SettingObservation
             case RegisteredSetting.PresenceTimeout:
                 AppearanceOptionRegistry.Validate(AppearanceOption.PresenceTimeout, new AppearanceValue.Number(value));
                 break;
+            case RegisteredSetting.ResponseTimeout:
+                AppearanceOptionRegistry.Validate(AppearanceOption.ResponseTimeout, new AppearanceValue.Number(value));
+                break;
             case RegisteredSetting.PresenceSize:
                 AppearanceOptionRegistry.Validate(AppearanceOption.PresenceSize, new AppearanceValue.Number(value));
                 break;
@@ -113,13 +116,23 @@ public sealed record SettingObservation
         Revision = revision;
     }
 
+    public SettingObservation(WindowsSpeechRateObservation rate)
+    {
+        ArgumentNullException.ThrowIfNull(rate);
+        Setting = RegisteredSetting.WindowsSpeechRate;
+        WindowsRate = rate;
+        IsSaved = rate.IsSaved;
+        Revision = rate.Revision;
+    }
+
     public RegisteredSetting Setting { get; }
     public decimal? Value { get; }
     public QuietHoursSchedule? QuietHours { get; }
     public SpeechSelection? Selection { get; }
+    public WindowsSpeechRateObservation? WindowsRate { get; }
     public bool IsSaved { get; }
     public long Revision { get; }
-    public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (QuietHours?.ToString() ?? (Selection is { } selection
+    public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (WindowsRate?.Text ?? QuietHours?.ToString() ?? (Selection is { } selection
         ? JsonSerializer.Serialize(selection.ProviderId) + " / "
             + (selection.VoiceId is { } voice ? JsonSerializer.Serialize(voice) : "provider-advertised default (exact voice not resolved)")
             + " (future-only; no runtime claim)"
@@ -128,6 +141,9 @@ public sealed record SettingObservation
         + (IsSaved ? " (confirmed saved; matches live service)" : " (confirmed absent; live default)")
         + (Setting == RegisteredSetting.ReducedMotion
             ? Value == 0 ? "; follows Windows reduced-motion preference, not forced motion" : "; freezes presence particles"
+            : "")
+        + (Setting == RegisteredSetting.ResponseTimeout
+            ? "; configured response-window inactivity hide delay, not presence inactivity or a task/provider deadline; no current visibility or visibility-exception claim"
             : "")
         + (QuietHours is not null ? "; configured intent only, not current quiet-now, output availability or speech consent" : "");
 

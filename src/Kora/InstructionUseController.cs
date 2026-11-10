@@ -1,5 +1,7 @@
 using System.ComponentModel;
 
+using Avalonia.Controls;
+
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
 using Kora.Core.Commands;
@@ -13,7 +15,15 @@ namespace Kora;
 internal sealed partial class InstructionUseController(MainViewModel main, InstructionUseWorkflow workflow,
     Func<bool> ownsHost, Func<long> ownerRevision, ILogger<InstructionUseController> logger) : IDisposable, IAsyncDisposable
 {
-    private InstructionUseWindow? window;
+    private InstructionUseView? window;
+    private InstructionUseWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<InstructionUseView>? presentWorkbench;
+    private Func<bool>? reviewPresentation;
+    private bool submitting;
+    internal InstructionUseView? View => window;
+    internal void BindWorkbench(Func<Window> owner, Action<InstructionUseView> present)
+    { getWorkbench = owner; presentWorkbench = present; }
     private InstructionUseReview? review;
     private Func<bool>? originalEligibility;
     private long capturedOwner;
@@ -36,7 +46,8 @@ internal sealed partial class InstructionUseController(MainViewModel main, Instr
     private bool Current() => !disposed && ownsHost() && ownerRevision() == capturedOwner
         && main.CallPolicyRevision == capturedCall && !main.IsProtectedCall
         && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible
-        && !main.IsResponseInteractionPending && originalEligibility?.Invoke() == true;
+        && !main.IsResponseInteractionPending && originalEligibility?.Invoke() == true
+        && (submitting || reviewPresentation?.Invoke() != false);
 
     private async Task<Guid?> Route(InstructionUseCommand command, RequestOrigin origin, Func<bool> eligible, Guid? expected)
     {
@@ -62,29 +73,51 @@ internal sealed partial class InstructionUseController(MainViewModel main, Instr
                 capturedCall = main.CallPolicyRevision;
                 originalEligibility = eligible;
                 presenting = true;
+                DetachView();
+                if (getWorkbench is not null && presentWorkbench is not null)
+                {
+#pragma warning disable MA0147 // Native button callback is a handled async-void boundary.
+                    window = new(getWorkbench(), Start, () => main.CanRevealPrivatePresentation && !disposed);
+#pragma warning restore MA0147
+                    BindView(window);
+                    presentWorkbench(window);
+                    reviewPresentation = window.CapturePresentation();
+                }
                 review = await workflow.ReviewAsync(command.Source!, command.Target!, command.Body!, origin, Current, CancellationToken.None);
                 if (!Current()) { throw new OperationCanceledException("Review presentation was revoked."); }
+                if (window is null)
+                {
 #pragma warning disable MA0147 // Native button callback is a handled async-void boundary.
-                var opened = new InstructionUseWindow(Start);
+                    adapter = new InstructionUseWindow(Start);
 #pragma warning restore MA0147
-                window = opened;
+                    window = adapter.View;
+                    BindView(window);
+                    adapter.Show();
+                }
+                var opened = window;
                 opened.Review.Text = review.Text;
                 opened.Confirm.IsEnabled = review.CanConfirm;
                 opened.Status.Text = "No model call or message retention yet. Separately confirm, cancel or close.";
-                opened.Closed += WindowClosed;
-                opened.Show();
                 return review.Id;
             }
             if (command.Action is not "Confirm" || review is null || expected != review.Id || window is not { } target || !Current())
             { throw new InvalidOperationException("Only the exact current pending review can be confirmed."); }
             var exact = review;
+            var native = target.CapturePresentation();
             review = null;
+            submitting = true;
             main.RetireInstructionUseReview(exact.Id);
             target.Confirm.IsEnabled = false;
             target.Status.Text = "Submitting the original one-shot local request. Stop joins owned work; it does not claim rollback.";
             var receipt = await workflow.ConfirmAsync(exact.Id, () => Current() && eligible(), CancellationToken.None);
             if (!Current() || !ReferenceEquals(window, target))
             { throw new OperationCanceledException("Private instruction result presentation was revoked."); }
+            if (!native())
+            {
+                presenting = false;
+                target.Clear();
+                return null;
+            }
             target.Status.Text = "Retained original USER request. HOST " + receipt.Message.Outcome + " / "
                 + receipt.Message.Reason + " | task " + receipt.Task.State
                 + ". No instruction applies to the next request. No automatic retry.";
@@ -100,7 +133,43 @@ internal sealed partial class InstructionUseController(MainViewModel main, Instr
                 + "Inspect the original conversation for any retained USER/task terminal; no substitute answer or automatic retry.");
             return null;
         }
-        finally { completion.SetResult(); }
+        finally { submitting = false; completion.SetResult(); }
+    }
+
+    private void BindView(InstructionUseView opened)
+    {
+        opened.Closed += WindowClosed;
+        if (opened.Owner is ResponseWindow) { opened.PresentationLost += PresentationLost; }
+    }
+
+    private void PresentationLost(object? sender, EventArgs args)
+    {
+        if (submitting) { return; }
+        var expired = window;
+        main.RetireInstructionUseReview(review?.Id);
+        review = null;
+        // Selection changes must settle before removing their owned review controls.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => RetirePresentation(expired));
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Queued native presentation retirement joins its exact source work; failures are reported.")]
+    private async void RetirePresentation(InstructionUseView? expired)
+    {
+        if (ReferenceEquals(window, expired) && !submitting) { await CloseReported(); }
+    }
+
+    private void DetachView()
+    {
+        var opened = window;
+        window = null;
+        adapter = null;
+        reviewPresentation = null;
+        if (opened is null) { return; }
+        opened.Closed -= WindowClosed;
+        opened.PresentationLost -= PresentationLost;
+        opened.Clear();
+        opened.Close();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
@@ -153,14 +222,7 @@ internal sealed partial class InstructionUseController(MainViewModel main, Instr
         originalEligibility = null;
         main.RetireInstructionUseReview(review?.Id);
         review = null;
-        var opened = window;
-        window = null;
-        if (opened is not null)
-        {
-            opened.Closed -= WindowClosed;
-            opened.Clear();
-            opened.Close();
-        }
+        DetachView();
         await workflow.StopAsync();
     }
 

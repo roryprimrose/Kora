@@ -31,6 +31,7 @@ internal sealed partial class SessionInteractionView : UserControl
     private GridLength conversationWidth = new(1, GridUnitType.Star);
     private GridLength detailWidth = new(1, GridUnitType.Star);
     private NamedTextBlock? evidenceBody;
+    private DetailContentReference? activeEvidenceReference;
     private Func<bool>? evidenceAdmission;
     private Func<CancellationToken, Task<bool>>? validateEvidence;
     private CancellationTokenSource? evidenceLifetime;
@@ -43,14 +44,22 @@ internal sealed partial class SessionInteractionView : UserControl
     {
         if (activeDetails?.Reference == reference) { activeDetails.ClearAndClose(); }
     }
-    internal bool IsConversationPresented => IsEffectivelyVisible && TopLevel.GetTopLevel(this)?.IsVisible == true
+    internal bool IsConversationPresented => IsEffectivelyVisible && ConversationPane.IsEffectivelyVisible
+        && TopLevel.GetTopLevel(this) is Window { IsVisible: true, WindowState: not WindowState.Minimized }
         && ConversationTabs.SelectedItem == ConversationTab;
     private long conversationPresentationRevision;
     internal long ConversationPresentationRevision => Interlocked.Read(ref conversationPresentationRevision);
+    internal void NotifyManagementPresentationChanged() => PresentationChanged?.Invoke(this, EventArgs.Empty);
 
     public SessionInteractionView()
     {
         InitializeComponent();
+        SizeChanged += (_, _) =>
+        {
+            var wasPresented = ConversationPane.IsEffectivelyVisible;
+            UpdateResponsiveLayout();
+            if (wasPresented != ConversationPane.IsEffectivelyVisible) { RetireResponsivePresentation(); }
+        };
         ObserveAutomaticDetailsInput();
         conversationReader = new(this, ConversationScroll, ConversationMessageItems, ConversationUpdateItems, ConversationReaderStatus);
         replyPresentation = new(this);
@@ -188,6 +197,7 @@ internal sealed partial class SessionInteractionView : UserControl
         if (observedModel is not null) { observedModel.PropertyChanged -= OnModelChanged; }
         HideDetails();
         observedModel = DataContext as SessionsViewModel;
+        ClearDocumentTabs();
         conversationReader.Bind(observedModel);
         selectedSession = observedModel?.SelectedSessionRecord?.Authority.SessionId.Value;
         if (observedModel is not null) { observedModel.PropertyChanged += OnModelChanged; }
@@ -203,7 +213,8 @@ internal sealed partial class SessionInteractionView : UserControl
         {
             selectedSession = current;
             HideDetails();
-            if (observedModel?.CanPresentDetails == false) { readingPositions.Clear(); }
+            if (observedModel?.CanPresentDetails == false) { ClearDocumentTabs(); }
+            else { PresentDocumentTabs(); }
         }
         RefreshReturnNavigation();
     }
@@ -260,15 +271,21 @@ internal sealed partial class SessionInteractionView : UserControl
         if (!publishingAutomaticDetails) { automaticReaderEpoch++; }
         var subject = content.ConversationMessage?.Request.SessionId ?? content.HistorySession ?? content.SessionSource?.SessionId;
         var selected = observedModel?.SelectedSessionRecord?.Authority.SessionId;
-        if (subject is null || observedModel?.CanPresentDetails != true
-            || content.Origin != DetailContentOrigin.FinalizedResponse && selected != subject)
+        var hostDocument = content.Origin is DetailContentOrigin.FinalizedResponse
+            or DetailContentOrigin.EmbeddedDocument or DetailContentOrigin.RetrievedWebResult;
+        if (observedModel?.CanPresentDetails != true || !hostDocument && (subject is null || selected != subject))
         { return false; }
         if (TopLevel.GetTopLevel(this) is not ResponseWindow window || !window.PrepareDetailsLayout()) { return false; }
-        if (!ReferenceEquals(activeDetails, view)) { HideDetails(); }
+        if (!AdmitDocumentTab(new SessionContentTab(content.Reference, content.Title, hostDocument ? selected : subject,
+            content.ConversationMessage?.Request.RequestId.Value, content.Origin))) { return false; }
+        if (!ReferenceEquals(activeDetails, view)) { PrepareDocumentReader(content.Reference); }
         activeDetails = view;
         DetailsHeading.Text = content.Origin == DetailContentOrigin.FinalizedResponse
-            ? "Current response details - not the selected conversation" : "Session details";
+            ? "Current response details - not the selected conversation"
+            : content.Origin == DetailContentOrigin.EmbeddedDocument ? "Embedded Kora guidance"
+            : content.Origin == DetailContentOrigin.RetrievedWebResult ? "Exact external observation - not session authority" : "Session details";
         DetailsContent.Content = view.Reader;
+        PresentDocumentTabs(content.Reference);
         RevealDetails();
         if (readingPositions.TryGetValue(content.Reference, out var position))
         { view.Reader.RestoreReadingPosition(position); }
@@ -289,6 +306,8 @@ internal sealed partial class SessionInteractionView : UserControl
         ReadingPanes.ColumnDefinitions[2].Width = detailWidth;
         DetailsDivider.IsVisible = true;
         DetailsPane.IsVisible = true;
+        narrowSidebarRequested = false;
+        UpdateResponsiveLayout();
         ShowSessionDetails.IsVisible = false;
         ExpandSessionDetails.IsEnabled = true;
         RefreshReturnNavigation();
@@ -315,11 +334,17 @@ internal sealed partial class SessionInteractionView : UserControl
         ReadingPanes.ColumnDefinitions[2].Width = new(0);
         ShowSessionDetails.IsVisible = true;
         RefreshReturnNavigation();
+        UpdateResponsiveLayout();
         if (!publishingAutomaticDetails && IsVisible && observedModel?.CanPresentDetails == true) { ShowSessionDetails.Focus(); }
     }
 
-    internal void HideDetails()
+    internal void HideDetails(bool retireDocumentSelection = true)
     {
+        if (retireDocumentSelection)
+        {
+            Interlocked.Increment(ref documentTabRevision);
+            openingDocumentReference = null;
+        }
         if (!publishingAutomaticDetails) { automaticReaderEpoch++; }
         RememberSplit();
         evidenceValidation.Stop();
@@ -331,6 +356,7 @@ internal sealed partial class SessionInteractionView : UserControl
         activeDetails?.ClearAndClose();
         if (evidenceBody is not null) { evidenceBody.Text = null; evidenceBody = null; }
         evidenceAdmission = null;
+        activeEvidenceReference = null;
         if (DetailsContent.Content is Control chooser) { DetailsContent.Content = null; chooser.DataContext = null; }
         DetailsPane.IsVisible = false;
         DetailsDivider.IsVisible = false;
@@ -338,6 +364,7 @@ internal sealed partial class SessionInteractionView : UserControl
         ReadingPanes.ColumnDefinitions[2].Width = new(0);
         ShowSessionDetails.IsVisible = true;
         RefreshReturnNavigation();
+        UpdateResponsiveLayout();
     }
 
     internal void HideDetailsAndRestoreFocus()
@@ -353,7 +380,13 @@ internal sealed partial class SessionInteractionView : UserControl
         if (!admitted() || observedModel?.CanPresentDetails != true
             || TopLevel.GetTopLevel(this) is not ResponseWindow window || !window.PrepareDetailsLayout())
         { return false; }
-        HideDetails();
+        if (observedModel.SelectedSessionRecord is not { } target) { return false; }
+        var reference = new DetailContentReference(new(detail.Id), 1);
+        if (!AdmitDocumentTab(new SessionEvidenceTab(reference, detail.Heading, target.Authority.SessionId)))
+        { return false; }
+        PrepareDocumentReader(reference);
+        activeEvidenceReference = reference;
+        PresentDocumentTabs(reference);
         var body = new NamedTextBlock
         {
             Text = Encoding.UTF8.GetString(DurableEvidenceQuery.Serialize(detail.Page)),

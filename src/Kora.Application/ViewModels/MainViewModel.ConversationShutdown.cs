@@ -12,6 +12,7 @@ public sealed partial class MainViewModel
     private Func<bool>? conversationShutdownCurrent;
     private Func<ApplicationLifecycleOperation, RequestOrigin, Func<bool>, Task<ApplicationLifecycleShutdown?>>? submittedWorkShutdown;
     private bool voluntaryShutdownRunning;
+    private ApplicationLifecycleShutdown? handoffSubmittedWork;
 
     public void BindSubmittedWorkShutdown(
         Func<ApplicationLifecycleOperation, RequestOrigin, Func<bool>, Task<ApplicationLifecycleShutdown?>>? prepare) =>

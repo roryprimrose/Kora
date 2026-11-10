@@ -236,7 +236,7 @@ public sealed class EvidenceViewModelTests
     [Fact]
     public void Native_evidence_contract_uses_accessible_inert_themed_controls_and_no_clipboard_or_model_surface()
     {
-        var source = Read("EvidenceWindow.axaml");
+        var source = Read("EvidenceView.axaml");
         var document = XDocument.Parse(source);
         source.Should().Contain("DynamicResource").And.Contain("AutomationProperties.Name")
             .And.Contain("Raw evidence stays local. Exception reporting requires a separate public-content review.")
@@ -267,7 +267,7 @@ public sealed class EvidenceViewModelTests
             field.Attribute("ContextMenu")!.Value.Should().Be("{x:Null}");
             field.Attribute("AutomationProperties.Name")!.Value.Should().NotBeNullOrWhiteSpace();
         }
-        Read("EvidenceWindow.axaml.cs").Should().Contain("RoutingStrategies.Tunnel")
+        Read("EvidenceView.axaml.cs").Should().Contain("RoutingStrategies.Tunnel")
             .And.Contain("CopyingToClipboard").And.Contain("CuttingToClipboard").And.NotContain("Clipboard.");
         Read("SystemTrayController.cs").Should().Contain("Evidence & diagnostics");
         Read("Program.cs").Should().Contain("new WindowsSegmentedEvidenceReader(provider.GetRequiredService<WindowsSegmentedEvidenceSink>())");
@@ -275,7 +275,7 @@ public sealed class EvidenceViewModelTests
         Read("DesktopEvidenceAccess.cs").Should().Contain("IsReady").And.Contain("IsHandoffRecoveryRequired")
             .And.Contain("CanRevealPrivatePresentation");
         Read("EvidenceWindowController.cs").Should().Contain("PrivacyClosureRequested +=")
-            .And.Contain("window?.Close()").And.NotContain("ShowDialog");
+            .And.Contain("CloseView()").And.Contain("oldView.Dispose()").And.NotContain("ShowDialog");
     }
 
     private static string Read(string name)

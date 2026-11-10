@@ -18,6 +18,16 @@ public static partial class ModelToolProtocol
         { throw new InvalidDataException("Content-free session metadata cannot be returned by an old tool."); }
         if (reply.Mcp is not null)
         { throw new InvalidDataException("External content cannot be returned without an exact external tool."); }
+        if (MaintenanceTools.FindExact(call.CapabilityId) is { } maintenance)
+        {
+            var maintenanceInput = CapabilityInputPolicy.Read(maintenance, call.InputJson);
+            if (maintenanceInput.DenialReason is not null
+                || !MaintenanceTools.Matches(reply, call.CapabilityId, maintenanceInput.ReleaseVersion))
+            { throw new InvalidDataException("Maintenance results require the exact canonical release or installer-start shape."); }
+            return;
+        }
+        if (reply.Maintenance is not null)
+        { throw new InvalidDataException("Maintenance cannot be returned by another tool."); }
         if (ProviderSettingsTools.FindExact(call.CapabilityId) is { } provider)
         {
             var parsed = CapabilityInputPolicy.Read(provider, call.InputJson);

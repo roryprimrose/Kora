@@ -14,7 +14,7 @@ public sealed class ResponseModeConfigurationUiContractTests
             directory = directory.Parent;
         }
         var root = directory?.FullName ?? throw new InvalidOperationException("The repository source root is unavailable.");
-        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants().ToArray();
         var selector = controls.Single(control =>
             string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding SelectedResponseModeChoice}", StringComparison.Ordinal));
         selector.Attribute("ItemsSource")!.Value.Should().Be("{Binding ResponseModeChoices}");

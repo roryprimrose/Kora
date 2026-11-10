@@ -1539,7 +1539,9 @@ No model answer, automatic routing, context assembly, adapter/bootstrap fallback
 
 Edits, including same-byte reassignment, cancel and control/private/source changes retire submission review. The original attempt and epoch fence physical COMMIT. **Open this exact session** uses explicit navigation that preserves other topics' memory-only input, never transfers the New request body ([composer](../src/Kora.Application/Hosting/NewRequestComposer.cs)).
 
-The New request composer retains unsent text only in memory; nonempty input is dirty until explicit submission or discard. The native close/application-exit workflow offers Discard/Cancel, not Save-as-document. Topic navigation preserves other sessions' unsent buffers without a decision or persistence; it does not transfer this isolated New request body. Existing saved private text is available only through exact-session read-only compatibility recovery; no catalogue, new save, schema migration or purge is introduced ([composer](../src/Kora.Application/Hosting/NewRequestComposer.cs), [close workflow](../src/Kora/NewRequestWindow.axaml.cs)).
+The New request composer retains unsent text only in memory; nonempty input is dirty until explicit submission or discard. The native close/application-exit workflow offers Discard/Cancel, not Save-as-document. Topic navigation preserves other sessions' unsent buffers without a decision or persistence; it does not transfer this isolated New request body.
+
+Existing saved private text is available only through exact-session read-only compatibility recovery; no catalogue, new save, schema migration or purge is introduced ([composer](../src/Kora.Application/Hosting/NewRequestComposer.cs), [hosted close workflow](../src/Kora/NewRequestView.axaml.cs)). The shared shell hosts this isolated view; hidden presentation retires reviews and capture arms while retaining unsent input.
 
 Unknown creation, retention, terminal or receipt outcomes hold the exact attempt without a second target or submission retry. **Inspect exact attempt** reads its retained target/task under current private/retention authority, changes no meaningful activity and grants no submission authority. A changed observed target remains held. Known or possible partial success stays disclosed; no automatic Done/delete is claimed.
 
@@ -1642,7 +1644,9 @@ An actual currently admitted immutable conversation row in Sessions or compact c
 
 The [Application review](../src/Kora.Application/Hosting/OriginalMessageReuseReview.cs) resolves the complete original through `SessionWorkspaceService.ReadConversationDetailAsync`, including its exact retained record revision and source session/generation/lifecycle/metadata checks. Full `ConversationText` validation and reject-only credential screening apply; no trimming, normalization, truncation or save-anyway repair occurs. HOST outcome/reason remains separate historical status, not copied body content.
 
-The [private native review](../src/Kora/OriginalMessageReuseWindow.cs) shows the **entire exact original USER body**, original session/request/task IDs, sequence, record revision and submission time as historical data. It reuses the inert source/transfer-blocking comparison pane; no clipboard authority is added. It also shows the complete existing isolated New request memory buffer. A dirty buffer requires an explicit **Replace reviewed existing New request memory** choice; **Keep existing memory / cancel reuse** never overwrites it.
+The [private native review](../src/Kora/OriginalMessageReuseView.cs) shows the **entire exact original USER body**, original session/request/task IDs, sequence, record revision and submission time as historical data. It reuses the inert source/transfer-blocking comparison pane in the shared supporting area; no clipboard authority is added.
+
+It also shows the complete existing isolated New request memory buffer. A dirty buffer requires an explicit **Replace reviewed existing New request memory** choice; **Keep existing memory / cancel reuse** never overwrites it.
 
 Only separate confirmation opens/activates the existing single New request path and copies the exact text into **memory only**. An already created/held/busy/unavailable New request cannot receive reuse; close it through its ordinary decisions before explicitly starting another review. No session/target creation, persistence, Save, Submit, task enqueue, approval, activity heartbeat or provider operation occurs during review or copying. Fresh target creation and separately reviewed Submit retain ordinary screening and new host-owned identities; historical IDs confer no authority.
 
@@ -1679,15 +1683,40 @@ Cancellation discloses nothing to the adviser and submits nothing. The snapshot,
 original authority and 60-second disclosure lifetime are revalidated before advice
 and review. This consent grants no eventual answering-model/provider/source authority
 ([admission](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingService.cs),
-[native disclosure](../src/Kora/SessionRouting/SessionRoutingAdviceWindow.cs)).
+[native disclosure](../src/Kora/SessionRouting/SessionRoutingAdviceView.cs)).
 Strict bounded JSON maps only host-presented indexes/evidence into the existing
 proposal; the shared routing service validates candidate cardinality, evidence and
 revision. Inference resources physically join and canonical control outcomes commit
 before review is returned. Unqualified local providers remain unavailable and
 explicitly offer reviewed New, with deterministic selection available.
 The native review reveals the destination
-without switching the previous reader or moving any unsent input. Hands-free
-routing replies and automatic selection changes remain unavailable. After separate
+without switching the previous reader or moving any unsent input. The destination
+review offers an explicit **Answer by voice** gesture for one closed question:
+exactly a presented ordinal, New or Cancel. Capture must physically join before
+the same `SelectAsync` operation acknowledges the exact name. A second explicit
+voice gesture accepts only Submit original request, Correct destination or Cancel;
+native controls remain equivalent and usable without voice qualification.
+Correction retires the previous acknowledgment and reply generation, presents the
+existing fixed Active inventory again, and requires a new acknowledgment.
+The first-party wake continuation retains exact original host evidence and
+ambient/request authority while transferring only to its own acknowledged reply
+generation. Foreign capture, changed source/owner/name/profile/privacy/call state,
+unconfirmed release and the original 60-second review expiry cannot renew or
+revive that authority. Reply text is choice data, never another global command,
+model input, session request or effect approval. No capture is automatically armed
+for acknowledgment or confirmation, and unavailable capture remains explicit.
+Opening, cancellation, late recognition, shutdown and asynchronous disposal retain
+ownership until physical release. Routing privacy retirement and reply cleanup share
+one release owner for the actual activated capture, including a wrapped hands-free
+host. Host-issued invalidations are recorded synchronously; active reply stops join
+the same in-flight native completion, and earlier opening/host stops join before its receipt.
+A verified release returns its exact generation,
+not a later mutable observation. Unknown generation changes, failed invalidation and
+unconfirmed physical release still fail closed. Retirement immediately withdraws
+original/reply admission, never resumes listening or permits a late choice.
+An explicit close-only retry can join previously unconfirmed native cleanup but
+cannot reopen capture or revive the retired original request.
+Automatic selection changes remain unavailable. After separate
 confirmation, unchanged canonical conversation submission sends the original body
 and LocalUi/ActivatedVoice channel in a new request. Only its genuine final answer,
 not the routing proposal, is retained. Cancellation and source closure suppress late

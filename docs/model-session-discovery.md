@@ -58,7 +58,7 @@ Related: [request destinations](session-routing.md) and
 
 ## Review one content-free session metadata answer
 
-The primary conversation pane and Sessions management window now provide
+The workbench conversation pane and Sessions management view provide
 **Review one session metadata answer...** for the exact selected caller.
 Enter one canonical subject ID and the original question. The subject is
 inspected passively, without selecting, resuming or renewing it.

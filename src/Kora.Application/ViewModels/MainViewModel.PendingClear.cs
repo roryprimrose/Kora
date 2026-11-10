@@ -21,9 +21,12 @@ public sealed partial class MainViewModel
     private void SetPendingClearReview(ConversationPendingClearSnapshot? snapshot)
     {
         pendingClearSnapshot = snapshot;
-        OnPropertyChanged(nameof(HasPendingClearReview));
-        OnPropertyChanged(nameof(HasSessionOperationReview));
-        OnPropertyChanged(nameof(PendingClearReviewText));
+        uiDispatcher.Post(() =>
+        {
+            OnPropertyChanged(nameof(HasPendingClearReview));
+            OnPropertyChanged(nameof(HasSessionOperationReview));
+            OnPropertyChanged(nameof(PendingClearReviewText));
+        });
     }
 
     public Func<Task> CapturePendingClearDecision(bool confirm)

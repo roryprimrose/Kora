@@ -51,5 +51,13 @@ public sealed partial class App
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
             Services.GetRequiredService<ILogger<AgentRunSetController>>());
         independentAgentRuns.Bind();
+        var responses = responseWindow ?? throw new InvalidOperationException("Independent agent runs require the owning response workbench.");
+        independentAgentRuns.BindWorkbench(responses.PrepareWorkbenchOwner, view =>
+        {
+            var owner = responses.PrepareWorkbenchOwner();
+            owner.ShowSessions(expanded: true);
+            owner.ShowNativeReview(view, "Independent local agent runs", view,
+                () => main.CanRevealPrivatePresentation, _ => { });
+        });
     }
 }

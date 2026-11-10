@@ -12,7 +12,7 @@ public sealed class ProviderProfileConfigurationUiContractTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
         { directory = directory.Parent; }
         var root = directory?.FullName ?? throw new InvalidOperationException("The repository source root is unavailable.");
-        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants().ToArray();
         foreach (var (selected, source) in new[]
         {
             ("SelectedProviderServiceChoice", "ProviderServiceChoices"),

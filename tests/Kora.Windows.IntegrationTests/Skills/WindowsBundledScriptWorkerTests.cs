@@ -104,6 +104,79 @@ public sealed class WindowsBundledScriptWorkerTests
         }
     }
 
+    [Theory]
+    [InlineData("source", RequestOrigin.LocalUi)]
+    [InlineData("source", RequestOrigin.ActivatedVoice)]
+    [InlineData("profile", RequestOrigin.LocalUi)]
+    [InlineData("profile", RequestOrigin.ActivatedVoice)]
+    [InlineData("unqualified", RequestOrigin.LocalUi)]
+    [InlineData("unqualified", RequestOrigin.ActivatedVoice)]
+    [InlineData("cancelled", RequestOrigin.LocalUi)]
+    [InlineData("cancelled", RequestOrigin.ActivatedVoice)]
+    public async Task StartupRetirementDeniesSnapshotsAndRetainsOwnershipUntilPhysicalJoin(string retirement, RequestOrigin origin)
+    {
+        foreach (var action in new[] { FixedSessionAction.Lock, FixedSessionAction.Shutdown, FixedSessionAction.Restart })
+        {
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            var startupEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var startupReleased = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var joinEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var joinReleased = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var process = new Worker
+            {
+                Start = async () =>
+                {
+                    startupEntered.TrySetResult();
+                    await startupReleased.Task.ConfigureAwait(false);
+                },
+                Join = async () =>
+                {
+                    joinEntered.TrySetResult();
+                    await joinReleased.Task.ConfigureAwait(false);
+                },
+            };
+            BundledWorkerProfile? profile = Profile;
+            var current = true;
+            var worker = new WindowsBundledScriptWorker(() => profile, (_, bootstrap) =>
+            { process.Bootstrap = bootstrap; return process; });
+            var running = worker.RunAsync(Plan(action), Invocation(origin), () => current, cancellation.Token);
+            Exception? failure = null;
+            try
+            {
+                await startupEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+                switch (retirement)
+                {
+                    case "source": current = false; break;
+                    case "profile": profile = Profile with { ImplementationDigest = new('3', 64) }; break;
+                    case "unqualified": profile = null; break;
+                    case "cancelled": cancellation.Cancel(); break;
+                    default: throw new ArgumentOutOfRangeException(nameof(retirement));
+                }
+                startupReleased.TrySetResult();
+                await joinEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+                running.IsCompleted.Should().BeFalse();
+                worker.IsQuiescent.Should().BeFalse();
+                process.Joined.Should().BeFalse();
+                process.Disposed.Should().BeFalse();
+                process.Stops.Should().BeGreaterThan(0);
+                await FluentActions.Awaiting(() => worker.RunAsync(Plan(action), Invocation(origin), static () => true,
+                    TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+            }
+            finally
+            {
+                startupReleased.TrySetResult();
+                joinReleased.TrySetResult();
+                failure = await Record.ExceptionAsync(() => running);
+            }
+            process.Envelope.Should().BeNull();
+            process.Acknowledged.Should().BeFalse();
+            failure.Should().BeOfType<InvalidOperationException>();
+            process.Joined.Should().BeTrue();
+            process.Disposed.Should().BeTrue();
+            worker.IsQuiescent.Should().BeTrue();
+        }
+    }
+
     [Fact]
     public async Task Invalid_origin_missing_invocation_and_cancelled_source_never_launch()
     {
@@ -171,9 +244,9 @@ public sealed class WindowsBundledScriptWorkerTests
                 _ => "kora.computer.restart",
             }, StringComparison.Ordinal)));
 
-    private static HostRequest Invocation()
+    private static HostRequest Invocation(RequestOrigin origin = RequestOrigin.LocalUi)
     {
-        var original = HostRequest.Create(RequestOrigin.LocalUi);
+        var original = HostRequest.Create(origin);
         return new(original.RequestId, original.SessionId, original.TaskId, original.Origin, new(Guid.NewGuid()));
     }
 
@@ -185,6 +258,8 @@ public sealed class WindowsBundledScriptWorkerTests
         internal int ExitCode { get; init; }
         internal bool FailDispose { get; init; }
         internal bool FailStart { get; init; }
+        internal Func<Task>? Start { get; init; }
+        internal Func<Task>? Join { get; init; }
         internal string? Envelope { get; private set; }
         internal string? Bootstrap { get; set; }
         internal bool Acknowledged { get; private set; }
@@ -195,12 +270,12 @@ public sealed class WindowsBundledScriptWorkerTests
         public Stream Output => response;
         public Stream Error { get; set; } = new MemoryStream();
 
-        public Task StartAsync(Func<bool> current, CancellationToken cancellationToken)
+        public async Task StartAsync(Func<bool> current, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             current().Should().BeTrue();
             if (FailStart) { throw new IOException("Synthetic failure after partial process acquisition."); }
-            return Task.CompletedTask;
+            if (Start is not null) { await Start().ConfigureAwait(false); }
         }
 
         private void Receive(string line)
@@ -229,7 +304,12 @@ public sealed class WindowsBundledScriptWorkerTests
         }
 
         public void Stop() => Stops++;
-        public Task<int> JoinAsync() { Joined = true; return Task.FromResult(ExitCode); }
+        public async Task<int> JoinAsync()
+        {
+            if (Join is not null) { await Join().ConfigureAwait(false); }
+            Joined = true;
+            return ExitCode;
+        }
         public async ValueTask DisposeAsync()
         {
             Stop();

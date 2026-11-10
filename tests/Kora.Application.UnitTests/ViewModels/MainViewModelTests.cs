@@ -4717,6 +4717,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(ConversationExecutionCommand.FixedPhrases)
             .Concat(LogonStartupCommand.FixedPhrases)
             .Concat(DetailPresentationCommand.FixedPhrases)
+            .Concat(MarkdownDisplayCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceUpdateCommand.FixedPhrases);
@@ -8740,7 +8741,8 @@ public sealed partial class MainViewModelTests : IDisposable
             ForegroundPttConfigurationService? foregroundPtt = null,
             bool enableCaptureTiming = false,
             DetailPresentationConfigurationService? detailPresentationConfiguration = null,
-            QuietHoursConfigurationService? quietHoursConfiguration = null)
+            QuietHoursConfigurationService? quietHoursConfiguration = null,
+            MarkdownDisplayConfigurationService? markdownDisplayConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8950,6 +8952,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 foregroundPtt: foregroundPtt,
                 voiceCaptureTimingConfiguration: CaptureTimingConfiguration,
                 detailPresentationConfiguration: detailPresentationConfiguration,
+                markdownDisplayConfiguration: markdownDisplayConfiguration,
                 quietHoursConfiguration: quietHoursConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);

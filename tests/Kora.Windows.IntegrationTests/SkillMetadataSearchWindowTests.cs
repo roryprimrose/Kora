@@ -175,7 +175,7 @@ public sealed class SkillMetadataSearchWindowTests
                     var isBundled = ReferenceEquals(window, bundled);
                     foreach (var name in isBundled ? BundledOrderLayout : SharedOrderLayout)
                     {
-                        var control = window.FindControl<Control>(name)!;
+                        var control = Find<Control>(window, name)!;
                         var position = control.TranslatePoint(default, window)!.Value;
                         control.Bounds.Width.Should().BeGreaterThan(0);
                         control.Bounds.Height.Should().BeGreaterThan(0);
@@ -634,7 +634,14 @@ public sealed class SkillMetadataSearchWindowTests
     }
 
     private static void Click(Window window, string name) =>
-        window.FindControl<Button>(name)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Find<Button>(window, name)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+    private static T? Find<T>(Window window, string name) where T : Control => window switch
+    {
+        SkillPackagesWindow bundled => bundled.FindControl<T>(name),
+        SharedSkillSourcesWindow shared => shared.FindControl<T>(name),
+        _ => window.FindControl<T>(name),
+    };
 
     private static SharedSkillSourcesWindow SharedWindow() => new(
         static () => Task.CompletedTask, static () => Task.CompletedTask, static () => Task.CompletedTask,

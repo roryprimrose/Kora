@@ -80,7 +80,7 @@ public sealed partial class SessionsConversationTests
             {
                 AutomationProperties.GetName(window.Review).Should().Be("Complete exact agent guidance, tools and cumulative budget review");
                 AutomationProperties.GetName(window.Confirm).Should().Be("Separate confirmation of this exact bounded agent invocation");
-                var buttons = ((StackPanel)((ScrollViewer)window.Content!).Content!).Children.OfType<Button>().ToArray();
+                var buttons = ((StackPanel)((ScrollViewer)window.View.Content!).Content!).Children.OfType<Button>().ToArray();
                 buttons.Single(button => Equals(button.Content, "Refresh existing Active conversations"))
                     .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await controller.ActiveOperation;

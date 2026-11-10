@@ -2,6 +2,7 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
 using Kora.Application.Skills;
+using Kora.Application.Mcp;
 using Kora.Core.Authorization;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
@@ -286,6 +287,177 @@ public sealed partial class ModelTurnHostTests
         f.Store.Writes.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData("model")]
+    [InlineData("comparison")]
+    [InlineData("save")]
+    [InlineData("save-review")]
+    [InlineData("save-confirm")]
+    [InlineData("save-commit")]
+    [InlineData("source-await")]
+    public async Task McpGuidanceNeverUsesRetiredDescriptorAcrossAuthoringAwaits(string phase)
+    {
+        using var source = new McpSource();
+        using var policy = await source.Policy();
+        var descriptor = await source.Configuration.ResolveHttpsAsync(source.ServerId, source.Account, Token);
+        var tool = new Kora.Core.Mcp.McpDiscoveredTool("search", new(McpSchema));
+        var proof = policy.ObservePreparedDescriptor(descriptor, tool, static () => true,
+            TimeProvider.System, DateTimeOffset.MaxValue);
+        await using var f = new SkillRefinementFixture(source: true, mcpReference: proof.Reference, mcpPolicy: policy);
+        f.Model.Answer("NEW inert guidance");
+        if (phase is "model") { f.Model.Model.Adapter.OnRun = proof.Retire; }
+        if (phase is "source-await")
+        { f.Store.BeforeRead = () => { proof.Retire(); return Task.CompletedTask; }; }
+        var proposing = () => f.Propose((_, _) =>
+        {
+            if (phase is "comparison") { proof.Retire(); }
+            return Task.FromResult(true);
+        });
+        if (phase is "model" or "comparison" or "source-await")
+        { await proposing.Should().ThrowAsync<InvalidOperationException>(); }
+        else
+        {
+            var proposal = (await proposing())!;
+            var review = new SkillRefinementReview
+            {
+                BeforeReview = phase is "save-review" ? proof.Retire : null,
+                BeforeConfirm = phase is "save-confirm" ? proof.Retire : null,
+            };
+            if (phase is "save") { proof.Retire(); }
+            if (phase is "save-commit") { f.Store.BeforePublish = proof.Retire; }
+            if (phase is "save-review")
+            { (await f.Service.Save(proposal, f.Authority, review, f.Eligible, Token)).Should().BeNull(); }
+            else
+            {
+                await f.Service.Invoking(service => service.Save(proposal, f.Authority, review, f.Eligible, Token))
+                    .Should().ThrowAsync<InvalidOperationException>();
+            }
+        }
+        f.Store.Writes.Should().Be(0);
+        f.Draft.Guidance.Should().Be("CURRENT");
+        f.Model.Model.RetainCalls.Should().Be(0);
+        f.Model.Model.PolicyHost.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("missing-proof")]
+    [InlineData("new-draft")]
+    [InlineData("same-version")]
+    [InlineData("tuple")]
+    [InlineData("metadata")]
+    [InlineData("initial")]
+    [InlineData("extra")]
+    [InlineData("duplicate")]
+    [InlineData("control")]
+    [InlineData("unicode")]
+    [InlineData("oversize")]
+    public async Task McpGuidanceRefusesUnboundInputAndMalformedBodyWithoutAuthorityChanges(string invalid)
+    {
+        using var source = new McpSource();
+        using var policy = await source.Policy();
+        var descriptor = await source.Configuration.ResolveHttpsAsync(source.ServerId, source.Account, Token);
+        var tool = new Kora.Core.Mcp.McpDiscoveredTool("search", new(McpSchema));
+        var reference = new DeclarativeMcpToolReference(descriptor.ServerId, descriptor.SourceRevision, tool.Name, tool.Schema.Digest);
+        if (invalid is not "missing-proof")
+        { policy.ObservePreparedDescriptor(descriptor, tool, static () => true, TimeProvider.System, DateTimeOffset.MaxValue); }
+        await using var f = new SkillRefinementFixture(source: true, mcpReference: reference, mcpPolicy: policy);
+        var draft = invalid switch
+        {
+            "same-version" => f.Source!.Document,
+            "tuple" => OwnedDeclarativeSkillDocument.CreateMcp("example", "2.0.0", "Example", "Description", "CURRENT",
+                new(reference.ServerId, reference.SourceRevision, "other", reference.SchemaDigest)),
+            "metadata" => OwnedDeclarativeSkillDocument.CreateMcp("example", "2.0.0", "Changed", "Description", "CURRENT", reference),
+            _ => f.Draft,
+        };
+        var answer = invalid switch
+        {
+            "extra" => "{\"body\":\"NEW\",\"server\":\"other\"}",
+            "duplicate" => "{\"body\":\"NEW\",\"body\":\"OTHER\"}",
+            "control" => "{\"body\":\"NEW\\u0000\"}",
+            "unicode" => "{\"body\":\"\\uD800\"}",
+            "oversize" => JsonSerializer.Serialize(new { body = new string('x', 65537) }),
+            _ => "{\"body\":\"NEW\"}",
+        };
+        f.Model.Model.Adapter.Reply = new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate, new(answer, null));
+        var operation = () => invalid is "initial"
+            ? f.Service.ProposeInitial(draft, new("Purpose", "Input", "Output", f.Authority),
+                (_, _) => Task.FromResult(true), f.Eligible, Token)
+            : f.Service.Propose(draft, invalid is "new-draft" ? null : f.Source, "original critique", f.Authority,
+                (_, _) => Task.FromResult(true), f.Eligible, Token);
+        await operation.Should().ThrowAsync<Exception>();
+        f.Draft.McpReference.Should().Be(reference);
+        f.Store.Writes.Should().Be(0);
+        if (invalid is "missing-proof" or "new-draft" or "same-version" or "tuple" or "metadata" or "initial")
+        { f.Model.Model.Adapter.Calls.Should().Be(0); }
+        f.Model.Model.RetainCalls.Should().Be(0);
+        f.Model.Model.PolicyHost.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("authority")]
+    [InlineData("eligible")]
+    [InlineData("descriptor")]
+    [InlineData("cancel")]
+    public async Task McpGuidanceReportsUnconfirmedPublicationWhenFinalAwaitLosesAuthority(string change)
+    {
+        using var source = new McpSource();
+        using var policy = await source.Policy();
+        var descriptor = await source.Configuration.ResolveHttpsAsync(source.ServerId, source.Account, Token);
+        var tool = new Kora.Core.Mcp.McpDiscoveredTool("search", new(McpSchema));
+        var proof = policy.ObservePreparedDescriptor(descriptor, tool, static () => true, TimeProvider.System, DateTimeOffset.MaxValue);
+        var audit = new SkillPublicationAudit();
+        await using var f = new SkillRefinementFixture(source: true, mcpReference: proof.Reference, mcpPolicy: policy, saveAudit: audit);
+        f.Model.Answer("NEW");
+        var proposal = (await f.Propose())!;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var eligible = true;
+        audit.AfterSucceeded = () =>
+        {
+            switch (change)
+            {
+                case "authority": f.Authority.Retire(); break;
+                case "eligible": eligible = false; break;
+                case "descriptor": proof.Retire(); break;
+                case "cancel": cancellation.Cancel(); break;
+            }
+        };
+        await f.Service.Invoking(service => service.Save(proposal, f.Authority, new SkillRefinementReview(),
+            () => eligible, cancellation.Token)).Should().ThrowAsync<OwnedSkillPublicationUnconfirmedException>();
+        f.Store.Writes.Should().Be(1, "unconfirmed presentation is not rollback of observed publication");
+        f.Store.Target!.Document.ManifestBytes.ToArray().Should().Equal(f.Draft.ManifestBytes.ToArray());
+        f.Store.Target.Document.IsAvailableForInvocation.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RepeatedMcpGuidanceRefinementKeepsExactOriginalDescriptorAndDoesNotRecapture()
+    {
+        using var source = new McpSource();
+        using var policy = await source.Policy();
+        var descriptor = await source.Configuration.ResolveHttpsAsync(source.ServerId, source.Account, Token);
+        var tool = new Kora.Core.Mcp.McpDiscoveredTool("search", new(McpSchema));
+        var proof = policy.ObservePreparedDescriptor(descriptor, tool, static () => true, TimeProvider.System, DateTimeOffset.MaxValue);
+        await using var f = new SkillRefinementFixture(source: true, mcpReference: proof.Reference, mcpPolicy: policy);
+        f.Model.Answer("FIRST");
+        var first = (await f.Propose())!;
+        f.Model.Answer("SECOND");
+        var second = (await f.Service.Propose(first.Proposed, first.Source, "Second original critique", f.Authority,
+            (_, _) => Task.FromResult(true), f.Eligible, Token, first))!;
+        second.Descriptor.Should().BeSameAs(proof);
+        second.Proposed.ManifestBytes.ToArray().Should().Equal(f.Draft.ManifestBytes.ToArray());
+        await using var unavailable = new SkillRefinementFixture(source: true, mcpReference: proof.Reference);
+        await unavailable.Invoking(value => value.Propose()).Should().ThrowAsync<InvalidOperationException>();
+        unavailable.Model.Model.Adapter.Calls.Should().Be(0);
+    }
+
+    private sealed class SkillPublicationAudit : Kora.Core.Auditing.ISecurityAuditLog
+    {
+        internal Action? AfterSucceeded;
+        public void Write(Kora.Core.Auditing.SecurityAuditEvent auditEvent)
+        {
+            if (auditEvent.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded) { AfterSucceeded?.Invoke(); }
+        }
+    }
+
     private sealed class SkillRefinementFixture : IAsyncDisposable
     {
         internal RefinementFixture Model { get; }
@@ -298,21 +470,27 @@ public sealed partial class ModelTurnHostTests
         private readonly OwnedSkillControlAdmission admission;
         internal bool Open = true;
         internal bool Eligible() => Open;
-        internal SkillRefinementFixture(RequestOrigin origin = RequestOrigin.LocalUi, bool inputs = false, bool source = false)
+        internal SkillRefinementFixture(RequestOrigin origin = RequestOrigin.LocalUi, bool inputs = false, bool source = false,
+            DeclarativeMcpToolReference? mcpReference = null, McpReadOnlyPolicy? mcpPolicy = null,
+            Kora.Core.Auditing.ISecurityAuditLog? saveAudit = null)
         {
             Model = new(origin);
-            Draft = OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description",
+            Draft = mcpReference is not null
+                ? OwnedDeclarativeSkillDocument.CreateMcp("example", "2.0.0", "Example", "Description", "CURRENT", mcpReference)
+                : OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description",
                 inputs ? "CURRENT ${input:topic}" : "CURRENT", guidanceFormat: inputs
                     ? OwnedSkillGuidanceFormat.RequiredLiteralInputs : OwnedSkillGuidanceFormat.Literal);
             if (source)
             {
-                Source = new(OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "OLD"),
+                Source = new(mcpReference is not null
+                    ? OwnedDeclarativeSkillDocument.CreateMcp("example", "1.0.0", "Example", "Description", "OLD", mcpReference)
+                    : OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "OLD"),
                     "directory", "manifest", "instructions");
                 Store.Source = Source;
             }
             Authority = new(origin, Eligible);
             admission = new(Model.Model, Model.Model, new(Model.Model));
-            Service = new(Store, admission, new(Store, admission, Audit), Model.Runner, Model.Model.Time);
+            Service = new(Store, admission, new(Store, admission, saveAudit ?? Audit), Model.Runner, Model.Model.Time, mcpPolicy);
         }
         internal Task<OwnedSkillGuidanceRefinement?> Propose(
             Func<OwnedSkillGuidanceRefinement, CancellationToken, Task<bool>>? review = null, string critique = "original critique") =>

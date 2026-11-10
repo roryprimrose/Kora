@@ -20,6 +20,7 @@ internal sealed partial class SessionsViewModel
     public IReadOnlyList<HistoryContextCandidate> HistoryContextCandidates =>
         HistoryContextCurrent && historyContextOpen ? historyContextCandidates : [];
     public string HistoryContextReviewText => historyContextReview?.Text ?? string.Empty;
+    internal bool HasHistoryContext => historyContextOpen && HistoryContextCurrent;
     public bool CanOpenHistoryContext => CanCompose && ConversationMessages.Any(message => message.Outcome is not null);
     public bool CanSelectHistoryContext => CanCompose && historyContextOpen && HistoryContextCurrent;
     public bool CanReviewHistoryContext => CanSelectHistoryContext && (modelHistorySource is not null || ComposerDirty)

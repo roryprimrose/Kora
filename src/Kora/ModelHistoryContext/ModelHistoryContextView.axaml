@@ -1,0 +1,40 @@
+<UserControl x:Class="Kora.ModelHistoryContextView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <Grid x:Name="ReviewLayout" Margin="12" MinWidth="300" RowDefinitions="Auto,*,Auto,Auto,*,Auto,Auto" RowSpacing="8">
+    <TextBlock Text="The model's HISTORYREVIEW advisory is not consent. Select whole earlier USER / ASSISTANT messages from this observed page (up to 16). Nothing is preselected. No extra history read, tools, hosted transfer or automatic speech."
+        TextWrapping="Wrap" />
+    <controls:ScrollableListBox Grid.Row="1" x:Name="Sources" ItemsSource="{Binding HistoryContextCandidates}"
+        SelectionMode="Multiple" IsEnabled="{Binding CanSelectHistoryContext}"
+        AutomationProperties.Name="Explicit subset of whole messages strictly before the selected model advisory">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Spacing="4">
+            <TextBlock Text="{Binding Role}" FontWeight="Bold" />
+            <TextBlock Text="{Binding Sequence, StringFormat='Earlier message {0}'}" />
+            <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </controls:ScrollableListBox>
+    <controls:NamedTextBlock Grid.Row="2" Text="{Binding ModelHistoryContextQuestion}" TextWrapping="Wrap"
+        AutomationProperties.Name="Complete unchanged original question and originating channel; unrelated unsent input is not used" />
+    <Button Grid.Row="3" x:Name="Review" Content="_Review complete selection and original question" IsEnabled="{Binding CanReviewHistoryContext}" />
+    <TextBox Grid.Row="4" x:Name="CompleteReview" Text="{Binding HistoryContextReviewText, Mode=OneWay}"
+        IsReadOnly="True" IsUndoEnabled="False" AcceptsReturn="True" TextWrapping="Wrap"
+        ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+        AutomationProperties.Name="Complete selected sources, unchanged original question and local-only no-tools destination"
+        AutomationProperties.HelpText="Read-only source review. Use arrow keys or Ctrl+Home and Ctrl+End to read; Tab leaves the review. Selection stays local; clipboard transfer is unavailable. Reading never confirms." />
+    <controls:NamedTextBlock Grid.Row="5" Text="{Binding ConversationStatus}" TextWrapping="Wrap"
+        AutomationProperties.Name="Actual retained answer or truthful HOST outcome; opening and review do not submit" />
+    <WrapPanel Grid.Row="6">
+      <Button x:Name="Confirm" Content="_Confirm ONE local-only tool-free answer" IsEnabled="{Binding CanConfirmHistoryContext}" />
+      <Button x:Name="CloseView" Content="_Cancel / close review" />
+    </WrapPanel>
+  </Grid>
+  </ScrollViewer>
+</UserControl>

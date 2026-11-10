@@ -18,7 +18,13 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
     Func<bool> ownsHost, Func<long> ownerRevision, ILogger<AgentProfileEditorController> logger,
     CustomizationAuthoringService? authoring = null, ArtifactCatalogue? catalogue = null, TimeProvider? time = null)
 {
-    private AgentProfileEditorWindow? window;
+    private AgentProfileEditorView? window;
+    private AgentProfileEditorWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<AgentProfileEditorView>? presentWorkbench;
+    internal AgentProfileEditorView? View => window;
+    internal void BindWorkbench(Func<Window> owner, Action<AgentProfileEditorView> present)
+    { getWorkbench = owner; presentWorkbench = present; }
     private AgentProfileSaveReview? review;
     private CancellationTokenSource? lifetime;
     private Task active = Task.CompletedTask;
@@ -52,7 +58,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         Route(new(string.IsNullOrWhiteSpace(description) ? AgentProfileAuthoringAction.Create
             : AgentProfileAuthoringAction.DraftFromDescription, name) { Description = description }, origin, eligible);
 
-    private bool Eligible() => !stopped && window is not null && ownsHost()
+    private bool Eligible() => !stopped && window is { IsNativePresented: true } && ownsHost()
         && capturedOwner == ownerRevision() && main.CanRevealPrivatePresentation
         && main.IsSkillReviewCallEligible && !main.IsResponseInteractionPending;
     private bool Dirty => window is { Source.IsReadOnly: false }
@@ -60,20 +66,34 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
 
     private void Open()
     {
-        if (window is not null) { window.Activate(); return; }
+        if (window is not null)
+        {
+            if (presentWorkbench is not null) { presentWorkbench(window); }
+            window.Activate();
+            return;
+        }
         if (stopped || !privacyCleanup.IsCompleted || !ownsHost() || !main.CaptureInstructionEditorEligibility()())
         { throw new InvalidOperationException("The current private owning host is unavailable or still retiring authoring work."); }
         capturedOwner = ownerRevision();
         lifetime = new();
 #pragma warning disable MA0147 // Native button boundary; Start joins the owned operation and reports failures.
-        window = new(Start);
+        if (getWorkbench is not null && presentWorkbench is not null)
+        { window = new(getWorkbench(), Start, () => main.CanRevealPrivatePresentation && !stopped); }
+        else
+        {
+            adapter = new(Start);
+            window = adapter.View;
+        }
 #pragma warning restore MA0147
         window.Source.PropertyChanged += Edited;
         window.NameInput.PropertyChanged += Edited;
         window.DescriptionRequest.PropertyChanged += DescriptionEdited;
         window.Inventory.SelectionChanged += (_, _) => Retire();
         window.Closing += Closing;
-        window.Show();
+        window.CloseRequested += (_, _) => CloseFromWindow();
+        window.PresentationLost += (_, _) => Retire();
+        if (presentWorkbench is not null) { presentWorkbench(window); }
+        else { adapter!.Show(); }
     }
 
     private async Task Route(AgentProfileAuthoringCommand command, RequestOrigin origin, Func<bool> eligible)
@@ -214,7 +234,8 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
     {
         var opened = window ?? throw new InvalidOperationException("Authoring is closed.");
         var token = lifetime!.Token;
-        bool Current() => Eligible() && eligible() && ReferenceEquals(window, opened);
+        var native = opened.CapturePresentation();
+        bool Current() => Eligible() && eligible() && native() && ReferenceEquals(window, opened);
         if (!Current()) { throw new InvalidOperationException("Private original authoring admission changed."); }
         if (action is "Open") { return; }
         if (action is "Cancel") { Retire(); opened.Status.Text = "Save review cancelled. No write requested."; return; }
@@ -264,8 +285,6 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         RequireDraft();
         if (action is "Ask")
         {
-            if (originalSnapshot is not null)
-            { throw new InvalidOperationException("Existing-original editing is manual only. Conversational generation remains create-only."); }
             await Propose(opened, Current, token); return;
         }
         if (action is "Validate")
@@ -280,7 +299,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         if (action is "Confirm") { await Commit(opened, Current, token); }
     }
 
-    private async Task PrepareReview(AgentProfileEditorWindow opened, Func<bool> current, CancellationToken token)
+    private async Task PrepareReview(AgentProfileEditorView opened, Func<bool> current, CancellationToken token)
     {
         Retire();
         var captured = Interlocked.Read(ref revision);
@@ -297,7 +316,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         opened.Status.Text = "Review the complete original/proposed source and exact destination, then use the separate native confirmation. No file written.";
     }
 
-    private async Task Commit(AgentProfileEditorWindow opened, Func<bool> current, CancellationToken token)
+    private async Task Commit(AgentProfileEditorView opened, Func<bool> current, CancellationToken token)
     {
         var pending = review ?? throw new InvalidOperationException("Review the complete exact source, base and destination first.");
         review = null;
@@ -339,7 +358,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         }
     }
 
-    private async Task RecoverConflict(AgentProfileEditorWindow opened, OwnedAgentProfileSnapshot? observed,
+    private async Task RecoverConflict(AgentProfileEditorView opened, OwnedAgentProfileSnapshot? observed,
         Func<bool> current, CancellationToken token)
     {
         opened.RetireReview();
@@ -367,7 +386,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         opened.Status.Text = "Conflict cancelled. Volatile draft retained. No overwrite, retry or new copy.";
     }
 
-    private async Task<bool> Abandon(AgentProfileEditorWindow opened)
+    private async Task<bool> Abandon(AgentProfileEditorView opened)
     {
         if (!Dirty) { return true; }
         var choice = await opened.Choose("Unsaved agent draft", "Save, discard, or keep the current volatile draft?",
@@ -381,16 +400,24 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
 
     private void Closing(object? sender, WindowClosingEventArgs args)
     {
-        if (closing) { return; }
+        if (closing || args.Cancel) { return; }
         args.Cancel = true;
-        CloseFromWindow();
+        CloseFromWindow(closeOwner: window?.Owner is ResponseWindow);
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Native window event boundary; joins owned work and reports failures.")]
-    private async void CloseFromWindow()
+    private async void CloseFromWindow(bool closeOwner = false)
     {
-        try { if (await PrepareClose()) { Clear(); } }
+        var owner = closeOwner ? window?.Owner : null;
+        try
+        {
+            if (await PrepareClose())
+            {
+                Clear();
+                if (owner?.IsVisible == true) { owner.Close(); }
+            }
+        }
         catch (Exception exception) when (exception is not OutOfMemoryException) { Report(exception); }
     }
 
@@ -405,6 +432,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
             await privacyCleanup;
 #pragma warning restore VSTHRD003
             if (window is not { } opened || !Dirty) { return true; }
+            if (!opened.IsNativePresented && presentWorkbench is not null) { presentWorkbench(opened); }
             var choice = await opened.Choose("Unsaved agent draft", "Save, discard, or cancel closing/shutdown?",
                 ["Save", "Discard", "Cancel"], lifetime!.Token);
             if (choice == 1) { return true; }
@@ -419,7 +447,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         catch (Exception exception) when (exception is not OutOfMemoryException) { Report(exception); return false; }
         finally { decidingClose = false; }
     }
-    private async Task SaveOnClose(AgentProfileEditorWindow opened, Func<bool> eligible)
+    private async Task SaveOnClose(AgentProfileEditorView opened, Func<bool> eligible)
     {
         await PrepareReview(opened, eligible, lifetime!.Token);
         if (review is not null) { await Commit(opened, eligible, lifetime.Token); }
@@ -470,6 +498,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         window?.Close();
         closing = false;
         window = null;
+        adapter = null;
         lifetime?.Dispose(); lifetime = null;
         originalEligible = null; draftName = null; originalSnapshot = null; baseline = string.Empty;
         descriptionEligible = null; proposalDestination = null; proposalEligible = null;

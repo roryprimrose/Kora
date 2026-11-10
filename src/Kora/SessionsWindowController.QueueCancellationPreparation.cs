@@ -28,12 +28,12 @@ internal sealed partial class SessionsWindowController
             var state = model ?? throw new InvalidOperationException("The native Sessions presentation is unavailable.");
             var openingSource = state.CaptureQueueCancellationInputEligibility();
             Open();
-            var owner = window ?? throw new InvalidOperationException("The native Sessions window is unavailable.");
+            var owner = ManagementOwner ?? throw new InvalidOperationException("The native Sessions presentation is unavailable.");
             if (!openingSource() || !ReferenceEquals(model, state))
             { throw new OperationCanceledException("Original native source changed while opening Sessions."); }
             var openedEpoch = Volatile.Read(ref dispositionOwnerEpoch);
             // Storage callbacks consume native-event observations, not off-thread Avalonia properties.
-            bool NativeAdmission() => Eligible() && ReferenceEquals(window, owner) && ReferenceEquals(model, state)
+            bool NativeAdmission() => Eligible() && ReferenceEquals(ManagementOwner, owner) && ReferenceEquals(model, state)
                 && Volatile.Read(ref dispositionOwnerOpen) == 1 && openedEpoch == Volatile.Read(ref dispositionOwnerEpoch);
             prepared = await state.PrepareQueueCancellationAsync(preparation, NativeAdmission, token);
         });

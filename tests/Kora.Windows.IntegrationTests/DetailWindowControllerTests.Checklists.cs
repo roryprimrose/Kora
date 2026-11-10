@@ -18,7 +18,7 @@ public sealed partial class DetailWindowControllerTests
         using var f = new Fixture(pipeTablesAvailable: true, checklistsAvailable: qualified);
         var content = ChecklistContent();
         var admitted = true;
-        f.Controller.OpenCurrentResponse(content, null, () => admitted).Should().BeTrue();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, () => admitted, TestContext.Current.CancellationToken)).Should().BeTrue();
         var view = f.Views.Single();
         view.State.Status.Should().Contain(NativeMarkdownChecklistProfile.Name);
         view.State.RenderState.Should().Be(qualified ? DetailRenderState.Rendered : DetailRenderState.SourceFallback);
@@ -30,7 +30,7 @@ public sealed partial class DetailWindowControllerTests
         view.State.ActiveText.Should().Be(ChecklistSource);
         view.State.MatchCount.Should().BeNull();
         view.State.Search("[ ]").Should().BeTrue();
-        f.Controller.OpenCurrentResponse(content, null, () => admitted).Should().BeTrue();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, () => admitted, TestContext.Current.CancellationToken)).Should().BeTrue();
         f.Views.Should().ContainSingle();
         var generation = view.State.Generation;
         await f.Controller.CopyAsync(content.Reference, generation, true);
@@ -44,7 +44,7 @@ public sealed partial class DetailWindowControllerTests
         view.State.SearchQuery.Should().BeEmpty();
         view.State.MatchCount.Should().BeNull();
         view.State.CompleteRender(generation, "late checklist", "Rendered", false).Should().BeFalse();
-        f.Controller.OpenCurrentResponse(content, null, () => admitted).Should().BeFalse();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, () => admitted, TestContext.Current.CancellationToken)).Should().BeFalse();
     }
 
     [Theory]
@@ -56,8 +56,8 @@ public sealed partial class DetailWindowControllerTests
         var first = ChecklistContent();
         var second = ChecklistContent(ChecklistSource.Replace("Alpha", "Other session", StringComparison.Ordinal));
         var admitted = true;
-        f.Controller.OpenCurrentResponse(first, null, () => admitted).Should().BeTrue();
-        f.Controller.OpenCurrentResponse(second, null, () => true).Should().BeTrue();
+        (await f.Controller.OpenCurrentResponseAsync(first, null, () => admitted, TestContext.Current.CancellationToken)).Should().BeTrue();
+        (await f.Controller.OpenCurrentResponseAsync(second, null, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
         f.Views[0].State.ActiveText.Should().NotContain("Other session");
         f.Views[1].State.ActiveText.Should().NotContain("Alpha");
         admitted = false;
@@ -78,7 +78,7 @@ public sealed partial class DetailWindowControllerTests
     {
         using var f = new Fixture(checklistsAvailable: true);
         var plain = ChecklistContent(kind: DetailContentKind.PlainText);
-        f.Controller.OpenCurrentResponse(plain, null, () => true).Should().BeTrue();
+        (await f.Controller.OpenCurrentResponseAsync(plain, null, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
         f.Views[0].State.Status.Should().Contain("native-text-v1 plain text");
         f.Views[0].State.ActiveText.Should().Be(ChecklistSource);
         var original = ConversationContent();
@@ -89,7 +89,7 @@ public sealed partial class DetailWindowControllerTests
     }
 
     [Fact]
-    public void EmbeddedAndHistoryMarkdownKeepTableProfileWithoutChecklistAuthority()
+    public async Task EmbeddedAndHistoryMarkdownKeepTableProfileWithoutChecklistAuthority()
     {
         using var f = new Fixture(pipeTablesAvailable: true, checklistsAvailable: true);
         f.Documents.Pages[0] = f.Documents.GetStartPage() with { Markdown = TableSource };
@@ -101,7 +101,7 @@ public sealed partial class DetailWindowControllerTests
         f.Controller.BindHistoryAccess(() => true);
         f.Controller.OpenHistoryDetail(history, null).Should().Contain("Unsupported Markdown extension/table");
         f.Views[1].State.ActiveText.Should().Be(ChecklistSource);
-        f.Controller.OpenCurrentResponse(history, null, () => true).Should().BeFalse();
+        (await f.Controller.OpenCurrentResponseAsync(history, null, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
     }
 
     [Theory]
@@ -109,7 +109,7 @@ public sealed partial class DetailWindowControllerTests
     [InlineData("create")]
     [InlineData("activate")]
     [InlineData("replace")]
-    public void ChecklistPublicationRetainsExactAdmissionAndNativeFailureSemantics(string failure)
+    public async Task ChecklistPublicationRetainsExactAdmissionAndNativeFailureSemantics(string failure)
     {
         using var f = new Fixture(checklistsAvailable: true);
         var content = ChecklistContent();
@@ -118,14 +118,14 @@ public sealed partial class DetailWindowControllerTests
         if (string.Equals(failure, "activate", StringComparison.Ordinal)) { f.OnViewCreated = view => view.FailActivation = true; }
         if (string.Equals(failure, "replace", StringComparison.Ordinal))
         {
-            f.Controller.OpenCurrentResponse(content, null, () => true).Should().BeTrue();
+            (await f.Controller.OpenCurrentResponseAsync(content, null, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
             var changed = new AdmittedDetailContent(content.Reference, content.Kind, content.Origin, content.Sensitivity,
                 content.Title, content.Provenance, "different", content.SessionSource);
-            f.Controller.OpenCurrentResponse(changed, null, () => true).Should().BeFalse();
+            (await f.Controller.OpenCurrentResponseAsync(changed, null, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
             f.Views.Single().State.ActiveText.Should().Contain("Alpha");
             return;
         }
-        f.Controller.OpenCurrentResponse(content, null, () => true).Should().BeFalse();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
         f.Views.Should().OnlyContain(view => view.Cleared);
     }
 

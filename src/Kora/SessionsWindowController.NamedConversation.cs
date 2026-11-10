@@ -8,7 +8,7 @@ namespace Kora;
 
 internal sealed partial class SessionsWindowController
 {
-    private NamedConversationChoiceWindow? namedConversationChoice;
+    private NamedConversationChoiceView? namedConversationChoice;
     private long namedConversationEpoch;
     internal TimeProvider NamedConversationTime { get; set; } = TimeProvider.System;
     internal Task NamedConversationOperation { get; private set; } = Task.CompletedTask;
@@ -46,7 +46,9 @@ internal sealed partial class SessionsWindowController
             return;
         }
         var completed = new TaskCompletionSource<SessionWorkspaceEntry?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var choice = new NamedConversationChoiceWindow(page, Live);
+        var choice = DetailOwner() is ResponseWindow primary
+            ? new NamedConversationChoiceView(primary, page, Live)
+            : new NamedConversationChoiceWindow(page, Live).View;
         namedConversationChoice = choice;
         choice.Closed += (_, _) => completed.TrySetResult(choice.Result);
         void Revoke(HostId<SessionIdentity> _)

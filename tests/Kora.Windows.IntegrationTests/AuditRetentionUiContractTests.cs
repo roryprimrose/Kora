@@ -14,7 +14,7 @@ public sealed class AuditRetentionUiContractTests
             directory = directory.Parent;
         }
         var root = directory?.FullName ?? throw new InvalidOperationException("Source root unavailable.");
-        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants().ToArray();
         var selector = controls.Single(control =>
             string.Equals(control.Attribute("Value")?.Value, "{Binding SelectedAuditRetentionDays}", StringComparison.Ordinal));
         selector.Name.LocalName.Should().Be("SettingsNumberField");

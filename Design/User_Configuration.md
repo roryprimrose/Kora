@@ -1053,8 +1053,78 @@ visibility, performance or Windows motion state.
 
 Mutation remains the separate existing setting-suggestion/native review.
 Inspection performs no preference write, grant, consent change, capture, speech,
-network/export, renderer replacement or run-only presence mutation. Response
-timeout and Windows speech rate remain outside this confirmed-value subset.
+network/export, renderer replacement or run-only presence mutation. Windows
+speech rate remains outside this confirmed-value subset.
+
+### Delivered confirmed response-window hide-delay answer
+
+The existing [complete confirmed settings inspection](../docs/setting-inspection.md)
+now includes `appearance.response-timeout` for the original question "Which
+response-window hide delay is configured, and is that the same as presence
+inactivity or my ordinary task deadline?" The existing
+[authoritative appearance reader](../src/Kora.Application/Configuration/SettingInspection/AppearanceConfigurationService.SettingInspection.cs)
+compares the validated saved value or existing absent/default 5 seconds against
+live appearance state and saved/default provenance at its revision. The closed
+integer range remains 1-60 seconds; no writer, default or persistence format is added.
+
+All twelve appearance observations are required in the complete twenty-three-value
+source. Malformed, unconfirmed, publishing, unobserved or externally changed state
+blocks the whole source. Observed change-and-return or service revision changes
+cannot renew prior evidence. Existing original host/session/channel/privacy/call,
+expiry, cancellation, tool-boundary and final-publication revalidation remains
+unchanged.
+
+Native/typed or eligible activated-voice originals use the same complete source
+review, exact question, new local destination and original expiry before separate
+one-use confirmation. A tool-free local answer or explicitly chosen read-only
+settings-discovery flow retains only the original question and genuine final
+answer under existing conversation policy, with physical join and terminal audit.
+Settings navigation alone grants no source consent.
+
+The value is explicitly configured response-window inactivity hide delay, not
+presence inactivity, a task/provider deadline, current visibility, performance
+or evidence that [visibility exceptions](../docs/settings.md#independent-visibility-timeouts)
+are absent. No setting write, hide/show, capture/playback, other source/tool,
+export, grant, policy or provider enablement is introduced. Windows-native rate
+stays outside this source. This is deterministic implementation evidence, not
+local-provider or installed qualification.
+
+### Delivered dedicated provider-aware Windows rate answer
+
+The native confirmed-settings question workflow has a separately selected
+`WindowsRate` profile for "Which Windows-native rate preference is saved, what
+configured rate is effective, and why does it not change Kokoro?" Its complete
+source is exactly the confirmed `speech.voice` preference plus a closed typed
+`speech.windows-rate` observation: desired validated native units, saved/default
+provenance, configured effective nullable units/support, exact selected provider
+and provider/rate-service revisions. Raw recovery, exception and path text are
+excluded. Explicit effective null is known unsupported/unavailable configured
+mapping, not zero, default reinterpretation or observed playback speed.
+
+The source picker defaults to the existing full `ConfirmedSettings` profile,
+including response timeout. That profile retains completeness and rate exclusion;
+old questions do not require rate/provider qualification. Only the native user
+selects the dedicated profile. Source/question/discovery edits retire prior
+review/output. Original native or eligible activated-voice channel, full source,
+exact question and new local destination require review and separate one-use
+tool-free or settings-discovery confirmation. Dedicated list/get expose exactly
+the two selected entries; mixed/partial/extra source profiles are rejected.
+
+Inspection validates confirmed disk values/provenance against already observed
+state off the dispatcher, then revalidates provider and rate bindings at actual
+model/tool/final boundaries, including after awaits. Unobserved, held, malformed,
+unconfirmed or changed state makes this source unavailable; no Observe, refresh,
+reload, preference write, provider/account/network probe, output invalidation or
+synthesis is performed. Existing requested/terminal audit, privacy/call/channel,
+expiry, cancellation, retention and physical join remain authoritative.
+
+Windows-native configured rate does not change Kokoro, establish ready voice,
+actual playback speed, acoustic alignment, provider qualification or permission
+to speak. Only the original question and genuine final answer are retained.
+No new qualification, enrollment or enablement is introduced; unavailable local
+model/runtime readiness remains unavailable. See the
+[complete user interaction](../docs/setting-inspection.md#dedicated-windows-native-rate-source)
+and [deterministic native regressions](../tests/Kora.Windows.IntegrationTests/SettingInspection/WindowsSpeechRateSettingInspectionTests.cs).
 
 ### Delivered confirmed capture-timing answer
 
@@ -1726,6 +1796,15 @@ In Settings > Sessions, refresh **Future ordinary task deadline**, choose 1-60 w
 Readback distinguishes saved/default/unavailable state; Reset restores five minutes.
 Typed or activated voice uses `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes` ([shared control](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadline.cs)).
 
+The closed inert model-setting registry also admits an exact `set work.active-deadline-minutes to <canonical integer 1-60>` or `reset work.active-deadline-minutes`.
+An original local user selects that exact successful retained answer in the Active conversation, reviews actual saved/default, effective and proposed minutes, the five-minute default and future-only shared device-local scope, then separately confirms natively within 60 seconds or cancels.
+The same audited atomic writer and strict unconfirmed-write fence own persistence; model output and review cannot save.
+Review binds the exact retained source, session/generation, original native request, preference observation/revision, host/privacy/call/ownership and native foreground epoch.
+Source/page replacement, source change-and-return, direct control, stale disk, expiry or closure requires fresh inspection; late results are suppressed and owned operations are joined.
+Uncertain audit/readback remains explicitly unconfirmed, with no retry, rollback or default success.
+This subset adds no deadline undo, settings-discovery current-value authority, automatic allowance inference or running-turn extension
+([review owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineSuggestionReview.cs), [native host binding](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadlineSuggestions.cs)).
+
 The device-local preference is confirmed through original-user host admission, atomic storage, exact readback, required audit and terminal receipt before future dispatch can consume it.
 Stale observations, malformed values and unconfirmed writes fail explicitly; an unconfirmed preference cannot silently become the default
 ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs), [preference store](../src/Kora.Application/Configuration/LocalOrdinaryTurnDeadlinePreferences.cs)).
@@ -1844,13 +1923,17 @@ Unknown audit/save/readback outcomes retain the existing destination-only durabl
 | Knowledge source registration | None by default; explicit reviewed file/folder and session/managed scope | "Add my Team TSGs folder as a knowledge source" |
 | Knowledge source refresh | Manual initially; later bounded scheduled refresh only after R26 background-work gates | "Refresh Team TSGs" |
 | Knowledge retrieval strategy | Lexical initially; verified hybrid/vector retrieval optional later | "Use lexical retrieval for Team TSGs" |
-| Knowledge source limits | Host defaults within verified file/source/context maxima; user may lower them | "Limit knowledge files to one megabyte" |
+| Knowledge source limits | Delivered original-user exact-source count/per-file/aggregate lowering within 32 files/256 KiB each/1 MiB total, consumed only by next separately reviewed refresh; generic model proposals remain unavailable | `source capture limits lower "Team TSGs" 8 65536 262144` |
 | Knowledge citation detail | Source plus heading/page/line location | "Show detailed knowledge citations" |
 | Diagnostic database retention | Delivered canonical integer 1–365; default/reset 30; only future ordinary SQLite commits, existing deadlines unchanged; apply-now unavailable; daily JSON stays 30 files/30 days | `set logging.sqlite-diagnostic-retention-days to 14` |
 | Audit retention | Delivered canonical integer 30–365; default/reset 90; only NEW required authority audit and independently qualified diagnostic audit projections; old deadlines unchanged; apply-now/pruning unavailable | `set logging.audit-retention-days to 180` |
 | Diagnostic verbosity | Content-minimising normal; bounded metadata-only detail | "Use detailed diagnostics for this session" |
 
 Paths can be spoken or taken from explicitly selected clipboard text, then resolved/read back and validated.
+
+**Delivered exact-source capture limits - 2026-11-08.** Native management and exact original typed/current-name activated commands get/review/lower/reset/confirm/cancel one registered source's three positive numeric limits through the same two-minute source/version/preference/admission-bound review. The [source-specific owner](../src/Kora.Application/Configuration/KnowledgeSourceCaptureLimitsConfigurationService.cs) persists only its stable Guid/numeric tuple through the [shared atomic preference store](../src/Kora.Application/Configuration/LocalKnowledgeSourceCaptureLimitsPreferences.cs), with requested/terminal audit, readback and an unconfirmed-write fence. It is not a shared device-local RegisteredSetting or model-proposal authority.
+
+Saving does not refresh or rewrite a pending/pinned revision. The next separately reviewed refresh captures one immutable desired tuple; native discovery and complete metadata enforce inclusive count/per-file/aggregate bounds with whole-source refusal. Inspection/answer use validates against the captured tuple, not a later desired preference. New registry version3/snapshot version4 retain it alongside the unchanged lexical index; known legacy formats use their historical hard maxima and malformed new state fails explicitly. Removal retains a revoked Removing row until exact-Guid numeric cleanup succeeds, including reopened retry; other sources and session history remain independent. [Controls, grammar and recovery](../docs/knowledge-sources.md#lower-the-next-capture-limits-for-one-source).
 Do not require typing a path, but do not infer one from unrelated context.
 Long, ambiguous or low-confidence knowledge paths fall back to the native
 picker rather than being guessed. Adding a knowledge source, using its excerpts

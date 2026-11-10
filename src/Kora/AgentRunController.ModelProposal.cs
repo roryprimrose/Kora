@@ -22,7 +22,7 @@ internal sealed partial class AgentRunController
         }
     }
 
-    private async Task PrepareProposalReportedAsync(ProposedBoundedAgentUse proposal, AgentRunWindow opened)
+    private async Task PrepareProposalReportedAsync(ProposedBoundedAgentUse proposal, AgentRunView opened)
     {
         try { await PrepareProposalAsync(proposal, opened); }
         catch (Exception exception) when (exception is InvalidOperationException or InvalidDataException
@@ -34,20 +34,21 @@ internal sealed partial class AgentRunController
         }
     }
 
-    private async Task PrepareProposalAsync(ProposedBoundedAgentUse proposal, AgentRunWindow opened)
+    private async Task PrepareProposalAsync(ProposedBoundedAgentUse proposal, AgentRunView opened)
     {
         var resolver = namedAgents ?? throw new InvalidOperationException("Registered agent source resolution is unavailable.");
         var token = cancellation!.Token;
+        var native = opened.CapturePresentation();
         await proposal.ValidateAsync(token);
-        if (!HostEligible() || !ReferenceEquals(window, opened))
+        if (!HostEligible() || !native() || !ReferenceEquals(window, opened))
         { throw new InvalidOperationException("The original proposal review was closed or revoked."); }
         var candidates = resolver.ReadCandidates(proposal.Definition.Name,
-            () => HostEligible() && proposal.IsCurrent() && ReferenceEquals(window, opened), token);
+            () => HostEligible() && proposal.IsCurrent() && native() && ReferenceEquals(window, opened), token);
         var choices = new List<ProposalSource>();
         foreach (var candidate in candidates.Where(item => item.IsUseEnabled && !item.IsUseDisabled && item.UseControlId is not null))
         {
             var selection = await resolver.ResolveAsync(candidate,
-                () => HostEligible() && proposal.IsCurrent() && ReferenceEquals(window, opened), token);
+                () => HostEligible() && proposal.IsCurrent() && native() && ReferenceEquals(window, opened), token);
             choices.Add(new(selection));
         }
         if (choices.Count == 0)
@@ -79,7 +80,7 @@ internal sealed partial class AgentRunController
             + "Choose the exact current source and supply a new task; source reading and invocation confirmation remain separate.";
     }
 
-    private async Task SelectProposedSourceAsync(AgentRunWindow opened, Func<bool> current, CancellationToken token)
+    private async Task SelectProposedSourceAsync(AgentRunView opened, Func<bool> current, CancellationToken token)
     {
         var proposal = modelProposal ?? throw new InvalidOperationException("No current recommendation is available.");
         var choice = (opened.RecommendedSources.SelectedItem as ProposalSource)?.Selection.Definition

@@ -219,6 +219,15 @@ checked before acquisition/start, on each callback and after native work.
 Invalidation permanently retires the ring, clears/ends command PCM, rejects
 late observations/finals, and retains ownership until microphone callbacks,
 ignoring decoder/open/recognizer work, VAD and file leases have joined.
+Session teardown releases resources in dependency order. A failed microphone,
+command-recognizer, keyword-detector or VAD join retains the remaining native
+resources and verified asset handles rather than disposing them in a `finally`.
+PCM is cleared and late transcripts are rejected, but capture is not reported
+quiescent. The existing setup owner holds that consumer Unavailable and denies
+replacement capture or data mutation; repeated disposal observes the original
+failed release rather than retrying uncertain native work. The
+[failed-join regressions](../tests/Kora.Windows.IntegrationTests/Audio/HandsFreeNativePipelineTests.cs)
+use deterministic platform fakes and do not qualify real wake or audio behavior.
 The existing host closes capture **before** dispatching the final command into
 the same governed operation and readable-result route used by typed/native
 input. Wake detection alone performs no action or context acquisition.

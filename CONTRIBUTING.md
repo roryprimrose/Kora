@@ -78,6 +78,11 @@ dotnet build .\src\Kora\Kora.csproj --configuration Debug --no-restore
 dotnet run --project .\src\Kora\Kora.csproj --configuration Debug --no-build --no-restore
 ```
 
+Verify that startup completes and Kora's configured window or tray interface is
+available; a briefly running process alone does not prove successful startup.
+For an unexpected exit, inspect the Windows Application log's `.NET Runtime`
+event for the startup exception.
+
 Run `.\eng\Test-Run.ps1` to check launcher ordering, failure handling and working
 directory restoration with fake commands; it never updates source or opens Kora.
 
@@ -468,6 +473,29 @@ The native Claude failed-stop fixture awaits its stream's cancellation callback
 before releasing the physical reader. Starting asynchronous disposal alone does
 not prove cancellation reached that reader; terminal cancellation, joined
 disposal failure and retained quarantine remain separate assertions.
+
+Headless input selectors use the intended control's accessible name rather than
+assuming there is only one descendant of its type; templates can contain their
+own text editors. Keep aggregate and per-tab reset inventories aligned with
+delivered controls without dropping command, placement or guard assertions.
+For incomplete native operations, include reported status and admission flags in
+assertion context, not original source or response content.
+
+Owned-definition fixtures create originals with the existing
+`WindowsOwnedInstructionStoreTests.WriteOwnedFile` helper when current-user
+ownership is part of the contract. Generic file writes can inherit an elevated
+token's default owner instead; a restricted parent directory alone does not
+prove the file owner. Keep replacement originals explicitly owned too, and
+retain the production reader's exact-owner rejection.
+
+The [desktop bootstrap integration tests](tests/Kora.Windows.IntegrationTests/DesktopBootstrapIntegrationTests.cs)
+validate production service registrations and run the actual `App` framework
+binding and main-window startup on the headless dispatcher. Only platform ports
+are replaced; preferences and SQLite use isolated owned storage. Keep both DI
+validation and late-bound service resolution covered, await window startup
+quiescence before teardown, and restore shared application, renderer and tray
+state. These tests do not acquire real instance ownership, audio devices or
+network access, and are not native-renderer qualification evidence.
 
 The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs conversation and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs Evidence Find and the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
 

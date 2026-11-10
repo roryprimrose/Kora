@@ -23,6 +23,18 @@ model-dependent operation.
 Full identifiers are needed only where the exact command syntax asks for them;
 use native lists or readable-name routes elsewhere.
 
+## One source's next capture limits
+
+Use original private typed input or current-name activated voice:
+
+- `source capture limits get "Team notes"` reads saved desired limits and current captured limits without reading source contents.
+- `source capture limits lower "Team notes" 8 65536 262144` reviews **file count / original bytes per file / combined original bytes** for only the exact named source.
+- `source capture limits reset "Team notes"` reviews removal of that source's override.
+- `source capture limits confirm` confirms only the current exact two-minute review.
+- `source capture limits cancel` discards the review without writing.
+
+Names must resolve uniquely. All three numbers must be positive and at most **32 / 262144 / 1048576**. Confirmation saves, audits and reads back a numeric preference, not a source capture. Only the next separately reviewed native refresh consumes its immutable tuple and rejects the whole excess source without truncation. Pending/pinned captures, model permissions and other sources remain unchanged. Source selection, field changes, stale inventory/preferences or lost privacy retire confirmation. This is not a model `set` proposal, arbitrary filesystem authority or natural-language numeric guessing. See [source controls and recovery](knowledge-sources.md#lower-the-next-capture-limits-for-one-source).
+
 ## Ask once about this request's Details
 
 Use `ask this conversation with details offer <original message>` in the global command box, or prefix it with the current assistant name during deliberate push-to-talk.
@@ -159,6 +171,13 @@ precedence. The retired public diagnostic queue controls still refuse
 pause/resume/reorder/settings; this adds no global scheduler or configuration.
 
 ## Invoke one registered agent by readable name
+
+To refine an inert owned original instead of invoking it, use **agent author inspect example**,
+choose native **Edit existing original**, then **agent author describe Make the guidance shorter.**
+and **agent author ask** (exact typed or current-name activated voice). Only inspected tool-free/reference-free native v1
+originals support this local two-field proposal. Review disclosure and complete source comparison; adoption is memory-only.
+Then independently review and confirm **Save existing original** natively. No invocation, activation, tools or grants follow.
+See [owned-original refinement and separate save](agent-profile-authoring.md#edit-the-same-existing-original).
 
 Type `agent invoke "Exact readable name" <original task>`, or use the current
 assistant-name prefix for activated voice, for example
@@ -403,6 +422,24 @@ completion. Dismissal, replacement, timeout, privacy closure and disposal retire
 current-response details; recovery never resurrects them.
 There is no per-response pin/unpin, preference write, model or speech action.
 Uncomposed native hosts report unavailable; this does not qualify a model route.
+
+## Exact current-sentence captions and dismissal delay
+
+Type `show the current sentence`, or say `Kora, show the current sentence`
+using your current assistant name. This saves **CurrentSentence** through the
+same native speech-text setting; actual sentence captions remain unavailable
+without qualified playback alignment. It never estimates progress or replays text.
+
+`keep speech text visible for ten seconds` saves the exact **10-second**
+post-completion dismissal delay. Use canonical numerals 0-30 or English number
+words zero through thirty, with `one second` / `1 second` and `seconds` otherwise.
+Twenty-one through twenty-nine accept one hyphen or one space (`twenty one`).
+Whole commands only: no extra clauses, negatives, fractions, fuzzy values or
+clamping. The current-name prefix is optional for typed input; activated voice
+keeps its existing channel/privacy/call gates. Native inspect/save/reset remain
+equivalent, and neither command enables a provider, speaks, or invokes a model
+([settings and unavailable alignment](settings.md#local-speech-text),
+[shared grammar](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
 
 ## Read the current response aloud once
 
@@ -804,7 +841,7 @@ An explicit already-confirmed singleton file or complete folder preview must mat
 No path, name or selected-window guessing occurs; stale/closed/replaced previews refuse ([host handoff](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
 
 The existing inspection window opens/focuses with **PREPARED / REVIEW NEEDED**, lexical mode and no result claim. Typing, focus and preparation execute nothing. Only the separate native Search button reaches the existing canonical audited executor; ActivatedVoice is never relabelled LocalUi.
-No read, metadata capture, refresh, Attach, source-use consent, model/provider, clipboard, retention or query persistence is granted ([native hook](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs), [executor guard](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
+No read, metadata capture, refresh, Attach, source-use consent, model/provider, clipboard, retention or query persistence is granted ([native hook](../src/Kora/LocalFilePreviewView.PreparedSearch.cs), [executor guard](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
 
 The query is volatile native input, never a response, transcript, speech, log/audit field or Activity tag. Late/reused handoffs expire and repeated preparation clears old citations without searching. Retained attachments, native Literal Find and existing invalid `search file <query>` / `search folder <query>` forms are unchanged
 ([deterministic host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PreparedLocalSearch.cs), [native tests](../tests/Kora.Windows.IntegrationTests/PreparedLocalSearchWindowTests.cs)).
@@ -922,7 +959,7 @@ maintenance workflow:
 | `maintenance review` | Review the exact fresh host-held canonical record/source/architecture/digest/unsigned disclosure and reveal the existing native review window |
 | `maintenance snooze` | Snooze only that fresh, reviewed Available notice for 24 hours within this run; no persistent reminder policy or other prompt change |
 | `maintenance check [latest\|version]` | Check canonical GitHub releases using already-saved network consent; optional exact version such as `1.2.3-beta7` |
-| `maintenance upgrade [latest\|version]` | Check and open native upgrade review; downloading/running the exact unsigned installer needs separate native approval |
+| `maintenance upgrade [latest\|version]` | Check, obtain exact native unsigned-installer approval, then start the verified installer; setup handles Kora shutdown and installation |
 
 The optional **Kora,** prefix uses the current configured name. The complete
 original input is at most 128 characters; phrases are case-insensitive with
@@ -1631,6 +1668,21 @@ Use `review response timeout suggestion` to review the exact host-pinned success
 
 The answer must be one exact `set appearance.response-timeout to <integer>` using canonical digits, 1-60 seconds. It changes only the existing response-window inactivity hide delay, not provider deadlines or Always show. Review saves nothing; original-channel call policy, source, preference, privacy and host checks remain required through commit ([review and recovery](settings.md#review-a-response-timeout-suggestion)).
 
+**Future ordinary deadline suggestions are a separate native-only review.**
+
+An original local user can choose **Review setting suggestion...** on an exact
+successful retained answer containing `set work.active-deadline-minutes to 10`
+(canonical whole minutes 1-60), or `reset work.active-deadline-minutes`.
+Review shows actual saved/default, effective and proposed values and future-only
+device-local scope; separately confirm or cancel in the same current native
+surface within 60 seconds. The model never executes the suggestion.
+Confirmed audited atomic write/readback is required before future dispatch
+consumes it. Running work and earlier context/provider/tool ceilings stay
+unchanged. Stale sources, returned surfaces, changed authority or uncertain
+saves require inspection, not retry, rollback, deadline undo or default success.
+This model route adds no typed/voice confirmation
+([complete review](setting-proposals.md), [direct controls](settings.md#future-ordinary-task-deadline)).
+
 ### Detail presentation preference
 
 These exact commands share the native reviewed preference workflow. Prefix activated voice with the current assistant name. Set/reset stage a review only; confirmation is separate ([parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs)).
@@ -1652,6 +1704,25 @@ cancel detail presentation change
 Offer remains the default; reset saves Offer. LinkOnly suppresses cues on future publications. OpenAutomatically opts into nonactivating foreground automatic opening, with no new question or background/history replay ([shared policy](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [bounded native admission](../src/Kora/ResponseWindowController.AutomaticDetails.cs)).
 
 **Open details**, `open current response details` and selected-session detail commands retain their existing source/privacy admission. One-off acceptance or decline never saves a preference; protected-call voice writes remain denied ([manual route](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs), [detailed boundaries](settings.md#detailed-result-offers)).
+
+#### Future final-answer Markdown display default
+
+These exact original typed commands share **Settings > Responses > Future final-answer Markdown Details**. Activated voice requires the current assistant-name prefix. Set and reset prepare an exact review; Save is separate ([parser](../src/Kora.Application/Configuration/MarkdownDisplayCommand.cs), [reviewed writer](../src/Kora.Application/Configuration/MarkdownDisplayConfigurationService.cs)).
+
+```text
+get responses.markdown-display
+status responses.markdown-display
+set responses.markdown-display to Source
+set responses.markdown-display to Rendered
+reset responses.markdown-display
+review markdown display change
+confirm markdown display change
+cancel markdown display change
+```
+
+**Rendered** is the legacy missing-file default; reset reviews Rendered. The device-local choice applies only to NEW already-admitted final-answer/retained-assistant Markdown Details, in either native reader. Existing exact viewers preserve their mode and Find position. Saving neither opens a result nor changes active viewers. A malformed, unconfirmed or externally changed preference is explicitly unavailable, never implicitly Rendered ([scope and recovery](settings.md#future-final-answer-markdown-details)).
+
+Embedded help, original USER/history/context readers, raw file previews, plain text, HTML, Mermaid and browser renderers remain unchanged. This preference grants no source access, consent, export, clipboard, link or model authority.
 
 ### Inspect or change the device-default response mode
 
@@ -2276,11 +2347,11 @@ inclusion still does not connect or authorize execution.
 
 ### Search admitted skill package metadata
 
-In **Settings > Custom content > Skill packages...**, type a native metadata query, choose **All / Runtime unavailable / Runtime available**, then click **Search**. Search covers bundled declared names, IDs and descriptions only, across the admitted catalogue (at most eight packages). Runtime availability is not instruction compatibility; every current bundled package remains invocation-unavailable ([bundled controls](../src/Kora/SkillPackagesWindow.axaml.cs), [bounded catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs)).
+In **Settings > Custom content > Skill packages...**, type a native metadata query, choose **All / Runtime unavailable / Runtime available**, then click **Search**. Search covers bundled declared names, IDs and descriptions only, across the admitted catalogue (at most eight packages). Runtime availability is not instruction compatibility; every current bundled package remains invocation-unavailable ([bundled controls](../src/Kora/SkillPackagesView.axaml.cs), [bounded catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs)).
 
 In **Shared profile sources (read only)**, first explicitly **List selected source**, then use **Search** with **All / Instruction-compatible / Instruction-incompatible**. Matching covers admitted declared name, metadata-qualified source ID/name/version identity when the name is valid, and valid declared description, across at most 32 snapshots from that exact source. Missing metadata is not guessed; files/roots, path-fallback IDs, SKILL.md bodies, manifests and helpers are not searched ([query policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
 
-Queries are literal ordinal-ignore-case substrings: spaces are significant, with no trimming, wildcards, ranges or Unicode normalization. The bound is 256 UTF-16 units / 512 strict UTF-8 bytes; malformed Unicode, controls, directional/format characters and line/paragraph separators are explicitly rejected. Rejection empties results/selection rather than falling back to All. Typing or changing the filter only edits the draft; click Search to apply it. **Clear** restores empty/All without opening another result ([shared query validation](../src/Kora.Core/Context/LiteralMetadataQuery.cs), [native search](../src/Kora/SharedSkillSourcesWindow.axaml.cs)).
+Queries are literal ordinal-ignore-case substrings: spaces are significant, with no trimming, wildcards, ranges or Unicode normalization. The bound is 256 UTF-16 units / 512 strict UTF-8 bytes; malformed Unicode, controls, directional/format characters and line/paragraph separators are explicitly rejected. Rejection empties results/selection rather than falling back to All. Typing or changing the filter only edits the draft; click Search to apply it. **Clear** restores empty/All without opening another result ([shared query validation](../src/Kora.Core/Context/LiteralMetadataQuery.cs), [native search](../src/Kora/SharedSkillSourcesView.axaml.cs)).
 
 All includes incompatible/unavailable rows. Shared compatibility is structural instruction-only, not harmlessness, trust, runtime qualification or invocation availability. Search/filter never performs a read, recheck, registration change or withdrawal. An exact surviving selection can remain open; exclusion clears private source/identity panes with an explanation and requires explicit result selection. Initial open/list still selects the first package; refresh/source replacement/withdrawal/failure/privacy/ownership/call change/close clears navigation and retires late callbacks. Queries are not saved or indexed, and no model/tool/typed/voice search route is added ([controllers](../src/Kora/SharedSkillSourcesWindowController.cs), [native behavior tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)).
 
@@ -2347,6 +2418,18 @@ This is not a harmlessness or complete dependency-inventory certification
 
 Owned packages use the separate exact `owned skill` command family. Additive native v2 authoring uses `owned skill tool web-page-get` (or `owned skill tool none` for unchanged v1), and invocation adds `owned skill url: <absolute-url>` and `owned skill review-tool` before separate enablement/preview/confirmation. These commands do not publish, approve a web action or bypass native confirmations by themselves; see [the complete owned operation](owned-skill-authoring.md#author-and-use-one-host-webpageget-skill).
 
+Native v6 adds `owned skill tool read-only-mcp` with literal declaration fields
+`owned skill mcp-server: <sha256>`, `owned skill mcp-source-revision: <sha256>`,
+`owned skill mcp-tool: <exact-name>` and `owned skill mcp-schema-digest: <sha256>`.
+Save/Reopen remain disabled. In an open v6 Use window, `owned skill mcp-options`
+lists existing permitted choices; `owned skill mcp-server: <displayed-server-id>`,
+`owned skill mcp-account: <displayed-account-id>` and
+`owned skill mcp-arguments: <json>` select exact original inputs before the
+existing review-tool/enable/review-use/invoke sequence. Nothing automatically
+connects or installs; separate native account/schema/read-only mapping/egress
+and result-use approvals remain mandatory.
+[Complete owned MCP operation](owned-skill-authoring.md#author-and-use-one-exact-read-only-mcp-skill).
+
 The separate `owned skill workflow` family supports the [complete native ordered observation operation](owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow): `create <id> <version>`, literal `name:`, `description:`, `definition:`, `validate`, `save`, `list`, `reopen <id> <version>`, `targets`, `next-targets`, `target <session-id>`, and literal `request:`.
 Then use `review <id> <version>`, separately `enable`, explicitly `invoke`, independent `approve-step`/`deny-step` while an exact native step review is pending, `status`, `cancel`, or `close`.
 Native Save still has two distinct confirmations. Only the six original read-only observations are admitted, without a model, implicit steps, scripts, external effects or partial success ([exact command grammar](../src/Kora.Application/Skills/ObservationWorkflowCommand.cs)).
@@ -2374,7 +2457,7 @@ Use **shared skill next targets** for the next bounded metadata page.
 The exact case-sensitive skill name resolves only within the explicitly listed native source; use `name from source <displayed source ID>` when source qualification is needed.
 No fuzzy match, model selection, reserved alias registration or implicit conversation creation is admitted.
 Initial root registration and discovery remain native-only
-([command parser](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs), [source selection](../src/Kora/SharedSkillSourcesWindow.Invocation.cs)).
+([command parser](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs), [source selection](../src/Kora/SharedSkillSourcesView.Invocation.cs)).
 
 Enablement is memory-only, exact-revision, single-use and expires after two minutes.
 Close, privacy/control/call/ownership changes, changed registration or stale source revoke the review; restored old bytes do not revive an observed revoked review.
@@ -2389,7 +2472,7 @@ Enter `use skill <exact declared readable name>`, optionally prefixed with the c
 
 [Customization metadata discovery](tools-and-built-in-skills.md) remains a separate reviewed operation. Command-like text in a skill name or discovery request does not invoke the other operation or enable a skill. Both routes refuse to replace a pending question or approval; the original question remains visible.
 
-The named-use window initially reads no files. Choose **Inspect saved and registered skill files locally (read consent)** to explicitly inspect the bounded owned inventory and every already registered shared source using their existing readers.
+The named-use supporting tab in the expanded workbench initially reads no files and does not open another Kora window ([view](../src/Kora/NamedSkillInvocationView.cs)). Choose **Inspect saved and registered skill files locally (read consent)** to explicitly inspect the bounded owned inventory and every already registered shared source using their existing readers.
 This reads complete package files, not reference bodies or unrelated context. Initial shared-root registration remains a separate native operation ([inspection](../src/Kora.Application/Skills/NamedSkillCatalogue.cs)).
 
 Every exact-name match appears as a numbered source-qualified choice, including unavailable kinds or excluded sources. No row is selected automatically, even for a unique match. Choose the readable row and **Review exactly the selected source choice**, or enter `skill choice <displayed number>`.
@@ -2406,6 +2489,8 @@ Changes require fresh inspection/review, never latest-name retargeting ([owned b
 
 Only a genuine retained canonical local-model answer or truthful typed unavailable/failure/cancellation terminal completes use. Lookup/inspection errors invalidate the whole lookup rather than reporting successful empty results; a valid no-match lookup explicitly clarifies.
 **Stop, join and close named skill use** or `skill close` cancels and joins actual work. No automatic enablement, grants, hosted fallback or live-provider qualification is added ([native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NamedSkills.cs)).
+
+Hiding/minimizing the workbench or leaving this review clears its source/confirmation body and retires an unconfirmed choice. Inspect and review again after returning. An already separately confirmed invocation remains owned through physical completion; its actual retained answer stays in the exact original conversation and is not republished into the restored old review. Hiding is not Stop ([hosted regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NamedSkillWorkbench.cs)).
 
 ### Reviewed one-tool shared skill invocation
 

@@ -115,21 +115,10 @@ internal sealed partial class SharedSkillInvocationController
             RetireConfirmation();
             if (captured.McpReference is not null)
             {
-                var server = opened.McpServers.SelectedItem as Kora.Application.Configuration.McpServerConfigurationSummary
-                    ?? throw new InvalidOperationException("Select an exact current included MCP server.");
-                var account = opened.McpAccounts.SelectedItem as Kora.Core.Mcp.McpAccountChoice
-                    ?? throw new InvalidOperationException("Select an exact current delegated MCP account.");
                 var mcpRevision = inputRevision;
-                mcpInvocation = await service.PrepareMcpAsync(captured, opened.Request.Text ?? string.Empty,
-                    server.Id, account.Reference, opened.McpArguments.Text ?? string.Empty,
+                mcpInvocation = await McpSkillInvocationPresenter.PrepareAsync(service, captured, opened,
                     () => Reviewed() && inputRevision == mcpRevision, requestOrigin, token);
                 if (!Reviewed() || inputRevision != mcpRevision) { RetireConfirmation(); return; }
-                opened.Confirmation.Text = $"{opened.Instructions.Text}\n\nTARGET {captured.Target.Authority.SessionId.Value:D}\n"
-                    + $"ORIGIN {captured.Origin}\nSERVER {server.Display}\nACCOUNT {account.DisplayName}\n"
-                    + $"ORIGINAL REQUEST\n{mcpInvocation.Body}\nEXACT JSON ARGUMENTS\n{mcpInvocation.Arguments}\n"
-                    + "Confirm one local skill continuation. Normal native connection, current tool/schema and outgoing invocation approvals remain mandatory.";
-                opened.Confirm.IsEnabled = true;
-                opened.Status.Text = "Review the complete skill, original request, selected source/account and arguments. Nothing connected.";
                 return;
             }
             var revision = inputRevision;
@@ -146,6 +135,7 @@ internal sealed partial class SharedSkillInvocationController
         }
         else if (action is "Invoke")
         {
+            invoking = true;
             if (captured.McpReference is not null)
             {
                 var preparedMcp = mcpInvocation ?? throw new InvalidOperationException("Review this exact MCP skill invocation first.");
@@ -158,22 +148,18 @@ internal sealed partial class SharedSkillInvocationController
                 var account = (Kora.Core.Mcp.McpAccountChoice)opened.McpAccounts.SelectedItem!;
                 var originalTarget = captured.Target;
                 var originalControl = service.McpResultControlRevision;
-                var native = new McpNativeReview(questions ?? throw new InvalidOperationException("Native MCP review is unavailable."), () => opened);
                 skillMcpCapture.Retire();
                 HostRequest? completedRequest = null;
                 Kora.Core.Mcp.McpModelResult? completedResult = null;
-                using var mcpRequest = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
-                var mcpReceipt = await service.InvokeMcpAsync(preparedMcp, () => Reviewed() && inputRevision == mcpRevision,
-                    (proposal, generation, mapping, admitted, check) =>
-                        skillMcpCapture.PresentAsync(native.PresentAsync, proposal, generation, mapping, admitted, check),
-                    native.SelectAsync, token, (request, result) =>
+                var mcpReceipt = await McpSkillInvocationPresenter.InvokeAsync(service, preparedMcp, opened,
+                    questions ?? throw new InvalidOperationException("Native MCP review is unavailable."),
+                    () => Reviewed() && inputRevision == mcpRevision, token, (request, result) =>
                     {
                         if (!Current() || inputRevision != mcpRevision) { return; }
                         completedRequest = request;
                         completedResult = result;
-                    });
-                mcpRequest.Complete(HostOperationOutcome.Completed);
-                if (Current())
+                    }, skillMcpCapture);
+                if (Current() && operationPresentation?.Invoke() != false)
                 {
                     if (inputRevision == mcpRevision && completedRequest is { } resultRequest && completedResult is { } result)
                     {
@@ -206,12 +192,12 @@ internal sealed partial class SharedSkillInvocationController
                 {
                     if (questions is null) { throw new InvalidOperationException("Native per-action page approval is unavailable."); }
                     var spec = new QuestionSpec("Exact page approval", QuestionKind.SingleChoice, [new("once", "Approve once")]);
-                    var presentation = await questions.AskConversationAsync(opened, proposal.Request, generation,
+                    var presentation = await questions.AskConversationAsync(opened.Owner, proposal.Request, generation,
                         spec, proposal.ExpiresAt, admitted, approvalToken, proposal, address);
                     return new(presentation.Presented, presentation.Completed);
                 }, token);
             request.Complete(HostOperationOutcome.Completed);
-            if (Current())
+            if (Current() && operationPresentation?.Invoke() != false)
             {
                 opened.Confirmation.Text = string.Empty;
                 opened.Status.Text = $"Retained exact request {receipt.Message.Request.RequestId.Value:D}: {receipt.Message.Outcome} / {receipt.Message.Reason}. "

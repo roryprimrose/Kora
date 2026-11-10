@@ -23,7 +23,7 @@ internal sealed partial class OwnedSkillEditorController
 
     private enum GuidanceOperation { Generate, Refine }
 
-    private async Task ProposeGuidance(OwnedSkillEditorWindow opened, OwnedSkillAuthoringAuthority request, GuidanceOperation operation,
+    private async Task ProposeGuidance(OwnedSkillEditorView opened, OwnedSkillAuthoringAuthority request, GuidanceOperation operation,
         CancellationToken token)
     {
         var previous = pendingRefinement ?? (operation == GuidanceOperation.Refine ? generatedBase : null);
@@ -42,6 +42,7 @@ internal sealed partial class OwnedSkillEditorController
         var exact = Interlocked.Read(ref generation);
         var epoch = Interlocked.Read(ref refinementEpoch);
         var originalSource = source;
+        var mcp = draft.Tool == OwnedSkillToolSelection.ReadOnlyMcp;
         var authority = new OwnedSkillAuthoringAuthority(critiqueInput.Origin,
             () => Eligible() && request.IsCurrent() && critiqueInput.IsCurrent());
         var generationInput = initial
@@ -71,6 +72,8 @@ internal sealed partial class OwnedSkillEditorController
                     + critique + "\n\nEXPECTED INPUT\n" + generationInput!.Input + "\n\nEXPECTED OUTPUT\n" + generationInput.Output
                     + "\n\nFROZEN REQUIRED INPUT NAMES (FIRST-USE ORDER)\n" + requiredInputs
                 : "Send only the complete current guidance and unchanged original critique to one admitted local model with tools none. "
+                + (mcp ? "The package declares one fixed read-only MCP capability, but authoring cannot use it. "
+                    + "A still-held independently admitted trusted descriptor is required; no connection or refresh will be attempted. " : "")
                 + "No history, memory, attachments, references, network or hosted fallback. Metadata, required input names, format, "
                 + "ID/version, paths and publication authority cannot be chosen by the model. The draft is not changed or saved.\n\nCRITIQUE\n" + critique;
             if (await opened.ChooseGuidance(initial ? "Review initial skill generation disclosure" : "Review local skill refinement disclosure",
@@ -92,9 +95,13 @@ internal sealed partial class OwnedSkillEditorController
                 }
                 return await opened.ChooseGuidance("Compare complete skill guidance proposal",
                     "Complete current and proposed guidance. Metadata and input names are unchanged. Content remains inert and untrusted; "
+                    + (mcp ? "Declared package capability: read-only MCP; authoring model tools: none. "
+                        + "Complete unchanged new-version manifest:\n" + draft.ManifestText + "\n" : "")
                     + "structural validation is not semantic harmlessness. Accept only stages this proposal. Validate, Save and the separate "
                     + "native publication confirmation are still required. The saved package remains disabled; enable/invoke are separate.\n\nCRITIQUE\n" + critique,
-                    draft.Guidance, proposal.Proposed.Guidance, ["Use proposal for next Save", "Reject proposal"],
+                    mcp ? draft.ManifestText + "\ninstructions.md\n" + draft.Guidance : draft.Guidance,
+                    mcp ? proposal.Proposed.ManifestText + "\ninstructions.md\n" + proposal.Proposed.Guidance : proposal.Proposed.Guidance,
+                    ["Use proposal for next Save", "Reject proposal"],
                     () => Current() && proposal.IsCurrent(), admitted) == 0 && proposal.IsCurrent();
             }
             pendingRefinement = generationInput is not null

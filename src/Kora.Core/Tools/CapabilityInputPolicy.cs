@@ -34,6 +34,11 @@ public static class CapabilityInputPolicy
                     && SessionMetadataSnapshot.IsCanonicalId(fields[0].Value.GetString())
                     ? new(null, Id: new(fields[0].Value.GetString()!)) : new("invalid-exact-session-id");
             }
+            if (descriptor.Input == CapabilityInputShape.ReleaseVersion)
+            {
+                try { return new(null, ReleaseVersion: MaintenanceTools.ReadVersion(document.RootElement)); }
+                catch (InvalidDataException) { return new("invalid-maintenance-version"); }
+            }
             if (descriptor.Input == CapabilityInputShape.ProviderSettings)
             {
                 try { return new(null, ProviderSettings: ProviderSettingsTools.ReadInput(descriptor.Id, document.RootElement)); }

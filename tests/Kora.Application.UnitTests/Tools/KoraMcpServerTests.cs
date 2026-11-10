@@ -41,7 +41,7 @@ public sealed partial class KoraMcpServerTests : IDisposable
         using var discovery = JsonDocument.Parse(fixture.Server.HandleRequest(caller, McpProtocol.DiscoveryRequest(), Token));
         discovery.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray()
             .Select(tool => tool.GetProperty("name").GetString()).Should()
-            .Equal(ReadOnlyCapabilityCatalog.Descriptors.Select(tool => tool.Id));
+            .Equal(ReadOnlyCapabilityCatalog.Descriptors.Concat(MaintenanceTools.Descriptors).Select(tool => tool.Id));
         using var result = Call(fixture, caller, ReadOnlyCapabilityCatalog.Version, "{}");
         result.RootElement.GetProperty("result").GetProperty("isError").GetBoolean().Should().BeFalse();
         var text = result.RootElement.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString()!;
@@ -60,7 +60,7 @@ public sealed partial class KoraMcpServerTests : IDisposable
         using var discovery = JsonDocument.Parse(fixture.Server.HandleRequest(caller, McpProtocol.DiscoveryRequest(), Token));
         discovery.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray()
             .Select(tool => tool.GetProperty("name").GetString()).Should()
-            .Equal(ReadOnlyCapabilityCatalog.Descriptors.Where(tool =>
+            .Equal(ReadOnlyCapabilityCatalog.Descriptors.Concat(MaintenanceTools.Descriptors).Where(tool =>
                 !string.Equals(tool.Id, ReadOnlyCapabilityCatalog.Version, StringComparison.Ordinal))
                 .Select(tool => tool.Id));
         using var reply = Call(fixture, caller, ReadOnlyCapabilityCatalog.Version, "{}");

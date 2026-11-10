@@ -29,7 +29,7 @@ discovery and the genuine final answer within the unchanged cumulative byte limi
 List accepts bounded `offset`/`count` fields and returns canonical registered
 metadata, scope, validation limits, suggested values, native-review classification
 and whether a confirmed value reader is composed. Get accepts only one exact
-registered `id`; only the twenty-one reviewed observations below can return values.
+registered `id`; only the twenty-three reviewed observations below can return values.
 Other registered values are explicitly unavailable, not guessed or loaded from
 another source ([closed discovery contract](../src/Kora.Core/Tools/SettingsDiscoveryTools.cs)).
 
@@ -41,11 +41,11 @@ results are volatile lower-trust data, not approval or future read authority
 ([bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs),
 [exact reviewed binding](../src/Kora.Application/Dependencies/ModelTurnHost.SettingsDiscovery.cs)).
 
-Exactly twenty-one registered observations are included: theme, reading text scale,
+Exactly twenty-three registered observations are included: theme, reading text scale,
 ordinary spoken-summary word/sentence caps, Kora-only playback volume,
 device-default response mode, Details presentation mode, `appearance.presence-display`, the compound
 `speech.voice` preference, the configured quiet-hours schedule and the eight
-presence and three capture-timing preferences below. Presence display
+presence, the response-window hide delay and four capture-timing preferences below. Presence display
 is a reviewed Boolean (`true` or `false`), not a claim that the presence renderer
 is currently available or visible. Its saved/default provenance and source
 invalidation follow the same rules as the other observations
@@ -69,6 +69,7 @@ not proof that anything opened or that a renderer is available
 | ID | Confirmed unsaved default | Units |
 | --- | --- | --- |
 | `appearance.presence-timeout` | 10 | seconds |
+| `appearance.response-timeout` | 5 | seconds |
 | `appearance.presence-size` | 360 | pixels |
 | `appearance.dot-size` | 100 | percent |
 | `appearance.dot-density` | 100 | percent |
@@ -80,10 +81,67 @@ not proof that anything opened or that a renderer is available
 | `voice.command-start-wait` | 5 | seconds |
 | `voice.reply-start-wait` | 15 | seconds |
 | `voice.trailing-silence` | 1 | seconds |
+| `voice.maximum-capture` | 60 | seconds |
+
+Ask **Which response-window hide delay is configured, and is that the same as
+presence inactivity or my ordinary task deadline?** The complete source includes
+`appearance.response-timeout`: an exact integer from 1 to 60 seconds, with the
+existing 5-second default only when absent storage agrees with the observed
+appearance service. Its saved/default provenance and service revision are checked
+again before submission, each discovery callback and final answer publication.
+Malformed, unconfirmed or changed state blocks the whole source; a change and
+return cannot revive an old review.
+
+This is the configured response-window inactivity hide delay, separate from
+presence inactivity and any task/provider deadline. It does not establish current
+visibility, performance or the absence of
+[visibility exceptions](settings.md#independent-visibility-timeouts).
+Both answer modes require full-source review and a separate one-use confirmation.
+Only the original question and genuine final answer enter conversation retention;
+inspection never writes a timeout, hides/shows a window or changes a task deadline.
+Windows-native speech rate remains value-unavailable in this source.
+
+## Dedicated Windows-native rate source
+
+The source picker defaults to **ConfirmedSettings**, the complete twenty-three
+values above. Choose **WindowsRate** explicitly for: **Which Windows-native rate
+preference is saved, what configured rate is effective, and why does it not change
+Kokoro?** Model text cannot choose a source. Changing the source, question or
+discovery choice clears the prior review and output; inspect and confirm again.
+
+This separate complete profile contains only `speech.voice` and
+`speech.windows-rate`. Review the full selected provider/voice preference,
+saved/default provenance, desired native integer, configured effective integer
+or explicit `null`, support, provider revision and rate-service revision, original
+question and new local destination before separately confirming one request.
+Native units range from -10 through 10; the absent preference is 0 only when
+confirmed disk absence matches the observed service's default.
+
+Effective `null` means an explicitly observed unsupported/unavailable configured
+mapping, not zero or an assumed normal speed. Windows-native units apply only to
+Kora's Windows synthesizer; they do not change Kokoro synthesis. Configured
+effective/support is not actual playback speed, provider qualification, ready
+voice, acoustic alignment or permission to speak. This source enables nothing.
+
+Unobserved, held, malformed, unconfirmed or changed rate/provider state makes
+this entire dedicated source unavailable. Inspection reads and validates off the
+UI thread; it never refreshes/reloads/observes either service, repairs a preference,
+probes a provider/account/network, invalidates output or starts synthesis.
+Both bindings are checked at model/tool/final boundaries and after awaited work.
+The default full source still excludes rate and does not require rate availability.
+
+Optional `settings.list`/`settings.get` expose only these two reviewed entries,
+with a closed `WindowsRate` profile and typed rate observation. A get outside
+this profile is unavailable. Tool-free and discovery answers retain only the
+original question and genuine final answer, with one-use confirmation, original
+channel, cancellation, expiry, terminal audit and physical resource join unchanged.
+Runtime local answer generation remains unavailable independently in this build.
+See the [typed profile](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs)
+and [read-only rate reader](../src/Kora.Application/Configuration/SettingInspection/WindowsSpeechRateConfigurationService.SettingInspection.cs).
 
 For capture, ask "Why does capture stop or wait, and which command-start,
 reply-start and trailing-silence timings are configured?" The complete review
-includes all three exact timing values, units and saved/default provenance.
+includes all four exact timing values, units and saved/default provenance.
 Fractional seconds retain domain precision (up to seven fractional digits),
 without rounding or converting to whole seconds. The authoritative timing
 service must already agree with the saved/default observation at its revision.

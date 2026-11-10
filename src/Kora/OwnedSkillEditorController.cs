@@ -16,7 +16,14 @@ internal sealed partial class OwnedSkillEditorController(
     OwnedSkillDeletionWorkflow? deletion = null,
     OwnedSkillFixtureWorkflow? fixtures = null) : IAsyncDisposable
 {
-    private OwnedSkillEditorWindow? window;
+    private OwnedSkillEditorView? window;
+    private OwnedSkillEditorWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<OwnedSkillEditorView>? presentWorkbench;
+    private Func<bool>? operationPresentation;
+    internal OwnedSkillEditorView? View => window;
+    internal void BindWorkbench(Func<Window> ownerWindow, Action<OwnedSkillEditorView> present)
+    { getWorkbench = ownerWindow; presentWorkbench = present; }
     private OwnedSkillAuthoringAuthority? original;
     private CancellationTokenSource? lifetime;
     private Task work = Task.CompletedTask;
@@ -62,8 +69,19 @@ internal sealed partial class OwnedSkillEditorController(
         window?.RetireReview();
     }
 
-    private bool Eligible() => ownsHost() && owner == ownershipRevision() && original?.IsCurrent() == true
+    private bool OriginalEligible() => ownsHost() && owner == ownershipRevision() && original?.IsCurrent() == true
         && lifetime?.IsCancellationRequested == false;
+    private bool Eligible() => OriginalEligible() && operationPresentation?.Invoke() != false;
+
+    private void PresentationLost(object? sender, EventArgs args)
+    {
+        Interlocked.Increment(ref generation);
+        validated = null;
+        CancelRefinement();
+        CancelFixture();
+        invocation?.RetirePendingPresentation();
+        window?.RetireReview();
+    }
 
     private async Task Handle(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority)
     {
@@ -106,11 +124,21 @@ internal sealed partial class OwnedSkillEditorController(
             owner = ownershipRevision();
             original = authority;
             lifetime = new();
-            window = new(action => Start(action is "create"
+            void RunAction(string action) => Start(action is "create"
                 ? new(action, window?.IdInput.Text, window?.VersionInput.Text)
                 : action is "apply-component" ? new("reference", Literal: window?.ComponentBody.Text, InputName: window?.ComponentPath.Text)
                 : action is "remove-component" ? new("remove-reference", InputName: window?.ComponentPath.Text)
-                : new(action), new(RequestOrigin.LocalUi, Eligible)), Eligible);
+                : new(action), new(RequestOrigin.LocalUi, OriginalEligible));
+            if (getWorkbench is not null && presentWorkbench is not null)
+            {
+                window = new(getWorkbench(), RunAction, Eligible,
+                    () => main.CanRevealPrivatePresentation && ownsHost() && owner == ownershipRevision());
+            }
+            else
+            {
+                adapter = new(RunAction, Eligible);
+                window = adapter.View;
+            }
             window.DraftChanged += () =>
             {
                 Interlocked.Increment(ref generation);
@@ -139,7 +167,14 @@ internal sealed partial class OwnedSkillEditorController(
             };
             window.Saved.SelectionChanged += (_, _) => CancelFixture();
             window.Closing += OnClosing;
-            window.Show();
+            window.CloseRequested += (_, _) => RequestClose();
+            window.PresentationLost += PresentationLost;
+            if (presentWorkbench is not null)
+            {
+                window.PresentRequested += () => presentWorkbench(window);
+                presentWorkbench(window);
+            }
+            else { adapter!.Show(); }
         }
         if (!Eligible() || !authority.IsCurrent())
         {
@@ -151,6 +186,8 @@ internal sealed partial class OwnedSkillEditorController(
             main.ReportHostInteractionFailure("Original skill authoring authority expired. Close/discard this draft; recovery never readmits it.");
             return;
         }
+        if (presentWorkbench is not null) { presentWorkbench(window); }
+        else { adapter!.Show(); }
         window.Activate();
         Start(command, authority);
 #pragma warning disable VSTHRD003 // Join the controller-owned command, including cancellation-ignoring publication.
@@ -171,6 +208,7 @@ internal sealed partial class OwnedSkillEditorController(
     private async Task Run(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority)
     {
         if (window is not { } opened || lifetime is null) { return; }
+        operationPresentation = opened.CapturePresentation();
         busy = true;
         try
         {
@@ -190,6 +228,10 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.NameInput.Text = "";
                     opened.DescriptionInput.Text = "";
                     opened.Guidance.Text = "";
+                    opened.McpServer.Text = "";
+                    opened.McpSourceRevision.Text = "";
+                    opened.McpTool.Text = "";
+                    opened.McpSchemaDigest.Text = "";
                     opened.Tool.SelectedIndex = 0;
                     opened.InputFormat.SelectedIndex = 0;
                     opened.Critique.Text = "";
@@ -237,9 +279,22 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Tool.SelectedIndex = command.Literal switch
                     {
                         "web-page-get" => 1,
+                        "read-only-mcp" => 2,
                         "none" => 0,
                         _ => throw new InvalidOperationException("Select only no tools or host WebPageGet."),
                     };
+                    break;
+                case "mcp-server" when invocation?.IsMcpOpen != true:
+                    opened.McpServer.Text = command.Literal;
+                    break;
+                case "mcp-source-revision":
+                    opened.McpSourceRevision.Text = command.Literal;
+                    break;
+                case "mcp-tool":
+                    opened.McpTool.Text = command.Literal;
+                    break;
+                case "mcp-schema-digest":
+                    opened.McpSchemaDigest.Text = command.Literal;
                     break;
                 case "validate":
                     if (initialAuthority is not null && pendingRefinement is null)
@@ -248,6 +303,7 @@ internal sealed partial class OwnedSkillEditorController(
                         ? proposal.IsCurrent() ? proposal.Proposed : throw new InvalidOperationException("The refinement expired. Generate and review again.")
                         : opened.Document();
                     opened.Report("Valid native complete package" + (pendingRefinement is null ? "" : " from the reviewed guidance proposal")
+                        + (validated.Tool == OwnedSkillToolSelection.ReadOnlyMcp ? ". Declared capability is read-only MCP; authoring tools none" : "")
                         + ". No publication, enablement, tool permission or invocation.");
                     break;
                 case "save": await Save(authority); break;
@@ -279,7 +335,7 @@ internal sealed partial class OwnedSkillEditorController(
                 case "list":
                     var rows = await workflow.List(original!, lifetime.Token);
                     var pendingRenames = renames is null ? [] : await renames.Pending(authority, lifetime.Token);
-                    if (Eligible())
+                    if (Eligible() && authority.IsCurrent())
                     {
                         opened.Saved.ItemsSource = rows;
                         opened.PendingRenames.ItemsSource = pendingRenames;
@@ -294,7 +350,7 @@ internal sealed partial class OwnedSkillEditorController(
                     if (useId is null || useVersion is null)
                     { throw new InvalidOperationException("Select an exact saved ID/version before Use."); }
                     if (invocation is null) { throw new InvalidOperationException("Owned skill invocation is unavailable in this host."); }
-                    await invocation.Handle(new("use", useId, useVersion), authority, Eligible);
+                    await invocation.Handle(new("use", useId, useVersion), authority, OriginalEligible);
                     break;
                 case "enable":
                 case "read-references":
@@ -304,11 +360,15 @@ internal sealed partial class OwnedSkillEditorController(
                 case "request":
                 case "input":
                 case "url":
+                case "mcp-options":
+                case "mcp-server":
+                case "mcp-account":
+                case "mcp-arguments":
                 case "review-tool":
                 case "review-use":
                 case "invoke":
                     if (invocation is null) { throw new InvalidOperationException("Owned skill invocation is unavailable in this host."); }
-                    await invocation.Handle(command, authority, Eligible);
+                    await invocation.Handle(command, authority, OriginalEligible);
                     break;
                 case "reopen":
                     var selected = opened.Saved.SelectedItem as OwnedDeclarativeSkillSnapshot;
@@ -359,7 +419,7 @@ internal sealed partial class OwnedSkillEditorController(
                 : exception is OperationCanceledException ? "Cancelled. Owned I/O has joined; no saved result is claimed."
                 : "Skill authoring failed: " + exception.Message);
         }
-        finally { busy = false; }
+        finally { busy = false; operationPresentation = null; }
     }
 
     private async Task<bool> Save(OwnedSkillAuthoringAuthority authority)
@@ -386,7 +446,7 @@ internal sealed partial class OwnedSkillEditorController(
         return true;
     }
 
-    private void ResetDraft(OwnedSkillEditorWindow opened)
+    private void ResetDraft(OwnedSkillEditorView opened)
     {
         CancelRefinement();
         CancelFixture();
@@ -399,7 +459,7 @@ internal sealed partial class OwnedSkillEditorController(
         opened.LoadComponents(null);
     }
 
-    private void ShowSaved(OwnedSkillEditorWindow opened, OwnedDeclarativeSkillSnapshot saved)
+    private void ShowSaved(OwnedSkillEditorView opened, OwnedDeclarativeSkillSnapshot saved)
     {
         CancelRefinement();
         source = saved;
@@ -410,7 +470,16 @@ internal sealed partial class OwnedSkillEditorController(
         opened.NameInput.Text = saved.Document.Name;
         opened.DescriptionInput.Text = saved.Document.Description;
         opened.Guidance.Text = saved.Document.Guidance;
-        opened.Tool.SelectedIndex = saved.Document.Tool == OwnedSkillToolSelection.WebPageGet ? 1 : 0;
+        opened.Tool.SelectedIndex = saved.Document.Tool switch
+        {
+            OwnedSkillToolSelection.WebPageGet => 1,
+            OwnedSkillToolSelection.ReadOnlyMcp => 2,
+            _ => 0,
+        };
+        opened.McpServer.Text = saved.Document.McpReference?.ServerId ?? "";
+        opened.McpSourceRevision.Text = saved.Document.McpReference?.SourceRevision ?? "";
+        opened.McpTool.Text = saved.Document.McpReference?.ToolName ?? "";
+        opened.McpSchemaDigest.Text = saved.Document.McpReference?.SchemaDigest ?? "";
         opened.InputFormat.SelectedIndex = saved.Document.ReferenceDeclaration is not null ? 2 : saved.Document.InputTemplate is null ? 0 : 1;
         opened.LoadComponents(saved);
         opened.Critique.Text = "";
@@ -428,7 +497,7 @@ internal sealed partial class OwnedSkillEditorController(
         var capture = main.CaptureDefinitionObservationEligibility();
         var capturedOwner = ownershipRevision();
         bool PrivateEligible() => ownsHost() && capture() && ownershipRevision() == capturedOwner;
-        if (!window.IsVisible && !window.ShowForPrivateRecovery(PrivateEligible)) { return false; }
+        if (!window.IsNativePresented && !window.ShowForPrivateRecovery(PrivateEligible)) { return false; }
         var choice = await window.DirtyChoice(Eligible() && authority.IsCurrent(),
             PrivateEligible, CancellationToken.None);
         if (!authority.IsCurrent())
@@ -442,15 +511,24 @@ internal sealed partial class OwnedSkillEditorController(
 
     private void OnClosing(object? sender, WindowClosingEventArgs args)
     {
-        if (closing) { return; }
+        if (closing || args.Cancel) { return; }
         args.Cancel = true;
-        if (busy) { Retire(); return; }
-        work = CloseWindow();
+        RequestClose(closeOwner: window?.Owner is ResponseWindow);
     }
 
-    private async Task CloseWindow()
+    private void RequestClose(bool closeOwner = false)
     {
-        try { if (!await PrepareClose()) { return; } }
+        if (busy) { Retire(); return; }
+        work = CloseWindow(closeOwner ? window?.Owner : null);
+    }
+
+    private async Task CloseWindow(Window? ownerWindow)
+    {
+        try
+        {
+            if (!await PrepareClose()) { return; }
+            if (ownerWindow?.IsVisible == true) { ownerWindow.Close(); }
+        }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         { AuthoringFailed(logger, exception.GetType().Name); window?.Report("Closing failed; the draft remains open."); }
     }
@@ -473,6 +551,7 @@ internal sealed partial class OwnedSkillEditorController(
         closing = true;
         window.Close();
         window = null;
+        adapter = null;
         original = null;
         lifetime?.Dispose();
         lifetime = null;
@@ -495,6 +574,10 @@ internal sealed partial class OwnedSkillEditorController(
 #pragma warning disable VSTHRD003 // Application exit retains resource ownership until the actual operation terminates.
         await work;
 #pragma warning restore VSTHRD003
+        closing = true;
+        window?.Dispose();
+        window = null;
+        adapter = null;
         main.PrivacyClosureRequested -= OnPrivacyClosed;
         main.PropertyChanged -= OnMainChanged;
         main.BindOwnedSkillAuthoring(null, null);

@@ -58,6 +58,7 @@ public static partial class ModelToolProtocol
     {
         ModelToolMode.ReadOnly => ReadOnlyCapabilityCatalog.Descriptors,
         ModelToolMode.ProviderSettings => ProviderSettingsTools.Descriptors,
+        ModelToolMode.ApplicationMaintenance => MaintenanceTools.Descriptors,
         ModelToolMode.None or ModelToolMode.HostedClarification => [],
         ModelToolMode.LocalWebPage => Network.LocalWebPageTool.Descriptors,
         ModelToolMode.McpReadOnly => [],

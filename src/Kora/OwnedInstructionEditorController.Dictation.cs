@@ -42,8 +42,9 @@ internal sealed partial class OwnedInstructionEditorController
         var channel = main.CaptureInstructionBodyDictationEligibility();
         var request = HostRequest.Create(RequestOrigin.ActivatedVoice);
         var cancellation = lifetime.Token;
+        var native = opened.CapturePresentation();
         bool SourceCurrent() => !disposed && !busy && !uncertain && profileOriginal is null && !actions.IsSourceUnavailable
-            && !cancellation.IsCancellationRequested && ReferenceEquals(window, opened) && ownsHost()
+            && !cancellation.IsCancellationRequested && ReferenceEquals(window, opened) && ownsHost() && native()
             && ownershipRevision() == ownership && channel() && kind == ArtifactKind.Instruction
             && ReferenceEquals(baseline, original) && string.Equals(selectedName, name, StringComparison.Ordinal)
             && inventoryRevision == Interlocked.Read(ref inventoryEpoch);

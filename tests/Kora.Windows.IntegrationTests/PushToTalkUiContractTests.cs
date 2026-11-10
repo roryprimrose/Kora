@@ -26,14 +26,14 @@ public sealed class PushToTalkUiContractTests
     public void Settings_has_no_push_to_talk_control_or_command_capture_handlers()
     {
         var root = SourceRoot();
-        var settings = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
+        var settings = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml"));
         settings.Descendants().Attributes().Where(attribute =>
             string.Equals(attribute.Value, "PushToTalkButton", StringComparison.Ordinal)
             || attribute.Value.Contains("BeginPushToTalk", StringComparison.Ordinal)
             || attribute.Value.Contains("EndPushToTalk", StringComparison.Ordinal)
             || attribute.Value.Contains("OnPushToTalk", StringComparison.Ordinal))
             .Should().BeEmpty();
-        var codeBehind = File.ReadAllText(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml.cs"));
+        var codeBehind = File.ReadAllText(Path.Combine(root, "src", "Kora", "SettingsView.axaml.cs"));
         codeBehind.Should().NotContain("pushToTalkButton")
             .And.NotContain("OnPushToTalk")
             .And.NotContain("BeginPushToTalk")

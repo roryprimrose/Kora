@@ -5,31 +5,31 @@ namespace Kora;
 
 internal sealed partial class AgentRunSetController
 {
-    private sealed record ReviewedPresentation(AgentRunSet Runs, AgentRunSetWindow.RunPanel Panel,
+    private sealed record ReviewedPresentation(AgentRunSet Runs, AgentRunSetView.RunPanel Panel,
         long Revision, SessionWorkspaceEntry Target, BoundedAgentReview Review);
 
     private readonly ReviewedPresentation?[] presentations = new ReviewedPresentation?[2];
 
-    private AgentRunSet.AgentRunSnapshot? ReadCurrentPresentation(int number, AgentRunSetWindow.RunPanel panel)
+    private AgentRunSet.AgentRunSnapshot? ReadCurrentPresentation(int number, AgentRunSetView.RunPanel panel)
     {
         var presentation = presentations[number - 1];
-        if (!Eligible() || !ReferenceEquals(window?.Runs[number - 1], panel)
+        if (!Eligible() || window?.IsNativePresented != true || !ReferenceEquals(window.Runs[number - 1], panel)
             || presentation is null || !ReferenceEquals(presentation.Runs, runs)
             || !ReferenceEquals(presentation.Panel, panel) || presentation.Revision != panel.Revision
-            || panel.Targets.SelectedItem is not AgentRunSetWindow.Target selected || selected.Entry != presentation.Target)
+            || panel.Targets.SelectedItem is not AgentRunSetView.Target selected || selected.Entry != presentation.Target)
         { return null; }
         var snapshot = presentation.Runs.Read(number);
         return snapshot is not null && snapshot.Target == presentation.Target && ReferenceEquals(snapshot.Review, presentation.Review)
             ? snapshot : null;
     }
 
-    private void RequireCurrentPresentation(int number, AgentRunSetWindow.RunPanel panel)
+    private void RequireCurrentPresentation(int number, AgentRunSetView.RunPanel panel)
     {
         if (ReadCurrentPresentation(number, panel) is null)
         { throw new InvalidOperationException("Review the exact current source, task and target first."); }
     }
 
-    private void ShowStatus(int number, AgentRunSetWindow.RunPanel panel)
+    private void ShowStatus(int number, AgentRunSetView.RunPanel panel)
     {
         var snapshot = ReadCurrentPresentation(number, panel);
         if (snapshot is null)

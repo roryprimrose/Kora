@@ -310,12 +310,15 @@ public sealed partial class AdaptiveInteractionTests
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal List<EvidenceQuery> Queries { get; } = [];
+        internal List<HostRequest> Requests { get; } = [];
+        internal CancellationToken HeldCancellation { get; private set; }
         internal List<EvidenceReadCheckpoint?> Checkpoints { get; } = [];
 
         public async ValueTask<EvidenceReadBatch> ReadAsync(EvidenceQuery query, EvidenceReadCheckpoint? checkpoint,
             HostRequest request, DateTimeOffset now, CancellationToken cancellationToken)
         {
             Queries.Add(query);
+            Requests.Add(request);
             Checkpoints.Add(checkpoint);
             var batch = await authority.ReadAsync(OnePerPage ? query with { Limit = 1 } : query,
                 checkpoint, request, now, cancellationToken);
@@ -335,6 +338,7 @@ public sealed partial class AdaptiveInteractionTests
             }
             if (Hold)
             {
+                HeldCancellation = cancellationToken;
                 Entered.TrySetResult();
 #pragma warning disable VSTHRD003 // Deliberately retain this exact fake read after cancellation until the test releases it.
                 await Release.Task;

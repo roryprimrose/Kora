@@ -8,6 +8,26 @@ namespace Kora.Core.UnitTests.Mcp;
 
 public sealed class McpPolicyTests
 {
+    [Fact]
+    public void UnknownTransportCannotSupplyAuthoringAdmission()
+    {
+        IMcpConnection connection = new UnknownTransport();
+        connection.AdmissionWithdrawn.IsCancellationRequested.Should().BeTrue();
+    }
+
+    private sealed class UnknownTransport : IMcpConnection
+    {
+        public McpAccountReference Account => throw new NotSupportedException();
+        public McpEndpoint Endpoint => throw new NotSupportedException();
+        public IReadOnlyList<System.Net.IPAddress> RemoteAddresses => throw new NotSupportedException();
+        public Task<bool> IsCurrentAsync(CancellationToken token) => throw new NotSupportedException();
+        public Task<System.Collections.Immutable.ImmutableArray<byte>> ExchangeAsync(
+            System.Collections.Immutable.ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token) =>
+            throw new NotSupportedException();
+        public Task NotifyAsync(System.Collections.Immutable.ImmutableArray<byte> notification, CancellationToken token) =>
+            throw new NotSupportedException();
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
     private const string Schema = """
         {"type":"object","additionalProperties":false,"properties":{"query":{"type":"string","maxLength":32},"count":{"type":"integer","minimum":1,"maximum":5},"detail":{"type":"boolean"}},"required":["query"]}
         """;

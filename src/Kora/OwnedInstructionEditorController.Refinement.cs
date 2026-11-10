@@ -26,7 +26,7 @@ internal sealed partial class OwnedInstructionEditorController
         window?.CancelReview();
     }
 
-    private async Task RefineDraft(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task RefineDraft(OwnedInstructionEditorView opened, Func<bool> eligible, CancellationToken token)
     {
         pendingRefinement = null;
         var original = baseline;

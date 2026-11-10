@@ -13,6 +13,7 @@ public sealed class SettingInspectionWorkflowTests
 {
     [Theory]
     [InlineData("presence-inactivity-timeout-seconds.txt", "5")]
+    [InlineData("response-timeout-seconds.txt", "7")]
     [InlineData("presence-size-pixels.txt", "480")]
     [InlineData("presence-dot-size-percent.txt", "75")]
     [InlineData("presence-dot-density-percent.txt", "50")]
@@ -162,9 +163,10 @@ public sealed class SettingInspectionWorkflowTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task CancellationWaitsForIgnoringSourceOrModelAndPhysicalJoin(bool source)
+    [InlineData(false, "presence-display-enabled.txt")]
+    [InlineData(true, "presence-display-enabled.txt")]
+    [InlineData(true, "response-timeout-seconds.txt")]
+    public async Task CancellationWaitsForIgnoringSourceOrModelAndPhysicalJoin(bool source, string blockedFile)
     {
         await using var f = new SettingInspectionFixture();
         f.Observe();
@@ -179,7 +181,8 @@ public sealed class SettingInspectionWorkflowTests
         {
             f.Store.Reading = file =>
             {
-                if (file is "presence-display-enabled.txt") { entered.TrySetResult(); releaseSource.Wait(f.Token); }
+                if (string.Equals(file, blockedFile, StringComparison.Ordinal))
+                { entered.TrySetResult(); releaseSource.Wait(f.Token); }
             };
         }
         else
@@ -227,9 +230,10 @@ public sealed class SettingInspectionWorkflowTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RevocationDuringFinalPhysicalJoinCannotPublishSuccessAudit(bool source)
+    [InlineData(false, "presence-display-enabled.txt", "False")]
+    [InlineData(true, "presence-display-enabled.txt", "False")]
+    [InlineData(true, "response-timeout-seconds.txt", "7")]
+    public async Task RevocationDuringFinalPhysicalJoinCannotPublishSuccessAudit(bool source, string file, string value)
     {
         await using var f = new SettingInspectionFixture();
         f.Observe();
@@ -237,7 +241,7 @@ public sealed class SettingInspectionWorkflowTests
         var review = await f.Workflow.ReviewAsync("Why?", () => f.Eligible, f.Token);
         f.Join = () =>
         {
-            if (source) { f.Store.Text["presence-display-enabled.txt"] = "False"; }
+            if (source) { f.Store.Text[file] = value; }
             else { f.Eligible = false; }
             return Task.CompletedTask;
         };

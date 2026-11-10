@@ -37,7 +37,7 @@ public sealed partial class PromptParameterWindowTests
                 foreach (var input in window.Inputs.Values) { input.Text = new string('a', 500); }
                 var expanded = await draft.Preview((_, _) => Task.FromResult(true), TestContext.Current.CancellationToken);
                 window.Expanded.Text = expanded.UserRequest;
-                var scroll = window.Content.Should().BeOfType<ScrollViewer>().Subject;
+                var scroll = window.View.Content.Should().BeOfType<ScrollViewer>().Subject;
                 var panel = scroll.Content.Should().BeOfType<Avalonia.Controls.StackPanel>().Subject;
                 panel.Children.Should().Contain(window.Expanded);
                 window.Expanded.Text.Should().Be(string.Join("\r\n", Enumerable.Repeat(new string('a', 500), 8)));

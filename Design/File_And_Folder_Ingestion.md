@@ -71,7 +71,7 @@ Selection changes revoke derived reviews/answers/navigation; question/source/pri
 call/owner/channel changes, cancellation and closure retain their existing revocation
 and resource-join fences. Selection never refreshes files or extends retention.
 
-The [native review](../src/Kora/FolderAnswers/LocalFilePreviewWindow.FolderAnswers.cs)
+The [native review](../src/Kora/FolderAnswers/LocalFilePreviewView.FolderAnswers.cs)
 shows every chosen excerpt and provenance, unchanged question, combined excerpt byte
 budget and unchanged global eight-citation/16 KiB excerpt/32 KiB envelope ceilings.
 User-omitted retrieved excerpts and retrieval omissions are distinct disclosures.
@@ -85,7 +85,7 @@ hosted destination, tools, new persistence, source purpose or named-source compa
 
 ## Delivered passive native decoded-text measurement
 
-The [native measurement partial](../src/Kora/LocalFilePreviewWindow.Measurement.cs)
+The [native measurement partial](../src/Kora/LocalFilePreviewView.Measurement.cs)
 delegates pure counting to [Core `DecodedTextMeasurement`](../src/Kora.Core/Presentation/DecodedTextMeasurement.cs).
 Only the actual displayed immutable admitted item is measured: UTF-16 code units,
 Unicode scalars and strict UTF-8 re-encoding bytes. No normalization, replacement,
@@ -120,7 +120,8 @@ and [native tests](../tests/Kora.Windows.IntegrationTests/LocalFileTextMeasureme
 
 ### Delivered Retained Attachment Metadata Catalogue - 2026-10-11
 
-The [native catalogue](../src/Kora/AttachmentCatalogueWindow.axaml) supports bounded Browse/ExactId, stored lifecycle, media type, copy status, retained-byte bounds and loaded-page ordering. Explicit Search/Next/Cancel reads metadata under current private/source admission; opening or editing performs no body/path read.
+The [native catalogue](../src/Kora/AttachmentCatalogueView.axaml) supports bounded Browse/ExactId, stored lifecycle, media type, copy status, retained-byte bounds and loaded-page ordering. Explicit Search/Next/Cancel reads metadata under current private/source admission; opening or editing performs no body/path read.
+The catalogue is a hosted workbench view. Narrow layouts stack its list and details; presentation loss clears the page, selection and Find, fences late reads and requires fresh explicit refresh on return ([hosted regressions](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Workbench.cs)).
 
 Engineering ID/range/digest and cross-row metadata-text query widgets were removed in [#422](https://github.com/roryprimrose/Kora/pull/422). Internal full-row, digest, audit-prefix, cursor and exact-source validation remain ([projection](../src/Kora/AttachmentCatalogueViewModel.cs), [summary](../src/Kora.Core/Storage/SessionAttachmentSummary.cs)).
 
@@ -378,7 +379,7 @@ Admission requires exactly the requested already-confirmed volatile file or comp
 No newest-source substitution, path/name selector or retained-attachment targeting exists ([host](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
 
 A scoped one-use handoff expires after synchronous delivery. The native controller checks UI-thread ownership and exact window revision; the window sets lexical mode/query, invalidates old citations and reports **PREPARED / REVIEW NEEDED**, never search success.
-Text changes/focus/late callbacks cannot execute retrieval ([handoff](../src/Kora.Application/Presentation/PreparedLocalSearchEventArgs.cs), [controller](../src/Kora/LocalFilePreviewWindowController.cs), [native hook](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs)).
+Text changes/focus/late callbacks cannot execute retrieval ([handoff](../src/Kora.Application/Presentation/PreparedLocalSearchEventArgs.cs), [controller](../src/Kora/LocalFilePreviewWindowController.cs), [native hook](../src/Kora/LocalFilePreviewView.PreparedSearch.cs)).
 
 Only the user's separate existing native Search action invokes the same audited `LocalFileSearch`; `SearchFileAsync` / `SearchFolderAsync` retain their LocalUi-only exact-source guards.
 Preparation adds no read/search/refresh, metadata capture, Attach, consent, model/provider, clipboard or retention authority; query/source bodies never enter response/transcript, logging, audit, tags/Baggage or persistence ([guards](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
@@ -457,7 +458,7 @@ It does not choose a source, read a path, reuse a folder/retained attachment, or
 Inline questions/paths after the fixed command are rejected ([command](../src/Kora.Core/Context/LocalFileCommand.cs), [routing](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
 
 The native **Use this exact snapshot once to answer locally** control is a separate explicit source-use request for the displayed exact revision and unchanged native question. Preview consent is not model-use consent.
-Question/excerpts/claims stay native and volatile, outside conversation history, speech, clipboard and retained bodies ([native control](../src/Kora/LocalFilePreviewWindow.Answers.cs), [host continuation](../src/Kora.Application/ViewModels/MainViewModel.FileAnswers.cs)).
+Question/excerpts/claims stay native and volatile, outside conversation history, speech, clipboard and retained bodies ([native control](../src/Kora/LocalFilePreviewView.Answers.cs), [host continuation](../src/Kora.Application/ViewModels/MainViewModel.FileAnswers.cs)).
 The control separately discloses creation of the exact displayed `Local context` session and one-shot task, distinct from volatile file-preview lineage.
 Only content-free host lifecycle receipts are durable; preview consent never authorizes that creation implicitly.
 
@@ -490,7 +491,7 @@ After that operation has actually joined, **Review another question on this exac
 
 Claim references map back to host-held original citation objects, not model-supplied paths/locations.
 Native rows and per-claim descriptions retain original source/revision/item/digest and UTF-16/line/column spans; explicit **Show exact answer citation** reuses inert exact-source navigation.
-Citation identity validation is not a claim of semantic truth or answer-quality qualification ([native answer view](../src/Kora/LocalFilePreviewWindow.Answers.cs), [shared navigation](../src/Kora/LocalFilePreviewWindow.Citations.cs)).
+Citation identity validation is not a claim of semantic truth or answer-quality qualification ([native answer view](../src/Kora/LocalFilePreviewView.Answers.cs), [shared navigation](../src/Kora/LocalFilePreviewView.Citations.cs)).
 
 **Exact consumed I boundary:** the shared source-use risk admission service is composed under the [2026-10-29 product decision](Decision_Register.md#automatic-reviewed-local-source-use-admission---2026-10-29).
 [ILocalFileModelUsePolicy](../src/Kora.Core/Context/ILocalFileModelUsePolicy.cs) is distinct from read consent.
@@ -536,7 +537,7 @@ already admitted retained-attachment views. All three retain their actual defaul
 resize and reader scale; vertical scrolling stays unchanged. No text-length
 restriction or source transformation is introduced.
 
-[One current-source policy](../src/Kora/LocalFilePreviewWindow.Wrapping.cs) resets
+[One current-source policy](../src/Kora/LocalFilePreviewView.Wrapping.cs) resets
 the volatile choice on source replacement, folder selection (including returning
 to a previous item), review, private revocation and close. No per-source cache,
 preference, saved/global setting or new authority exists. Retired handlers detach
@@ -570,7 +571,7 @@ Changing Match case or query retires match/count/ordinal/navigation/focus claims
 
 First scans from zero. Next starts after the selected match's exclusive end; Previous reverses the same counted forward nonoverlapping sequence, not an overlapping alternative. Next/Previous require a canonical match; exhaustion retains the anchor ordinal and total but clears the span and claims no current match or focus. First alone reports zero matches ([shared policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs)).
 
-One span is selected per action, with the unchanged query's UTF-16 length and the exact original-source substring, not a transformed query, even when case differs. No all-occurrence collection or index is built. The inert panel shows literal labels, original end-exclusive UTF-16 offsets and exact source/revision/item/original-byte digest, not a ranked citation or heading. Complete source remains unchanged and non-selectable below ([window](../src/Kora/LocalFilePreviewWindow.Find.cs)).
+One span is selected per action, with the unchanged query's UTF-16 length and the exact original-source substring, not a transformed query, even when case differs. No all-occurrence collection or index is built. The inert panel shows literal labels, original end-exclusive UTF-16 offsets and exact source/revision/item/original-byte digest, not a ranked citation or heading. Complete source remains unchanged and non-selectable below ([window](../src/Kora/LocalFilePreviewView.Find.cs)).
 
 ### Exact immutable LocalFile occurrence count and ordinal - 2026-10-18
 
@@ -578,7 +579,7 @@ Explicit Find now reports an accessible exact total and selected ordinal for onl
 
 The [LocalFile adapter](../src/Kora.Core/Context/LocalFileLiteralFind.cs) and [clipboard adapter](../src/Kora.Core/Context/ClipboardLiteralFind.cs) reuse one [authoritative counted rule](../src/Kora.Core/Context/SnapshotLiteralFind.cs). For `aaaaaXaa` / `aa`, the forward sequence starts at 0, 2, 6 and Previous from 6 selects 2, not 3. Ordinary uncounted Find and ranked retrieval remain unchanged ([policy tests](../tests/Kora.Core.UnitTests/Context/LocalFileLiteralFindTests.cs)).
 
-Totals are scanned from displayed immutable text without an index, cache, count persistence or an extra read. Query and canonical cursor admission precede retained reads. Publication still awaits the existing asynchronous full-source validation, exact identity/body, generation, privacy, cancellation and focus fences ([window](../src/Kora/LocalFilePreviewWindow.Find.cs), [tests](../tests/Kora.Windows.IntegrationTests/LocalFileLiteralFindWindowTests.cs)).
+Totals are scanned from displayed immutable text without an index, cache, count persistence or an extra read. Query and canonical cursor admission precede retained reads. Publication still awaits the existing asynchronous full-source validation, exact identity/body, generation, privacy, cancellation and focus fences ([window](../src/Kora/LocalFilePreviewView.Find.cs), [tests](../tests/Kora.Windows.IntegrationTests/LocalFileLiteralFindWindowTests.cs)).
 
 This consumes the existing immutable-source, shared literal policy and native Find I subset only. It adds no model/provider/device/clipboard-write/authority path. E/Q and installed accessibility qualification remain separate; unqualified runtime/provider/egress/wake/profile-original writers remain unavailable ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
@@ -600,7 +601,7 @@ These fixtures qualify only this bounded native presentation path. No experiment
 
 R26.1c extends the volatile R26.1a/b foundation, not the durable R26.2 lifecycle. **Tray > Preview folder (immediate files, local lexical search)** and exact `preview folder` use the trusted native single-folder picker. Typed/voice paths do not authorize reads ([native selection](../src/Kora/LocalFilePreviewWindowController.cs), [commands](../src/Kora.Core/Context/LocalFileCommand.cs)).
 
-The [shared native consent viewport](../src/Kora/LocalFilePreviewWindow.cs) is keyboard-focusable before separate confirmation: Page Up / Page Down and Home / End expose the complete metadata and disclosure without reading content or granting consent. Metadata-only reviews use the full available window area.
+The [shared native consent viewport](../src/Kora/LocalFilePreviewView.cs) is keyboard-focusable before separate confirmation: Page Up / Page Down and Home / End expose the complete metadata and disclosure without reading content or granting consent. Metadata-only reviews use the full available window area.
 
 Replacement and closure clear old metadata/accessibility text and disable detached confirmation controls; file/folder refresh and retained attachment reviews share this presentation lifecycle ([behavioral regressions](../tests/Kora.Windows.IntegrationTests/LocalFileReviewWindowTests.cs)). This is deterministic implementation evidence, not installed accessibility qualification.
 
@@ -608,13 +609,13 @@ Admission is all-or-nothing: **1–32 immediate files**, **1 MiB (1,048,576 byte
 
 The Windows inspector applies the same fixed-drive absolute canonical path, verified-handle, sharing, ancestor, reparse, hard-link, hidden/system, protected/generated/source-control and unstable-source policy to the root and every immediate file. Unsupported extensions, including archives/binaries, reject the whole inventory before content reads. Strict UTF-8 and binary/control-text sniffing remain the single-file decoder's authority; renaming binary data does not bypass decoding ([inspector](../src/Kora.Windows/Context/WindowsLocalFileInspector.cs), [file policy](../src/Kora.Core/Context/LocalFilePolicy.cs)).
 
-Metadata-only review lists the complete canonical root identity, original host session/origin, review/source IDs, and every file's path, native identity, bytes and last-write observation, with count/byte/recursion/privacy disclosure. **Confirm: read every exact reviewed immediate file locally** confirms only that inventory within the existing two-minute review deadline. All root/ancestor/file handles remain retained until capture or revocation; each file excludes write/delete sharing ([native review](../src/Kora/LocalFilePreviewWindow.cs), [broker](../src/Kora.Tools/Files/LocalFilePreview.cs)).
+Metadata-only review lists the complete canonical root identity, original host session/origin, review/source IDs, and every file's path, native identity, bytes and last-write observation, with count/byte/recursion/privacy disclosure. **Confirm: read every exact reviewed immediate file locally** confirms only that inventory within the existing two-minute review deadline. All root/ancestor/file handles remain retained until capture or revocation; each file excludes write/delete sharing ([native review](../src/Kora/LocalFilePreviewView.cs), [broker](../src/Kora.Tools/Files/LocalFilePreview.cs)).
 
 Exact inventory and retained identities are revalidated before and after capture. Each file uses the same two consistency passes, EOF probe, strict decoding and original-byte SHA-256 digest as R26.1a. Read work is bounded by 2 MiB plus at most 32 EOF probe bytes. Every item must succeed; any membership, identity, length, encoding, cancellation or release failure discards all staged revisions and clears raw buffers. Publication still requires verified native release and typed requested/terminal audit outcomes ([capture](../src/Kora.Tools/Files/LocalFilePreview.cs), [native consistency](../src/Kora.Windows/Context/WindowsLocalFileInspector.cs)).
 
 The immutable folder reference selects the complete admitted set; each file retains its own fresh revision/item IDs and digest under the common reviewed source ID. `LocalFileSearch` and `ILocalFileRetrieval` search that set through the **same `lexical-lines-v1` implementation**, not independent per-file result merging. Unique matched terms and saturated frequency rank globally, then ordinal canonical file order and source offset break ties. The existing eight-citation / 16 KiB combined UTF-8 excerpt bounds apply once to the whole folder; all matching chunks are counted and truncation is explicit. No terms span files. Citations still bind the correct exact file source/revision/item/digest and unchanged UTF-16/line/column/heading/excerpt semantics ([folder revision](../src/Kora.Core/Context/LocalFolderRevision.cs), [shared retrieval](../src/Kora.Core/Context/LocalFileLexicalRetrieval.cs)).
 
-The native surface inspects each complete inert file and searches only the selected immutable folder. `search folder` / `inspect folder` focus native query entry; queries and excerpts do not enter transcripts, history, models, speech, clipboard, logs or durable storage. `clear folder preview`, close, Cancel task, privacy/lock, call/ownership/generation change and disposal revoke the same shared broker. Single-file and folder selections replace rather than expand one another. Outstanding capture/search still blocks clean handoff until genuinely quiescent ([presentation](../src/Kora/LocalFilePreviewWindow.cs), [host gates](../src/Kora.Application/ViewModels/MainViewModel.Files.cs), [shared revocation](../src/Kora.Tools/Files/LocalFilePreview.cs)).
+The native surface inspects each complete inert file and searches only the selected immutable folder. `search folder` / `inspect folder` focus native query entry; queries and excerpts do not enter transcripts, history, models, speech, clipboard, logs or durable storage. `clear folder preview`, close, Cancel task, privacy/lock, call/ownership/generation change and disposal revoke the same shared broker. Single-file and folder selections replace rather than expand one another. Outstanding capture/search still blocks clean handoff until genuinely quiescent ([presentation](../src/Kora/LocalFilePreviewView.cs), [host gates](../src/Kora.Application/ViewModels/MainViewModel.Files.cs), [shared revocation](../src/Kora.Tools/Files/LocalFilePreview.cs)).
 
 **This slice is folder-scoped admission + lexical search only, volatile only.** There is no durable cross-session attachment, managed registry, refresh, ambient watching, disable/remove lifecycle, persistent/vector index, embeddings, local-model reasoning, hosted egress or document-derived authority. R26.2 lifecycle and R26.3/4/5 runtime/format gates remain separate; R08 remains unqualified. No executable experiment is superseded. Installed native/accessibility acceptance remains outstanding; maintained portable tests and real Windows sharing/reparse/hard-link/protected-path/inventory tests cover this bounded slice ([Core tests](../tests/Kora.Core.UnitTests/Context/LocalFolderTests.cs), [broker tests](../tests/Kora.Tools.UnitTests/Files/LocalFolderTests.cs), [host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Folders.cs), [Windows tests](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Folders.cs)).
 
@@ -670,7 +671,7 @@ The [index owner](../src/Kora.Core/Context/LocalFileLexicalIndex.cs) binds immut
 An explicitly reviewed refresh reuses only unchanged digest/version entries; new or changed files are rebuilt, and deleted members are absent from the replacement.
 Reuse never retains an old item's citation identity or grants access to a revoked revision ([store publication](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.cs)).
 
-The [version-3 snapshot](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs) contains both inventories in the existing private partition.
+The [version-4 snapshot](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs) contains both inventories and their immutable captured numeric limits in the existing private partition.
 Bounded Brotli compression precedes authenticated encryption; the existing 2-MiB stored-snapshot limit remains enforced, with a 128-MiB expanded representation bound for repeated chunk metadata.
 Cold readback validates the complete index against the shared canonical chunk/token policy before indexed search or citation disclosure; malformed versions, digests, membership, spans or frequencies fail explicitly.
 The owning store retains at most two validated decoded revisions for repeated one/two-source use, checking current inventory and encrypted-body digest on every read; changed bytes trigger full validation, not cached disclosure.
@@ -705,6 +706,14 @@ its replacement. Structurally identical observations remain valid after reopen.
 The [exact-inventory regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/WindowsKnowledgeSourceTests.ExactInventory.cs)
 cover all existing store operations and unchanged durable state on rejection.
 
+### Delivered exact-source lower capture limits
+
+Original native management and exact typed/current-name activated `source capture limits` commands get/review/lower/reset/confirm/cancel one uniquely selected registered source. Three positive limits independently lower file count, per-file original bytes and complete-source original bytes within the unchanged hard maxima. The exact source inventory, old/proposed tuple, independent retention and future-refresh-only effect are shown before separate one-shot two-minute confirmation ([configuration owner](../src/Kora.Application/Configuration/KnowledgeSourceCaptureLimitsConfigurationService.cs)).
+
+Only the stable source Guid and numeric tuple enter the shared atomic preference store, with requested/terminal audit, exact readback and an unconfirmed-write fence. Invalid new preferences fail explicitly. Saving or reset does not invoke refresh, revoke pinned answers, change in-flight metadata or change traversal/consent. The next explicit separately reviewed refresh freezes one confirmed tuple; inspector and metadata reject the complete excess source without truncation. Inspection and retained answer-use joins use the immutable captured tuple, never current desired limits ([source manager](../src/Kora.Application/KnowledgeSources/KnowledgeSourceManager.cs)).
+
+Registry version3/snapshot version4 require valid tuple metadata and retain existing exact item/revision/digest/index authority. Known legacy registry/snapshot formats decode at their historical hard maxima without automatic migration or widened consent. Removing copies also cleans the exact source's numeric preferences before deleting its revoked Removing registry row; failed numeric cleanup is visible, unavailable and retryable after reopen. This is original-user source configuration, not a generic model-controlled setting, path selection or source authority. See [user operation](../docs/knowledge-sources.md#lower-the-next-capture-limits-for-one-source) and [bounded native regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/WindowsKnowledgeSourceTests.CaptureLimits.cs).
+
 Inspection checks original access/identity/membership without rereading content.
 Old revisions become unavailable when refresh starts, including failed refresh.
 Adding, refreshing and enabling are not model consent. The
@@ -736,7 +745,7 @@ identities in the same bounded private partition. Legacy version-1 immediate
 snapshots and version-2 directory-aware snapshots retain their existing meaning/identities/limits; unknown or malformed
 versions fail closed, never as a fresh empty store.
 
-The [native source surface](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.cs)
+The [native source surface](../src/Kora/KnowledgeSources/KnowledgeSourcesView.cs)
 reviews complete root-relative membership before read, then separately confirms
 the exact captured snapshot before save. Restart inspection/search only uses
 the retained enabled revision with fresh complete access/membership admission.

@@ -51,6 +51,7 @@ public sealed partial class DetailContentView : UserControl
         search = Required<TextBox>("SearchInput");
         findSpan = Required<NamedTextBlock>("FindSpan");
         source = Required<CheckBox>("SourceToggle");
+        source.IsChecked = state.IsSource;
         readingText = Required<CheckBox>("ReadingTextToggle");
         wrapText = Required<CheckBox>("WrapTextToggle");
         disclosure = Required<CheckBox>("DisclosureConfirmation");

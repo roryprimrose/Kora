@@ -93,7 +93,7 @@ where required. See [the exact command and exceptions](commands.md#stop-all-subm
 
 ### Expand and collapse the interaction window
 
-Use **Tray > Show sessions**, **Show sessions** in the response header,
+Use **Expand view** in the compact chat/response header ([button](../src/Kora/ResponseWindow.axaml)), **Tray > Show sessions**,
 **Ctrl+Shift+S**, or type `show me the current sessions`. With voice, use the
 current assistant name, for example `Kora, show me the current sessions`.
 The existing response window expands rather than opening another conversation window.
@@ -157,6 +157,73 @@ inside this same window. Selection does not retarget them. Authoritative native
 question windows and **Return to current question** remain independent.
 **Session management** opens the existing advanced workspace for additional search,
 providers, retention, evidence and lifecycle operations.
+
+### Expanded window controls and remembered placement
+
+The expanded title bar has **Collapse**, **Minimize**, **Maximize/Restore** and
+**Close**, in that order. Collapse returns to compact mode; Restore is the
+standard Windows window-size operation, not Collapse. Close uses the existing
+unsent-message protection and leaves Kora running in the tray.
+
+Compact and expanded position/size are remembered separately across hiding,
+minimizing, reopening and restart. A minimized/maximized window keeps its normal
+restore rectangle. If a display or work area changes, placement is fitted to the
+available area. Saved geometry never restores a question approval, sends input
+or enables capture. A saved-placement error is reported instead of being treated
+as a successful default.
+
+**Dismiss** and otherwise unhandled **Escape** hide the response without
+cancelling the task, rejecting an operation or discarding unsent input. Use the
+explicit cancellation/rejection controls for those operations. Focused controls
+retain their own Escape behavior, such as closing a command chooser.
+
+### Narrow conversation and Details layout
+
+In a narrow expanded window, **Sessions** opens navigation without selecting a
+conversation. Its **Chat** control returns to the conversation.
+An explicitly opened Details reader uses the main reading area rather than
+placing two unreadable panes side by side. **Chat** releases Details and returns
+to the same unsent composer; **Show details** explicitly reopens an eligible
+source. Resizing and switching views never submit text or read another session.
+
+The expanded activity rail provides **Chat**, **Work**, **Settings**, **Help**,
+**Permissions**, **Customizations**, and **Audit and diagnostics**. The normal Settings, Help,
+permission inventory, evidence, shared customization editor and Work overview routes use this same window. The existing
+specialist setup/account and native question/review workflows still have
+separate surfaces; dedicated editors are not yet fully consolidated. **Session management** now opens its complete controls inside this same window, sharing the selected session and unsent message with Chat ([management view](../src/Kora/SessionsManagementView.axaml)).
+
+Collapse keeps the selected conversation's compact composer. **Current interaction** switches to the original response/question controls without submitting or replacing its unsent input. Expand returns to the same conversation ([mode switching](../src/Kora/ResponseWindow.Sessions.cs)).
+
+Typed input and activated voice support these bounded operations ([routes](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs)):
+
+- **show me the conversation history for this session** reads the selected conversation's bounded page; no selection means an explicit refusal, not a guessed session.
+- **show me the settings for the Kora presence** selects Appearance and scrolls/focuses Presence, without changing settings.
+- **show me the MCP servers** displays registered metadata, including disabled entries; no endpoint or credential fields are opened.
+- **Is there an MCP server for WorkIQ?** checks the current registered metadata and states that scope. It does not search the internet or establish connector readiness.
+- **show me the audit history** reads a bounded application-wide committed **AuthorityAudit** snapshot in the Audit view. **show session audit** reads only the selected session; diagnostic logs remain native-only.
+
+The audit prompts preserve the original typed/activated-voice channel and do not automatically speak results, send them to a model or approve an operation ([channel contract](../Design/Security_Data_Flows.md)).
+
+Questions owned by the response window now appear as original-question cards in the same window ([controls](../src/Kora/QuestionView.axaml)). They retain their original source and expiry, independently of the selected conversation. Hide/minimize does not answer or cancel them; use **Return to this original question** for a fresh presentation. **Submit answer** and **Cancel question** remain separate actions.
+
+Complete question, MCP schema, policy and clipboard-snapshot reviews now use supporting native tabs ([review pane](../src/Kora/NativeReviewTabsView.cs)). Hiding or switching a review clears its private displayed text and retires review acknowledgement; it does not answer or approve. **Return to main view** closes the pane, and **Review tabs** returns to the headers without renewing retired consent.
+
+Earlier-message, original model-advisory and mixed-context selections also open in this supporting area from session management. They still require whole-source selection and separate confirmation; leaving a context review releases its selection and consent ([context presentation](../src/Kora/SessionContextReviewPresentation.cs)). Remaining specialist migrations are unfinished; this is not the complete consolidated workbench.
+
+Details supports up to eight exact document tabs. Only the selected conversation's
+tabs are shown. Selecting a tab revalidates its original source; hidden bodies
+are released, not restored from a cache. Close a tab to release its descriptor.
+Embedded guide and current-response tabs stay distinct from conversation authority.
+A replaced response is unavailable rather than being silently replaced with the latest one.
+Tabs and reading positions are not saved to disk and privacy closure clears them.
+
+Hiding or leaving Permissions/Evidence clears private inspection/results and
+retires confirmations. Return and explicitly Refresh/Search for a new page;
+view navigation never revokes grants, deletes audit or renews authority.
+Work likewise clears its private overview and retires the original Stop All
+presentation when hidden, minimized or left. Reopening requires explicit Refresh
+and a new review; it never repeats a stop action.
+This is not the complete consolidated workbench.
 
 Untargeted requests use [reviewed local relatedness](session-routing.md), not
 automatic destination submission. The session list is not supplied to a model by
@@ -434,9 +501,9 @@ There is no Find clipboard/paste/export, logging, persistence, provider or netwo
 
 ### New request with a fresh session
 
-Open **Tray > New request** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
+Open **Tray > New request** or **Sessions > New request (fresh target)**. The [isolated composer](../src/Kora/NewRequestView.axaml) now opens in the shared workbench and preserves its own memory draft. This entry never continues the selected, named, recent or Done session or becomes a question/approval input.
 
-Without a mouse, type **open new request** or use activated voice **Kora, open new request** with the current configured name. This opens/activates the same window only; existing dirty/reviewed/held/busy state stays unchanged ([native controller](../src/Kora/NewRequestWindowController.cs)).
+Without a mouse, type **open new request** or use activated voice **Kora, open new request** with the current configured name. This opens/activates the same composer only. Reopening an already-visible composer retains its current state; Hide or leaving the view retires review/dictation while preserving unsent memory ([native controller](../src/Kora/NewRequestWindowController.cs)).
 
 No body or target arguments are accepted. Resolve pending questions/approvals first; input, privacy, ownership and call restrictions remain. Opening conveys no Create/Save/Submit authority or delayed opening after closure ([admission](../src/Kora.Application/ViewModels/MainViewModel.NewRequest.cs), [syntax](commands.md#open-the-existing-new-request-composer)).
 
@@ -468,7 +535,7 @@ ordinary PTT and separate saved-draft/submission review keep their own authority
 
 Submit uses the same body bounds, best-effort credential rejection, exact USER retention and admitted execution as the [named-session composer](#exact-session-conversation-and-composer). A separately qualified local host turn may use admitted read-only tools and retain its genuine bounded ASSISTANT answer, displayed separately from HOST/task status. Production profiles remain unqualified and explicitly unavailable; no provider setup, hosted egress, fallback or implicit routing is performed. Cancellation or uncertain commit/readback holds the original attempt without retry; no answer is inferred from admission alone.
 
-Unsent input is memory-only. Creation and Submit remain separate operations; Cancel or close does not roll back the disclosed session or mark it Done. Nonempty close and application exit offer Discard/Cancel. There is no ordinary draft Save/Reload, autosave, catalogue or automatic transfer ([composer](../src/Kora.Application/Hosting/NewRequestComposer.cs), [native close](../src/Kora/NewRequestWindow.axaml.cs)).
+Unsent input is memory-only. Creation and Submit remain separate operations; Cancel or close does not roll back the disclosed session or mark it Done. Nonempty close and application exit offer Discard/Cancel. There is no ordinary draft Save/Reload, autosave, catalogue or automatic transfer ([composer](../src/Kora.Application/Hosting/NewRequestComposer.cs), [native close](../src/Kora/NewRequestView.axaml.cs)).
 
 **Open this exact session** is explicit navigation only. Other sessions' unsent buffers are preserved without a Save/Discard decision, and this New request body is not transferred.
 **Inspect exact attempt (no retry)** reads the disclosed original session/request/task identity without renewing activity. Storage/audit/admission uncertainty keeps the recoverable draft and exact hold; do not blindly create another target or resubmit.
@@ -759,7 +826,7 @@ Use native **Refresh this file preview** / **Refresh this folder preview**, or e
 There is no automatic refresh, watcher, recursion, registry, durable attachment, knowledge/persistent-index/reasoning authority. Same privacy/ownership/call/control/lifetime and native release fences apply; unverified release blocks clean handoff/exit until recovery.
 See [commands and limits](commands.md#explicit-local-file-preview).
 
-Original typed/current-name ACTIVATED `prepare file search for "<query>"` / `prepare folder search for "<query>"` may pre-populate this same exact preview's lexical query. **PREPARED / REVIEW NEEDED** is not a search result: review the exact source and click **Search selected immutable revision locally** separately ([native preparation](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs)).
+Original typed/current-name ACTIVATED `prepare file search for "<query>"` / `prepare folder search for "<query>"` may pre-populate this same exact preview's lexical query. **PREPARED / REVIEW NEEDED** is not a search result: review the exact source and click **Search selected immutable revision locally** separately ([native preparation](../src/Kora/LocalFilePreviewView.PreparedSearch.cs)).
 
 Quoted literals use doubled quotes, keep exact case/punctuation/Unicode/interior spaces, and reuse the existing bounded lexical validation. Preparation performs no metadata/content read, refresh, search, clipboard, model, attachment, retention or consent operation.
 Missing/wrong-kind/stale/closed previews or changed admission refuse rather than choosing another source; retained attachments and Literal Find are not targets ([host handoff](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
@@ -930,7 +997,7 @@ restore Source order; existing lifetime and private-admission checks remain.
 
 Read a catalogue page and select a row. Use **Private one-line Find** in its details pane: **Find first** (Enter), **Find next** (F3), **Find previous** (Shift+F3). Only that frozen displayed text is searched: exact case/spaces, no overlap or wrap, explicit invalid input ([state](../src/Kora.Application/Presentation/AdmittedMetadataFindState.cs)).
 
-Status gives UTF-16 start/end-exclusive coordinates and a focusable inert exact match span. At a boundary the span hides; reverse using the last cursor without wrapping. **Clear Find**, or Escape here, clears query/match/status without closing or reading ([controls](../src/Kora/AttachmentCatalogueWindow.axaml), [gestures](../src/Kora/AttachmentCatalogueWindow.axaml.cs)).
+Status gives UTF-16 start/end-exclusive coordinates and a focusable inert exact match span. At a boundary the span hides; reverse using the last cursor without wrapping. **Clear Find**, or Escape here, clears query/match/status without closing or reading ([controls](../src/Kora/AttachmentCatalogueView.axaml), [gestures](../src/Kora/AttachmentCatalogueView.axaml.cs)).
 
 Find cannot change filters/selection, open/resume a session, read files/bodies/paths or copy/paste/export metadata. Hidden and tombstone-suppressed metadata are excluded. Selection/filter/page/refresh/operation/cancellation, privacy/control/source revocation and close erase old Find state; each row needs a new Find ([lifecycle](../src/Kora/AttachmentCatalogueViewModel.cs)).
 
@@ -938,7 +1005,8 @@ Find cannot change filters/selection, open/resume a session, read files/bodies/p
 
 Open **Retained session attachments**, then explicitly **Search / refresh metadata**.
 Browse or prepare one canonical exact session ID; opening and typing perform no read.
-Stored lifecycle, inclusion of removed slots, copy status, retained media type and inclusive stored-byte bounds remain available ([native catalogue](../src/Kora/AttachmentCatalogueWindow.axaml), [query contract](../src/Kora.Core/Storage/SessionAttachmentQuery.cs)).
+The catalogue opens within the expanded workbench. Its list and details stack when narrow; leaving, hiding or minimizing clears loaded metadata and Find without reading on return ([catalogue view](../src/Kora/AttachmentCatalogueView.axaml.cs)).
+Stored lifecycle, inclusion of removed slots, copy status, retained media type and inclusive stored-byte bounds remain available ([native catalogue](../src/Kora/AttachmentCatalogueView.axaml), [query contract](../src/Kora.Core/Storage/SessionAttachmentQuery.cs)).
 
 Generation/revision, authority/profile/source correlation, digest, observation-time and file-reference query fields are retired.
 Selected details still display admitted source/provenance/integrity metadata; ordinary loaded-page size ordering and literal Find remain.
@@ -1249,6 +1317,9 @@ This shortcut is unavailable for choices, approvals, authentication, permission,
 
 ### Local clipboard preview
 
+The exact snapshot is shown in a supporting tab of the expanded workbench. Its source, Find, wrapping, local explanation and same-snapshot question controls share that owner; displaying the tab does not grant use permission ([clipboard view](../src/Kora/ClipboardPreviewView.cs)).
+Leaving, hiding or minimizing retires the volatile snapshot and its review; returning does not recapture or replay clipboard text. Exact clipboard permission questions remain inline under the real owner ([hosted regression](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs)).
+
 The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)
 uses inert native plain text, not Markdown/HTML parsing or the document viewer's
 copy controls. It has exact-ID reuse, revoke/clear and native literal Find. Closing it revokes
@@ -1290,7 +1361,7 @@ renews snapshot lifetime or saves a preference.
 
 Enter an unchanged one-line query and choose **Find first** (or Enter in the query). **Find next** (F3) starts at the selected span's exclusive end; **Find previous** (Shift+F3) returns to the preceding span in that same forward nonoverlapping sequence ([clipboard Find policy](../src/Kora.Core/Context/ClipboardLiteralFind.cs)).
 Ctrl+F focuses the query without retargeting questions or voice. Case/spaces/punctuation remain exact; limits are 256 UTF-16 characters / 512 strict UTF-8 bytes, with visible rejection rather than truncation.
-Explicit Find reports the complete `n matches; match k/n` count for this snapshot, with one inert exact span and original end-exclusive UTF-16 offsets. There is no wrap: a boundary hides the span but retains the ordinal for reversal. Zero matches clears selection; rejected queries are not zero ([Find implementation](../src/Kora/ClipboardPreviewWindow.Find.cs)).
+Explicit Find reports the complete `n matches; match k/n` count for this snapshot, with one inert exact span and original end-exclusive UTF-16 offsets. There is no wrap: a boundary hides the span but retains the ordinal for reversal. Zero matches clears selection; rejected queries are not zero ([Find implementation](../src/Kora/ClipboardPreviewView.Find.cs)).
 Editing immediately clears count, ordinal and match without I/O. **Clear literal Find** also releases the query/cursor, not the snapshot or Windows clipboard. Count grants no source, disclosure or model permission ([clipboard boundary](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07)).
 Reader text scaling applies to the snapshot body and exact span without changing query text, offsets or focus; query/status controls remain unscaled ([headless scaling contract](../tests/Kora.Windows.IntegrationTests/NativeReaderTextScaleTests.cs)).
 Cut/copy/paste/context routes are blocked, including query shortcuts. Private/owner/call loss, replacement, revoke, close and disposal clear volatile state and fence callbacks. Find never rereads the clipboard or invokes reuse/revoke, inference, persistence, history, activity renewal or a new timer.

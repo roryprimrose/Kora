@@ -7,7 +7,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { workerLaunch } = require('./worker-launch.cjs');
 const { refinementFixture, refinementEvent, tamperedStates,
-  candidateFixture, candidateEvent } = require('./refinement-fixture.cjs');
+  candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
+  supersessionBeneficiaryFixture } = require('./refinement-fixture.cjs');
 
 const head = '1'.repeat(40);
 const settings = {
@@ -16,6 +17,61 @@ const settings = {
   productionWorkspace: 'Q:\\Repos\\Kora',
   scratch: 'Q:\\Repos\\Kora.worktrees\\control\\.scratch\\run'
 };
+
+test('supersession launch consumes effective exclusions and separately preserves immutable historical scope', () => {
+  const state = supersessionFixture();
+  const result = applyEvent(state, supersessionEvent(state), { revision: 41 });
+  const prompt = workerLaunch(result.state, result.actions[0], settings).prompt;
+  assert.match(prompt, /Exclusive repository-relative write scopes: src\\shared.cs; tests\\shared.test.cjs/);
+  assert.match(prompt, /Retained exclusion key=prior-0, owner=owner-0, scopes=docs\\retained.md/);
+  assert.match(prompt, /Historical reservation key=prior-0/);
+  assert.match(prompt, /Prior source writes permanently retired by accepted supersession/);
+  assert.doesNotMatch(prompt, /Retained exclusion key=prior-0, owner=owner-0, scopes=src\\shared.cs/);
+  for (const change of [
+    s => { delete s.supersessions; },
+    s => { s.version = 4; },
+    s => { s.items.at(-1).scopes.push('src\\unauthorized.cs'); },
+    s => { s.supersessions[0].event.proof.holders.pop(); }
+  ]) {
+    const altered = structuredClone(result.state);
+    change(altered);
+    assert.throws(() => workerLaunch(altered, result.actions[0], settings));
+  }
+});
+
+test('prepared external proposal never authorizes launch or adoption even with a fabricated action', () => {
+  const state = supersessionFixture();
+  const external = supersessionFixture();
+  external.coordinator = 'external-coordinator';
+  const event = supersessionEvent(state, 41, 'prepare-external',
+    [{ repository: settings.repository, revision: 122, state: external,
+      stateDigest: digest(external), receipt: 'Synthetic exact external snapshot.' }]);
+  const result = applyEvent(state, event, { revision: 41 });
+  const action = { type: 'launch', key: 'successor', pool: 'ready' };
+  assert.throws(() => workerLaunch(result.state, action, settings), /reservation|prepared/);
+  const forged = structuredClone(result.state);
+  forged.items.at(-1).phase = 'reserved';
+  assert.throws(() => workerLaunch(forged, action, settings), /prepared|conflict/i);
+  assert.throws(() => applyEvent(result.state, { id: 'adopt-external', type: 'adopt', owner: 'new-owner',
+    key: 'different-key', outcome: 'different outcome', head, scopes: ['src\\shared.cs'],
+    pool: 'ready', kind: 'feature', evidence: 'Cannot bypass prepared external guard.' }), /conflict/i);
+});
+
+test('completed beneficiary permits later same-path launch while prior retirement and retained cleanup remain', () => {
+  const { complete } = supersessionBeneficiaryFixture();
+  const result = applyEvent(complete, { id: 'review-later-launch', type: 'candidate',
+    owner: 'planner', pass: 1, key: 'later-feature', outcome: 'later launch outcome',
+    head: complete.head, scopes: ['src\\shared.cs'], pool: 'ready', kind: 'feature',
+    evidence: 'Fresh independent admission after complete beneficiary cleanup.' });
+  assert.deepEqual(result.actions, [{ type: 'launch', key: 'later-feature', pool: 'ready' }]);
+  const prompt = workerLaunch(result.state, result.actions[0], settings).prompt;
+  assert.match(prompt, /Exclusive repository-relative write scopes: src\\shared.cs/);
+  assert.match(prompt, /Retained exclusion key=prior-0, owner=owner-0, scopes=docs\\retained.md/);
+  assert.match(prompt, /Prior source writes permanently retired by accepted supersession/);
+  assert.doesNotMatch(prompt, /Retained exclusion key=(?:successor|supersession:)/);
+  assert.doesNotMatch(prompt, /transferred to this assignment/);
+  assert.deepEqual(result.state.supersessions, complete.supersessions);
+});
 
 test('launch consumes exact v4 revalidated scopes and all old proofs, never held-conflicting candidate authority', () => {
   const held = candidateFixture();

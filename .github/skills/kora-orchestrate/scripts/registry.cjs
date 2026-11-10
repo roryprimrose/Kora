@@ -26,6 +26,7 @@ function overlaps(left, right) {
 const REFINEMENT_MARKER = 'scope-refinement:v1:';
 const AMENDMENT_MARKER = 'scope-amendment:v1:';
 const READMISSION_MARKER = 'candidate-revalidation:v1:';
+const SUPERSESSION_MARKER = 'write-supersession:v1:';
 const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 const covers = (scopes, value) => scopes.some(s => value === s || value.startsWith(`${s}\\`));
 
@@ -127,10 +128,225 @@ function validateAcknowledgment(a, p) {
 }
 
 function heldReservations(state, key) {
-  return state.items.filter(item => item.key !== key && holdsSlot(item))
-    .map(item => ({ key: item.key, owner: item.owner, scopes: [...item.scopes],
-      scopeRevision: item.scopeRevision ?? 0, sourceWritesRetired: item.sourceWritesRetired ?? false }))
+  return [...state.items.filter(item => item.key !== key && holdsSlot(item))
+    .map(item => ({ key: item.key, owner: item.owner, scopes: effectiveScopes(state, item),
+      scopeRevision: item.scopeRevision ?? 0,
+      sourceWritesRetired: item.sourceWritesRetired === true || supersededWriter(state, item.key) })),
+  ...externalReservations(state), ...(state.supersessions ?? []).filter(({ event: { proof } }) =>
+    proof.mode === 'activate-local' && proof.candidate.key !== key &&
+    state.items.find(item => item.key === proof.candidate.key)?.phase !== 'complete').map(({ event }) => ({
+    key: `supersession:${event.id}:${event.proof.candidate.key}`,
+    owner: state.items.find(item => item.key === event.proof.candidate.key)?.owner ?? null,
+    scopes: [...new Set(event.proof.holders.flatMap(holder => holder.paths))],
+    scopeRevision: 0, sourceWritesRetired: false
+  }))]
     .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function supersededWriter(state, key) {
+  return (state.supersessions ?? []).some(({ event: { proof } }) =>
+    proof.mode === 'activate-local' && proof.holders.some(holder =>
+      holder.coordinator === proof.coordinator && holder.key === key));
+}
+
+function effectiveScopes(state, item) {
+  const transferred = (state.supersessions ?? []).flatMap(({ event: { proof } }) =>
+    proof.mode === 'activate-local' ? proof.holders.filter(holder =>
+      holder.coordinator === proof.coordinator && holder.key === item.key).flatMap(holder => holder.paths) : []);
+  return item.scopes.filter(value => !transferred.includes(value));
+}
+
+function externalReservations(state) {
+  const reservations = new Map();
+  for (const { event: { proof } } of state.supersessions ?? []) {
+    for (const snapshot of proof.externalCheckpoints) {
+      for (const item of heldReservations(snapshot.state)) {
+        const key = `${snapshot.state.coordinator}::${item.key}`;
+        const previous = reservations.get(key);
+        reservations.set(key, { ...item, key,
+          scopes: [...new Set([...(previous?.scopes ?? []), ...item.scopes])] });
+      }
+    }
+  }
+  return [...reservations.values()];
+}
+
+function preparedCandidate(state, key) {
+  return (state.supersessions ?? []).some(({ event: { proof } }) =>
+    proof.mode === 'prepare-external' && proof.candidate.key === key);
+}
+
+function supersessionParticipant(state, key) {
+  return (state.supersessions ?? []).some(({ event: { proof } }) =>
+    proof.candidate.key === key || proof.mode === 'activate-local' &&
+    proof.holders.some(holder => holder.coordinator === proof.coordinator && holder.key === key));
+}
+
+function sourceIdentity(item) {
+  return { ...Object.fromEntries(['key', 'outcome', 'pool', 'kind', 'head', 'scopes', 'evidence']
+    .map(name => [name, item[name]])), scopeRevision: item.scopeRevision ?? 0,
+  scopeHistory: item.scopeHistory ?? [], scopeAmendments: item.scopeAmendments ?? [],
+  admissionHistory: item.admissionHistory ?? [], sourceWritesRetired: item.sourceWritesRetired ?? false };
+}
+
+function supersessionAcknowledgmentDigest(proof, holder) {
+  return digest({ proof: { ...proof, holders: proof.holders.map(value => {
+    const { acknowledgment, ...body } = value;
+    return body;
+  }) }, holder: { coordinator: holder.coordinator, key: holder.key, owner: holder.owner,
+    itemDigest: holder.itemDigest } });
+}
+
+function validateSupersessionEvent(event) {
+  fields(event, 'id type proof authorization');
+  const p = event.proof;
+  fields(p, 'version repository coordinator checkpointRevision head mode authority exactFiles candidate expectedItemDigest manifestComplete localReservations externalCheckpoints holders');
+  fields(event.authorization, 'humanAuthorized receipt proofDigest');
+  requireValue(text(event.id) && event.type === 'supersede-write-reservations' &&
+    p.version === 1 && p.repository === 'roryprimrose/Kora' && text(p.coordinator) &&
+    Number.isSafeInteger(p.checkpointRevision) && p.checkpointRevision > 0 && head(p.head) &&
+    ['activate-local', 'prepare-external'].includes(p.mode) &&
+    p.manifestComplete === true && p.candidate && unownedCandidate(p.candidate) &&
+    p.candidate.blocker === null && p.candidate.head === p.head &&
+    p.expectedItemDigest === digest(p.candidate),
+  'Complete exact supersession candidate/repository/source/revision proof required.');
+  canonicalPaths(p.candidate.scopes, true);
+  requireValue(event.authorization.humanAuthorized === true && text(event.authorization.receipt) &&
+    event.authorization.proofDigest === digest(p), 'Exact whole-proof human authorization required.');
+  fields(p.authority, 'singleLedger receipt');
+  fields(p.exactFiles, 'complete paths receipt');
+  requireValue(p.authority.singleLedger === (p.mode === 'activate-local') && text(p.authority.receipt) &&
+    p.exactFiles.complete === true && text(p.exactFiles.receipt),
+  'Verified controlling single-ledger authority and exact file-kind evidence required.');
+  canonicalPaths(p.exactFiles.paths, true);
+  requireValue(Array.isArray(p.localReservations) && Array.isArray(p.externalCheckpoints) &&
+    Array.isArray(p.holders) && p.holders.length > 0, 'Complete supersession holder inventory required.');
+  requireValue(p.mode !== 'activate-local' || p.externalCheckpoints.length === 0,
+    'External authority cannot activate through a local snapshot or two checkpoint writes.');
+  requireValue(p.mode !== 'prepare-external' || p.externalCheckpoints.length > 0,
+    'External preparation requires a concrete complete checkpoint snapshot.');
+  const ledgers = new Set([p.coordinator]);
+  const inventory = p.localReservations.map(item => ({ coordinator: p.coordinator, item, scopes: item.scopes }));
+  for (const snapshot of p.externalCheckpoints) {
+    fields(snapshot, 'repository revision state stateDigest receipt');
+    requireValue(snapshot.repository === p.repository && Number.isSafeInteger(snapshot.revision) &&
+      snapshot.revision > 0 && text(snapshot.receipt) && snapshot.stateDigest === digest(snapshot.state),
+    'Complete external checkpoint snapshot/digest required.');
+    validate(snapshot.state);
+    requireValue(head(snapshot.state.head) && !ledgers.has(snapshot.state.coordinator) &&
+      (snapshot.state.supersessions ?? []).every(record => record.event.proof.externalCheckpoints.length === 0),
+    'External snapshot must identify a distinct single ledger, not nested authority imports.');
+    ledgers.add(snapshot.state.coordinator);
+    inventory.push(...snapshot.state.items.filter(holdsSlot).map(item =>
+      ({ coordinator: snapshot.state.coordinator, item, scopes: effectiveScopes(snapshot.state, item) })));
+  }
+  const identities = new Set();
+  const expected = [];
+  for (const entry of inventory) {
+    const { coordinator, item, scopes } = entry;
+    requireValue(item && holdsSlot(item) && text(item.key) && head(item.head),
+      'Every supersession snapshot reservation must be known.');
+    canonicalPaths(item.scopes, true);
+    const identity = digest([coordinator, item.key]);
+    requireValue(!identities.has(identity), 'Duplicate supersession snapshot holder.');
+    identities.add(identity);
+    if (!overlaps(p.candidate.scopes, scopes)) continue;
+    requireValue(text(item.owner) && ['running', 'published'].includes(item.phase),
+      'Every overlapping supersession holder must be attached and known.');
+    const paths = p.candidate.scopes.filter(value => scopes.includes(value));
+    requireValue(paths.length > 0 && scopes.filter(value => overlaps([value], p.candidate.scopes))
+      .every(value => paths.includes(value)) &&
+      paths.every(value => !scopes.some(other => other !== value && overlaps([value], [other]))) &&
+      p.candidate.scopes.filter(value => overlaps([value], scopes)).every(value => paths.includes(value)),
+    'Supersession permits exact-path equality only, never ancestor subtraction.');
+    expected.push({ coordinator, key: item.key, owner: item.owner, itemDigest: digest(item),
+      scopeRevision: item.scopeRevision ?? 0, paths });
+  }
+  requireValue(expected.length === p.holders.length, 'Every exact prior holder must be accounted for.');
+  requireValue(equal(p.exactFiles.paths, [...new Set(expected.flatMap(holder => holder.paths))]),
+    'Exact file-kind evidence must cover every transferred path, not directories.');
+  const acknowledgments = new Set();
+  for (const [index, holder] of p.holders.entries()) {
+    fields(holder, 'coordinator key owner itemDigest scopeRevision paths manifest preservation stopped acknowledgment');
+    requireValue(equal(Object.fromEntries(Object.keys(expected[index]).map(key => [key, holder[key]])),
+      expected[index]), 'Supersession exact holder identity/digest/revision/paths mismatch.');
+    const item = inventory.find(entry => entry.coordinator === holder.coordinator &&
+      entry.item.key === holder.key).item;
+    if (p.mode === 'prepare-external' && holder.stopped === null && holder.acknowledgment === null) {
+      requireValue(holder.manifest === null && holder.preservation === null,
+        'Unknown external evidence must remain explicitly unknown.');
+      continue;
+    }
+    fields(holder.stopped, 'writingStopped pendingInstructions sourceInstructionsCleared receipt');
+    requireValue(holder.stopped.writingStopped === true && holder.stopped.pendingInstructions === 0 &&
+      holder.stopped.sourceInstructionsCleared === true && text(holder.stopped.receipt),
+    'Fresh stopped-work and complete source-instruction reconciliation required.');
+    validateManifest({ manifest: holder.manifest, preservation: holder.preservation,
+      phase: item.phase, publicationHead: item.publication?.remoteHead ?? null, toScopes: item.scopes });
+    requireValue(holder.preservation.unpreserved.length === 0,
+      'Supersession cannot transfer unpreserved actual writes.');
+    requireValue([...(item.scopeHistory ?? []), ...(item.scopeAmendments ?? [])].every(record =>
+      record.proof.manifest.actual.every(value => holder.manifest.actual.includes(value)) &&
+      [...record.proof.manifest.actual, ...record.proof.manifest.planned].every(value =>
+        [...holder.manifest.actual, ...holder.manifest.planned].includes(value))),
+    'Supersession preservation cannot omit historical actual/planned writes.');
+    fields(holder.acknowledgment, 'kind id receipt proofDigest');
+    const acknowledgment = holder.acknowledgment;
+    requireValue(['owner', 'revocation'].includes(acknowledgment.kind) && text(acknowledgment.id) &&
+      !acknowledgments.has(acknowledgment.id) && text(acknowledgment.receipt) &&
+      acknowledgment.proofDigest === supersessionAcknowledgmentDigest(p, holder),
+    'Fresh exact-holder whole-proof acknowledgment or explicit revocation receipt required.');
+    acknowledgments.add(acknowledgment.id);
+  }
+}
+
+function validateSupersessions(state) {
+  const markers = state.seen.filter(id => id.startsWith(SUPERSESSION_MARKER));
+  if (state.version < 5) {
+    requireValue(!Object.hasOwn(state, 'supersessions') && markers.length === 0,
+      'Supersession schema downgrade or omission.');
+    return;
+  }
+  requireValue(Array.isArray(state.supersessions), 'Supersession history missing.');
+  const events = new Set();
+  const candidates = new Set();
+  const acknowledgments = new Set(state.items.flatMap(item =>
+    [...(item.scopeHistory ?? []), ...(item.scopeAmendments ?? [])].map(record => record.acknowledgment.id)));
+  for (const record of state.supersessions) {
+    fields(record, 'event commands');
+    requireValue(Array.isArray(record.commands), 'Supersession action binding missing.');
+    validateSupersessionEvent(record.event);
+    const { event } = record;
+    const p = event.proof;
+    requireValue(!events.has(event.id) && state.seen.includes(event.id) &&
+      !candidates.has(p.candidate.key), 'Duplicate or missing supersession event/candidate history.');
+    events.add(event.id);
+    candidates.add(p.candidate.key);
+    const candidate = state.items.find(item => item.key === p.candidate.key);
+    requireValue(candidate && equal(sourceIdentity(candidate), sourceIdentity(p.candidate)) &&
+      (p.candidate.pr === null || p.candidate.pr === candidate.pr),
+    'Supersession beneficiary identity/scopes/history changed without fresh authority.');
+    requireValue(p.mode !== 'prepare-external' || unownedCandidate(candidate),
+      'A prepared external proposal cannot reserve, attach or launch its candidate.');
+    for (const holder of p.holders) {
+      const acknowledgment = holder.acknowledgment;
+      if (acknowledgment) {
+        requireValue(!acknowledgments.has(acknowledgment.id), 'Supersession acknowledgment replay.');
+        acknowledgments.add(acknowledgment.id);
+      }
+      if (p.mode !== 'activate-local') continue;
+      const original = p.localReservations.find(item => item.key === holder.key);
+      const current = state.items.find(item => item.key === holder.key);
+      requireValue(current && current.owner === original.owner &&
+        equal(sourceIdentity(current), sourceIdentity(original)) &&
+        (original.publication === null || equal(current.publication, original.publication) &&
+          current.pr === original.pr),
+      'Superseded holder scopes/publication/history/retirement must remain immutable.');
+    }
+  }
+  requireValue(equal(markers.slice().sort(), state.supersessions.map(record =>
+    `${SUPERSESSION_MARKER}${digest(record)}`).sort()),
+  'Supersession complete history/event digest binding is inconsistent.');
 }
 
 function validateAmendment(record, item, previous) {
@@ -168,7 +384,7 @@ function validateAmendment(record, item, previous) {
       Number.isSafeInteger(reservation.scopeRevision) && reservation.scopeRevision >= 0 &&
       typeof reservation.sourceWritesRetired === 'boolean', 'Malformed exclusive reservation.');
     keys.add(reservation.key);
-    canonicalPaths(reservation.scopes, true);
+    canonicalPaths(reservation.scopes);
     requireValue(!overlaps(p.toScopes, reservation.scopes), 'Extension conflicts with held owner scopes.');
   }
   validateManifest(p);
@@ -290,7 +506,7 @@ function validateReadmissions(state) {
       fields(record, 'event before fromVersion');
       const { event, before, fromVersion } = record;
       validateReadmissionEvent(event);
-      requireValue([1, 2, 3, 4].includes(fromVersion) && (index === 0 || fromVersion === 4),
+      requireValue([1, 2, 3, 4, 5].includes(fromVersion) && (index === 0 || fromVersion >= 4),
         'Invalid candidate revalidation source schema.');
       fields(before, `key outcome pool kind head scopes evidence pr owner phase blocker publication${
         fromVersion >= 2 ? ' scopeRevision scopeHistory sourceWritesRetired' : ''}${
@@ -302,7 +518,7 @@ function validateReadmissions(state) {
       canonicalPaths(before.scopes, true);
       requireValue(before.scopes.every(value => covers(event.scopes, value)),
         'Complete candidate manifest must retain every original scope.');
-      const completeBefore = fromVersion === 4
+      const completeBefore = fromVersion >= 4
         ? { ...before, admissionHistory: item.admissionHistory.slice(0, index) } : before;
       requireValue(event.expectedItemDigest === digest(completeBefore) &&
         state.seen.includes(event.id), 'Candidate revalidation old-item digest/event mismatch.');
@@ -334,7 +550,7 @@ function validateReadmissions(state) {
 }
 
 function validate(state) {
-  requireValue([1, 2, 3, 4].includes(state?.version) && typeof state.enabled === 'boolean' &&
+  requireValue([1, 2, 3, 4, 5].includes(state?.version) && typeof state.enabled === 'boolean' &&
     ['observe', 'delivery'].includes(state.mode) &&
     text(state.coordinator) && (state.head === null || head(state.head)) && Array.isArray(state.items) &&
     Array.isArray(state.seen), 'Malformed registry.');
@@ -390,10 +606,23 @@ function validate(state) {
   for (const [pool, limit] of Object.entries(LIMITS)) {
     requireValue(active.filter(item => item.pool === pool).length <= limit, `${pool} pool is full.`);
   }
+  validateSupersessions(state);
   for (let i = 0; i < active.length; i++) {
     for (let j = i + 1; j < active.length; j++) {
-      requireValue(!overlaps(active[i].scopes, active[j].scopes), 'Conflicting reserved file scopes.');
+      requireValue(!overlaps(effectiveScopes(state, active[i]), effectiveScopes(state, active[j])),
+        'Conflicting reserved file scopes.');
       requireValue(active[i].pr === null || active[i].pr !== active[j].pr, 'PR already owned.');
+    }
+    for (const item of active) {
+      requireValue(!heldReservations(state, item.key).filter(other =>
+        other.key.startsWith('supersession:')).some(other => overlaps(effectiveScopes(state, item), other.scopes)),
+      'Transferred paths remain exclusively bound to their supersession beneficiary.');
+      const preexisting = (state.supersessions ?? []).some(record =>
+        record.event.proof.mode === 'prepare-external' &&
+        record.event.proof.localReservations.some(before => before.key === item.key &&
+          equal(sourceIdentity(before), sourceIdentity(item))));
+      requireValue(preexisting || !externalReservations(state).some(other =>
+        overlaps(effectiveScopes(state, item), other.scopes)), 'Conflicting external reserved file scopes.');
     }
   }
   const represented = state.items.filter(item => item.phase !== 'complete' && item.pr !== null);
@@ -433,8 +662,9 @@ function dispatch(state, actions) {
       if (item.kind === 'maintenance' && state.planner.active) continue;
       const active = state.items.filter(holdsSlot);
       if (active.filter(other => other.pool === pool).length >= LIMITS[pool]) break;
-      if (item.blocker || active.some(other => overlaps(item.scopes, other.scopes) ||
-        item.pr !== null && item.pr === other.pr)) continue;
+      if (item.blocker || preparedCandidate(state, item.key) ||
+        heldReservations(state, item.key).some(other => overlaps(item.scopes, other.scopes)) ||
+        active.some(other => item.pr !== null && item.pr === other.pr)) continue;
       item.phase = 'reserved';
       actions.push({ type: 'launch', key: item.key, pool });
     }
@@ -457,13 +687,19 @@ function dispatch(state, actions) {
   }
 }
 
-function applyEvent(current, event) {
+function applyEvent(current, event, context = {}) {
   validate(current);
   requireValue(event && text(event.id) && text(event.type), 'Event identity/type missing.');
-  requireValue(![REFINEMENT_MARKER, AMENDMENT_MARKER, READMISSION_MARKER].some(prefix => event.id.startsWith(prefix)),
+  requireValue(![REFINEMENT_MARKER, AMENDMENT_MARKER, READMISSION_MARKER, SUPERSESSION_MARKER]
+    .some(prefix => event.id.startsWith(prefix)),
     'Reserved scope event identity.');
   const state = structuredClone(current);
   if (state.seen.includes(event.id)) {
+    const supersession = (state.supersessions ?? []).find(record => record.event.id === event.id);
+    if (supersession || event.type === 'supersede-write-reservations') {
+      requireValue(supersession && equal(supersession.event, event),
+        'Supersession replay must match its original complete accepted event.');
+    }
     if (event.type === 'revalidate-candidate') {
       const record = state.items.flatMap(item => item.admissionHistory ?? [])
         .find(value => value.event.id === event.id);
@@ -473,6 +709,10 @@ function applyEvent(current, event) {
     return { state, actions: [], duplicate: true };
   }
   const actions = [];
+  if (['refine-scopes', 'extend-scopes', 'revalidate-candidate'].includes(event.type)) {
+    requireValue(!supersessionParticipant(state, event.key),
+      'Supersession participants require fresh authority, not scope/readmission mutation.');
+  }
   const worker = () => {
     const item = state.items.find(value => value.key === event.key);
     requireValue(item && holdsSlot(item) && item.owner === event.owner, 'Unknown or mismatched worker.');
@@ -500,8 +740,8 @@ function applyEvent(current, event) {
       const item = state.items.find(value => value.key === event.key);
       requireValue(item && unownedCandidate(item), 'Only an unowned unreserved candidate can be revalidated.');
       requireValue(digest(item) === event.expectedItemDigest, 'Stale complete candidate item digest.');
-      requireValue(!state.items.filter(holdsSlot).some(other => overlaps(event.scopes, other.scopes) ||
-        item.pr !== null && item.pr === other.pr),
+      requireValue(!heldReservations(state, item.key).some(other => overlaps(event.scopes, other.scopes)) &&
+        !state.items.filter(holdsSlot).some(other => item.pr !== null && item.pr === other.pr),
         'Candidate revalidation conflicts with held scopes; retain original candidate.');
       const before = structuredClone(item);
       delete before.admissionHistory;
@@ -530,6 +770,41 @@ function applyEvent(current, event) {
       const hash = digest(record);
       state.readmissions.push({ key: item.key, eventId: event.id, digest: hash });
       state.seen.push(`${READMISSION_MARKER}${hash}`);
+      break;
+    }
+    case 'supersede-write-reservations': {
+      validateSupersessionEvent(event);
+      const p = event.proof;
+      requireValue(Number.isSafeInteger(context.revision) && p.checkpointRevision === context.revision,
+        'Supersession requires the exact current durable checkpoint revision.');
+      requireValue(state.enabled && state.mode === 'delivery' && p.coordinator === state.coordinator &&
+        p.head === state.head, 'Supersession requires current coordinator, source and enabled delivery authority.');
+      const item = state.items.find(value => value.key === p.candidate.key);
+      requireValue(item && unownedCandidate(item) && equal(item, p.candidate) &&
+        !supersessionParticipant(state, item.key), 'Stale or already bound complete supersession candidate.');
+      requireValue(equal(p.localReservations, state.items.filter(holdsSlot)),
+        'Stale or incomplete local supersession reservation snapshot.');
+      requireValue(p.holders.filter(holder => holder.coordinator === p.coordinator)
+        .every(holder => !supersessionParticipant(state, holder.key)),
+      'A superseded writer cannot regain or reassign transferred source authority.');
+      if (state.version < 2) {
+        state.refinements = [];
+        for (const other of state.items) {
+          other.scopeRevision = 0; other.scopeHistory = []; other.sourceWritesRetired = false;
+        }
+      }
+      if (state.version < 3) {
+        state.amendments = [];
+        for (const other of state.items) other.scopeAmendments = [];
+      }
+      if (state.version < 4) {
+        state.readmissions = [];
+        for (const other of state.items) other.admissionHistory = [];
+      }
+      if (state.version < 5) { state.version = 5; state.supersessions = []; }
+      const record = { event: structuredClone(event), commands: [] };
+      state.supersessions.push(record);
+      state.seen.push(`${SUPERSESSION_MARKER}${digest(record)}`);
       break;
     }
     case 'adopt': {
@@ -729,17 +1004,24 @@ function applyEvent(current, event) {
         item.sourceWritesRetired = false;
       }
       if (state.version >= 3 && !Object.hasOwn(item, 'scopeAmendments')) item.scopeAmendments = [];
-      if (state.version === 4 && !Object.hasOwn(item, 'admissionHistory')) item.admissionHistory = [];
+      if (state.version >= 4 && !Object.hasOwn(item, 'admissionHistory')) item.admissionHistory = [];
     }
   }
   validate(state);
   dispatch(state, actions);
+  if (event.type === 'supersede-write-reservations') {
+    const record = state.supersessions.at(-1);
+    const marker = `${SUPERSESSION_MARKER}${digest(record)}`;
+    record.commands = structuredClone(actions);
+    state.seen[state.seen.indexOf(marker)] = `${SUPERSESSION_MARKER}${digest(record)}`;
+  }
   validate(state);
   return { state, actions, duplicate: false };
 }
 
 module.exports = { createState, applyEvent, validate, digest, scope, canonicalPaths, overlaps,
-  heldReservations, LIMITS };
+  heldReservations, effectiveScopes, supersededWriter, preparedCandidate,
+  supersessionAcknowledgmentDigest, LIMITS };
 
 if (require.main === module) {
   try {

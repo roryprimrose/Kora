@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { createState, applyEvent, validate } = require('./registry.cjs');
+const { createState, applyEvent, validate, digest } = require('./registry.cjs');
 
 function requireValue(condition, message) {
   if (!condition) throw new Error(message);
@@ -34,6 +34,21 @@ function validateCheckpoint(value) {
     readmissions.every(event => readmissionIndex.some(record => record.eventId === event.id)) &&
     new Set(readmissions.map(event => event.id)).size === readmissions.length,
   'Checkpoint candidate revalidation event/schema binding is inconsistent.');
+  const supersessions = value.state.supersessions ?? [];
+  const journal = value.events.filter(event => event.type === 'supersede-write-reservations');
+  requireValue(journal.length === supersessions.length &&
+    new Set(journal.map(event => event.id)).size === journal.length &&
+    new Set(value.actions.map(action => action.id)).size === value.actions.length &&
+    journal.every(event => {
+      const record = supersessions.find(record => record.event.id === event.id);
+      const actions = value.actions.filter(action => action.id.startsWith(`${event.id}:`));
+      return record && event.digest === digest(record) &&
+        Array.isArray(event.commands) && digest(event.commands) === digest(record.commands) &&
+        event.commands.every((command, index) =>
+          actions[index]?.id === `${event.id}:${index}` &&
+          digest(actions[index].command) === digest(command)) &&
+        actions.length === event.commands.length;
+    }), 'Checkpoint supersession complete history/action journal binding is inconsistent.');
 }
 
 function checkpoint(file, input, io = fs) {
@@ -61,11 +76,13 @@ function checkpoint(file, input, io = fs) {
         state: createState(input.coordinator, input.head, input.mode), actions: [], events: [] };
     } else if (input.operation === 'apply') {
       requireValue(value, 'Checkpoint is not initialized.');
-      const result = applyEvent(value.state, input.event);
+      const result = applyEvent(value.state, input.event, { revision: value.revision });
       if (result.duplicate) return value;
       value.state = result.state;
       const at = new Date().toISOString();
-      value.events.push({ id: input.event.id, type: input.event.type, at });
+      value.events.push({ id: input.event.id, type: input.event.type, at,
+        ...(input.event.type === 'supersede-write-reservations'
+          ? { digest: digest(value.state.supersessions.at(-1)), commands: structuredClone(result.actions) } : {}) });
       result.actions.forEach((command, index) => value.actions.push({
         id: `${input.event.id}:${index}`, command, status: 'pending', at, evidence: null
       }));

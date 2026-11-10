@@ -16,21 +16,7 @@
       <Setter Property="Background" Value="{DynamicResource KoraWindowBackgroundBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource KoraForegroundBrush}" />
     </Style>
-    <Style Selector="Button">
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="14,9" />
-    </Style>
-    <Style Selector="Button.primary">
-      <Setter Property="Background" Value="{DynamicResource KoraPrimaryBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource KoraAccentForegroundBrush}" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-    </Style>
-    <Style Selector="Button.response-link">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Foreground" Value="{DynamicResource KoraAccentBrush}" />
-      <Setter Property="Padding" Value="0,4" />
-      <Setter Property="HorizontalContentAlignment" Value="Left" />
-    </Style>
+    <StyleInclude Source="/Controls/ButtonStyles.axaml" />
     <StyleInclude Source="/Controls/SettingActionsButton.axaml" />
     <Style Selector="TextBlock.eyebrow">
       <Setter Property="FontSize" Value="10" />

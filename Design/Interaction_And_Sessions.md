@@ -147,6 +147,13 @@ Failed audit, terminal readback or uncertain resource release blocks clean succe
 with a visible recovery message. Stopped requests are never retried or resurrected;
 retained history and grants are not deleted.
 
+After both work owners have confirmed physical joins, their single-use receipts
+remain current across the host's own input-admission closure. They still require
+the original source, unchanged private control revision, live deadline and
+uncancelled attempt; releasing a review retires its receipt. Before and during
+stopping, live workspace control remains mandatory. Closing input neither admits
+new work nor authorizes another stop from an already consumed receipt.
+
 The [desktop lifetime owner](../src/Kora/DesktopLifetimeController.cs), bound by
 desktop composition, consumes the admitted Close independently of the replaceable
 presence window. If animation replacement retires the old window and the new

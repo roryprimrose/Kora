@@ -59,9 +59,10 @@ public sealed partial class SessionConversationService
         if (!Enum.IsDefined(operation)) { throw new ArgumentOutOfRangeException(nameof(operation)); }
         var control = access.ControlRevision;
         var expires = time.GetUtcNow().AddMinutes(1);
-        bool SourceCurrent() => !token.IsCancellationRequested && admitted() && access.CanControl
+        ApplicationLifecycleReview? review = null;
+        // Joined receipts survive voluntary input closure, not changes to their private control source.
+        bool SourceCurrent() => !token.IsCancellationRequested && admitted() && (access.CanControl || review is { Joined: true })
             && access.ControlRevision == control && time.GetUtcNow() < expires;
-        ApplicationLifecycleReview review;
         lock (cancellationGate)
         {
             ExpireLifecycleBarrier();

@@ -4,8 +4,12 @@ using Avalonia.Controls.Primitives;
 
 using AwesomeAssertions;
 
+using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
+using Kora.Core.Dependencies;
+using Kora.Core.Hosting;
+using Kora.Core.Tools;
 using Kora.NativeUxFixture;
 
 using Microsoft.Extensions.Logging;
@@ -16,6 +20,47 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class DesktopLifetimeControllerTests
 {
+    [Fact]
+    public Task ExitWithProductionWorkspaceAccessCompletesAfterJoiningBothWorkOwners() =>
+        HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(ScratchParent());
+            await fixture.InitializeAsync();
+            var ownership = new DesktopInstanceOwnershipBridge();
+            ownership.BindCallbacks(_ => Task.CompletedTask, _ => Task.FromResult(true));
+            using var access = new DesktopSessionWorkspaceAccess(ownership);
+            access.Bind(fixture.Main);
+            var control = access.ControlRevision;
+            var dispatch = new NoLifecycleDispatch();
+            var tasks = new HostTaskCoordinator(fixture.Tasks);
+            var workspace = new SessionWorkspaceService(fixture.Interactions, tasks, access,
+                NullLogger<SessionWorkspaceService>.Instance);
+            await using var conversations = new SessionConversationService(fixture.Interactions, fixture.Interactions,
+                workspace, access, dispatch, fixture.Time, NullLogger<SessionConversationService>.Instance);
+            await using var queue = new SessionQueueService(fixture.Interactions, fixture.Interactions, tasks, access,
+                dispatch, new(), NullLogger<SessionQueueService>.Instance, fixture.Time);
+            using var questions = new NativeQuestionHost(fixture.Interactions, fixture.Time,
+                NullLogger<NativeQuestionViewModel>.Instance);
+            using var lifecycle = new ApplicationLifecycleController(fixture.Main, conversations, queue, questions,
+                tasks, new(NullLogger<NativeDetailRenderer>.Instance),
+                () => throw new InvalidOperationException("Idle Exit must not open a work-confirmation window."));
+            fixture.Main.BindConversationShutdown(() => Task.FromResult(true), () => true);
+            var shutdowns = 0;
+            using var lifetime = new DesktopLifetimeController(fixture.Main, () =>
+            {
+                access.CanControl.Should().BeFalse("new input remains closed at the desktop shutdown effect");
+                access.ControlRevision.Should().Be(control, "voluntary input closure does not revoke private ownership");
+                shutdowns++;
+            }, NullLogger<DesktopLifetimeController>.Instance);
+
+            await fixture.Main.ExitAsync();
+
+            shutdowns.Should().Be(1);
+            dispatch.Calls.Should().Be(0);
+            fixture.Voice.StartCalls.Should().Be(0);
+            fixture.Voice.ReplyCalls.Should().Be(0);
+        });
+
     [Fact]
     public Task TrayExitCompletesAfterReplacementConstructionFailureLeavesNoPresenceWindow() =>
         HeadlessSession.RunAsync(async () =>
@@ -199,6 +244,25 @@ public sealed class DesktopLifetimeControllerTests
             "b259b360-3c94-46f6-99c0-a55242f23d5d", "desktop-lifetime-fixtures");
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private sealed class NoLifecycleDispatch : IModelTurnAdmission, IDeterministicVersionQueueAction
+    {
+        internal int Calls { get; private set; }
+        public bool IsQuiescent => true;
+        public Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context,
+            ModelHandoffReview? review, CancellationToken token)
+        {
+            Calls++;
+            throw new InvalidOperationException("Lifecycle validation cannot admit a model turn.");
+        }
+
+        public CapabilityReply Observe(SessionQueueReadProfile profile, CancellationToken token,
+            SessionQueueCapabilityTarget? target = null)
+        {
+            Calls++;
+            throw new InvalidOperationException("Lifecycle validation cannot dispatch a compatibility action.");
+        }
     }
 
     private sealed class Surface : IPresenceWindow

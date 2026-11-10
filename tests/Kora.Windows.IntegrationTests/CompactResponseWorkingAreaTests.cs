@@ -5,13 +5,18 @@ using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application.ViewModels;
 using Kora.Core.Voice;
 using Kora.NativeUxFixture;
+
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
@@ -19,6 +24,166 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class CompactResponseWorkingAreaTests
 {
     private static readonly string[] SubmittedActivityControls = ["RefreshSubmittedActivity", "StopSubmittedActivity"];
+
+    [Theory]
+    [InlineData(320, 400, 1)]
+    [InlineData(640, 800, 2)]
+    [InlineData(480, 570, 1)]
+    [InlineData(1200, 900, 1)]
+    public async Task EveryCompactActionAndInputIsInsideOneRoundedFrame(int width, int height, double scale)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(ScratchParent(), silentCaption: true);
+            await fixture.InitializeAsync();
+            var window = new ResponseWindow(fixture.Main, null, null, () => new(0, 0, width, height));
+            try
+            {
+                window.SetRenderScaling(scale);
+                window.ShowResponse();
+                window.UpdateLayout();
+                AssertCompactFrameContainsControls(window);
+                window.ShowSessions(true, activate: false);
+                window.UpdateLayout();
+                window.FindControl<Border>("CurrentInteractionContent")!.CornerRadius.Should().Be(new CornerRadius(16));
+                window.ShowSessions(false, activate: false);
+                window.UpdateLayout();
+                AssertCompactFrameContainsControls(window);
+                fixture.Voice.StartCalls.Should().Be(0);
+                fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Fact]
+    public async Task InteractiveFixtureWorkbenchExpandsAndCollapsesTheSameResponseWithoutSendingInput()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(ScratchParent(), silentCaption: true);
+            await fixture.InitializeAsync();
+            using var sessions = new SessionsWindowController(fixture.Main, fixture.Sessions, fixture.Evidence,
+                fixture.Access, NullLogger<SessionsViewModel>.Instance);
+            sessions.Bind();
+            using var responses = NativeUxFixtureWindow.CreateResponseWorkbench(fixture.Main, sessions, null);
+            var window = responses.PrepareWorkbenchOwner();
+            window.ShowResponse();
+            fixture.Main.CommandText = "Unsent fixture input";
+
+            window.FindControl<Button>("ExpandSessions")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await sessions.InteractionOperation;
+            responses.PrepareWorkbenchOwner().Should().BeSameAs(window);
+            window.IsExpanded.Should().BeTrue();
+            window.IsSessionListPresented.Should().BeTrue();
+            window.FindControl<WrapPanel>("ExpandedControls")!.IsEffectivelyVisible.Should().BeTrue();
+
+            window.FindControl<Button>("CollapseWorkbench")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.IsExpanded.Should().BeFalse();
+            window.FindControl<WrapPanel>("ExpandedControls")!.IsEffectivelyVisible.Should().BeFalse();
+            fixture.Main.CommandText.Should().Be("Unsent fixture input");
+            fixture.Voice.StartCalls.Should().Be(0);
+            fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
+        });
+    }
+
+    [Fact]
+    public async Task IdleCompactResponseHasOnlyCoreGlyphActionsAndExplicitOverflow()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(ScratchParent(), silentCaption: true);
+            await fixture.InitializeAsync();
+            var window = new ResponseWindow(fixture.Main);
+            try
+            {
+                window.ShowResponse();
+                window.UpdateLayout();
+                ((ISolidColorBrush)window.Background!).Color.A.Should().Be(255);
+                var buttons = window.GetVisualDescendants().OfType<Button>()
+                    .Where(button => button.IsEffectivelyVisible
+                        && !button.GetVisualAncestors().OfType<Avalonia.Controls.Primitives.ScrollBar>().Any()).ToArray();
+                buttons.Select(button => button.Name).Should().BeEquivalentTo(
+                    ["ExpandSessions", "ResponseMoreActions", "DismissResponse", "PushToTalkButton", "SubmitResponseCommand"]);
+                foreach (var button in buttons)
+                {
+                    if (!string.Equals(button.Name, "PushToTalkButton", StringComparison.Ordinal))
+                    { button.Content.Should().BeOfType<PathIcon>(); }
+                    ToolTip.GetTip(button).Should().NotBeNull();
+                    AutomationProperties.GetName(button).Should().NotBeNullOrWhiteSpace();
+                    button.Width.Should().Be(28);
+                    button.Height.Should().Be(28);
+                }
+                window.FindControl<TextBlock>("SubmittedActivityStatus")!.IsEffectivelyVisible.Should().BeFalse();
+                window.FindControl<Button>("CancelResponseTask")!.IsEffectivelyVisible.Should().BeFalse();
+                window.FindControl<Button>("StopResponseSpeech")!.IsEffectivelyVisible.Should().BeFalse();
+                var more = window.FindControl<Button>("ResponseMoreActions")!;
+                more.BringIntoView();
+                window.UpdateLayout();
+                more.Focus().Should().BeTrue();
+                window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                Dispatcher.UIThread.RunJobs();
+                var menu = (MenuFlyout)more.Flyout!;
+                menu.IsOpen.Should().BeTrue();
+                menu.Items.OfType<MenuItem>().Select(item => item.Header).Should().Contain("Current response details");
+                menu.Hide();
+                fixture.Voice.StartCalls.Should().Be(0);
+                fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
+                window.ShowSessions(true, activate: false);
+                window.FindControl<TextBlock>("SubmittedActivityStatus")!.IsEffectivelyVisible.Should().BeTrue();
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false, false, false, true)]
+    [InlineData(false, true, false, false)]
+    [InlineData(false, false, true, false)]
+    [InlineData(true, false, false, false)]
+    public async Task OnlyLeftMouseOnBlankCompactSurfaceStartsMove(bool expanded, bool text, bool rightButton, bool expectedMove)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(ScratchParent(), silentCaption: true);
+            await fixture.InitializeAsync();
+            fixture.Main.ReportHostInteractionFailure("Readable response text");
+            var window = new ResponseWindow(fixture.Main);
+            try
+            {
+                window.ShowResponse();
+                if (expanded) { window.ShowSessions(true, activate: false); }
+                window.UpdateLayout();
+                bool? handled = null;
+                object? source = null;
+                window.AddHandler(InputElement.PointerPressedEvent, (_, args) =>
+                {
+                    handled = args.Handled;
+                    source = args.Source;
+                },
+                    RoutingStrategies.Bubble, handledEventsToo: true);
+                var surface = window.FindControl<Grid>("WindowSurface")!;
+                surface.Cursor!.ToString().Should().Be(expanded ? "Arrow" : "SizeAll");
+                var point = new Point(2, expanded ? 34 : 2);
+                if (text)
+                {
+                    var title = window.FindControl<TextBlock>("ResponseBodyText")!;
+                    title.BringIntoView();
+                    window.UpdateLayout();
+                    point = title.TranslatePoint(new Point(2, 2), window)!.Value;
+                    title.Cursor!.ToString().Should().Be("Arrow");
+                }
+                var button = rightButton ? MouseButton.Right : MouseButton.Left;
+                window.MouseDown(point, button);
+                window.MouseUp(point, button);
+                handled.Should().Be(expectedMove, $"pointer source was {source?.GetType().Name}");
+                fixture.Voice.StartCalls.Should().Be(0);
+                fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
+            }
+            finally { window.Close(); }
+        });
+    }
 
     [Theory]
     [InlineData(320, 400, 1)]
@@ -78,8 +243,7 @@ public sealed class CompactResponseWorkingAreaTests
                 input.Focus().Should().BeTrue();
                 input.Text = "Edited without submission";
                 fixture.Main.CommandText.Should().Be("Edited without submission");
-                var dismiss = window.GetVisualDescendants().OfType<Button>()
-                    .Single(button => string.Equals(button.Content as string, "Dismiss", StringComparison.Ordinal));
+                var dismiss = window.FindControl<Button>("DismissResponse")!;
                 dismiss.BringIntoView();
                 window.UpdateLayout();
                 AssertInside(window, dismiss);
@@ -87,11 +251,7 @@ public sealed class CompactResponseWorkingAreaTests
                 foreach (var name in SubmittedActivityControls)
                 {
                     var control = window.FindControl<Button>(name)!;
-                    control.IsEffectivelyVisible.Should().BeTrue();
-                    control.BringIntoView();
-                    window.UpdateLayout();
-                    AssertInside(window, control);
-                    control.Focus().Should().BeTrue();
+                    control.IsEffectivelyVisible.Should().BeFalse("work management belongs to the expanded workbench");
                 }
                 fixture.Main.ResponseBody.Should().Be(body);
                 fixture.Main.ResponseActions.Should().Equal(actions);
@@ -296,6 +456,32 @@ public sealed class CompactResponseWorkingAreaTests
     private static Task<byte[]> ReadStoreBytes(NativeUxFixtureSession fixture) =>
         File.ReadAllBytesAsync(Path.Combine(fixture.LocalRoot, "InteractionStorageV1", "interaction.db"),
             TestContext.Current.CancellationToken);
+
+    internal static void AssertCompactFrameContainsControls(ResponseWindow window)
+    {
+        var frame = window.GetVisualDescendants().OfType<Border>().Single(border =>
+            border.IsEffectivelyVisible && border.CornerRadius == new CornerRadius(16)
+                && border.BorderThickness == new Thickness(1));
+        var interior = new Rect(new Point(1, 1), new Size(frame.Bounds.Width - 2, frame.Bounds.Height - 2));
+        var controls = window.GetVisualDescendants().OfType<Control>()
+            .Where(control => control.IsEffectivelyVisible && control is Button or TextBox
+                && !control.GetVisualAncestors().OfType<Avalonia.Controls.Primitives.ScrollBar>().Any()).ToArray();
+        controls.Should().NotBeEmpty();
+        foreach (var control in controls)
+        {
+            control.GetVisualAncestors().Should().Contain(frame, $"{control.Name} belongs inside the rounded frame");
+            var origin = control.TranslatePoint(default, frame)!.Value;
+            var visible = new Rect(origin, control.Bounds.Size);
+            foreach (var clip in control.GetVisualAncestors().TakeWhile(ancestor => ancestor != frame)
+                .Where(ancestor => ancestor.ClipToBounds))
+            {
+                var clipOrigin = clip.TranslatePoint(default, frame)!.Value;
+                visible = visible.Intersect(new Rect(clipOrigin, clip.Bounds.Size));
+            }
+            (visible.Width <= 0 || visible.Height <= 0 || interior.Contains(visible)).Should().BeTrue(
+                $"{control.Name} has visible bounds {visible} inside the frame interior {interior}");
+        }
+    }
 
     private static void AssertInside(Window window, Control control)
     {

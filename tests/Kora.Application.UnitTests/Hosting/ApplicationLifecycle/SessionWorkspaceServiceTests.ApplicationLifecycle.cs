@@ -8,6 +8,42 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Theory]
+    [InlineData(false, "unchanged")]
+    [InlineData(true, "unchanged")]
+    [InlineData(true, "revision")]
+    [InlineData(true, "source")]
+    [InlineData(true, "cancel")]
+    [InlineData(true, "expiry")]
+    [InlineData(true, "release")]
+    public async Task JoinedCompatibilityLifecycleReceiptSurvivesOnlyItsOwnInputAdmissionClosure(bool joined, string change)
+    {
+        using var f = new Fixture();
+        using var clock = new LifecycleQueueClock();
+        await using var queue = f.QueueService(clock: clock);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(f.Token);
+        var current = true;
+        using var review = await queue.ReviewApplicationLifecycleAsync(RequestOrigin.LocalUi, () => current, cancellation.Token);
+        if (joined) { await queue.ConfirmApplicationLifecycleAsync(review, f.Token); }
+
+        f.CanControl = false;
+        switch (change)
+        {
+            case "revision": f.AdvanceRevision(); break;
+            case "source": current = false; break;
+            case "cancel": cancellation.Cancel(); break;
+            case "expiry": clock.Now = review.ExpiresAt; break;
+            case "release": review.Dispose(); break;
+        }
+
+        queue.IsApplicationLifecycleCurrent(review).Should().Be(joined && change is "unchanged");
+        review.Joined.Should().Be(joined);
+        await queue.Invoking(value => value.ConfirmApplicationLifecycleAsync(review, f.Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.QueueActions.Should().Be(0);
+        f.TaskWrites.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task UnconfirmedCompatibilityWithdrawalCannotCommitASuccessfulControlOrCleanApplicationRelease()
     {

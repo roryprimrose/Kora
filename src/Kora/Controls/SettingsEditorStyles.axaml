@@ -1,25 +1,9 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Style Selector="Button:not(.settings-actions)">
-    <Setter Property="MinHeight" Value="30" />
-    <Setter Property="Padding" Value="10,4" />
-    <Setter Property="CornerRadius" Value="3" />
-    <Setter Property="FontSize" Value="13" />
-    <Setter Property="FontWeight" Value="Normal" />
     <Setter Property="HorizontalAlignment" Value="Left" />
-    <Setter Property="Background" Value="Transparent" />
-    <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
-    <Setter Property="BorderThickness" Value="1" />
   </Style>
-  <Style Selector="Button.primary, Button.pending">
-    <Setter Property="Background" Value="{DynamicResource KoraPrimaryBrush}" />
-    <Setter Property="Foreground" Value="{DynamicResource KoraAccentForegroundBrush}" />
-  </Style>
-  <Style Selector="Button.toolbar">
-    <Setter Property="BorderBrush" Value="Transparent" />
-    <Setter Property="Padding" Value="6,4" />
-    <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
-  </Style>
+  <StyleInclude Source="/Controls/ButtonStyles.axaml" />
   <Style Selector="ComboBox, TextBox, NumericUpDown">
     <Setter Property="MinHeight" Value="30" />
     <Setter Property="FontSize" Value="13" />

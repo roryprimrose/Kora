@@ -1,5 +1,13 @@
 # Interactive native UX validation
 
+For collapsed-response visual checks, use **Collapsed response workbench (scratch
+sessions)** in the launcher. This opt-in action composes the production response
+and session controllers so Expand and Collapse reuse the same window. It does
+not send the command input or enable audio. Existing fixture actions remain
+unchanged; **Typed slash dropdown** opens a standalone response and is not an
+expand/collapse workbench check. Use the scratch Appearance settings to keep
+responses visible during a manual check if needed.
+
 This fixture uses production Kora windows/styles with synthetic ownership and
 privacy, isolated scratch SQLite stores and preferences. It never starts the
 production host, reads normal profile sources, captures audio, runs models,

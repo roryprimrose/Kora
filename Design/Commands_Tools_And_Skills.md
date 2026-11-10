@@ -227,7 +227,7 @@ Tool use still requires a host-owned read-only mapping pinned to endpoint/accoun
 Kora owns persisted consideration choices: server inclusion is the master gate; Tools, Resources (including resource templates) and Prompts have default-enabled category defaults and individual exceptions.
 Category Enable all/Disable all resets exceptions and applies to newly discovered entries. Server exclusion preserves child choices. Capability mutations advance category revisions so disable/re-enable cannot revive old reviews ([policy](../src/Kora.Core/Mcp/McpCapabilitySelection.cs)).
 
-The [private manager](../src/Kora/McpCapabilityManagerWindow.cs) completes explicit discovery, server/category/item editing, full change review and separate confirmed audited Save/readback. Choices live in device-local preferences, never external MCP JSON.
+The [private manager](../src/Kora/McpCapabilityManagerEditorView.cs) completes explicit discovery, server/category/item editing, full change review and separate confirmed audited Save/readback. Choices live in device-local preferences, never external MCP JSON.
 Enabled preference, supported definition, fresh discovery, host policy, session selection and operation/disclosure approval are distinct states; unknown or corrupt control state is unavailable.
 
 The [canonical content workflow](../src/Kora.Application/Hosting/SessionConversationService.McpCapabilities.cs) completes resource selection/review/read/display, scalar resource-template parameter expansion/read, and prompt argument review/retrieval/preview.

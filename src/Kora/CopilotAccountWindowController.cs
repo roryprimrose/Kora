@@ -17,12 +17,17 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
     private readonly CopilotAccountBroker accounts;
     private readonly AudioControlAdmission admission;
     private readonly ILogger<CopilotAccountWindowController> logger;
-    private Window? window;
+    private PrivateReviewView? view;
+    private Func<Window>? getWorkbench;
+    internal PrivateReviewView? PresentedView => view;
+    internal void BindWorkbench(Func<Window> owner) => getWorkbench = owner;
     private TextBox? login;
     private TextBox? credential;
     private CancellationTokenSource? lifetime;
     private bool disposed;
     private int operations;
+    private Task work = Task.CompletedTask;
+    internal Task Operation => work.WaitAsync(CancellationToken.None);
 
     internal CopilotAccountWindowController(MainViewModel main, CopilotAccountBroker accounts,
         AudioControlAdmission admission, ILogger<CopilotAccountWindowController> logger)
@@ -39,7 +44,7 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
     private void OnRequested(object? sender, EventArgs args)
     {
         if (disposed || !main.CanRevealPrivatePresentation || Volatile.Read(ref operations) != 0) { return; }
-        if (window is not null) { window.Activate(); return; }
+        if (view is not null) { view.Activate(); return; }
         var eligible = main.CaptureHandoffPresentationEligibility();
         var cancellation = lifetime = new();
         login = new TextBox { PlaceholderText = "Exact GitHub login", MaxLength = 128, IsEnabled = false };
@@ -47,8 +52,9 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
         var useAccount = new CheckBox { Content = "Use this exact account. Every hosted request still requires separate disclosure approval.", IsChecked = false };
         var status = new TextBlock { Text = "Runtime and account-use deployment approval required. No ambient login, token persistence or automatic runtime installation.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap };
-        var opened = window = new Window { Title = "Copilot account", Width = 650, Height = 400 };
-        bool Live() => !disposed && ReferenceEquals(window, opened) && main.CanRevealPrivatePresentation && eligible();
+        PrivateReviewView? opened = null;
+        bool OriginalLive() => !disposed && ReferenceEquals(view, opened) && main.CanRevealPrivatePresentation && eligible();
+        bool Live() => OriginalLive() && opened?.IsPresented == true;
         var signIn = new Button { Content = "Verify this account and read its model catalogue", IsEnabled = false };
         signIn.Command = new AsyncCommand(async () =>
         {
@@ -60,9 +66,12 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
             signIn.IsEnabled = false;
             try
             {
-                await admission.RunObservedAsync(RequestOrigin.LocalUi, Live,
+                work = admission.RunObservedAsync(RequestOrigin.LocalUi, Live,
                     async ct => { await accounts.SignInAsync(enteredLogin, token, Live, ct).ConfigureAwait(false); return true; },
                     (_, _, result) => result, cancellation.Token);
+#pragma warning disable VSTHRD003 // Keep the actual account authentication operation owned through cancellation and physical release.
+                await work;
+#pragma warning restore VSTHRD003
                 if (Live())
                 { status.Text = "Account verified. Refresh services/models, select this account's exact model and save. This is not transmission consent."; }
             }
@@ -76,11 +85,12 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
         }, exception =>
         {
             SetupFailed(logger, exception.GetType().Name);
-            status.Text = "Unavailable: account setup was not confirmed. Runtime/account-use approval, exact authentication and current catalogue are required. Nothing will fall back.";
+            if (Live()) { status.Text = "Unavailable: account setup was not confirmed. Runtime/account-use approval, exact authentication and current catalogue are required. Nothing will fall back."; }
         });
         var signOut = new Button { Content = "Forget this account" };
         signOut.Click += (_, _) =>
         {
+            if (!Live()) { main.ReportHostInteractionFailure("The original Copilot account controls retired. No account was forgotten."); return; }
             try { HostRequestRunner.Run(RequestOrigin.LocalUi, accounts.Forget); }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
@@ -89,17 +99,22 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
             }
             finally { Close(); }
         };
-        opened.Content = new StackPanel { Margin = new Thickness(16), Spacing = 12,
+        var panel = new StackPanel { Margin = new Thickness(16), Spacing = 12,
             Orientation = Orientation.Vertical, Children = { status, login, credential, useAccount, signIn, signOut } };
-        opened.Closed += (_, _) => Close();
-        opened.Show();
+        var owner = getWorkbench?.Invoke() ?? new Window { Width = 650, Height = 400 };
+        opened = new(owner, new ScrollViewer { Content = panel }, OriginalLive);
+        view = opened;
+        opened.Closed += (_, _) => { if (ReferenceEquals(view, opened)) { Close(); } };
+        opened.Show("Copilot account");
         new AsyncCommand(async () =>
         {
             Interlocked.Increment(ref operations);
             try
             {
-                var available = await admission.RunObservedAsync(RequestOrigin.LocalUi, Live, accounts.CanSetUpAsync,
+                var checking = admission.RunObservedAsync(RequestOrigin.LocalUi, Live, accounts.CanSetUpAsync,
                     (_, _, result) => result, cancellation.Token);
+                work = checking;
+                var available = await checking;
                 if (Live())
                 {
                     login!.IsEnabled = credential!.IsEnabled = signIn.IsEnabled = available;
@@ -121,8 +136,8 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
     }
     private void Close()
     {
-        var opened = window;
-        window = null;
+        var opened = view;
+        view = null;
         if (credential is not null) { credential.Text = string.Empty; credential = null; }
         if (login is not null) { login.Text = string.Empty; login = null; }
         var cancellation = lifetime;
@@ -136,7 +151,7 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
         finally
         {
             cancellation?.Dispose();
-            if (opened is not null) { opened.Content = null; opened.Close(); }
+            opened?.Dispose();
         }
     }
     public void Dispose()

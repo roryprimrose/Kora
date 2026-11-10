@@ -142,7 +142,7 @@ public sealed partial class SessionsViewModelTests
     [Fact]
     public void Native_workspace_is_themed_keyboard_accessible_passive_on_selection_and_has_no_reply_or_context_surface()
     {
-        var source = Read("SessionsWindow.axaml");
+        var source = Read("SessionsManagementView.axaml");
         var document = XDocument.Parse(source);
         source.Should().Contain("DynamicResource").And.Contain("AutomationProperties.Name")
             .And.Contain("Mark selected ID _Done").And.Contain("Explicitly res_ume selected ID");
@@ -214,7 +214,7 @@ public sealed partial class SessionsViewModelTests
         source.Should().Contain("NameDraft").And.Contain("CanCreate").And.Contain("CanRename");
         source.Should().Contain("HistorySessionId").And.Contain("CanHistory").And.Contain("CanNextHistory")
             .And.Contain("Read bounded ordered session history without resuming");
-        var code = Read("SessionsWindow.axaml.cs");
+        var code = Read("SessionsManagementView.axaml.cs");
         code.Should().Contain("ProposeMemory.Click +=").And.Contain("model.ProposeMemoryAsync()");
         code.Should().Contain("model.SelectAsync").And.Contain("Key.Escape").And.NotContain("SubmitAsync")
             .And.NotContain("ApproveAsync").And.NotContain("Clipboard").And.NotContain("Reasoner");

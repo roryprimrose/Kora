@@ -281,7 +281,7 @@ public sealed partial class SessionsConversationTests
     }
 
     private static Button NamedAgentButton(AgentRunWindow window, string label) =>
-        ((StackPanel)((ScrollViewer)window.Content!).Content!).Children.OfType<Button>()
+        ((StackPanel)((ScrollViewer)window.View.Content!).Content!).Children.OfType<Button>()
             .Single(button => Equals(button.Content, label));
 
     private static ArtifactCatalogue NamedCatalogue(NamedSourceReader reader, string scenario = "success")

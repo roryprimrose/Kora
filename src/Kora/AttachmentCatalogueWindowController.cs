@@ -23,7 +23,12 @@ internal sealed class AttachmentCatalogueWindowController : IAttachmentCatalogue
     private readonly ISessionWorkspaceAccess access;
     private readonly ILogger<AttachmentCatalogueViewModel> logger;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
-    private AttachmentCatalogueWindow? window;
+    private AttachmentCatalogueView? window;
+    private Func<Avalonia.Controls.Window>? getWorkbench;
+    private Action<AttachmentCatalogueView>? presentWorkbench;
+    internal AttachmentCatalogueView? View => window;
+    internal void BindWorkbench(Func<Avalonia.Controls.Window> owner, Action<AttachmentCatalogueView> present)
+    { getWorkbench = owner; presentWorkbench = present; }
     private bool disposed;
     private long lifetimeRevision;
 
@@ -65,22 +70,25 @@ internal sealed class AttachmentCatalogueWindowController : IAttachmentCatalogue
         }
         if (window is null)
         {
-            AttachmentCatalogueWindow? owned = null;
+            AttachmentCatalogueView? owned = null;
             bool WindowAdmitted()
             {
                 if (!Dispatcher.UIThread.CheckAccess()) { return Dispatcher.UIThread.Invoke(WindowAdmitted); }
-                return owned is { IsVisible: true } && ReferenceEquals(window, owned) && Admitted();
+                return owned is { IsNativePresented: true } && ReferenceEquals(window, owned) && Admitted();
             }
             var model = new AttachmentCatalogueViewModel(service.Read, Navigate, access, WindowAdmitted, logger);
             model.SelectionRevoked += attachments.CloseExact;
-            var view = new AttachmentCatalogueWindow(model);
+            var view = getWorkbench is not null ? new AttachmentCatalogueView(getWorkbench(), model, Admitted)
+                : new AttachmentCatalogueWindow(model).View;
             // Admission is bound to this exact owned window; opening itself performs no metadata read.
             owned = view;
             window = view;
             view.Closed += OnClosed;
-            view.PropertyChanged += OnWindowChanged;
-            view.Show();
+            view.PresentationLost += OnPresentationLost;
         }
+        if (presentWorkbench is not null) { presentWorkbench(window); }
+        else { window.Owner.Show(); }
+        window.RefreshPresentation();
         window.Activate();
     }
 
@@ -99,7 +107,7 @@ internal sealed class AttachmentCatalogueWindowController : IAttachmentCatalogue
         { throw new InvalidOperationException("The original catalogue preparation host is unavailable."); }
         Open();
         var target = window;
-        if (target is null || !target.IsVisible || !Admitted() || !admitted())
+        if (target is null || !target.IsNativePresented || !Admitted() || !admitted())
         { throw new InvalidOperationException("Native catalogue opening was not acknowledged."); }
         target.PrepareExactSession(sessionId, () => ReferenceEquals(window, target) && Admitted() && admitted());
     }
@@ -143,12 +151,12 @@ internal sealed class AttachmentCatalogueWindowController : IAttachmentCatalogue
     }
 
     private void OnPrivacyClosure(object? sender, EventArgs args) => Close();
-    private void OnWindowChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
+    private void OnPresentationLost(object? sender, EventArgs args)
     {
-        if (ReferenceEquals(window, sender) && args.Property == Visual.IsVisibleProperty && !window!.IsVisible)
+        if (window is { } current && ReferenceEquals(current, sender))
         {
             Interlocked.Increment(ref lifetimeRevision);
-            if (window.DataContext is AttachmentCatalogueViewModel model) { model.Revoke(); }
+            if (current.DataContext is AttachmentCatalogueViewModel model) { model.Revoke(); }
         }
     }
     private void OnClosed(object? sender, EventArgs args)
@@ -158,7 +166,7 @@ internal sealed class AttachmentCatalogueWindowController : IAttachmentCatalogue
         if (window is not null)
         {
             window.Closed -= OnClosed;
-            window.PropertyChanged -= OnWindowChanged;
+            window.PresentationLost -= OnPresentationLost;
         }
         window = null;
     }

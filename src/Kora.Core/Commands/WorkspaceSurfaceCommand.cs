@@ -35,6 +35,16 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int?
         ("hide details", WorkspaceSurfaceTarget.HideDetails),
         ("show session logs", WorkspaceSurfaceTarget.SessionLogs),
         ("show session audit", WorkspaceSurfaceTarget.SessionAudit),
+        ("show me the audit history", WorkspaceSurfaceTarget.AuditHistory),
+        ("show audit history", WorkspaceSurfaceTarget.AuditHistory),
+        ("show me the conversation history for this session", WorkspaceSurfaceTarget.ConversationHistory),
+        ("show conversation history for this session", WorkspaceSurfaceTarget.ConversationHistory),
+        ("show me the settings for the Kora presence", WorkspaceSurfaceTarget.PresenceSettings),
+        ("show presence settings", WorkspaceSurfaceTarget.PresenceSettings),
+        ("show me the MCP servers", WorkspaceSurfaceTarget.McpServers),
+        ("show MCP servers", WorkspaceSurfaceTarget.McpServers),
+        ("Is there an MCP server for WorkIQ?", WorkspaceSurfaceTarget.WorkIqMcp),
+        ("Is there an MCP server for WorkIQ", WorkspaceSurfaceTarget.WorkIqMcp),
     ];
 
     public static IReadOnlyList<string> FixedPhrases { get; } =
@@ -85,6 +95,15 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int?
             && !normalized.StartsWith("hide details", StringComparison.Ordinal)
             && !normalized.StartsWith("show session logs", StringComparison.Ordinal)
             && !normalized.StartsWith("show session audit", StringComparison.Ordinal)
+            && !normalized.StartsWith("show me the audit history", StringComparison.Ordinal)
+            && !normalized.StartsWith("show audit history", StringComparison.Ordinal)
+            && !normalized.StartsWith("show me the conversation history", StringComparison.Ordinal)
+            && !normalized.StartsWith("show conversation history", StringComparison.Ordinal)
+            && !normalized.StartsWith("show me the settings for the kora presence", StringComparison.Ordinal)
+            && !normalized.StartsWith("show presence settings", StringComparison.Ordinal)
+            && !normalized.StartsWith("show me the mcp servers", StringComparison.Ordinal)
+            && !normalized.StartsWith("show mcp servers", StringComparison.Ordinal)
+            && !normalized.StartsWith("is there an mcp server for workiq", StringComparison.Ordinal)
             && !(normalized.StartsWith("select the ", StringComparison.Ordinal)
                 && normalized.Contains(" session", StringComparison.Ordinal)))
         {

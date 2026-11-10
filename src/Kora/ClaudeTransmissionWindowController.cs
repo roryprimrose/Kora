@@ -20,6 +20,10 @@ internal sealed partial class ClaudeTransmissionWindowController : IDisposable
     private readonly ILogger<ClaudeTransmissionWindowController> logger;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private Window? window;
+    private PrivateReviewView? view;
+    private Func<Window>? getWorkbench;
+    internal PrivateReviewView? PresentedView => view;
+    internal void BindWorkbench(Func<Window> owner) => getWorkbench = owner;
     private TextBox? content;
     private HostedTransmissionReview? displayed;
     private Func<bool>? eligible;
@@ -39,9 +43,9 @@ internal sealed partial class ClaudeTransmissionWindowController : IDisposable
         if (disposed || !review.IsPending) { return; }
         try
         {
-            if (!main.CanRevealPrivatePresentation || window is not null) { Decide(review, false); return; }
+            if (!main.CanRevealPrivatePresentation || view is not null) { Decline(review); return; }
             eligible = main.CaptureHandoffPresentationEligibility();
-            if (!eligible()) { Decide(review, false); return; }
+            if (!eligible()) { Decline(review); return; }
             content = new TextBox { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false,
                 TextWrapping = Avalonia.Media.TextWrapping.Wrap,
                 Text = review.Method + " " + review.Destination.AbsoluteUri
@@ -55,30 +59,49 @@ internal sealed partial class ClaudeTransmissionWindowController : IDisposable
             var approve = new Button { Name = "ClaudeApprove", Content = "Transmit this exact POST once" };
             deny.Click += (_, _) => Decide(review, false);
             approve.Click += (_, _) => Decide(review, true);
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { deny, approve } };
+            var buttons = new WrapPanel { Orientation = Orientation.Horizontal, Children = { deny, approve } };
             var panel = new DockPanel { Margin = new Thickness(16), LastChildFill = true };
             DockPanel.SetDock(buttons, Dock.Bottom); panel.Children.Add(buttons);
             panel.Children.Add(content);
             displayed = review;
-            var opened = window = new Window { Title = "Claude - exact one-send disclosure", Width = 900, Height = 700, Content = panel };
-            opened.Closed += (_, _) => Decide(review, false);
-            opened.Show(); timer.Start();
+            var owner = getWorkbench?.Invoke() ?? (window = new Window { Width = 900, Height = 700 });
+            var opened = new PrivateReviewView(owner, panel, () => !disposed && ReferenceEquals(displayed, review)
+                && eligible?.Invoke() == true && main.CanRevealPrivatePresentation && review.IsPending);
+            view = opened;
+            opened.Closed += (_, _) => { if (ReferenceEquals(view, opened)) { Decide(review, false); } };
+            opened.Show("Claude - exact one-send disclosure"); timer.Start();
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
-        { ReportFailure(exception); Decide(review, false); }
+        {
+            ReportFailure(exception);
+            if (ReferenceEquals(displayed, review)) { Decide(review, false); }
+            else { Decline(review); }
+        }
     });
 
     private void Decide(HostedTransmissionReview review, bool approve)
     {
+        if (!ReferenceEquals(displayed, review))
+        { ReportFailure(new InvalidOperationException("The original Claude transmission review retired.")); return; }
         try
         {
             using var presentation = review.Presentation();
-            source.Confirm(review, approve && ReferenceEquals(displayed, review) && eligible?.Invoke() == true
+            source.Confirm(review, approve && view?.IsPresented == true && ReferenceEquals(displayed, review) && eligible?.Invoke() == true
                 && main.CanRevealPrivatePresentation && review.IsPending, RequestOrigin.LocalUi);
             presentation.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException) { ReportFailure(exception); }
         finally { Clear(); }
+    }
+    private void Decline(HostedTransmissionReview review)
+    {
+        try
+        {
+            using var presentation = review.Presentation();
+            source.Confirm(review, false, RequestOrigin.LocalUi);
+            presentation.Complete(HostOperationOutcome.Completed);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException) { ReportFailure(exception); }
     }
     private void ReportFailure(Exception exception)
     {
@@ -96,9 +119,9 @@ internal sealed partial class ClaudeTransmissionWindowController : IDisposable
     }
     private void Clear()
     {
-        timer.Stop(); var opened = window; window = null; displayed = null; eligible = null;
+        timer.Stop(); var opened = view; view = null; window = null; displayed = null; eligible = null;
         if (content is not null) { content.Text = string.Empty; content = null; }
-        if (opened is not null) { opened.Content = null; opened.Close(); }
+        opened?.Dispose();
     }
     public void Dispose()
     {

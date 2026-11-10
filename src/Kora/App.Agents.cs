@@ -27,6 +27,14 @@ public sealed partial class App
                 Task.Run(() => new WindowsDiskArtifactDiscovery(Services.GetRequiredService<Kora.Core.Dependencies.IApplicationDataPaths>(),
                     Services.GetRequiredService<IArtifactDirectoryPreferences>().Load()).ResolveAgentPath(selected, token), token)));
         agentRuns.Bind();
+        var responses = responseWindow ?? throw new InvalidOperationException("Agent invocation requires the owning response workbench.");
+        agentRuns.BindWorkbench(responses.PrepareWorkbenchOwner, view =>
+        {
+            var owner = responses.PrepareWorkbenchOwner();
+            owner.ShowSessions(expanded: true);
+            owner.ShowNativeReview(view, "One reviewed local bounded agent", view,
+                () => main.CanRevealPrivatePresentation, _ => { });
+        });
         BindAgentProfileAuthoring(main);
         BindAgentRunSet(main);
     }

@@ -36,7 +36,8 @@ public sealed partial class WindowsDailyEvidenceReader : IEvidenceReader
         HostRequest request, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var current = HostActivity.RequireCurrent();
-        if (current.Activity!.IsStopped || current.Request != request || request.Origin != RequestOrigin.LocalUi)
+        if (current.Activity!.IsStopped || current.Request != request || request.Origin != RequestOrigin.LocalUi
+            || request.InvocationId is not null)
         {
             throw new InvalidOperationException("Daily evidence requires the admitted live local-UI request.");
         }

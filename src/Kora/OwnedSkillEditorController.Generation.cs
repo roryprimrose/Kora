@@ -7,7 +7,7 @@ internal sealed partial class OwnedSkillEditorController
     private OwnedSkillAuthoringAuthority? initialAuthority;
     private OwnedSkillGuidanceRefinement? generatedBase;
 
-    private void PrepareInitial(OwnedSkillEditorWindow opened, string purpose, OwnedSkillAuthoringAuthority authority)
+    private void PrepareInitial(OwnedSkillEditorView opened, string purpose, OwnedSkillAuthoringAuthority authority)
     {
         ResetDraft(opened);
         initialAuthority = authority;

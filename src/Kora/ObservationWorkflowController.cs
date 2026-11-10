@@ -12,7 +12,14 @@ internal sealed partial class ObservationWorkflowController(
     MainViewModel main, OwnedSkillSaveWorkflow save, OwnedSkillInvocationWorkflow sources, ObservationSkillWorkflow workflow,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<ObservationWorkflowController> logger) : IAsyncDisposable
 {
-    private ObservationWorkflowWindow? window;
+    private ObservationWorkflowView? window;
+    private Func<Window>? getWorkbench;
+    private Action<ObservationWorkflowView>? presentWorkbench;
+    private Func<bool>? operationPresentation;
+    private bool invoking;
+    internal ObservationWorkflowView? View => window;
+    internal void BindWorkbench(Func<Window> ownerWindow, Action<ObservationWorkflowView> present)
+    { getWorkbench = ownerWindow; presentWorkbench = present; }
     private OwnedSkillAuthoringAuthority? original;
     private CancellationTokenSource? lifetime;
     private ObservationWorkflowUse? use;
@@ -39,23 +46,24 @@ internal sealed partial class ObservationWorkflowController(
         main.PropertyChanged += MainChanged;
     }
 
-    private bool Eligible() => !disposed && ownsHost() && ownerRevision == ownershipRevision()
+    private bool OriginalEligible() => !disposed && ownsHost() && ownerRevision == ownershipRevision()
         && callRevision == main.CallPolicyRevision && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible
         && !main.IsResponseInteractionPending && original?.IsCurrent() == true && lifetime?.IsCancellationRequested == false;
+    private bool Eligible() => OriginalEligible() && (invoking || operationPresentation?.Invoke() != false);
 
     internal async Task Handle(string input, OwnedSkillAuthoringAuthority authority)
     {
         var command = ObservationWorkflowCommand.Parse(input);
         if (command.Operation is "status")
         {
-            if (main.CanRevealPrivatePresentation && window is { } opened)
+            if (main.CanRevealPrivatePresentation && window is { IsNativePresented: true } opened)
             { opened.Status.Text = "Observation workflow: " + (use?.State.ToString() ?? "disabled/no reviewed use") + (active.IsCompleted ? "; owned operation joined." : "; owned operation not yet joined."); }
             else { main.ReportHostInteractionFailure("No private observation workflow status is available."); }
             return;
         }
         if (command.Operation is "approve-step" or "deny-step")
         {
-            if (!stepPending || !Eligible() || !authority.IsCurrent())
+            if (!stepPending || window?.IsNativePresented != true || !Eligible() || !authority.IsCurrent())
             { throw new InvalidOperationException("No current exact observation-step review can accept that confirmation."); }
             window!.CompleteApproval(command.Operation is "approve-step");
             return;
@@ -66,7 +74,7 @@ internal sealed partial class ObservationWorkflowController(
 #pragma warning disable VSTHRD003 // A cancellation request does not release or abandon native reviews/I/O.
             await active;
 #pragma warning restore VSTHRD003
-            if (main.CanRevealPrivatePresentation && window is { } opened)
+            if (main.CanRevealPrivatePresentation && window is { IsNativePresented: true } opened)
             { opened.Status.Text = uncertain
                 ? "Cancelled/retired. Owned work has joined, but publication may have occurred. Close/discard, then List/Reopen the exact version before any retry; no rollback is claimed."
                 : "Cancelled/retired. Owned work has joined. No complete workflow result is claimed. Close/discard and open a fresh review."; }
@@ -117,20 +125,29 @@ internal sealed partial class ObservationWorkflowController(
                 callRevision = main.CallPolicyRevision;
                 original = authority;
                 lifetime = new();
-                var created = new ObservationWorkflowWindow(Start, Eligible);
+                ObservationWorkflowView? created = null;
+                Task Run(string action) => Start(created, action);
+                created = getWorkbench is not null
+                    ? new ObservationWorkflowView(getWorkbench(), Run, Eligible, () => main.CanRevealPrivatePresentation && !disposed)
+                    : new ObservationWorkflowWindow(Run, Eligible).View;
                 window = created;
-                created.DraftChanged += () => { draftRevision++; dirty = true; validated = null; InvalidateUse(); };
-                created.InvocationChanged += InvalidateUse;
-                created.Closing += async (_, args) =>
+                if (presentWorkbench is not null) { created.PresentRequested += () => presentWorkbench(created); }
+                created.PresentationLost += (_, _) =>
                 {
-                    if (closing) { return; }
-                    args.Cancel = true;
-                    if (!active.IsCompleted) { Retire(); return; }
-                    await Start("close");
+                    if (!invoking) { validated = null; InvalidateUse(); }
                 };
+                created.DraftChanged += () =>
+                {
+                    if (!ReferenceEquals(window, created)) { return; }
+                    draftRevision++; dirty = true; validated = null; InvalidateUse();
+                };
+                created.InvocationChanged += () => { if (ReferenceEquals(window, created)) { InvalidateUse(); } };
+                created.Closing += OnClosing;
                 created.Show();
             }
             var opened = window;
+            opened.Show();
+            operationPresentation = opened.CapturePresentation();
             if (!Eligible() || !authority.IsCurrent()) { throw new InvalidOperationException("Original private workflow authority expired. Close/discard before starting a fresh operation."); }
             opened.Activate();
             var token = lifetime!.Token;
@@ -232,6 +249,7 @@ internal sealed partial class ObservationWorkflowController(
                 case "invoke":
                     var reviewed = use ?? throw new InvalidOperationException("Review and separately enable this workflow first.");
                     var binding = invocationRevision;
+                    invoking = true;
                     var result = await workflow.Invoke(reviewed, async (step, current, stepToken) =>
                     {
                         stepPending = true;
@@ -245,7 +263,7 @@ internal sealed partial class ObservationWorkflowController(
                         }
                         finally { stepPending = false; }
                     }, token);
-                    if (!Eligible() || binding != invocationRevision || !ReferenceEquals(use, reviewed))
+                    if (!Eligible() || operationPresentation?.Invoke() == false || binding != invocationRevision || !ReferenceEquals(use, reviewed))
                     { throw new InvalidOperationException("Presentation or exact request authority expired; the late result is suppressed."); }
                     opened.ReviewText.Text = "";
                     opened.Result.Text = result;
@@ -260,17 +278,29 @@ internal sealed partial class ObservationWorkflowController(
             WorkflowFailed(logger, exception.GetType().Name);
             use?.Dispose();
             window?.ClearReview();
-            if (main.CanRevealPrivatePresentation && window is { } opened)
+            if (main.CanRevealPrivatePresentation && window is { IsNativePresented: true } opened && operationPresentation?.Invoke() != false)
             { opened.Status.Text = exception is OperationCanceledException
                 ? "Cancelled. Owned work joined; no complete result is published and no remaining step was dispatched."
                 : "Observation workflow failed: " + exception.Message + " No complete result or rollback is claimed. Review again explicitly."; }
             main.ReportHostInteractionFailure("Observation workflow unavailable, cancelled or failed. No complete result is claimed.");
         }
+        finally { invoking = false; operationPresentation = null; }
+    }
+
+    private Task Start(ObservationWorkflowView? source, string action)
+    {
+        if (source is not null && ReferenceEquals(window, source) && source.IsNativePresented) { return Start(action); }
+        main.ReportHostInteractionFailure("The original observation workflow controls retired. Open a fresh view before acting.");
+        return Task.CompletedTask;
     }
 
     private async Task Start(string action)
     {
-        try { await Handle(action, new(RequestOrigin.LocalUi, Eligible)); }
+        try
+        {
+            Func<bool> current = action is "close" ? main.CaptureDefinitionObservationEligibility() : OriginalEligible;
+            await Handle(action, new(RequestOrigin.LocalUi, current));
+        }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         { WorkflowFailed(logger, exception.GetType().Name); main.ReportHostInteractionFailure(exception.Message); }
     }
@@ -292,7 +322,29 @@ internal sealed partial class ObservationWorkflowController(
     }
 
     private void PrivacyClosed(object? sender, EventArgs args) { Retire(); window?.Hide(); }
-    private void MainChanged(object? sender, PropertyChangedEventArgs args) { if (!Eligible()) { Retire(); } }
+    private void MainChanged(object? sender, PropertyChangedEventArgs args) { if (!OriginalEligible()) { Retire(); } }
+
+    private void OnClosing(object? sender, WindowClosingEventArgs args)
+    {
+        if (closing || args.Cancel) { return; }
+        args.Cancel = true;
+        if (!active.IsCompleted) { Retire(); return; }
+        active = CloseOwner(window?.Owner as ResponseWindow);
+    }
+
+    private async Task CloseOwner(ResponseWindow? owner)
+    {
+        try
+        {
+            await RunReported(new("close"), new(RequestOrigin.LocalUi, main.CaptureDefinitionObservationEligibility()));
+            if (window is null && owner?.IsVisible == true) { owner.Close(); }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            WorkflowFailed(logger, exception.GetType().Name);
+            main.ReportHostInteractionFailure("Workflow closure is unconfirmed; its volatile draft remains owned.");
+        }
+    }
 
     internal async Task CloseAndWait()
     {

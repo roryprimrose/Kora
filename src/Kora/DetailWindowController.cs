@@ -394,6 +394,7 @@ public sealed partial class DetailWindowController : IDisposable
         {
             return "Exact web-result details unavailable: this volatile reference is no longer current.";
         }
+        if (owner is ResponseWindow primary && viewModel is not null) { primary.PrepareDocumentHost?.Invoke(); }
         return OpenContent(content, owner);
     }
 
@@ -461,8 +462,6 @@ public sealed partial class DetailWindowController : IDisposable
             Task Copy(bool confirmed, int? selectionStart, int selectionLength, DetailCopyRepresentation representation) =>
                 CopyAsync(reference, generation, confirmed, selectionStart, selectionLength, representation);
             view = owner is ResponseWindow primary && viewModel is not null
-                && content.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
-                    or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext or DetailContentOrigin.SessionHistory or DetailContentOrigin.FinalizedResponse
                 ? new SessionDetailView(primary.SessionView, state, result, Copy, viewModel)
                 : createView(state, result, Copy);
         }

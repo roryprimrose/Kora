@@ -16,6 +16,8 @@ using Kora.Core.Context;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Tools.Clipboard;
+using Kora.NativeUxFixture;
+using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -24,6 +26,67 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class ClipboardLiteralFindWindowTests
 {
+    [Theory]
+    [InlineData("reuse")]
+    [InlineData("explain")]
+    [InlineData("hide")]
+    [InlineData("minimize")]
+    [InlineData("tab")]
+    public async Task HostedClipboardUsesOneShellAndRevokesOnlyItsExactSnapshotOnPresentationLoss(string action)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var native = new NativeUxFixtureSession(OwnedStorageFixture.ScratchParent());
+            await native.InitializeAsync();
+            var shell = new ResponseWindow(native.Main);
+            var snapshot = Snapshot("alpha exact clipboard snapshot");
+            ClipboardSnapshot? current = snapshot;
+            var reuses = 0;
+            var explanations = 0;
+            var failures = new List<Exception>();
+            ClipboardPreviewView? view = null;
+            using var controller = new ClipboardPreviewWindowController(() => current,
+                _ => { reuses++; return Task.CompletedTask; }, () => current = null, () => Task.CompletedTask,
+                () => view = new(shell, failures.Add), _ => throw new InvalidOperationException("Unexpected controller failure"),
+                _ => { explanations++; return Task.CompletedTask; });
+            var windows = new List<Window>();
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) => windows.Add(window));
+            try
+            {
+                controller.Refresh();
+                var reader = view ?? throw new InvalidOperationException("The hosted clipboard view was not created.");
+                Query(reader).Text = "alpha";
+                await Press(reader, "Find first");
+                Match(reader).Text.Should().Be("alpha");
+                Match(reader).IsFocused.Should().BeTrue();
+                if (action is "reuse") { await Press(reader, "Reuse this exact snapshot ID"); }
+                if (action is "explain")
+                {
+                    reader.GetVisualDescendants().OfType<CheckBox>().Single(control =>
+                        AutomationProperties.GetName(control) is "Admit this exact clipboard snapshot to local-only inference")
+                        .IsChecked = true;
+                    await Press(reader, "Review and explain locally");
+                }
+                reuses.Should().Be(action is "reuse" ? 1 : 0);
+                explanations.Should().Be(action is "explain" ? 1 : 0);
+                if (action is "minimize")
+                { shell.WindowState = WindowState.Minimized; shell.WindowState = WindowState.Normal; }
+                else if (action is "tab")
+                {
+                    var other = new TextBlock { Text = "Another exact review" };
+                    shell.ShowNativeReview(other, "Another exact review", other, static () => true, _ => { });
+                }
+                else { shell.Hide(); shell.Show(); shell.Activate(); }
+                current.Should().BeNull();
+                view!.Content.Should().BeNull();
+                controller.View.Should().BeNull();
+                failures.Should().BeEmpty();
+                windows.Distinct().Should().Equal(shell);
+            }
+            finally { shell.Close(); }
+        });
+    }
+
     [Fact]
     public async Task NativeExplanationRequiresExactReviewedConsentAndClearsVolatileAnswerOnClose()
     {
@@ -262,7 +325,7 @@ public sealed class ClipboardLiteralFindWindowTests
             span.Text.Should().BeNull();
             status.Text.Should().BeNull();
             query.Text.Should().BeNull();
-            old.Content.Should().BeNull();
+            old.View.Content.Should().BeNull();
             if (change is "replacement" or "same-id-version") { current!.Text.Should().Be("new source"); }
             eligible = true;
             current = Snapshot("new source");
@@ -305,12 +368,12 @@ public sealed class ClipboardLiteralFindWindowTests
             checks = 0;
             var command = (AsyncCommand)Button(window, "Find first").Command!;
             await command.ExecuteAsync();
-            window.Content.Should().BeNull();
+            window.View.Content.Should().BeNull();
             query.Text.Should().BeNull();
             span.Text.Should().BeNull();
             status.Text.Should().BeNull();
             await command.ExecuteAsync();
-            window.Content.Should().BeNull();
+            window.View.Content.Should().BeNull();
             failures.Should().BeEmpty();
         });
     }
@@ -352,7 +415,7 @@ public sealed class ClipboardLiteralFindWindowTests
                 if (change is "focus-loss")
                 {
                     eligible.Should().BeFalse();
-                    window.Content.Should().BeNull();
+                    window.View.Content.Should().BeNull();
                     query.Text.Should().BeNull();
                 }
                 else
@@ -420,15 +483,15 @@ public sealed class ClipboardLiteralFindWindowTests
     private static Task UnexpectedMutation() => throw new InvalidOperationException("Find must not invoke reuse or revoke.");
     private static ClipboardSnapshot Snapshot(string text) => new(Guid.NewGuid(), Guid.NewGuid(),
         HostRequest.Create(RequestOrigin.LocalUi), text, 1, DateTimeOffset.UnixEpoch);
-    private static TextBox Query(Window window) => window.GetVisualDescendants().OfType<TextBox>().Single();
-    private static NamedTextBlock Match(Window window) => Text(window, "Exact inert clipboard literal match");
-    private static NamedTextBlock Source(Window window) => Text(window, "Clipboard snapshot plain text content");
-    private static NamedTextBlock Status(Window window) => Text(window, "Clipboard literal Find outcome and exact UTF-16 location");
-    private static NamedTextBlock Text(Window window, string name) => window.GetVisualDescendants().OfType<NamedTextBlock>().Single(block =>
+    private static TextBox Query(Control window) => window.GetVisualDescendants().OfType<TextBox>().Single();
+    private static NamedTextBlock Match(Control window) => Text(window, "Exact inert clipboard literal match");
+    private static NamedTextBlock Source(Control window) => Text(window, "Clipboard snapshot plain text content");
+    private static NamedTextBlock Status(Control window) => Text(window, "Clipboard literal Find outcome and exact UTF-16 location");
+    private static NamedTextBlock Text(Control window, string name) => window.GetVisualDescendants().OfType<NamedTextBlock>().Single(block =>
         string.Equals(AutomationProperties.GetName(block), name, StringComparison.Ordinal));
-    private static Button Button(Window window, string caption) => window.GetVisualDescendants().OfType<Button>().Single(button =>
+    private static Button Button(Control window, string caption) => window.GetVisualDescendants().OfType<Button>().Single(button =>
         string.Equals(button.Content as string, caption, StringComparison.Ordinal));
-    private static Task Press(Window window, string caption) => ((AsyncCommand)Button(window, caption).Command!).ExecuteAsync();
+    private static Task Press(Control window, string caption) => ((AsyncCommand)Button(window, caption).Command!).ExecuteAsync();
     private static void Click(Window window, string caption) =>
         Button(window, caption).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
     private static KeyEventArgs RaiseKey(Control target, Key key, KeyModifiers modifiers = KeyModifiers.None)

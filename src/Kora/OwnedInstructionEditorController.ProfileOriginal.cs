@@ -12,7 +12,7 @@ internal sealed partial class OwnedInstructionEditorController
     private ProfileInstructionEditorWorkflow ProfileOriginals =>
         profileOriginals ?? throw new InvalidOperationException("Registered profile-original editing is unavailable in this runtime.");
 
-    private async Task OpenProfileOriginal(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token,
+    private async Task OpenProfileOriginal(OwnedInstructionEditorView opened, Func<bool> eligible, CancellationToken token,
         bool reloadOriginal = false)
     {
         if (kind != ArtifactKind.Instruction)
@@ -52,7 +52,7 @@ internal sealed partial class OwnedInstructionEditorController
                 : "Manual edit, exact separately confirmed Save and Reload available. No write or use approved by opening; unknown formats are not upgraded."));
     }
 
-    private async Task<bool> SaveProfileOriginal(OwnedInstructionEditorWindow opened, bool delete,
+    private async Task<bool> SaveProfileOriginal(OwnedInstructionEditorView opened, bool delete,
         Func<bool> eligible, CancellationToken token)
     {
         var original = profileOriginal ?? throw new InvalidOperationException("Open one registered original first.");
@@ -80,7 +80,7 @@ internal sealed partial class OwnedInstructionEditorController
         return result.Saved;
     }
 
-    private async Task CompareProfileDraft(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task CompareProfileDraft(OwnedInstructionEditorView opened, Func<bool> eligible, CancellationToken token)
     {
         var original = profileOriginal!;
         var revision = Interlocked.Read(ref sourceRevision);

@@ -26,6 +26,7 @@ internal sealed partial class SessionsViewModel
     private bool MixedCurrent => mixedOpen && !closed && access.CanInspect && access.CanControl
         && mixedControl == access.ControlRevision && mixedSelection == selectionEpoch;
     internal bool MixedContextOpen => mixedOpen;
+    internal bool HasMixedContext => MixedCurrent;
     internal void ReportMixedContextFailure(Exception exception)
     {
         Failure(logger, exception.GetType().Name);

@@ -20,5 +20,7 @@ public partial class App
             Services.GetRequiredService<SessionRoutingControlAdmission>(),
             () => sessionsWindow?.RetainRoutingPresentation());
         sessionRouting.Bind();
+        sessionRouting.BindWorkbench((responseWindow
+            ?? throw new InvalidOperationException("Session routing requires the owning response workbench.")).PrepareWorkbenchOwner);
     }
 }

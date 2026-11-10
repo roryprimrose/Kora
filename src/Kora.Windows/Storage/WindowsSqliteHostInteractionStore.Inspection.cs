@@ -13,11 +13,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
     {
         ArgumentNullException.ThrowIfNull(query);
         RequireLive(request);
-        if (request.Origin != RequestOrigin.LocalUi || query.Source != EvidenceSource.AuthorityAudit
+        if (!EvidenceReadAdmission.IsAllowed(request, query.Source) || query.Source != EvidenceSource.AuthorityAudit
             || query.Limit is < 1 or > EvidencePage.MaximumRecords
             || query.Record is { Source: not EvidenceSource.AuthorityAudit })
         {
-            throw new InvalidOperationException("Committed audit inspection requires its explicit admitted local-UI source.");
+            throw new InvalidOperationException("Committed audit inspection requires its explicit admitted original user channel.");
         }
         return new(Task.Run(() =>
         {

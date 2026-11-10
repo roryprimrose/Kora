@@ -1,4 +1,5 @@
 using Avalonia.Threading;
+using Avalonia.Controls;
 
 using Kora.Application.Diagnostics;
 using Kora.Application.Diagnostics.EvidenceAnswers;
@@ -18,8 +19,18 @@ internal sealed class EvidenceWindowController(
     GitHubIssueReportWorkflow? problemReports = null, Kora.Core.Hosting.IApplicationInfo? applicationInfo = null) : IDisposable
 {
     private EvidenceWindow? window;
+    private EvidenceView? view;
+    private Window? viewOwner;
+    private Func<Window>? getWorkbench;
+    private Action<EvidenceView>? presentWorkbench;
     private bool disposed;
     private long windowRevision;
+
+    internal void BindWorkbench(Func<Window> owner, Action<EvidenceView> present)
+    {
+        getWorkbench = owner;
+        presentWorkbench = present;
+    }
 
     internal void Bind()
     {
@@ -38,10 +49,11 @@ internal sealed class EvidenceWindowController(
         {
             return "Evidence inspection denied: live desktop ownership or privacy admission is unavailable.";
         }
-        if (window is null)
+        if (view is null)
         {
-            EvidenceWindow opened;
-            var model = new EvidenceViewModel(query, () => !disposed && access.CanInspect, logger);
+            EvidenceViewModel? model = null;
+            model = new EvidenceViewModel(query, () => !disposed && access.CanInspect && main.CanRevealPrivatePresentation
+                && view?.IsNativePresented == true && ReferenceEquals(view.DataContext, model), logger);
             if (problemReports is not null && applicationInfo is not null)
             {
                 model.BindProblemReporting(problemReports, signature => new(signature, applicationInfo.Version,
@@ -52,36 +64,86 @@ internal sealed class EvidenceWindowController(
                 model.BindEvidenceAnswers(answers, main.CaptureEvidenceAnswerAdmission,
                     () => workspaceAccess.ControlRevision, time ?? TimeProvider.System);
             }
-            try { opened = new(model, main); }
+            try
+            {
+                if (getWorkbench is not null && presentWorkbench is not null)
+                {
+                    viewOwner = getWorkbench();
+                    view = new EvidenceView(model, viewOwner,
+                        () => !disposed && access.CanInspect && main.CanRevealPrivatePresentation, main);
+                    view.CloseRequested += OnViewCloseRequested;
+                }
+                else
+                {
+                    window = new EvidenceWindow(model, main);
+                    view = window.View;
+                    viewOwner = window;
+                }
+            }
             catch (InvalidOperationException)
             {
                 model.Close();
                 return "Evidence reader unavailable: reader text scale is unconfirmed or preference evidence changed. Inspect saved preference evidence before explicit repair.";
             }
-            if (!admitted()) { model.Close(); opened.Close(); return "Evidence inspection unavailable: native opening was retired."; }
-            opened.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { window = null; windowRevision++; } };
-            window = opened;
+            if (!admitted()) { CloseView(); return "Evidence inspection unavailable: native opening was retired."; }
+            viewOwner.Closed += OnOwnerClosed;
             windowRevision++;
-            opened.Show();
+            if (presentWorkbench is not null) { presentWorkbench(view); }
+            else { window!.Show(); }
         }
-        if (window is not { } target || disposed || !admitted())
+        else if (presentWorkbench is not null) { presentWorkbench(view); }
+        if (view is not { } target || viewOwner is null || disposed || !admitted())
         {
             return "Evidence inspection unavailable: the original native opening was retired.";
         }
-        target.Activate();
+        viewOwner.Activate();
+        viewOwner.UpdateLayout();
+        if (!target.IsNativePresented)
+        { return "Evidence inspection unavailable: the original view is not presented."; }
         return null;
+    }
+
+    internal async Task<bool> ReadAuditHistoryAsync(Kora.Core.Hosting.RequestOrigin origin, Func<bool> admitted)
+    {
+        var failure = Open(admitted);
+        if (failure is not null)
+        { main.ReportHostInteractionFailure(failure); return false; }
+        var target = view ?? throw new InvalidOperationException("The native audit view is unavailable.");
+        var model = target.DataContext as EvidenceViewModel
+            ?? throw new InvalidOperationException("The native audit query owner is unavailable.");
+        var revision = windowRevision;
+        var native = target.CapturePresentation();
+        bool Current() => !disposed && admitted() && native() && revision == windowRevision
+            && ReferenceEquals(view, target) && ReferenceEquals(target.DataContext, model);
+        var withdrawn = false;
+        var observing = true;
+        void OnInputChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+        {
+            if (Dispatcher.UIThread.CheckAccess()) { RetireIfChanged(); }
+            else { Dispatcher.UIThread.Post(RetireIfChanged); }
+        }
+        void RetireIfChanged()
+        {
+            if (!Volatile.Read(ref observing)) { return; }
+            if (withdrawn || Current()) { return; }
+            withdrawn = true;
+            model.RetirePresentation();
+        }
+        main.PropertyChanged += OnInputChanged;
+        try { return await model.ReadAuditHistoryAsync(origin, Current); }
+        finally { Volatile.Write(ref observing, false); main.PropertyChanged -= OnInputChanged; }
     }
 
     internal async Task<bool> PrepareTraceAsync(EvidenceTracePreparation request)
     {
         var revision = windowRevision;
-        var existing = window;
+        var existing = view;
         var model = existing?.DataContext as EvidenceViewModel;
         var filters = model?.FilterRevision;
         var control = workspaceAccess.ControlRevision;
         bool Admitted() => !disposed && request.IsCurrent && main.CanRevealPrivatePresentation
             && access.CanInspect && workspaceAccess.CanInspect && control == workspaceAccess.ControlRevision;
-        bool OriginalView() => revision == windowRevision && ReferenceEquals(existing, window)
+        bool OriginalView() => revision == windowRevision && ReferenceEquals(existing, view)
             && (model is null || !model.IsClosed && model.FilterRevision == filters
                 && ReferenceEquals(existing!.DataContext, model));
         if (!Admitted() || !OriginalView()) { return false; }
@@ -95,7 +157,7 @@ internal sealed class EvidenceWindowController(
                 return null;
             }
             var failure = Open(Admitted);
-            var target = window;
+            var target = view;
             if (failure is not null || target is null || !Admitted()
                 || model is not null && (model.IsClosed || model.FilterRevision != filters
                     || !ReferenceEquals(target.DataContext, model)))
@@ -110,7 +172,7 @@ internal sealed class EvidenceWindowController(
         var openedRevision = windowRevision;
         var openedModel = opened.DataContext as EvidenceViewModel;
         var expectedFilters = filters ?? 0;
-        bool Current() => Admitted() && windowRevision == openedRevision && ReferenceEquals(window, opened)
+        bool Current() => Admitted() && windowRevision == openedRevision && ReferenceEquals(view, opened)
             && openedModel is not null && !openedModel.IsClosed && ReferenceEquals(opened.DataContext, openedModel);
         async Task<bool> PrepareOpenedTrace()
         {
@@ -128,7 +190,28 @@ internal sealed class EvidenceWindowController(
         return await preparation;
     }
 
-    private void OnPrivacyClosure(object? sender, EventArgs args) => window?.Close();
+    private void OnViewCloseRequested(object? sender, EventArgs args) => CloseView();
+    private void OnOwnerClosed(object? sender, EventArgs args) => CloseView();
+    private void OnPrivacyClosure(object? sender, EventArgs args) => CloseView();
+
+    private void CloseView()
+    {
+        var oldView = view;
+        var oldOwner = viewOwner;
+        var oldWindow = window;
+        view = null;
+        viewOwner = null;
+        window = null;
+        windowRevision++;
+        if (oldOwner is not null) { oldOwner.Closed -= OnOwnerClosed; }
+        if (oldView is not null)
+        {
+            oldView.CloseRequested -= OnViewCloseRequested;
+            oldView.Dispose();
+            if (oldOwner is ResponseWindow workbench) { workbench.RemoveHostedView(oldView); }
+        }
+        if (oldWindow is { IsVisible: true }) { oldWindow.Close(); }
+    }
 
     public void Dispose()
     {
@@ -136,7 +219,6 @@ internal sealed class EvidenceWindowController(
         disposed = true;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         main.EvidenceTracePreparationRequested -= PrepareTraceAsync;
-        window?.Close();
-        window = null;
+        CloseView();
     }
 }

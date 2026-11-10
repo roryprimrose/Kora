@@ -14,6 +14,25 @@ operation](#author-a-markdown-component-package), not one combined guidance fiel
 The [file format](#native-v1-format) is needed only if you inspect the saved
 files; the native editor prepares them for you.
 
+The owned-skill editor opens inside the expanded Kora workbench. Complete source reviews,
+publication confirmations, rename/deletion decisions and local model disclosures use its
+supporting review tabs, not additional Kora windows ([editor](../src/Kora/OwnedSkillEditorView.cs),
+[production binding](../src/Kora/App.OwnedSkillAuthoring.cs)).
+Hiding, minimizing or leaving the editor retains the volatile draft but expires its pending
+reviews; returning never saves or accepts them. **Close editor** offers Save, Discard or Cancel
+for an unsaved draft, and Cancel keeps the workbench open
+([hosted lifecycle regressions](../tests/Kora.Windows.IntegrationTests/OwnedSkillAuthoringNativeTests.Workbench.cs)).
+
+Saved owned-skill use opens in a supporting review tab as well, including the
+separate owned read-only MCP route ([use view](../src/Kora/OwnedSkillInvocationView.cs),
+[MCP presentation](../src/Kora/OwnedSkillInvocationController.Mcp.cs)).
+The authoring view stays in place; opening a supporting review is not leaving or
+closing that editor. Hiding or changing review tabs retires unconfirmed use,
+but does not stop an already confirmed admitted task. Late answers remain in their
+exact original conversation, not the restored old review. Explicit **Cancel and close use**
+still retires authority and joins actual resources
+([hosted use regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillWorkbench.cs)).
+
 ## Rename one complete owned native package
 
 Rename changes a saved package's canonical ID, not its readable name, version or unsaved draft. It supports the current native v1/v2/v3/v4 two-file formats only, never a primary-only `SKILL.md` move or a shared/profile/reference-package mutation
@@ -44,7 +63,7 @@ Rename does not run a model/tool, register or enable a definition, import execut
 
 ## Author and run an ordered host observation workflow
 
-Use the separate **Kora-owned observation workflow** window, typed commands below, or the same commands with the current assistant-name voice prefix.
+Use the **Kora-owned observation workflow** view in the expanded workbench, typed commands below, or the same commands with the current assistant-name voice prefix ([hosted editor](../src/Kora/ObservationWorkflowView.cs)).
 This native v4 package declares actual ordered actions, not executable guidance inferred from model text ([declaration](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs), [host owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
 
 1. `owned skill workflow create inspection 1.0.0` opens a volatile draft. Set `owned skill workflow name: Inspect host readiness` and `owned skill workflow description: Read the version and recorded local runtime`.
@@ -65,10 +84,10 @@ This native v4 package declares actual ordered actions, not executable guidance 
 7. Choose **Invoke** (`owned skill workflow invoke`). Each step opens **Approve exact observation step**, showing its exact action/input and original request/target. Approve only that step once, or Cancel. While that exact step review is pending, `owned skill workflow approve-step` or `owned skill workflow deny-step` accepts or declines it through the same gate.
 8. Inspect the complete source-labelled result and typed state. `owned skill workflow status` reports whether owned work has joined. **Cancel** or `owned skill workflow cancel` closes further dispatch and joins actual work, including cancellation-ignoring source reads. It never claims physical termination merely from a cancellation request.
 
-Package review, separate Save confirmation, each step approval and unsaved-draft discard are native modal decisions: input to the workflow window stays blocked until the exact review actually closes.
-Keyboard focus starts on the complete read-only review; Tab reaches the explicit decision buttons. **Cancel**, Escape or the review's native close declines that decision.
-Closing/hiding the original owner or cancelling its operation retires the review; a clicked approval cannot outlive that owner or bypass native closure.
-Focus returns to the original control only while the original presentation remains visible and eligible. Declining the first step launches no observation; declining a later step never approves remaining steps or publishes partial success.
+Package review, separate Save confirmation, each step approval and unsaved-draft discard use supporting review tabs in the same window. No action is approved by displaying its tab ([review owner](../src/Kora/ObservationWorkflowView.cs)).
+Keyboard focus starts on the complete read-only review; Tab reaches its explicit decision buttons. **Cancel**, Escape, hiding/minimizing the owner or switching away from the review retires that decision; a clicked approval cannot outlive its original presentation ([lifetime tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
+Leaving the editor retains the volatile draft, but retires pending validation/review/enablement. Already admitted work remains owned until it joins; an unseen next step cannot gain approval or publish a late result. Returning requires fresh review, not replay ([controller](../src/Kora/ObservationWorkflowController.cs)).
+Focus returns to the original control only while its presentation remains visible and eligible. Declining the first step launches no observation; declining a later step never approves remaining steps or publishes partial success ([execution owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
 
 The only admitted IDs are `capabilities.list`, `capabilities.get`, `application.get_version`, `readiness.get`, `runtime.list`, and `runtime.get_status`. Inputs and complete results use their existing [registry schemas](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs).
 Pages remain explicit; there is no automatic pagination or guessed continuation ([execution tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ObservationWorkflows.cs)).
@@ -80,10 +99,10 @@ Excess output fails the entire workflow; earlier observations are not presented 
 Source replacement/change/removal, dependency observation changes, held/changed session profiles, target changes, original channel loss, policy revocation, privacy/call/ownership loss, denial, expiry and cancellation close the next step and suppress a late complete result ([host tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ObservationWorkflows.cs)).
 Failed or cancelled runs require fresh explicit review; no retry or alternate destination occurs ([native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
 
-Results stay in this private native window. The selected conversation binds the reviewed operation; its history is neither read nor written ([native forbidden-effect tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
+Results stay in this private workbench view. The selected conversation binds the reviewed operation; its history is neither read nor written ([native and hosted forbidden-effect tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
 These actions read already-recorded host state, without setup probes, network, new tool registration, settings writes, arbitrary file access, scripts, references, branches, loops, models or hosted disclosure. Provider/tool-loop E/Q remains unavailable; native deterministic evidence does not enable it ([workflow owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
 
-`owned skill workflow editor` opens this separate owner. **Close** (`owned skill workflow close`) offers explicit discard for an unsaved volatile draft; cancel keeps it open.
+`owned skill workflow editor` opens this view in the same workbench. **Close** (`owned skill workflow close`) offers explicit discard for an unsaved volatile draft; cancel keeps it open. Nothing is autosaved ([editor lifecycle](../src/Kora/ObservationWorkflowController.cs)).
 Exit/restart/handoff likewise cannot silently discard it. Save first to retain the package. Cancellation retires the original owner: Close/discard and open a fresh workflow before another operation. No draft is autosaved ([controller](../src/Kora/ObservationWorkflowController.cs)).
 
 ## Delete one saved owned source

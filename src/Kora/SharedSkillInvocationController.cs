@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Avalonia.Controls;
 using Kora.Application.Skills;
 using Kora.Application.ViewModels;
 using Kora.Core.Hosting;
@@ -14,7 +15,15 @@ internal sealed partial class SharedSkillInvocationController(
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<SharedSkillInvocationController> logger,
     ReviewedToolSkillInvocationWorkflow? toolWorkflow = null, QuestionWindowController? questions = null) : IDisposable
 {
-    private SharedSkillInvocationWindow? window;
+    private SharedSkillInvocationView? window;
+    private SharedSkillInvocationWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<SharedSkillInvocationView>? presentWorkbench;
+    private Func<bool>? operationPresentation;
+    private bool invoking;
+    internal SharedSkillInvocationView? View => window;
+    internal void BindWorkbench(Func<Window> ownerWindow, Action<SharedSkillInvocationView> present)
+    { getWorkbench = ownerWindow; presentWorkbench = present; }
     private SharedSkillUseReview? review;
     private SharedSkillReferenceConsent? referenceConsent;
     private SharedSkillInvocation? invocation;
@@ -46,7 +55,7 @@ internal sealed partial class SharedSkillInvocationController(
 
     private bool Eligible() => !disposed && ownsHost() && ownershipRevision() == ownerRevision
         && main.CallPolicyRevision == callRevision && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible
-        && !main.IsResponseInteractionPending;
+        && !main.IsResponseInteractionPending && (invoking || operationPresentation?.Invoke() != false);
 
     private async Task Open(SharedSkillSource source, SharedSkillSnapshot snapshot, RequestOrigin origin, Func<bool> eligible,
         bool toolCapable = false)
@@ -73,11 +82,33 @@ internal sealed partial class SharedSkillInvocationController(
             else { review = await workflow.ReviewAsync(source, snapshot, () => Eligible(), origin, lifetime.Token); }
             if (!eligible() || !Eligible()) { Close(); return; }
             requestOrigin = origin;
-            window = new(action => Start(action, RequestOrigin.LocalUi), toolCapable, snapshot.McpReference is not null);
+            if (getWorkbench is not null && presentWorkbench is not null)
+            {
+                window = new(getWorkbench(), action => Start(action, RequestOrigin.LocalUi),
+                    () => main.CanRevealPrivatePresentation && !disposed, toolCapable, snapshot.McpReference is not null);
+            }
+            else
+            {
+                adapter = new(action => Start(action, RequestOrigin.LocalUi), toolCapable, snapshot.McpReference is not null);
+                window = adapter.View;
+            }
             window.Instructions.Text = $"{snapshot.Name} | {snapshot.Version} | source {source.Id:D} | SHA256 {snapshot.RevisionDigest}\n\n"
                 + (toolCapable ? snapshot.Text : referenceConsent?.DeclarationText ?? review!.Text);
             window.SetReferenceConsent(referenceConsent is not null);
             window.Closed += (_, _) => Close();
+            if (getWorkbench is not null)
+            {
+                window.PresentationLost += (_, _) =>
+                {
+                    if (invoking) { return; }
+                    RetireConfirmation();
+                    review?.Dispose();
+                    review = null;
+                    referenceConsent?.Dispose();
+                    referenceConsent = null;
+                    RetireToolReview();
+                };
+            }
             window.Request.PropertyChanged += (_, args) =>
             { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { InputChanged(); } };
             window.Address.PropertyChanged += (_, args) =>
@@ -93,7 +124,11 @@ internal sealed partial class SharedSkillInvocationController(
             window.Targets.SelectionChanged += (_, _) =>
             { Interlocked.Increment(ref toolInputRevision); RetireConfirmation(); RetireToolReview(); };
             showing = true;
-            try { window.Show(); }
+            try
+            {
+                if (presentWorkbench is not null) { presentWorkbench(window); }
+                else { adapter!.Show(); }
+            }
             finally
             {
                 showing = false;
@@ -139,6 +174,7 @@ internal sealed partial class SharedSkillInvocationController(
             }
             if (window is null || !active.IsCompleted)
             { throw new InvalidOperationException("Open a current exact-source review and wait for its owned operation first."); }
+            if (presentWorkbench is not null) { presentWorkbench(window); }
             if (command.ToolCapable != toolMode)
             { throw new InvalidOperationException("Instruction-only and tool-capable invocation commands are separate."); }
             if (toolMode && command.Action is "McpQuestion")
@@ -232,6 +268,7 @@ internal sealed partial class SharedSkillInvocationController(
     private async Task RunReported(string action, RequestOrigin origin, Func<bool> eligible)
     {
         var capturedLifetime = lifetime;
+        operationPresentation = window?.CapturePresentation();
         try { await Run(action, origin, eligible); }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -248,6 +285,8 @@ internal sealed partial class SharedSkillInvocationController(
         }
         finally
         {
+            invoking = false;
+            operationPresentation = null;
             if (window is null && ReferenceEquals(lifetime, capturedLifetime))
             { lifetime?.Dispose(); lifetime = null; }
         }
@@ -313,8 +352,9 @@ internal sealed partial class SharedSkillInvocationController(
             invocation = null;
             opened.Confirm.IsEnabled = false;
             var revision = inputRevision;
+            invoking = true;
             var receipt = await workflow.InvokeAsync(prepared, () => Current() && inputRevision == revision, token);
-            if (Eligible() && ReferenceEquals(window, opened))
+            if (Eligible() && operationPresentation?.Invoke() != false && ReferenceEquals(window, opened))
             {
                 opened.Confirmation.Text = string.Empty;
                 opened.Status.Text = $"Retained exact request {receipt.Message.Request.RequestId.Value:D}: {receipt.Message.Outcome} / {receipt.Message.Reason}. "
@@ -363,6 +403,7 @@ internal sealed partial class SharedSkillInvocationController(
         var opened = window;
         RetireMcpAnswer();
         window = null;
+        adapter = null;
         lifetime?.Cancel();
         review?.Dispose();
         review = null;

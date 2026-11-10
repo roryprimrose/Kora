@@ -13,6 +13,7 @@ using Kora.Application.Presentation;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Presentation;
+using Kora.NativeUxFixture;
 using Kora.Windows.IntegrationTests.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -21,6 +22,91 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class ExactAnswerExportControllerTests
 {
+    [Theory]
+    [InlineData("confirm")]
+    [InlineData("cancel")]
+    [InlineData("hide")]
+    [InlineData("minimize")]
+    [InlineData("tab")]
+    [InlineData("source")]
+    [InlineData("authority")]
+    [InlineData("hold-close")]
+    public async Task HostedExactExportSeparatesReadFromOneWriteAndJoinsRevokedStaging(string action)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var storage = new InteractionStorageFixture();
+            var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
+            Directory.CreateDirectory(parent);
+            using var native = new NativeUxFixtureSession(parent);
+            await native.InitializeAsync();
+            var source = ExactAnswerExportWriterTests.Source();
+            var current = source;
+            var live = true;
+            using var host = HostActivity.BeginRoot(source.ConversationMessage!.Request, HostActivityLayer.Desktop, HostOperation.Request);
+            var writer = new Writer();
+            writer.Destination.Hold = action is "hold-close";
+            var audit = new Audit();
+            var controller = new ExactAnswerExportWindowController(writer, audit, NullLogger<ExactAnswerExportReview>.Instance,
+                (_, _) => Task.FromResult<string?>(writer.Destination.Path));
+            var shell = new ResponseWindow(native.Main);
+            var windows = new List<Window>();
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) => windows.Add(window));
+            Task<string>? exporting = null;
+            try
+            {
+                shell.ShowSessions(expanded: true);
+                exporting = controller.ShowAsync(shell, source, () => live, _ => Task.FromResult(current), storage.Token);
+                var view = shell.GetVisualDescendants().OfType<ExactAnswerExportView>().Single();
+                var text = view.GetVisualDescendants().OfType<TextBox>().Single();
+                text.Text.Should().Be(source.Source);
+                writer.Destination.Calls.Should().Be(0);
+                audit.Events.Should().BeEmpty();
+                var confirm = view.GetVisualDescendants().OfType<Button>().Single(button =>
+                    string.Equals(button.Name, "ConfirmExactAnswerExport", StringComparison.Ordinal));
+                if (action is "source") { current = ExactAnswerExportWriterTests.Source(); }
+                if (action is "confirm" or "source" or "hold-close")
+                {
+                    confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    if (action is "hold-close") { await writer.Destination.Started.Task; }
+                    else { await view.Operation; }
+                }
+                if (action is "hide" or "hold-close") { shell.Hide(); shell.Show(); shell.Activate(); }
+                else if (action is "minimize")
+                { shell.WindowState = WindowState.Minimized; shell.WindowState = WindowState.Normal; }
+                else if (action is "tab")
+                {
+                    var other = new TextBlock { Text = "Another original review" };
+                    shell.ShowNativeReview(other, "Another original review", other, static () => true, _ => { });
+                }
+                else if (action is "authority") { live = false; view.RefreshPresentation(); }
+                else { view.Close(); }
+                if (action is "hold-close")
+                {
+                    exporting.IsCompleted.Should().BeFalse("revocation is not physical writer quiescence");
+                    writer.Destination.Disposals.Should().Be(0);
+                    text.Text.Should().BeEmpty();
+                    writer.Destination.Release.TrySetResult();
+                }
+                var result = await exporting.WaitAsync(TimeSpan.FromSeconds(10), storage.Token);
+                result.Should().Contain(action is "confirm" ? "verified" : action is "source" ? "failed" : "cancelled");
+                writer.Destination.Calls.Should().Be(action is "confirm" or "hold-close" ? 1 : 0);
+                writer.Destination.Disposals.Should().Be(1);
+                confirm.IsEnabled.Should().BeFalse();
+                text.Text.Should().BeEmpty();
+                string.Join("\n", view.GetVisualDescendants().OfType<TextBlock>().Select(label => label.Text))
+                    .Should().NotContain(writer.Destination.Path).And.NotContain(source.Reference.ItemId.Value.ToString("D"));
+                windows.Distinct().Should().Equal(shell);
+            }
+            finally
+            {
+                writer.Destination.Release.TrySetResult();
+                shell.Close();
+                if (exporting is not null) { await exporting; }
+            }
+        });
+    }
+
     [Theory]
     [InlineData(480, 400, 14, false)]
     [InlineData(480, 400, 24, false)]

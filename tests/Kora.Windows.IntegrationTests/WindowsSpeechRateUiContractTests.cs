@@ -11,7 +11,7 @@ public sealed class WindowsSpeechRateUiContractTests
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md"))) { directory = directory.Parent; }
         var root = directory?.FullName ?? throw new InvalidOperationException("Source root unavailable.");
-        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants().ToArray();
         var selector = controls.Single(c => string.Equals(c.Attribute("Value")?.Value, "{Binding SelectedWindowsSpeechRate}", StringComparison.Ordinal));
         selector.Name.LocalName.Should().Be("SettingsNumberField");
         selector.Attribute("Minimum")!.Value.Should().Be("{x:Static configuration:WindowsSpeechRate.Minimum}");

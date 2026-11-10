@@ -29,6 +29,7 @@ public sealed partial class MainViewModel
     private ICurrentResponsePresentation? currentResponsePresentation;
     private long currentResponseBindingRevision;
     private sealed record CurrentResponseInput(CurrentResponseSpeech? Source, Func<bool> Eligible);
+    private sealed record CurrentResponseTabInput(DetailContentReference Reference, Func<bool> Admitted);
 
     public void BindCurrentResponsePresentation(ICurrentResponsePresentation? presentation)
     {
@@ -59,17 +60,26 @@ public sealed partial class MainViewModel
 
     public Task DismissCurrentResponseAsync() => RunCurrentResponseUiAsync(CurrentResponseAction.Dismiss);
     public Task OpenCurrentResponseDetailsAsync() => RunCurrentResponseUiAsync(CurrentResponseAction.Details);
+    internal Task OpenExactCurrentResponseDetailsAsync(DetailContentReference reference, Func<bool> admitted) =>
+        RunCurrentResponseUiAsync(CurrentResponseAction.Details, new(reference, admitted));
 
-    private Task RunCurrentResponseUiAsync(CurrentResponseAction action)
+    private Task RunCurrentResponseUiAsync(CurrentResponseAction action, CurrentResponseTabInput? tab = null)
     {
         if (HostActivity.HasScope && HostActivity.Current?.Request.Origin != RequestOrigin.LocalUi)
         {
             Transcript = "Current response action unavailable: this is not an original native UI request.";
             return Task.CompletedTask;
         }
-        return Hosting.HostRequestRunner.RunAsync(RequestOrigin.LocalUi, () => ExecuteCurrentResponseAsync(action,
-                CaptureCurrentResponseInput(CaptureManualCallInput(RequestOrigin.LocalUi, CallPolicyRevision),
-                    Interlocked.Read(ref workspaceSurfaceInputRevision)), SecurityAuditInitiator.LocalUser));
+        var input = CaptureCurrentResponseInput(CaptureManualCallInput(RequestOrigin.LocalUi, CallPolicyRevision),
+            Interlocked.Read(ref workspaceSurfaceInputRevision));
+        var original = input;
+        if (tab is { } exact)
+        {
+            input = new(original.Source, () => original.Eligible() && exact.Admitted()
+                && original.Source is { } source && source.Id == exact.Reference.ItemId.Value && source.Revision == exact.Reference.Revision);
+        }
+        return Hosting.HostRequestRunner.RunAsync(RequestOrigin.LocalUi,
+            () => ExecuteCurrentResponseAsync(action, input, SecurityAuditInitiator.LocalUser));
     }
 
     private async Task ExecuteCurrentResponseCommandAsync(CurrentResponseCommand command, string original,

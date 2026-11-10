@@ -106,7 +106,7 @@ public sealed class LocalFileTextMeasurementWindowTests
                 Source(window).Text.Should().BeNull();
             }
             finally { window.ClearAndClose(); }
-            window.Content.Should().BeNull();
+            window.View.Content.Should().BeNull();
             return Task.CompletedTask;
         });
     }

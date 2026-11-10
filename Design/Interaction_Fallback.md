@@ -417,7 +417,7 @@ Voice readiness must not prevent local settings, task management, basic output, 
 ## Native clipboard Find count
 
 The existing native clipboard preview offers explicit complete nonoverlapping literal count and selected ordinal over only its already-admitted immutable capture. Enter/First, F3/Next and Shift+F3/Previous retain exact case/spaces, bounded one-line validation and no wrap; edits clear count and match immediately without a new read ([clipboard owner](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07)).
-The count is presentation, not source authority, disclosure permission or model approval. Invalid queries remain explicit rejection, not zero; private/owner/source loss clears the state and fences retained callbacks. No clipboard transfer or automatic action is added ([native Find](../src/Kora/ClipboardPreviewWindow.Find.cs), [headless contracts](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs)).
+The count is presentation, not source authority, disclosure permission or model approval. Invalid queries remain explicit rejection, not zero; private/owner/source loss clears the state and fences retained callbacks. No clipboard transfer or automatic action is added ([native Find](../src/Kora/ClipboardPreviewView.Find.cs), [headless contracts](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs)).
 
 ## Release Gate
 

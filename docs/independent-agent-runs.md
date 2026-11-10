@@ -10,6 +10,10 @@ independent runs in **different existing Active conversations**. It does not
 create sessions, delegate work, chain agents, or run multiple tasks within one
 conversation.
 
+Both run panels share one supporting tab in the expanded workbench, not another
+Kora window ([view](../src/Kora/AgentRunSetView.cs),
+[composition](../src/Kora/App.AgentRunSet.cs)).
+
 ## Review and confirm each run separately
 
 1. Select **Run 1** or **Run 2**.
@@ -56,12 +60,19 @@ confirm the edited source, task and target afresh to obtain their own result.
 A provider that ignores cancellation keeps its resource slot until it actually
 finishes; its late answer cannot restore publication authority.
 
-Closing the window, privacy/call/ownership closure and application exit revoke
+Explicit **independent agents close**, privacy/call/ownership closure and application exit revoke
 both runs and join all actual resources. A cancellation request is not proof of
 successful resource release. Closure failures are reported, not treated as
-successful cancellation.
+successful cancellation ([owner](../src/Kora/AgentRunSetController.cs)).
 
-Run entries and unsent input are volatile. Closing clears their private
+Hiding/minimizing the workbench or leaving this supporting review clears both
+displayed reviews and confirmation controls. Unconfirmed reviews retire; already
+confirmed runs continue to own their admitted work independently. Their late answers
+stay only in their distinct original conversations, not in restored old panels.
+Hiding is not Stop, and returning does not renew either review
+([hosted lifetime tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AgentRunSetWorkbench.cs)).
+
+Run entries and unsent input are volatile. Explicitly closing this operation clears their private
 presentation buffers; it does not autosave tasks or create restart recovery.
 Retained conversations follow the separate
 [privacy and retention policy](privacy-safety-and-logs.md).

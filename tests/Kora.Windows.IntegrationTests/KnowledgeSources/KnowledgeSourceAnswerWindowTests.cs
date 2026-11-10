@@ -432,6 +432,15 @@ public sealed class KnowledgeSourceAnswerWindowTests
     [InlineData(false)]
     [InlineData(true)]
     public Task ClosingPrivateSurfaceCancelsAndJoinsIgnoringModelBeforeDisposalWithoutLateResult(bool chosen) =>
+        ClosingSourceSurface(chosen, hosted: false);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task HostedPrivateSourceSurfaceJoinsIgnoringModelAndSuppressesLateAnswer(bool chosen) =>
+        ClosingSourceSurface(chosen, hosted: true);
+
+    private static Task ClosingSourceSurface(bool chosen, bool hosted) =>
         HeadlessSession.RunAsync(async () =>
         {
             using var listener = Listen();
@@ -439,7 +448,12 @@ public sealed class KnowledgeSourceAnswerWindowTests
             await host.InitializeAsync();
             host.Main.BindClipboardOwnershipGate(static () => true);
             var f = new Fixture(multipleFiles: chosen) { Delay = true };
-            var window = new KnowledgeSourcesWindow(host.Main, f.Manager, answers: f.Workflow);
+            using var responses = hosted ? new ResponseWindowController(host.Main,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ResponseWindowController>.Instance) : null;
+            var window = responses is not null ? new KnowledgeSourcesView(responses.PrepareWorkbenchOwner(), host.Main, f.Manager, answers: f.Workflow)
+                : new KnowledgeSourcesWindow(host.Main, f.Manager, answers: f.Workflow).View;
+            var windows = new List<Window>();
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) => windows.Add(view));
             window.Show();
             window.UpdateLayout();
             try
@@ -457,17 +471,20 @@ public sealed class KnowledgeSourceAnswerWindowTests
                 }
                 var work = Press(window, "Confirm one private local-only no-tools named-source answer");
                 await f.Entered.Task.WaitAsync(host.Token);
+                var status = Status(window);
+                if (hosted) { window.Owner.Hide(); }
                 var stop = window.StopAsync();
                 await f.Cancelled.Task.WaitAsync(host.Token);
                 stop.IsCompleted.Should().BeFalse();
-                window.IsVisible.Should().BeTrue();
+                window.Owner.IsVisible.Should().Be(!hosted);
                 f.Disposals.Should().Be(0);
                 f.Release.SetResult();
                 await work;
                 await stop;
-                window.IsVisible.Should().BeFalse();
+                window.Content.Should().BeNull();
                 f.Disposals.Should().Be(1);
-                Status(window).Text.Should().BeNull();
+                status.Text.Should().BeNull();
+                if (hosted) { windows.Distinct().Should().Equal(window.Owner); }
             }
             finally { f.Release.TrySetResult(); await window.StopAsync(); }
         });
@@ -482,11 +499,11 @@ public sealed class KnowledgeSourceAnswerWindowTests
         ActivitySource.AddActivityListener(listener);
         return listener;
     }
-    private static TextBox Question(Window window) => window.GetVisualDescendants().OfType<TextBox>().Single(item =>
+    private static TextBox Question(Control window) => window.GetVisualDescendants().OfType<TextBox>().Single(item =>
         string.Equals(AutomationProperties.GetName(item), "New named-source answer question", StringComparison.Ordinal));
-    private static TextBlock Status(Window window) => window.GetVisualDescendants().OfType<TextBlock>().Single(item =>
+    private static TextBlock Status(Control window) => window.GetVisualDescendants().OfType<TextBlock>().Single(item =>
         string.Equals(AutomationProperties.GetName(item), "Named-source answer review and outcome", StringComparison.Ordinal));
-    private static async Task Press(Window window, string caption)
+    private static async Task Press(Control window, string caption)
     {
         window.UpdateLayout();
         var buttons = window.GetVisualDescendants().OfType<Button>().ToArray();

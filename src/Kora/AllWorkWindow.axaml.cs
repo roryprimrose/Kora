@@ -1,44 +1,35 @@
 using Avalonia.Controls;
 using Avalonia.Input;
-
-using Kora.Core.Storage;
+using Avalonia.Interactivity;
 
 namespace Kora;
 
 internal sealed partial class AllWorkWindow : Window
 {
+    private readonly AllWorkView view;
+    internal Func<bool>? FocusFindMatch { get => view.FocusFindMatch; set => view.FocusFindMatch = value; }
+    internal Func<bool>? FocusFindQuery { get => view.FocusFindQuery; set => view.FocusFindQuery = value; }
+    internal T? FindControl<T>(string name) where T : Control => view.FindControl<T>(name);
+
     internal AllWorkWindow(AllWorkViewModel model)
     {
         InitializeComponent();
+        view = new(model, this);
+        Content = view;
         DataContext = model;
-        Refresh.Click += async (_, _) => await model.RefreshAsync();
-        Search.Click += async (_, _) => await model.RefreshAsync();
-        ClearQuery.Click += (_, _) => { model.ClearQuery(); MetadataQuery.Focus(); };
-        ClearLoadedPageOrder.Click += (_, _) => { model.ClearOrder(); LoadedPageOrder.Focus(); };
-        MetadataQuery.KeyDown += async (_, args) =>
+        view.CloseRequested += (_, _) => Close();
+        Closed += (_, _) => view.Dispose();
+        PropertyChanged += (_, args) =>
         {
-            if (args.Key == Key.Escape)
-            {
-                model.ClearQuery();
-                args.Handled = true;
-            }
-            else if (args.Key == Key.Enter && model.CanSearch)
-            {
-                args.Handled = true;
-                await model.RefreshAsync();
-            }
+            if (args.Property == DataContextProperty) { view.DataContext = DataContext; }
         };
-        Next.Click += async (_, _) => await model.RefreshAsync(next: true);
-        CancelRead.Click += (_, _) => model.Cancel();
-        StopAllSubmittedWork.Click += async (_, _) => await model.StopAllAsync();
-        Navigate.Click += async (_, _) => await model.NavigateAsync();
-        Records.SelectionChanged += (_, _) => model.Select(Records.SelectedItem as SessionWorkOverviewRow);
-        CloseView.Click += (_, _) => Close();
-        Closed += (_, _) => model.Close();
-        KeyDown += (_, args) =>
+        AddHandler(KeyDownEvent, (_, args) =>
         {
-            if (args.Key == Key.Escape) { Close(); args.Handled = true; }
-        };
-        InitializeFind(model);
+            if (!ReferenceEquals(args.Source, this)) { return; }
+            var forwarded = new KeyEventArgs
+            { RoutedEvent = KeyDownEvent, Key = args.Key, KeyModifiers = args.KeyModifiers };
+            view.RaiseEvent(forwarded);
+            args.Handled = forwarded.Handled;
+        }, RoutingStrategies.Tunnel);
     }
 }

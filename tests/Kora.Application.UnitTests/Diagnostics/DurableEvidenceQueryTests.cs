@@ -767,6 +767,45 @@ public sealed partial class DurableEvidenceQueryTests
     private static HostActivity Root() => HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
         HostActivityLayer.Application, HostOperation.Request);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ActivatedVoiceAuthorityAuditPreservesItsRequestAndRechecksPrivacyAfterRead(bool revoke)
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        using var host = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+            HostActivityLayer.Application, HostOperation.Request);
+        if (revoke) { fixture.Reader.OnRead = () => fixture.Access.CanInspect = false; }
+        var operation = async () => await fixture.Service.QueryAsync(
+            new() { Source = EvidenceSource.AuthorityAudit }, null, TestContext.Current.CancellationToken);
+        if (revoke) { await operation.Should().ThrowAsync<InvalidOperationException>(); }
+        else
+        {
+            var result = await operation();
+            result.Disclosure.Should().Be(EvidencePage.AuthorityDisclosure);
+            result.Status.Should().Be(EvidencePageStatus.Available);
+        }
+        fixture.Reader.Request.Should().BeSameAs(host.Request);
+        fixture.Reader.Request!.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        fixture.Reader.Calls.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task InvocationScopedContextCannotReadPrivateAuthorityAudit(RequestOrigin origin)
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        var request = new HostRequest(new(Guid.NewGuid()), new(Guid.NewGuid()), new(Guid.NewGuid()), origin, new(Guid.NewGuid()));
+        using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        var read = async () => await fixture.Service.QueryAsync(
+            new() { Source = EvidenceSource.AuthorityAudit }, null, TestContext.Current.CancellationToken);
+        await read.Should().ThrowAsync<InvalidOperationException>();
+        fixture.Reader.Calls.Should().Be(0);
+    }
+
     private static ActivityListener Listen()
     {
         var listener = new ActivityListener
@@ -808,6 +847,7 @@ public sealed partial class DurableEvidenceQueryTests
     }
     private sealed class FakeReader : IEvidenceReader
     {
+        internal HostRequest? Request { get; private set; }
         internal EvidenceReadBatch Batch { get; set; } = new(new(0, 0, 0, 0), [], null, false, false);
         internal EvidenceReadCheckpoint? Checkpoint { get; private set; }
         internal Action? OnRead { get; set; }
@@ -817,6 +857,7 @@ public sealed partial class DurableEvidenceQueryTests
             HostRequest request, DateTimeOffset now, CancellationToken cancellationToken)
         {
             Calls++;
+            Request = request;
             Checkpoint = checkpoint;
             OnRead?.Invoke();
             if (Error is not null) { throw Error; }

@@ -27,7 +27,13 @@ internal sealed partial class OwnedInstructionEditorController(
         : promptActions ?? throw new InvalidOperationException("Prompt editing is unavailable.");
     private InstructionSaveWorkflow Saves => kind == ArtifactKind.Instruction ? saves
         : promptSaves ?? throw new InvalidOperationException("Prompt editing is unavailable.");
-    private OwnedInstructionEditorWindow? window;
+    private OwnedInstructionEditorView? window;
+    private OwnedInstructionEditorWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<OwnedInstructionEditorView>? presentWorkbench;
+    internal OwnedInstructionEditorView? View => window;
+    internal void BindWorkbench(Func<Window> owner, Action<OwnedInstructionEditorView> present)
+    { getWorkbench = owner; presentWorkbench = present; }
     private OwnedInstructionSnapshot? baseline;
     private string originalText = string.Empty;
     private string? selectedName;
@@ -87,17 +93,26 @@ internal sealed partial class OwnedInstructionEditorController(
         if (window is not null)
         {
             if (ownershipRevision() != windowOwnershipRevision) { OnPrivacyClosed(this, EventArgs.Empty); return; }
+            if (presentWorkbench is not null) { presentWorkbench(window); }
+            else { adapter!.Show(); }
             window.Activate(); return;
         }
         windowOwnershipRevision = ownershipRevision();
         lifetime = new();
-        window = new(action =>
+        void RunAction(string action)
         {
             if (action is "Cancel profile copy") { CancelProfileCopy(); }
             else if (action is "Cancel refinement") { CancelRefinement(); }
             else if (action is "Filter" or "Next") { FilterInventory(action is "Next", edited: action is "Filter"); }
             else { activeOperation = Run(action); }
-        });
+        }
+        if (getWorkbench is not null && presentWorkbench is not null)
+        { window = new(getWorkbench(), RunAction, () => !disposed && main.CanRevealPrivatePresentation); }
+        else
+        {
+            adapter = new(RunAction);
+            window = adapter.View;
+        }
         var findOwner = window;
         bodyDictation = new(window, dictation ?? main.ComposerDictation, CaptureBodyDictation,
             exception => { EditorFailed(logger, exception.GetType().Name); window?.Report("Body dictation failed: " + exception.GetType().Name + ". Draft retained; nothing saved."); });
@@ -143,9 +158,19 @@ internal sealed partial class OwnedInstructionEditorController(
         window.SelectKind(kind);
         window.Closing += OnClosing;
         window.Closed += (_, _) => Clear();
-        window.Show();
+        window.CloseRequested += (_, _) => activeOperation = CloseSafely();
+        window.PresentationLost += (_, _) =>
+        {
+            Interlocked.Increment(ref sourceRevision);
+            CancelRestoreReview();
+            CancelRefinement();
+            CancelProfileCopy();
+            rebaseLifetime?.Cancel();
+        };
+        if (presentWorkbench is not null) { presentWorkbench(window); }
+        else { adapter!.Show(); }
         Open(load: false);
-        if (load) { _ = Run("List"); }
+        if (load) { activeOperation = Run("List"); }
     }
 
     private bool Dirty => window is not null && !string.Equals(window.Source.Text ?? string.Empty, originalText, StringComparison.Ordinal);
@@ -162,8 +187,11 @@ internal sealed partial class OwnedInstructionEditorController(
         {
             if (window is null || lifetime is null || requestedKind != kind)
             { main.ReportHostInteractionFailure("Validate/Compare/Rebase requires the currently open same-kind owned draft. Inspect or Create explicitly; no source is opened implicitly."); return; }
+            if (presentWorkbench is not null) { presentWorkbench(window); }
+            else { adapter!.Show(); }
             window.Activate();
-            await Run(operation);
+            activeOperation = Run(operation);
+            await activeOperation;
             return;
         }
         Open(load: false);
@@ -204,10 +232,13 @@ internal sealed partial class OwnedInstructionEditorController(
         }
         var captured = main.CaptureInstructionEditorEligibility();
         var ownership = ownershipRevision();
-        bool Eligible() => !disposed && ownsHost() && ownershipRevision() == ownership
+        bool OriginalHost() => !disposed && ownsHost() && ownershipRevision() == ownership
             && ReferenceEquals(window, opened) && captured();
+        var native = opened.CapturePresentation();
+        bool Eligible() => OriginalHost() && native();
         var token = lifetime.Token;
-        if (!Eligible() || ownership != windowOwnershipRevision) { OnPrivacyClosed(this, EventArgs.Empty); return; }
+        if (!OriginalHost() || ownership != windowOwnershipRevision) { OnPrivacyClosed(this, EventArgs.Empty); return; }
+        if (!Eligible()) { opened.Report("The instruction editor is not presented. Return explicitly before continuing; draft retained."); return; }
         opened.RetireBufferFind(clearQuery: true);
         busy = true;
         opened.RetireMetadataFind();
@@ -367,11 +398,11 @@ internal sealed partial class OwnedInstructionEditorController(
         finally { renaming = false; busy = false; }
     }
 
-    private async Task ValidateDraft(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token, bool compare = false)
+    private async Task ValidateDraft(OwnedInstructionEditorView opened, Func<bool> eligible, CancellationToken token, bool compare = false)
     {
         opened.ClearValidation();
         if (profileOriginal is not null) { await CompareProfileDraft(opened, eligible, token); return; }
-        if (!opened.IsVisible || opened.Source.IsReadOnly || selectedName is not { } name || baseline is null && !newDraft
+        if (!opened.IsNativePresented || opened.Source.IsReadOnly || selectedName is not { } name || baseline is null && !newDraft
             || !string.Equals(opened.NameInput.Text, name, StringComparison.Ordinal)
             || opened.KindInput.SelectedItem is not ArtifactKind selectedKind || selectedKind != kind
             || opened.Files.SelectedItem is OwnedDefinitionInventoryRow row && !string.Equals(row.Name, name, StringComparison.Ordinal))
@@ -397,7 +428,7 @@ internal sealed partial class OwnedInstructionEditorController(
         { opened.ShowComparison(comparison, () => Current() && Actions.IsDraftValidationCurrent(observation)); }
     }
 
-    private async Task DisableUse(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task DisableUse(OwnedInstructionEditorView opened, Func<bool> eligible, CancellationToken token)
     {
         if (!opened.DisableReviewedUse.IsEnabled || Dirty || baseline is not { } reviewed || uncertain
             || !string.Equals(selectedName, reviewed.Name, StringComparison.Ordinal)
@@ -429,7 +460,7 @@ internal sealed partial class OwnedInstructionEditorController(
                 + $"Control receipt {result.ControlReceipt}. Source unchanged and inspectable; new selections unavailable until fresh exact review.");
     }
 
-    private async Task<bool> ConfirmUse(OwnedInstructionEditorWindow opened, OwnedInstructionSnapshot reviewed,
+    private async Task<bool> ConfirmUse(OwnedInstructionEditorView opened, OwnedInstructionSnapshot reviewed,
         Func<bool> eligible, CancellationToken token)
     {
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
@@ -445,7 +476,7 @@ internal sealed partial class OwnedInstructionEditorController(
             && eligible() && ReferenceEquals(baseline, reviewed) && !Dirty;
     }
 
-    private async Task<bool> Save(OwnedInstructionEditorWindow opened, bool delete, Func<bool> eligible, CancellationToken token)
+    private async Task<bool> Save(OwnedInstructionEditorView opened, bool delete, Func<bool> eligible, CancellationToken token)
     {
         if (profileOriginal is not null) { return await SaveProfileOriginal(opened, delete, eligible, token); }
         if (selectedName is null || uncertain || Actions.IsSourceUnavailable) { throw new InvalidOperationException("Inspect/create, or explicitly Reload/reconcile first."); }
@@ -499,7 +530,7 @@ internal sealed partial class OwnedInstructionEditorController(
         return true;
     }
 
-    private async Task SaveCopy(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task SaveCopy(OwnedInstructionEditorView opened, Func<bool> eligible, CancellationToken token)
     {
         if (baseline is not { } source || selectedName is null || opened.Source.IsReadOnly || uncertain || Actions.IsSourceUnavailable)
         { throw new InvalidOperationException("Inspect a supported original native owned source before copying. The original draft is retained."); }
@@ -521,7 +552,7 @@ internal sealed partial class OwnedInstructionEditorController(
             + "Original source and open draft retained. List and explicitly Inspect the new ID, then independently Review use; no references retargeted.");
     }
 
-    private async Task Load(OwnedInstructionEditorWindow opened, string? name, Func<bool> eligible, CancellationToken token,
+    private async Task Load(OwnedInstructionEditorView opened, string? name, Func<bool> eligible, CancellationToken token,
         OwnedDefinitionInventory? observed = null, OwnedDefinitionInventoryRow? row = null)
     {
         if (name is null) { throw new InvalidOperationException("Select the exact owned instruction ID."); }
@@ -566,11 +597,11 @@ internal sealed partial class OwnedInstructionEditorController(
                     : "Disabled/held; fresh exact Review use required. Source remains inspectable/editable."));
     }
 
-    private async Task<bool> AbandonDraft(OwnedInstructionEditorWindow opened, CancellationToken token) =>
+    private async Task<bool> AbandonDraft(OwnedInstructionEditorView opened, CancellationToken token) =>
         !Dirty || await opened.Choose("Discard current draft?", "Reload/inspect/create will abandon unsaved changes.",
             originalText, opened.Source.Text, ["Discard draft and continue", "Cancel"], token) == 0;
 
-    private async Task<bool> SwitchKind(OwnedInstructionEditorWindow opened, ArtifactKind requestedKind, CancellationToken token)
+    private async Task<bool> SwitchKind(OwnedInstructionEditorView opened, ArtifactKind requestedKind, CancellationToken token)
     {
         _ = OwnedDefinitionKind.DirectoryName(requestedKind);
         if (kind == requestedKind) { return true; }
@@ -591,11 +622,12 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private void OnClosing(object? sender, WindowClosingEventArgs args)
     {
+        if (args.Cancel) { return; }
         ClearRestore();
         if (!closing && bodyDictation?.IsPending == true)
         {
             args.Cancel = true;
-            _ = CloseSafely();
+            activeOperation = CloseSafely(closeOwner: window?.Owner is ResponseWindow);
             return;
         }
         if (!closing && refinementLifetime is not null)
@@ -614,12 +646,19 @@ internal sealed partial class OwnedInstructionEditorController(
         }
         if (closing || !Dirty && !busy) { return; }
         args.Cancel = true;
-        _ = CloseSafely();
+        activeOperation = CloseSafely(closeOwner: window?.Owner is ResponseWindow);
     }
 
-    private async Task CloseSafely()
+    private async Task CloseSafely(bool closeOwner = false)
     {
-        if (await PrepareClose()) { closing = true; window?.Close(); closing = false; }
+        var owner = closeOwner ? window?.Owner : null;
+        if (await PrepareClose())
+        {
+            closing = true;
+            window?.Close();
+            closing = false;
+            if (owner?.IsVisible == true) { owner.Close(); }
+        }
     }
 
     private async Task<bool> PrepareClose()
@@ -656,6 +695,7 @@ internal sealed partial class OwnedInstructionEditorController(
         lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = false;
         window?.ClearPrivateText(); window = null; baseline = null; profileOriginal = null; selectedName = null; originalText = string.Empty; uncertain = false;
+        adapter = null;
         newDraft = false;
         pendingRefinement = null;
         generatedDraft = false;

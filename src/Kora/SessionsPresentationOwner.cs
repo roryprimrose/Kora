@@ -103,7 +103,8 @@ internal sealed partial class SessionsPresentationOwner
         surface.AddHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surface.AddHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
         surface.AddHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
-        surface.AddHandler(Avalonia.Input.InputElement.KeyDownEvent, OnRegisteredSettingReviewKeyDown);
+        surface.AddHandler(Avalonia.Input.InputElement.KeyDownEvent, OnRegisteredSettingReviewKeyDown,
+            Avalonia.Interactivity.RoutingStrategies.Tunnel);
         surface.AddHandler(Button.ClickEvent, OnModelMemoryProposal);
         refresh.Start();
     }
@@ -204,6 +205,7 @@ internal sealed partial class SessionsPresentationOwner
             Release();
             return;
         }
+        if (args.Cancel) { return; }
         if (revoked) { return; }
         if (draftDialog is not null || closing) { args.Cancel = true; return; }
         if (surfaces.Count > 1 || !model.HasUnsentMessages) { return; }

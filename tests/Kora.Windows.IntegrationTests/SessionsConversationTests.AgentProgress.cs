@@ -377,7 +377,7 @@ public sealed partial class SessionsConversationTests
 
     private static async Task PrepareObservationAgentAsync(AgentRunWindow window, AgentRunController controller)
     {
-        var buttons = ((StackPanel)((ScrollViewer)window.Content!).Content!).Children.OfType<Button>().ToArray();
+        var buttons = ((StackPanel)((ScrollViewer)window.View.Content!).Content!).Children.OfType<Button>().ToArray();
         buttons.Single(button => Equals(button.Content, "Refresh existing Active conversations"))
             .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await controller.ActiveOperation;

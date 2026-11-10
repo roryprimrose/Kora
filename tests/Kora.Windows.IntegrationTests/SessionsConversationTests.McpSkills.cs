@@ -126,7 +126,7 @@ public sealed partial class SessionsConversationTests
             sources.FindControl<Button>("ReviewToolUse")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await openedUse.Task.WaitAsync(native.Token);
             var opened = invocation ?? throw new InvalidOperationException("MCP skill review did not open.");
-            var buttons = ((StackPanel)((ScrollViewer)opened.Content!).Content!).Children.OfType<Button>().ToArray();
+            var buttons = ((StackPanel)((ScrollViewer)opened.View.Content!).Content!).Children.OfType<Button>().ToArray();
             async Task Click(string label)
             {
                 buttons.Single(button => Equals(button.Content, label)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

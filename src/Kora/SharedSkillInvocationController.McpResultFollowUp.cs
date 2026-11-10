@@ -84,9 +84,11 @@ internal sealed partial class SharedSkillInvocationController
             {
                 var confirmedReview = skillMcpAnswerReview ?? throw new InvalidOperationException("Separately review this complete result and unchanged new question first.");
                 skillMcpAnswerReview = null;
+                invoking = true;
                 var receipt = await answerWorkflow.ConfirmAsync(confirmedReview, Current, token);
                 operation.Complete(receipt.Message.AssistantResponse is null ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
                 if (!Current()) { RetireMcpAnswer(); return; }
+                if (operationPresentation?.Invoke() == false) { return; }
                 opened.McpAnswerReview.Text = string.Empty;
                 opened.McpAnswerOutcome.Text = receipt.Message.AssistantResponse is { } answer ? "ASSISTANT\n" + answer.Body
                     : $"HOST {receipt.Message.Outcome}/{receipt.Message.Reason}\nNo assistant answer was retained.";
@@ -95,7 +97,8 @@ internal sealed partial class SharedSkillInvocationController
         }
         finally
         {
-            opened.McpQuestion.IsEnabled = Current() && !answerWorkflow.Held && !answerWorkflow.IsRunning;
+            opened.McpQuestion.IsEnabled = Current() && operationPresentation?.Invoke() != false
+                && !answerWorkflow.Held && !answerWorkflow.IsRunning;
         }
     }
 

@@ -116,7 +116,7 @@ public sealed class CallPolicyCompositionTests
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(Path.Combine(root.FullName, "Kora.slnx"))) { root = root.Parent; }
-        var document = XDocument.Load(Path.Combine(root!.FullName, "src", "Kora", "SettingsWindow.axaml"));
+        var document = XDocument.Load(Path.Combine(root!.FullName, "src", "Kora", "SettingsView.axaml"));
         var tab = document.Descendants().Single(e => string.Equals(e.Name.LocalName, "TabItem", StringComparison.Ordinal)
             && string.Equals(e.Attribute("Header")?.Value, "Calls", StringComparison.Ordinal));
         foreach (var command in new[] { "EnableManualCallCommand", "ClearManualCallCommand", "ResetManualCallCommand", "GetManualCallStatusCommand",

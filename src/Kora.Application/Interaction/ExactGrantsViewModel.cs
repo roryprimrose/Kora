@@ -368,6 +368,14 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         }
     }
 
+    public void RetirePresentation()
+    {
+        if (disposed) { return; }
+        FiltersChanged();
+        UriPatternInput = string.Empty;
+        Message = "Permission presentation ended. Prior results, source bodies and confirmations retired. Refresh before a new inspection.";
+    }
+
     private void NotifyCommands()
     {
         RefreshCommand.NotifyCanExecuteChanged();

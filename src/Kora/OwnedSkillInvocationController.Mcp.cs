@@ -7,19 +7,28 @@ namespace Kora;
 
 internal sealed partial class OwnedSkillInvocationController
 {
-    private SharedSkillInvocationWindow? mcpWindow;
+    private SharedSkillInvocationView? mcpWindow;
+    private SharedSkillInvocationWindow? mcpAdapter;
     private ReviewedMcpSkillInvocation? mcpInvocation;
     internal bool IsMcpOpen => mcpWindow is not null;
 
     private void OpenMcp(OwnedSkillUseReview source)
     {
-        var opened = new SharedSkillInvocationWindow(action => Start(action switch
+        void RunAction(string action) => Start(action switch
         {
             "Enable" => "enable", "Targets" => "targets", "NextTargets" => "next-targets",
             "McpOptions" => "mcp-options", "ReviewToolRevision" => "review-tool", "Prepare" => "review-use",
             "Invoke" => "invoke", "Close" => "close-use",
             _ => throw new InvalidOperationException("Unsupported owned MCP operation."),
-        }), toolCapable: true, mcp: true, owned: true);
+        });
+        SharedSkillInvocationView opened;
+        if (getWorkbench is not null && presentMcpWorkbench is not null)
+        { opened = new(getWorkbench(), RunAction, () => main.CanRevealPrivatePresentation && !disposed, toolCapable: true, mcp: true, owned: true); }
+        else
+        {
+            mcpAdapter = new(RunAction, toolCapable: true, mcp: true, owned: true);
+            opened = mcpAdapter.View;
+        }
         mcpWindow = opened;
         opened.Instructions.Text = source.Text;
         opened.Request.PropertyChanged += (_, args) =>
@@ -33,7 +42,9 @@ internal sealed partial class OwnedSkillInvocationController
         opened.McpServers.SelectionChanged += (_, _) => InvalidateMcp();
         opened.McpAccounts.SelectionChanged += (_, _) => InvalidateMcp();
         opened.Closed += (_, _) => Retire();
-        opened.Show();
+        if (getWorkbench is not null) { opened.PresentationLost += OnPresentationLost; }
+        if (presentMcpWorkbench is not null) { presentMcpWorkbench(opened); }
+        else { mcpAdapter!.Show(); }
         if (!Eligible()) { Retire(); return; }
         opened.Status.Text = "Exact disabled owned package read. Select a target and account, review the revision, then separately Enable. Nothing connected.";
     }
@@ -124,6 +135,7 @@ internal sealed partial class OwnedSkillInvocationController
                 mcpInvocation = null;
                 var invocationRevision = inputRevision;
                 McpModelResult? completedResult = null;
+                invoking = true;
                 var receipt = await McpSkillInvocationPresenter.InvokeAsync(service, prepared, opened,
                     questions ?? throw new InvalidOperationException("Native MCP review is unavailable."),
                     () => SourceCurrent() && inputRevision == invocationRevision, token,
@@ -131,7 +143,7 @@ internal sealed partial class OwnedSkillInvocationController
                     {
                         if (Current() && inputRevision == invocationRevision) { completedResult = result; }
                     });
-                if (Current() && inputRevision == invocationRevision)
+                if (Current() && operationPresentation?.Invoke() != false && inputRevision == invocationRevision)
                 {
                     if (completedResult is { } result)
                     { opened.McpResult.Text = $"Actual inert result: {result.ToolId}\nSource: {result.SourceRevision}\n{result.Text}\n{result.StructuredJson}"; }
@@ -157,6 +169,7 @@ internal sealed partial class OwnedSkillInvocationController
     {
         var opened = mcpWindow;
         mcpWindow = null;
+        mcpAdapter = null;
         mcpInvocation?.Dispose();
         mcpInvocation = null;
         opened?.Clear();

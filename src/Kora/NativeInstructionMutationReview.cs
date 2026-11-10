@@ -6,10 +6,13 @@ using Kora.Core.Diagnostics;
 
 namespace Kora;
 
-internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWindow window, string sourceRoot, Func<bool> current,
+internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorView window, string sourceRoot, Func<bool> current,
     ArtifactKind kind = ArtifactKind.Instruction, QuestionWindowController? questions = null,
     DateTimeOffset expiresAt = default) : IInstructionMutationReview
 {
+    internal NativeInstructionMutationReview(OwnedInstructionEditorWindow window, string sourceRoot, Func<bool> current,
+        ArtifactKind kind = ArtifactKind.Instruction, QuestionWindowController? questions = null, DateTimeOffset expiresAt = default)
+        : this(window.View, sourceRoot, current, kind, questions, expiresAt) { }
     private bool conflictObserved;
     private Func<bool>? answerCurrent;
     internal bool IsAnswerCurrent => answerCurrent?.Invoke() ?? true;

@@ -35,7 +35,7 @@ public sealed partial class SessionsConversationTests
             var window = opened ?? throw new InvalidOperationException("No original-input agent window.");
             try
             {
-                var buttons = ((StackPanel)((ScrollViewer)window.Content!).Content!).Children.OfType<Button>().ToArray();
+                var buttons = ((StackPanel)((ScrollViewer)window.View.Content!).Content!).Children.OfType<Button>().ToArray();
                 async Task Act(string phrase, string label)
                 {
                     if (typed)

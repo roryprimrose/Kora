@@ -262,5 +262,11 @@ public sealed class SkillIdentityMetadataFindTests
     private static TextBlock Match(IdentityMetadataFindPane pane) => pane.FindControl<TextBlock>("IdentityFindMatch")!;
     private static TextBlock Status(IdentityMetadataFindPane pane) => pane.FindControl<TextBlock>("IdentityFindStatus")!;
     private static void Click(Control owner, string name) =>
-        owner.FindControl<Button>(name)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        (owner switch
+        {
+            SkillPackagesWindow adapter => adapter.FindControl<Button>(name),
+            SharedSkillSourcesWindow adapter => adapter.FindControl<Button>(name),
+            _ => owner.FindControl<Button>(name),
+        })!
+            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 }

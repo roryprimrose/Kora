@@ -148,7 +148,7 @@ public sealed class TrayRecoveryTests
         app.Should().Contain("microphoneRecovery.Open").And.Contain("microphoneRecovery?.Dispose()");
         Read("SystemTrayController.cs").Should().Contain("Choose microphone")
             .And.Contain("RunAfterNativeMenuCloses(choose)");
-        Read("SettingsWindow.axaml").Should().Contain("x:Name=\"ChooseMicrophone\"")
+        Read("SettingsView.axaml").Should().Contain("x:Name=\"ChooseMicrophone\"")
             .And.NotContain("SelectedItem=\"{Binding SelectedMicrophone}\"");
         Read("SettingsWindowController.cs").Should().Contain("new SettingsWindow(viewModel, chooseMicrophone, captionDisplay)");
         Read("MicrophoneRecoveryWindow.axaml.cs").Should().Contain("var exactChoice = model.Draft")

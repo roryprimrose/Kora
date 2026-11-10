@@ -13,10 +13,22 @@ internal sealed class WorkspaceSurfaceCommandController(
     SessionsWindowController sessions) : IDisposable
 {
     private bool disposed;
+    private SettingsWindowController? settings;
+    private CustomizationWindowController? customizations;
+    private EvidenceWindowController? evidence;
+    internal Task NavigationOperation { get; private set; } = Task.CompletedTask;
+
+    internal void BindManagement(SettingsWindowController settingsController, CustomizationWindowController? customizationController = null,
+        EvidenceWindowController? evidenceController = null)
+    {
+        settings = settingsController;
+        customizations = customizationController;
+        evidence = evidenceController;
+    }
 
     internal void Bind()
     {
-        main.WorkspaceSurfaceRequested += Open;
+        main.WorkspaceSurfaceRequested += OpenTracked;
         main.PropertyChanged += OnHostChanged;
     }
 
@@ -25,6 +37,8 @@ internal sealed class WorkspaceSurfaceCommandController(
         if (Dispatcher.UIThread.CheckAccess()) { allWork.RetireWaitingQuestionsIfStale(); }
         else { Dispatcher.UIThread.Post(allWork.RetireWaitingQuestionsIfStale); }
     }
+
+    private Task OpenTracked(WorkspaceSurfaceNavigation navigation) => NavigationOperation = Open(navigation);
 
     private async Task Open(WorkspaceSurfaceNavigation navigation)
     {
@@ -69,6 +83,25 @@ internal sealed class WorkspaceSurfaceCommandController(
                     return;
                 case WorkspaceSurfaceTarget.CompactConversation: sessions.OpenCompact(Admitted); break;
                 case WorkspaceSurfaceTarget.Sessions: await sessions.ShowInteractionAsync(true, Admitted); break;
+                case WorkspaceSurfaceTarget.ConversationHistory:
+                    await sessions.ReadSelectedConversationAsync(navigation.Origin, Admitted);
+                    break;
+                case WorkspaceSurfaceTarget.AuditHistory:
+                    var completed = await (evidence ?? throw new InvalidOperationException("Audit history navigation is not composed."))
+                        .ReadAuditHistoryAsync(navigation.Origin, Admitted);
+                    navigation.Outcome = completed ? WorkspaceSurfaceNavigationOutcome.Completed : WorkspaceSurfaceNavigationOutcome.Unavailable;
+                    activity.Complete(completed ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+                    return;
+                case WorkspaceSurfaceTarget.PresenceSettings:
+                    (settings ?? throw new InvalidOperationException("Presence settings navigation is not composed.")).ShowPresence(Admitted);
+                    break;
+                case WorkspaceSurfaceTarget.McpServers:
+                case WorkspaceSurfaceTarget.WorkIqMcp:
+                    var metadataCompleted = await (customizations ?? throw new InvalidOperationException("Registered MCP navigation is not composed."))
+                        .ShowRegisteredMcpAsync(navigation.Target == WorkspaceSurfaceTarget.WorkIqMcp, Admitted);
+                    navigation.Outcome = metadataCompleted ? WorkspaceSurfaceNavigationOutcome.Completed : WorkspaceSurfaceNavigationOutcome.Unavailable;
+                    activity.Complete(metadataCompleted ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+                    return;
                 case WorkspaceSurfaceTarget.SelectSession: await selection!(); break;
                 case WorkspaceSurfaceTarget.OpenNamedConversation:
                     await sessions.OpenNamedConversationAsync(navigation.ConversationName
@@ -95,7 +128,7 @@ internal sealed class WorkspaceSurfaceCommandController(
     public void Dispose()
     {
         disposed = true;
-        main.WorkspaceSurfaceRequested -= Open;
+        main.WorkspaceSurfaceRequested -= OpenTracked;
         main.PropertyChanged -= OnHostChanged;
         allWork.RetireWaitingQuestionsIfStale();
     }

@@ -1,81 +1,34 @@
-using Avalonia;
-using Avalonia.Automation;
 using Avalonia.Controls;
-using Avalonia.Layout;
 
 namespace Kora;
 
-internal sealed partial class AgentRunWindow : Window
+internal sealed class AgentRunWindow : Window
 {
-    internal TextBox Source { get; } = new() { PlaceholderText = "Full path to an existing user-owned .agent.md file", IsUndoEnabled = false };
-    internal TextBox Input { get; } = new() { AcceptsReturn = true, Height = 90, IsUndoEnabled = false };
-    internal TextBox Recommendation { get; } = new() { IsReadOnly = true, AcceptsReturn = true, Height = 110, IsUndoEnabled = false, IsVisible = false };
-    internal ComboBox RecommendedSources { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch, IsVisible = false };
-    internal ComboBox Targets { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
-    internal TextBox Review { get; } = new() { IsReadOnly = true, AcceptsReturn = true, Height = 260, IsUndoEnabled = false };
-    internal TextBox Result { get; } = new() { IsReadOnly = true, AcceptsReturn = true, Height = 150, IsUndoEnabled = false };
-    internal Button Confirm { get; } = new() { Content = "Consent to this exact bounded invocation", IsEnabled = false };
-    internal Button Resolve { get; } = new() { Content = "Consent to read this exact declared instruction set", IsEnabled = false };
-    internal TextBlock Status { get; } = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+    internal AgentRunView View { get; }
+    internal TextBox Source => View.Source;
+    internal TextBox Input => View.Input;
+    internal TextBox Recommendation => View.Recommendation;
+    internal ComboBox RecommendedSources => View.RecommendedSources;
+    internal ComboBox Targets => View.Targets;
+    internal TextBox Review => View.Review;
+    internal TextBox Result => View.Result;
+    internal Button Confirm => View.Confirm;
+    internal Button Resolve => View.Resolve;
+    internal TextBlock Status => View.Status;
+    internal ComboBox SkillSources => View.SkillSources;
+    internal ComboBox Skills => View.Skills;
+    internal Button SkillDeclaration => View.SkillDeclaration;
+    internal Button SkillConsent => View.SkillConsent;
+    internal Button SkillEnable => View.SkillEnable;
     internal AgentRunWindow(Action<string> run)
     {
         Title = "One reviewed local bounded agent";
         Width = 850;
         Height = 950;
-        var panel = new StackPanel { Margin = new Thickness(20), Spacing = 10 };
-        panel.Children.Add(new TextBlock
-        {
-            Text = "Select an EXISTING user-owned .agent.md source. Review reads at most 64 KiB and pins the exact native source. "
-                + "v2 permits up to four exact enabled Kora-owned instruction IDs after separate resolution consent, then full bundle review. "
-                + "v4 combines those pinned instructions with a declared subset of the six existing observation tools in the same run. "
-                + "No arbitrary files, executable skills, scripts, recursion, delegation, MCP or hosted transmission. v2/v3 remain tool-free; all observation tools retain their own permissions. "
-                + "Review is not invocation consent. The local model may be unavailable.",
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-        });
-        AutomationProperties.SetName(Source, "Exact existing owned agent source path");
-        AutomationProperties.SetName(Input, "Original agent request");
-        AutomationProperties.SetName(Recommendation, "Inert discovery recommendation, not invocation input or authority");
-        AutomationProperties.SetName(RecommendedSources, "Choose one current source-qualified agent; no automatic selection");
-        AutomationProperties.SetName(Targets, "Exact Active conversation for this agent");
-        AutomationProperties.SetName(Review, "Complete exact agent guidance, tools and cumulative budget review");
-        AutomationProperties.SetName(Result, "Retained agent answer or terminal");
-        AutomationProperties.SetName(Resolve, "Separate consent to resolve exact declared owned instructions");
-        AutomationProperties.SetName(Confirm, "Separate confirmation of this exact bounded agent invocation");
-        panel.Children.Add(Recommendation);
-        panel.Children.Add(RecommendedSources);
-        panel.Children.Add(Source);
-        Add("Refresh existing Active conversations", "Targets");
-        Add("Next conversation page", "NextTargets");
-        panel.Children.Add(Targets);
-        panel.Children.Add(new TextBlock { Text = "Original bounded task (retained in the selected conversation)" });
-        panel.Children.Add(Input);
-        AddSharedSkillControls(panel, run);
-        Add("Read source and review exact invocation", "Review");
-        panel.Children.Add(Review);
-        panel.Children.Add(Resolve);
-        Resolve.Click += (_, _) => run("Resolve");
-        panel.Children.Add(Confirm);
-        Confirm.Click += (_, _) => run("Invoke");
-        Add("Stop / revoke and join owned execution", "Stop");
-        panel.Children.Add(Status);
-        panel.Children.Add(Result);
-        Content = new ScrollViewer { Content = panel };
-        void Add(string label, string action)
-        {
-            var button = new Button { Content = label };
-            button.Click += (_, _) => run(action);
-            panel.Children.Add(button);
-        }
+        View = new(this, run, static () => true);
+        Content = View;
+        Closed += (_, _) => View.Dispose();
     }
-    internal void Clear()
-    {
-        Source.Text = Input.Text = Review.Text = Result.Text = string.Empty;
-        Recommendation.Text = string.Empty;
-        RecommendedSources.ItemsSource = null;
-        Targets.ItemsSource = null;
-        Status.Text = string.Empty;
-        Confirm.IsEnabled = false;
-        Resolve.IsEnabled = false;
-        ClearSharedSkills();
-    }
+    internal void Clear() => View.Clear();
+    internal void RetireSharedSkills() => View.RetireSharedSkills();
 }

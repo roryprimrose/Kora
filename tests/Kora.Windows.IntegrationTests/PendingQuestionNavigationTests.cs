@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class PendingQuestionNavigationTests
+public sealed partial class PendingQuestionNavigationTests
 {
     [Fact]
     public async Task ExactNavigationFocusesSameControllerWithoutReloadOrDraftReplacementAndAnswerRemainsSeparate()
@@ -34,7 +34,7 @@ public sealed class PendingQuestionNavigationTests
                 await PresentedOrEndedAsync(shown.Task, run);
                 window = await shown.Task;
                 model = State(controller) ?? throw new InvalidOperationException("The shown question has no state.");
-                await EditableAsync(model, f.Token);
+                await EditableAsync(model, f.Token, window);
                 model.Edit(new(["show"]));
                 await model.SaveDraftAsync();
                 model.Edit(new([]));
@@ -48,7 +48,9 @@ public sealed class PendingQuestionNavigationTests
                 var target = controller.CaptureFocus(question.Key.Request.SessionId.Value, question.Key.Request.TaskId.Value);
                 target.Should().NotBeNull();
                 (await host.ValidateFocusAsync(model)).Should().BeTrue();
-                host.CaptureFocusEligibility(model)!().Should().BeTrue();
+                var eligibility = host.CaptureFocusEligibility(model);
+                eligibility.Should().NotBeNull($"active={window.IsActive}, editable={model.IsEditable}, busy={model.HasPendingOperation}, same={ReferenceEquals(model.Question, question)}, presented={model.HasPresentation}, status={model.Status}");
+                eligibility!().Should().BeTrue();
                 var focused = await target!.FocusAsync(static () => true);
                 focused.Should().BeTrue($"active={window.IsActive}, editable={model.IsEditable}, busy={model.HasPendingOperation}, same={ReferenceEquals(model.Question, question)}, status={model.Status}");
                 (await target.FocusAsync(static () => true)).Should().BeFalse();
@@ -292,13 +294,19 @@ public sealed class PendingQuestionNavigationTests
         }
     }
 
-    private static async Task EditableAsync(NativeQuestionViewModel model, CancellationToken token)
+    private static async Task EditableAsync(NativeQuestionViewModel model, CancellationToken token, QuestionWindow? window = null)
     {
-        if (model.IsEditable) { return; }
+        bool Ready() => model.IsEditable && !model.HasPendingOperation
+            && (window is null || window.IsActive && ((INativeQuestionPresentation)window).IsPresented);
+        if (Ready())
+        {
+            if (window is not null) { await window.ActivationOperation; }
+            return;
+        }
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void Changed(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
         {
-            if (model.IsEditable) { ready.TrySetResult(); }
+            if (Ready()) { ready.TrySetResult(); }
             else if (model.Completion.IsCompleted || !model.HasPresentation)
             {
                 ready.TrySetException(new InvalidOperationException("The original question ended before editing became ready."));
@@ -308,7 +316,8 @@ public sealed class PendingQuestionNavigationTests
         try
         {
             Changed(null, new(null));
-            await ready.Task.WaitAsync(token);
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+            if (window is not null) { await window.ActivationOperation; }
         }
         finally { model.PropertyChanged -= Changed; }
     }

@@ -1,32 +1,23 @@
 using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Threading;
 
 namespace Kora;
 
-internal sealed partial class ConversationHistoryWindow : Window
+internal sealed partial class ConversationHistoryWindow : Window, IDisposable
 {
-    internal Task Operation { get; private set; } = Task.CompletedTask;
+    private readonly ConversationHistoryView view;
+#pragma warning disable VSTHRD003 // Compatibility adapter observes only operations started by its owned context view.
+    internal Task Operation => view.Operation;
+#pragma warning restore VSTHRD003
+    internal T? FindControl<T>(string name) where T : Control => view.FindControl<T>(name);
 
     internal ConversationHistoryWindow(SessionsViewModel model)
     {
         InitializeComponent();
         DataContext = model;
-        Sources.SelectionChanged += (_, _) => model.SelectHistoryContext(
-            Sources.SelectedItems?.OfType<SessionsViewModel.HistoryContextCandidate>() ?? []);
-        Review.Click += async (_, _) => await (Operation = model.ReviewHistoryContextAsync());
-        Confirm.Click += async (_, _) => await (Operation = model.ConfirmHistoryContextAsync());
-        CloseView.Click += (_, _) => Close();
-        KeyDown += (_, args) => { if (args.Key == Key.Escape) { args.Handled = true; Close(); } };
-        var expiry = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal,
-            (_, _) => model.RefreshHistoryContextReview());
-        expiry.Start();
-        Closed += (_, _) =>
-        {
-            expiry.Stop();
-            model.ClearHistoryContext();
-            DataContext = null;
-            Sources.ItemsSource = null;
-        };
+        view = new(model, this);
+        Content = view;
+        view.CloseRequested += (_, _) => Close();
+        Closed += (_, _) => view.Dispose();
     }
+    public void Dispose() { Close(); view.Dispose(); }
 }

@@ -9,7 +9,7 @@ public sealed class SharedSkillWindowContractTests
     [Fact]
     public void Shared_native_review_has_explicit_read_consent_accessible_exact_source_and_no_active_content_routes()
     {
-        var document = XDocument.Parse(Read("SharedSkillSourcesWindow.axaml"));
+        var document = XDocument.Parse(Read("SharedSkillSourcesView.axaml"));
         foreach (var name in new[] { "SourceSelector", "SharedStatus", "SharedPackageSelector", "SharedIdentity", "SharedSource", "UninspectedEntries",
             "SharedQuery", "SharedFilter", "SearchSharedPackages", "ClearSharedSearch", "SharedSearchStatus", "IdentityFind" })
         {
@@ -25,7 +25,7 @@ public sealed class SharedSkillWindowContractTests
             source.Attribute("IsReadOnly")!.Value.Should().Be("True");
             source.Attribute("IsUndoEnabled")!.Value.Should().Be("False");
         }
-        var code = Read("SharedSkillSourcesWindow.axaml.cs");
+        var code = Read("SharedSkillSourcesView.axaml.cs");
         code.Should().Contain("package.Text").And.Contain("package.RevisionDigest")
             .And.Contain("package.SourceQualifiedIdentity").And.Contain("package.UnavailableReasons")
             .And.Contain("ContextMenu = null").And.Contain("ContextFlyout = null")
@@ -41,7 +41,7 @@ public sealed class SharedSkillWindowContractTests
             .And.Contain("CurrentWindow(opened, token)").And.Contain("opened.SelectedSource != source")
             .And.Contain("opened.RegisteredSources").And.Contain("ConfirmWithdrawalAsync(source, token)")
             .And.Contain("discovery.UnregisterAsync(source, confirmedSources");
-        Read("SharedSkillSourcesWindow.Withdrawal.cs").Should().Contain("source.DirectoryIdentity")
+        Read("SharedSkillSourcesView.Withdrawal.cs").Should().Contain("source.DirectoryIdentity")
             .And.Contain("source.Id:N").And.Contain("JsonSerializer.Serialize(source.ProfileRelativeRoot)")
             .And.Contain("dialog.ShowDialog<bool>").And.NotContain("StorageProvider");
     }

@@ -75,15 +75,25 @@ See the [editor guide](../docs/instruction-editor.md#find-within-selected-displa
 
 Session instruction scope controls pin the exact opening Active conversation
 and its selection lifetime. A later selection change, including away and back,
-retires the window's review/control admission rather than silently retargeting
+retires the view's review/control admission rather than silently retargeting
 Review, Confirm, Stop or refresh. Native and original typed/activated-voice
 commands require closing and explicitly reopening for the intended selection.
 Rejection reads no source, changes no confirmed applicability and retains no
 message; closing alone still does not stop a confirmed scope. This is host-owned
 session isolation, not a new applicability mode, instruction precedence rule or
 runtime qualification ([current operation](../docs/session-instructions.md)).
+The [scope view](../src/Kora/SessionInstructionScopeView.cs) uses a supporting tab in the shared workbench. Presentation loss retires pending review and joins actual source reads; it does not Stop confirmed applicability. Fresh explicit opening creates new exact-session controls ([hosted regression](../tests/Kora.Windows.IntegrationTests/SessionInstructionScopeWorkbenchTests.cs)).
 
-The [bounded owned skill editor](../src/Kora/OwnedSkillEditorWindow.cs) supports native v1 instruction-only packages and additive native v2 selection of exactly the existing host WebPageGet capability. This is immutable disabled publication followed by separate source/target review, enablement, exact request/URL confirmation, independent action approval and genuine retained model answer, not field preparation or automatic Customizations registration ([complete operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill)). General package executors, arbitrary tools/effects and executable resources remain excluded.
+The [bounded owned skill editor](../src/Kora/OwnedSkillEditorView.cs) supports native v1 instruction-only packages and additive native v2 selection of exactly the existing host WebPageGet capability. This is immutable disabled publication followed by separate source/target review, enablement, exact request/URL confirmation, independent action approval and genuine retained model answer, not field preparation or automatic Customizations registration ([complete operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill)). General package executors, arbitrary tools/effects and executable resources remain excluded.
+
+The [instruction/prompt editor](../src/Kora/OwnedInstructionEditorView.cs), owned-skill
+editor and [agent-profile editor](../src/Kora/AgentProfileEditorView.cs) are hosted controls
+in the shared workbench. Complete reviews and separate confirmations use supporting
+native tabs; no second production editor window owns writer authority.
+Hiding/minimizing/leaving preserves editor drafts but retires pending native review
+admission; old callbacks cannot approve a returned view
+([instruction lifecycle](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Workbench.cs),
+[skill lifecycle](../tests/Kora.Windows.IntegrationTests/OwnedSkillAuthoringNativeTests.Workbench.cs)).
 
 The same editor's [native v5 component operation](../docs/owned-skill-authoring.md#author-a-markdown-component-package)
 lets the original user add, edit and remove finite plain Markdown reference
@@ -119,6 +129,10 @@ Missing template parameters require clarification, not expression evaluation,
 file reads, secret substitution, or implicit network access.
 
 ### Conversational initial owned agent authoring
+
+The [dedicated agent editor](../src/Kora/AgentProfileEditorView.cs) is a hostable workbench control. Its complete original/proposed save preview, final confirmation, local-authoring disclosure, conflict and dirty-close decisions use native supporting tabs. Presentation loss retires those decisions without discarding the editable draft. Original-source, revision, channel and atomic persistence remain owned by the existing workflow.
+
+The [hosted operation tests](../tests/Kora.Windows.IntegrationTests/AgentProfileHostedEditorTests.cs) verify no write before separate confirmation, exact saved readback, read-only reopen, 640-wide operability, hidden-review retirement and completion of an original whole-workbench close after discard. Compatibility window adapters remain for direct callers.
 
 The approved Add/Ask Kora operation can create one inert, Kora-owned tool-free v1 agent from an original description,
 not merely open another manual editor. Native description controls and exact original typed/current-name activated
@@ -733,6 +747,12 @@ Exact original typed input and current-name activated voice can open the existin
 
 The consumer-focused [Application navigation seam](../src/Kora.Application/Skills/ISkillReviewNavigation.cs) binds only to the [existing desktop controllers](../src/Kora/SkillPackagesWindowController.cs).
 
+The [bundled inspector](../src/Kora/SkillPackagesView.axaml) and [shared-source inspector](../src/Kora/SharedSkillSourcesView.axaml) are hosted in the same expanded workbench. Standalone adapters remain for compatibility callers. Leaving/minimizing clears exact package selection, private source text and identity Find; returning does not renew an invocation target.
+
+Private shared registration/catalogue rows are cleared on presentation loss without changing registered read consent or disk preferences. In-flight discovery is cancelled but remains physically owned until it ends; old results cannot publish after hide/restore. Withdrawal requires a separate [supporting native confirmation](../src/Kora/SharedSkillSourcesView.Withdrawal.cs), and the native folder picker remains an OS interaction.
+
+The [hosted regressions](../tests/Kora.Windows.IntegrationTests/SkillReviewNavigationTests.SharedWorkbench.cs) distinguish consent selection from confirmation and physically join cancellation-ignoring source reads. This is inspection usability, not runtime, invocation or provider qualification.
+
 The [queued route](../src/Kora.Application/ViewModels/MainViewModel.SkillReview.cs) retains original origin and rechecks captured owner, binding, privacy, call, name and activated-voice lifetime; questions/security previews remain intact.
 
 Unknown call observations and unconfirmed manual-call evidence deny both native and command review opening. A deliberate unavailable automatic detector remains distinct from unknown state; this increment does not qualify detection or reopen capture ([shared review eligibility](../src/Kora.Application/ViewModels/MainViewModel.SkillReview.cs)).
@@ -745,18 +765,18 @@ Voice keeps `ActivatedVoice` origin. Local-input-only admission refuses automati
 
 This is an I-only review-navigation increment, not the full Definitions management surface or E/Q qualification. Executors, agent profiles and unsupported definition kinds remain gated; no physical/acoustic/provider/installed proof or broader source authority is claimed ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
-The separate [bundled](../src/Kora/SkillPackagesWindow.axaml.cs) and [registered shared-source](../src/Kora/SharedSkillSourcesWindow.axaml.cs) inspectors now provide explicit **Search/Clear** over already admitted immutable snapshots, not the broader Definitions management surface or voice/tool search grammar. Initial open/list still selects the first admitted package; subsequent search/filter/Clear never opens a different result.
+The separate [bundled](../src/Kora/SkillPackagesView.axaml.cs) and [registered shared-source](../src/Kora/SharedSkillSourcesView.axaml.cs) inspectors provide explicit **Search/Clear** over already admitted immutable snapshots, not the broader Definitions management surface or voice/tool search grammar. Initial open/list still selects the first admitted package; subsequent search/filter/Clear never opens a different result.
 
 [Snapshot search](../src/Kora.Application/Skills/SkillCatalogueSearch.cs) uses literal `OrdinalIgnoreCase` substring matching without trimming, wildcard syntax or Unicode normalization. Bundled fields are declared name, native manifest ID and description; shared fields are validated declared name, source-qualified metadata identity when that name exists, and a valid declared description. Missing metadata is not invented; path-fallback identities and roots/files/bodies are not query fields.
 
 [Query validation](../src/Kora.Core/Context/LiteralMetadataQuery.cs) shares the owned-definition policy: at most 256 UTF-16 units and 512 strict UTF-8 bytes, valid Unicode without control/format/line/paragraph separators. Invalid input is rejected explicitly with empty results/selection, never truncated or interpreted as All.
-Drafts apply only through Search; edits immediately retire results/selection/details without reads ([native controls](../src/Kora/SharedSkillSourcesWindow.axaml.cs)).
+Drafts apply only through Search; edits immediately retire results/selection/details without reads ([native controls](../src/Kora/SharedSkillSourcesView.axaml.cs)).
 
 Native bundled/shared digest-query widgets were removed in [#422](https://github.com/roryprimrose/Kora/pull/422). Literal names/metadata and meaningful compatibility/availability choices remain. Source digests and full catalogue/resource validation remain internal admission rules, not ordinary search fields.
 
 Shared **All / Instruction-compatible / Instruction-incompatible** classifies structural instruction-only compatibility; every invocation remains unavailable. Bundled **All / Runtime unavailable / Runtime available** uses existing invocation availability, not an invented instruction-compatibility claim; runtime admission remains outstanding. All includes unavailable/incompatible observations ([filter policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
 
-Filtering keeps exact original objects and only an unchanged exact surviving selection. Query/filter edits clear results and private identity/text/hex/source tabs; Search never selects a different result ([bundled window](../src/Kora/SkillPackagesWindow.axaml.cs), [shared window](../src/Kora/SharedSkillSourcesWindow.axaml.cs)).
+Filtering keeps exact original objects and only an unchanged exact surviving selection. Query/filter edits clear results and private identity/text/hex/source tabs; Search never selects a different result ([bundled view](../src/Kora/SkillPackagesView.axaml.cs), [shared view](../src/Kora/SharedSkillSourcesView.axaml.cs)).
 Clear restores empty/All without selection, even if filters were already empty; Escape closes and clears private drafts. Nothing is persisted ([native tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)).
 
 Source selection/reload/failure/withdrawal, privacy/ownership closure, call-policy change and close retire private navigation. Catalogue generations fence late discovery and recheck publication even after same-snapshot reselection; cancellation remains host-owned ([controller](../src/Kora/SharedSkillSourcesWindowController.cs)).
@@ -1154,7 +1174,7 @@ Source checks consume view cancellation, and handoff/exit joins pending work bef
 Already captured immutable requests are not mutated by later source edits; ordinary source/privacy/approval boundaries still apply.
 
 **Native displayed owned-buffer Find** is separate from catalogue metadata navigation and passive Compare.
-The [native toolbar](../src/Kora/OwnedInstructionEditorWindow.Find.cs) searches only the exact currently displayed
+The [native toolbar](../src/Kora/OwnedInstructionEditorView.Find.cs) searches only the exact currently displayed
 owned Instruction/Prompt text, including dirty or structurally invalid drafts, without disk reads or source discovery.
 It reuses [SnapshotLiteralFind.FindCounted](../src/Kora.Core/Context/SnapshotLiteralFind.cs) for bounded,
 well-formed one-line, case-sensitive ordinal literals, complete nonoverlapping counts/ordinals and First/Next/Previous without wrap.

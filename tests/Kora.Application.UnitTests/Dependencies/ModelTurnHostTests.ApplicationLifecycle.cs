@@ -13,6 +13,43 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData(false, "unchanged")]
+    [InlineData(true, "unchanged")]
+    [InlineData(true, "revision")]
+    [InlineData(true, "source")]
+    [InlineData(true, "cancel")]
+    [InlineData(true, "expiry")]
+    [InlineData(true, "release")]
+    public async Task JoinedConversationLifecycleReceiptSurvivesOnlyItsOwnInputAdmissionClosure(bool joined, string change)
+    {
+        using var f = new Fixture();
+        var host = ConfigureCancellation(f);
+        await using var service = f.ConversationService(host, execution: host);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var current = true;
+        using var review = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
+            RequestOrigin.LocalUi, () => current, cancellation.Token);
+        if (joined) { await service.ConfirmApplicationLifecycleAsync(review, Token); }
+
+        f.CanControl = false;
+        switch (change)
+        {
+            case "revision": f.ControlRevision++; break;
+            case "source": current = false; break;
+            case "cancel": cancellation.Cancel(); break;
+            case "expiry": f.Time.Now = review.ExpiresAt; break;
+            case "release": review.Dispose(); break;
+        }
+
+        service.IsApplicationLifecycleCurrent(review).Should().Be(joined && change is "unchanged");
+        review.Joined.Should().Be(joined);
+        await service.Invoking(value => value.ConfirmApplicationLifecycleAsync(review, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.CancelAudit.Events.Should().BeEmpty();
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task OriginalSubmittedSourceRevocationInvalidatesLifecycleControlBeforePendingOrRunningStops(bool duringReview)

@@ -12,4 +12,6 @@ public sealed record ModelContextEvidence(
     public Conversation.SubmittedMemorySource? MemorySource { get; init; }
     [System.Text.Json.Serialization.JsonIgnore]
     public Conversation.SubmittedProfileMemorySource? ProfileMemorySource { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Conversation.SubmittedInstructionSource? InstructionSource { get; internal init; }
 }

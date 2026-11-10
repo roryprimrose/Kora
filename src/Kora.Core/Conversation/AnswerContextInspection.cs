@@ -31,6 +31,9 @@ public static class AnswerContextInspection
         }
         if (!availability.IsDefault && (availability.Length != context.SourceCount || availability.Any(state => !Enum.IsDefined(state))))
         { throw new InvalidDataException("Current source metadata must describe the entire recorded ordered collection."); }
+        if (context.InstructionSource is not null && !availability.IsDefault
+            && availability[context.Sources.Length] != SubmittedHistoryAvailability.Unknown)
+        { throw new InvalidDataException("Current instruction availability is always Unknown; no instruction metadata was observed."); }
         text.Append("Evidence: the host serialized the canonical context and handed those bytes to its admitted local adapter. "
             + "This is not transport confirmation and does not prove provider delivery, processing, use or reasoning.\n\n")
             .Append("Original destination: local Ollama adapter; LocalOnly; tool-free.\n")
@@ -43,7 +46,8 @@ public static class AnswerContextInspection
             .Append(" UTF-8 bytes. Includes host policy and the new USER request; neither body is copied here.\n\n")
             .Append(context.Version == 1 ? "Ordered serialized evidence sources (whole same-session messages):\n"
                 : context.Version == 2 ? "Ordered serialized evidence sources (same-session memory references):\n"
-                : "Ordered serialized evidence sources (device-profile memory references):\n");
+                : context.Version == 3 ? "Ordered serialized evidence sources (device-profile memory references):\n"
+                : "Complete ordered serialized mixed evidence sources (history, one instruction, SESSION memories):\n");
         for (var index = 0; index < context.Sources.Length; index++)
         {
             var source = context.Sources[index];
@@ -57,13 +61,21 @@ public static class AnswerContextInspection
                     _ => "unknown / unavailable; current source metadata was not recorded or observed.",
                 }).Append('\n');
         }
+        if (context.InstructionSource is not null)
+        {
+            text.Append((context.Sources.Length + 1).ToString(CultureInfo.InvariantCulture))
+                .Append(". Selected owned INSTRUCTION - historical snapshot provenance only. Current availability: ")
+                .Append("Unknown; current instruction metadata was not observed. No catalogue, file or source body was read. ")
+                .Append("Complete original capture does not mean all current sources are retained or usable.\n");
+        }
         if (!context.MemorySources.IsDefault)
         {
+            var offset = context.Sources.Length + (context.InstructionSource is null ? 0 : 1);
             for (var index = 0; index < context.MemorySources.Length; index++)
             {
-                text.Append((index + 1).ToString(CultureInfo.InvariantCulture))
+                text.Append((offset + index + 1).ToString(CultureInfo.InvariantCulture))
                     .Append(". Selected SESSION memory - historical reference only. Current availability: ")
-                    .Append((availability.IsDefault ? SubmittedHistoryAvailability.Unknown : availability[index]) switch
+                    .Append((availability.IsDefault ? SubmittedHistoryAvailability.Unknown : availability[offset + index]) switch
                     {
                         SubmittedHistoryAvailability.RetainedRevision => "exact enabled memory revision is retained; memory body not read, validated or admitted here.",
                         SubmittedHistoryAvailability.Unavailable => "unavailable; exact enabled memory metadata is missing, removed or changed. No newer memory substituted.",
@@ -87,8 +99,8 @@ public static class AnswerContextInspection
         }
         return text.Append("\nOmissions: source bodies, values, excerpts, private labels/paths, credentials and transport tokens; "
             + "provider delivery/processing evidence; current source-body admission; any merely reviewed but unsubmitted inputs. "
-            + "This subset records explicit same-session history, Session memory or Device-profile memory, not mixed sources, instructions, attachments, tools or hosted context. "
-            + "Those other source types are unsupported, not inferred absent from model prose.\n\n"
+            + "Supported collections are explicit same-session history, Session memory, Device-profile memory, or the exact reviewed mixed history/instruction/Session-memory consumer. "
+            + "Attachments, tools, hosted context and other consumers are unsupported, not inferred absent from model prose.\n\n"
             + "Historical references confer no live use grant, retention extension, context transfer, source opening or provider fallback. "
             + "Use a separate existing fresh source-admission operation to inspect a source body.").ToString();
     }

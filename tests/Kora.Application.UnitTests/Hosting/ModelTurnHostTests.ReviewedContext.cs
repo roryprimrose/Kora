@@ -50,9 +50,20 @@ public sealed partial class ModelTurnHostTests
         receipt.Message.Request.Origin.Should().Be(origin);
         receipt.Message.Outcome.Should().Be(qualified ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.Unavailable);
         (receipt.Message.AssistantResponse?.Body).Should().Be(qualified ? "answer" : null);
-        receipt.Message.SubmittedContext.Should().BeNull("mixed context is not a recorded history-only handoff");
+        if (!qualified) { receipt.Message.SubmittedContext.Should().BeNull(); }
         if (qualified)
         {
+            var submitted = receipt.Message.SubmittedContext!;
+            submitted.Should().NotBeNull();
+            submitted.Version.Should().Be(4);
+            submitted.SourceCount.Should().Be(6);
+            submitted.Sources.Select(item => item.Role).Should().Equal(ConversationHistoryRole.User,
+                ConversationHistoryRole.Assistant, ConversationHistoryRole.User);
+            submitted.MemorySources.Select(item => item.Id.Value).Should().Equal(source.Selection.Select(item => item.Id));
+            submitted.InstructionSource.Should().NotBeNull();
+            submitted.Provenance.Should().Be(receipt.Message.Execution);
+            JsonSerializer.Serialize(submitted).Should().NotContain("reviewed memory value")
+                .And.NotContain(broker.Choices.Single().Name).And.NotContain(body);
             using var wire = JsonDocument.Parse(f.Adapter.Wire!);
             wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(body);
             wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
@@ -61,6 +72,8 @@ public sealed partial class ModelTurnHostTests
             evidence.Should().HaveCount(6);
             evidence.Should().OnlyContain(item => item.GetProperty("Disclosure").GetInt32() == (int)ModelEvidenceDisclosure.LocalOnly);
             evidence.Select(item => item.TryGetProperty("HistorySource", out _)).Should().OnlyContain(value => !value);
+            evidence.Select(item => item.TryGetProperty("InstructionSource", out _)
+                || item.TryGetProperty("MemorySource", out _)).Should().OnlyContain(value => !value);
             using var first = JsonDocument.Parse(evidence[0].GetProperty("Content").GetString()!);
             using var second = JsonDocument.Parse(evidence[1].GetProperty("Content").GetString()!);
             using var third = JsonDocument.Parse(evidence[2].GetProperty("Content").GetString()!);

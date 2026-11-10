@@ -131,6 +131,7 @@ public sealed class ScopedInstructionUseBroker(
             this.admitted = admitted;
             useRevision = owner.catalogue.UseControlRevision;
             Trace = trace;
+            SubmittedSource = new(Guid.NewGuid(), snapshot.Revision, snapshot.Document.Definition.Digest);
         }
 
         public SessionWorkspaceEntry Target { get; }
@@ -139,6 +140,7 @@ public sealed class ScopedInstructionUseBroker(
         public RequestOrigin Origin { get; }
         internal ScopedInstructionUseBroker Owner => owner;
         internal ActivityContext? Trace { get; }
+        internal SubmittedInstructionSource SubmittedSource { get; }
         public void Retire() => Interlocked.Exchange(ref retired, 1);
 
         internal bool IsCurrent(bool captured = false)

@@ -8,11 +8,84 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
 using Kora.Core.Providers;
+using Kora.Application.Hosting.ReviewedContext;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
+    [Theory]
+    [InlineData(32768)]
+    [InlineData(32769)]
+    public async Task MixedSubmittedContextCompleteCellIncludesInstructionAndMemoriesOrRetainsNoPartialSuccess(int bytes)
+    {
+        using var f = new Fixture();
+        var earlier = Earlier(f) with { Body = "earlier source marker" };
+        f.HistoryMessages[earlier.Request.RequestId] = earlier;
+        var option = new string('<', 128);
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfileCatalogue.Account = option;
+        f.ProfileCatalogue.Model = option;
+        f.ProfileCatalogue.Reasoning = option;
+        f.ProfileCatalogue.Context = option;
+        f.ProfilePreferences.Value = new(ProviderService.Local,
+            [new(ProviderService.Local, new(option), new(1), new(option), new(option), new(option))]);
+        var host = f.ConfiguredProfiles();
+        var service = f.ConversationService(host, execution: host);
+        var memories = new ContextMemories(f);
+        var (broker, catalogue, _) = InstructionBroker(f, new InstructionSource());
+        var time = new MemoryReviewTime();
+        using var workflow = new MixedContextWorkflow(service, new(memories, f, time), broker, time);
+        var body = new string('\u0800', ConversationText.MaximumUtf16Characters);
+        using var review = await workflow.ReviewAsync(new(f.Session, null), body,
+            [new(earlier, ConversationHistoryRole.User)], catalogue.Artifacts.Single(), memories.Selection,
+            static () => true, Token);
+        ConversationMessage? expected = null;
+        f.Adapter.OnRun = () =>
+        {
+            var provenance = f.Adapter.Provenance!;
+            var envelope = review.CreateEnvelope(provenance.Request, f.Time.Now);
+            var metadata = SubmittedAnswerContext.Capture(provenance, f.Session.Generation,
+                f.Adapter.Profile, envelope, envelope.Serialize(), f.Time.Now)!;
+            metadata.Version.Should().Be(4);
+            metadata.SourceCount.Should().Be(3);
+            var cell = f.Retained! with
+            {
+                Revision = 3, Outcome = ModelTurnOutcome.Succeeded, Reason = ModelTurnReason.ProviderOutcome,
+                AssistantResponse = new(provenance, "a"), SubmittedContext = metadata,
+            };
+            var framing = JsonSerializer.SerializeToUtf8Bytes(cell).Length - 1;
+            var answer = new string('a', bytes - framing);
+            expected = cell with { AssistantResponse = new(provenance, answer) };
+            expected.AssistantResponse!.Validate();
+            metadata.Validate();
+            JsonSerializer.SerializeToUtf8Bytes(expected).Length.Should().Be(bytes);
+            f.Adapter.Reply = new(ModelTurnOutcome.Succeeded, provenance.Selection, new(answer, null));
+        };
+        var receipt = await workflow.ConfirmAsync(review, static () => true, Token);
+        expected.Should().NotBeNull();
+        f.Adapter.Calls.Should().Be(1);
+        f.ExecutionCompletions.Should().Be(1);
+        host.IsQuiescent.Should().BeTrue();
+        if (bytes == ConversationMessage.MaximumStorageUtf8Bytes)
+        {
+            receipt.Message.Should().Be(expected);
+            receipt.Task.State.Should().Be(HostTaskState.Succeeded);
+        }
+        else
+        {
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+            receipt.Message.Reason.Should().Be(ModelTurnReason.InvalidProviderResponse);
+            receipt.Message.AssistantResponse.Should().BeNull();
+            receipt.Message.SubmittedContext.Should().BeNull();
+            receipt.Task.State.Should().Be(HostTaskState.Unknown);
+        }
+        receipt.Message.Validate();
+        review.Text.Should().BeEmpty();
+        f.Messages.Should().NotContain(text => text.Contains("reviewed memory value", StringComparison.Ordinal)
+            || text.Contains(body, StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData(32768)]
     [InlineData(32769)]

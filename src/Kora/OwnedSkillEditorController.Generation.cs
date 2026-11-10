@@ -26,7 +26,8 @@ internal sealed partial class OwnedSkillEditorController
         dirty = true;
         uncertain = false;
         opened.Report("What input will this skill receive (or explicitly none), and what complete output should it produce? "
-            + "Enter those two bounded fields, then Generate initial guidance. Only the purpose and those fields may be disclosed "
-            + "after separate local admission. No model has run; nothing is saved or enabled. You may rename this host-assigned draft.");
+            + "Enter those two bounded fields. Optionally select native v5 and author every fixed Markdown component, then Generate initial guidance. "
+            + "Separate local tools-none disclosure reviews the exact input; v5 includes the complete fixed tree and owned destination. "
+            + "No model has run; nothing is saved or enabled. You may rename this host-assigned draft.");
     }
 }

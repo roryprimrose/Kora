@@ -139,7 +139,7 @@ Inspect the remaining exact files and audit before manual recovery; restarting d
 
 ## Create a new skill from a purpose
 
-This bounded operation implements initial **native v1 literal or explicitly selected native v3 required-literal, local, tool-free** guidance generation through the [existing proposal owner](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs). Generation is **unavailable in this build** while the local runtime is unqualified; it never falls back to a hosted model, installs a model or claims qualification.
+This bounded operation implements initial **native v1 literal, explicitly selected native v3 required-literal, or fixed-component native v5 primary** guidance generation through the [existing proposal owner](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs). Generation stays unavailable while the local runtime is unqualified; it never falls back, installs a model or claims qualification.
 
 1. Type `create a skill that explains a deployment failure`, or say it with the current activation name, for example **Kora, create a skill that explains a deployment failure**.
 2. The same editor retains the unchanged original purpose and assigns a new ID/version and owned destination. Supply only the missing bounded fields: `owned skill expected-input: User supplied failure text` and `owned skill expected-output: An explanation and next questions`. Enter **none** explicitly if no input is needed. Native fields are equivalent; input/output prose never declares required names.
@@ -149,7 +149,11 @@ This bounded operation implements initial **native v1 literal or explicitly sele
 6. Choose **Validate**, then **Save**, review both complete files and the exact destination, and continue to the **separate native publication confirmation**. Only **Publish exact new version** saves the atomic no-overwrite package, **disabled**. Enablement and invocation remain independent exact-revision operations.
 7. Reopen that exact saved ID/version, then separately review/enable/use it through [required-literal invocation](#required-literal-guidance-inputs). Select the Active target and original task, bind literal values or privately answer the declared questions, preview the complete expansion and separately confirm the canonical local tools-none invocation. Generating, adopting, saving or answering a question never approves Use.
 
-Only the purpose, the two explicit fields and (for v3) the host-parsed original-user-declared names enter one local tool-free model turn. Model output must be exactly one JSON `body` string and preserve exactly those names in first-use order; missing, extra, reordered or malformed markers reject the proposal before adoption. The model cannot infer names, alter the manifest/schema, ID/version or destination, or choose tools. Invented IDs, paths, tools, effects, dependencies or extra JSON fields are rejected, not stripped. Guidance containing commands or attempted instructions remains untrusted data, never approval or executable metadata ([generation validation](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs), [owned document](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs)).
+For v1/v3, only the purpose, input/output fields and (for v3) host-parsed original-user-declared names enter one local tool-free turn. Output must be exactly one JSON `body` string and preserve those names in first-use order; missing, extra, reordered or malformed markers reject adoption ([proposal validation](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs)).
+
+The model cannot infer names, alter the manifest/schema, ID/version or destination, or choose tools. Invented IDs, paths, tools, effects, dependencies or extra JSON fields are rejected, not stripped. Guidance remains untrusted data, never approval or executable metadata ([owned document](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs)).
+
+For explicitly selected v5, follow [fixed-component primary generation](#generate-primary-guidance-for-your-fixed-markdown-components) instead: its separate disclosure also includes the entire original-user-authored tree and host destination. V1/v3 disclosures remain reference-free.
 
 Starting a new skill in an editor that previously saved or reopened a Markdown
 package clears only the old volatile draft's component tree, pending component
@@ -221,13 +225,30 @@ that handoff. Save keeps its separate publication confirmation.
 Escape dismisses only the current review after actual native closure; it never
 confirms publication, starts inference or discards the editor's volatile draft.
 
+
+## Generate primary guidance for your fixed Markdown components
+
+Start with **create a skill that ...** and supply the original expected input/output. Before generation, explicitly select `owned skill format markdown-package`, retain **No tools**, and author/apply every component as described [below](#author-a-markdown-component-package). The model never chooses or reads files ([editor](../src/Kora/OwnedSkillEditorView.cs)).
+
+1. Choose **Generate initial guidance** (`owned skill generate`). Review the unchanged purpose/input/output, exact complete native v5 manifest, old primary, all one-to-four component paths/literal bodies and host destination.
+   Separately confirm **Generate local guidance proposal** for one local tools-NONE turn; no history, memory, attachments, source reads or hosted fallback are admitted ([disclosure](../src/Kora/OwnedSkillEditorController.Refinement.cs)).
+2. Compare the full old/proposed primary and every unchanged component. Only the complete primary body may change. **Use proposal for next Save** adopts only in volatile memory; Reject leaves the draft unchanged ([review](../src/Kora/OwnedSkillEditorView.cs)).
+   The [canonical validator](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs) rejects undeclared/malformed links and executable markup; [body-only parsing](../src/Kora.Application/Definitions/DefinitionBodyProposal.cs) rejects extra JSON fields.
+3. Optional **Refine** compares against that generated proposal while preserving its tree and original purpose/input/output bindings. General reopened-v5 refinement remains unavailable ([proposal owner](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs)).
+   Component/path/body, format, purpose/input/output, metadata, source/catalogue/destination, channel/privacy/owner changes retire review; restoring identical text does not revive it ([stale/cancellation regressions](../tests/Kora.Windows.IntegrationTests/OwnedSkillAuthoringNativeTests.Refinement.cs)).
+4. **Validate**, then **Save** require complete whole-tree review and independent exact publication confirmation. Publication is atomic, immutable, disabled and read back; no generation or adoption saves, activates or invokes anything ([publication owner](../src/Kora.Application/Skills/OwnedSkillSaveWorkflow.cs)).
+5. After reopening and independently consenting to component reads, use the existing complete-package review, separate enablement, Active target/request preview and one-use LocalOnly tools-NONE invocation. The genuine answer or truthful HOST terminal belongs to the original conversation ([use workflow](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs)).
+
+Both the complete serialized authoring input and canonical complete-package invocation context must fit **32768 UTF-8 bytes**, without truncation. Existing per-component/depth/tree limits still apply. An unqualified provider remains unavailable; deterministic fixtures do not qualify or enable one ([proposal owner](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs)).
+
+These are separate decisions, not inherited authority: disclosure, volatile adoption, Validate, disabled Save, reference-body admission, enablement and invocation ([complete interaction regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillPackageGeneration.cs), [stale/cancellation regressions](../tests/Kora.Windows.IntegrationTests/OwnedSkillAuthoringNativeTests.Refinement.cs)).
+
 ## Author a Markdown component package
 
 The [native v5 component editor](../src/Kora/OwnedSkillEditorWindow.cs) creates one
 Kora-owned declarative skill with separate finite Markdown reference files.
 It is not a script package, shared-profile editor or executable workflow.
-Initial generation/refinement and v3 input substitution remain separate;
-v5 guidance and reference text, including `${input:name}`, stay literal.
+Optional [initial primary generation](#generate-primary-guidance-for-your-fixed-markdown-components) is separate from manual editing and never chooses components. V3 input substitution remains separate; v5 guidance and reference text, including `${input:name}`, stay literal.
 
 1. Create a new ID/version, name, description and primary guidance as above.
 2. Select **Declared Markdown component package (native v5; literal; no tools)**,

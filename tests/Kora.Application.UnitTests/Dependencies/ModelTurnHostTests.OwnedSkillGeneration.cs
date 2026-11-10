@@ -82,7 +82,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("complete-input")]
     [InlineData("tools")]
     [InlineData("v4")]
-    [InlineData("v5")]
+    [InlineData("incomplete-v5")]
     [InlineData("occupied-name")]
     [InlineData("occupied-target")]
     public async Task InitialSkillGenerationRejectsMissingOrUnsupportedInputBeforeModel(string invalid)
@@ -92,8 +92,9 @@ public sealed partial class ModelTurnHostTests
             ? OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description", "OLD", OwnedSkillToolSelection.WebPageGet)
             : invalid is "v4" ? OwnedDeclarativeSkillDocument.CreateObservationWorkflow("example", "2.0.0", "Example", "Description",
                 "{\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}")
-            : invalid is "v5" ? OwnedDeclarativeSkillDocument.CreatePackage("example", "2.0.0", "Example", "Description", "OLD",
-                new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["references\\notes.md"] = "NOTES"u8.ToArray() })
+            : invalid is "incomplete-v5" ? OwnedDeclarativeSkillDocument.Parse(
+                OwnedDeclarativeSkillDocument.CreatePackage("example", "2.0.0", "Example", "Description", "OLD",
+                    new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["references\\notes.md"] = "NOTES"u8.ToArray() }).ManifestBytes.Span, "OLD"u8)
             : f.Draft;
         if (invalid is "occupied-name") { f.Store.Catalogue = [new(f.Draft, "directory", "manifest", "guidance")]; }
         if (invalid is "occupied-target") { f.Store.Target = new(f.Draft, "directory", "manifest", "guidance"); }

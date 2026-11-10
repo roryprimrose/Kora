@@ -43,12 +43,15 @@ internal sealed partial class OwnedSkillEditorController
         var epoch = Interlocked.Read(ref refinementEpoch);
         var originalSource = source;
         var mcp = draft.Tool == OwnedSkillToolSelection.ReadOnlyMcp;
+        var package = draft.ReferenceDeclaration is not null;
+        var destination = package ? refinement.Destination(draft) : null;
         var authority = new OwnedSkillAuthoringAuthority(critiqueInput.Origin,
             () => Eligible() && request.IsCurrent() && critiqueInput.IsCurrent());
         var generationInput = initial
             ? new OwnedSkillGenerationRequest(critique, opened.ExpectedInput.Text ?? "", opened.ExpectedOutput.Text ?? "", authority)
             : null;
-        var format = draft.InputTemplate is null ? "native v1 literal guidance" : "native v3 required literal guidance";
+        var format = package ? "native v5 fixed Markdown component package"
+            : draft.InputTemplate is null ? "native v1 literal guidance" : "native v3 required literal guidance";
         var requiredInputs = draft.InputTemplate is null ? "(none)" : string.Join(", ", draft.InputTemplate.RequiredNames);
         if (generationInput is not null && (string.IsNullOrWhiteSpace(generationInput.Purpose)
             || string.IsNullOrWhiteSpace(generationInput.Input) || string.IsNullOrWhiteSpace(generationInput.Output)))
@@ -57,13 +60,23 @@ internal sealed partial class OwnedSkillEditorController
         refinementLifetime = cancellation;
         bool Current() => Eligible() && authority.IsCurrent() && !cancellation.IsCancellationRequested
             && exact == Interlocked.Read(ref generation) && epoch == Interlocked.Read(ref refinementEpoch)
-            && ReferenceEquals(source, originalSource);
+            && ReferenceEquals(source, originalSource)
+            && (destination is null || string.Equals(refinement.Destination(draft), destination, StringComparison.Ordinal));
         var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         timer.Tick += (_, _) => { if (!Current()) { opened.RetireReview(); cancellation.Cancel(); } };
         timer.Start();
         try
         {
-            var disclosure = initial
+            var disclosure = initial && package
+                ? "Send only the unchanged original purpose/input/output and complete original-user-authored fixed tree below "
+                    + "to one admitted local tools-NONE model. Preserve the native v5 schema, every manifest field, exact component paths "
+                    + "and literal component bytes. Generate only complete primary guidance. No model-chosen files, metadata, source reads, "
+                    + "tools, executable directives, history, memory, attachments, network or hosted fallback. "
+                    + "Adoption is volatile only; no automatic Save, enablement or invocation.\n\nPURPOSE\n" + critique
+                    + "\n\nEXPECTED INPUT\n" + generationInput!.Input + "\n\nEXPECTED OUTPUT\n" + generationInput.Output
+                    + "\n\nEXACT HOST-OWNED DESTINATION\n" + destination
+                    + "\n\nCOMPLETE FROZEN ORIGINAL TREE\n" + draft.CompleteText
+                : initial
                 ? "Send only this unchanged original purpose, the two explicit input/output fields and the exact user-declared required names "
                     + "to one admitted local tools-none model. The host preserves " + format
                     + ", local runtime, tools none, references none and the owned destination. "
@@ -71,19 +84,32 @@ internal sealed partial class OwnedSkillEditorController
                     + "no inferred names, metadata, capabilities, paths, scripts or files.\n\nPURPOSE\n"
                     + critique + "\n\nEXPECTED INPUT\n" + generationInput!.Input + "\n\nEXPECTED OUTPUT\n" + generationInput.Output
                     + "\n\nFROZEN REQUIRED INPUT NAMES (FIRST-USE ORDER)\n" + requiredInputs
-                : "Send only the complete current guidance and unchanged original critique to one admitted local model with tools none. "
+                : "Send only the complete current guidance" + (package ? " and unchanged fixed component tree" : "")
+                + " and unchanged original critique to one admitted local model with tools none. "
                 + (mcp ? "The package declares one fixed read-only MCP capability, but authoring cannot use it. "
                     + "A still-held independently admitted trusted descriptor is required; no connection or refresh will be attempted. " : "")
-                + "No history, memory, attachments, references, network or hosted fallback. Metadata, required input names, format, "
+                + "No history, memory, attachments, " + (package ? "additional source reads" : "references") + ", network or hosted fallback. Metadata, required input names, format, "
                 + "ID/version, paths and publication authority cannot be chosen by the model. The draft is not changed or saved.\n\nCRITIQUE\n" + critique;
             if (await opened.ChooseGuidance(initial ? "Review initial skill generation disclosure" : "Review local skill refinement disclosure",
-                disclosure, initial ? "" : draft.Guidance, initial ? "" : draft.Guidance,
+                disclosure, package ? draft.CompleteText : initial ? "" : draft.Guidance,
+                package ? draft.CompleteText : initial ? "" : draft.Guidance,
                 ["Generate local guidance proposal", "Cancel"], Current, cancellation.Token) != 0 || !Current())
             { return; }
             async Task<bool> Review(OwnedSkillGuidanceRefinement proposal, CancellationToken admitted)
             {
                 if (initial)
                 {
+                    if (package)
+                    {
+                        return await opened.ChoosePackageGuidance("Review complete generated skill source",
+                            "Exact host-chosen owned destination: " + proposal.Destination
+                            + "\nComplete old/proposed primary and ALL unchanged original-user components. Native v5, local runtime, tools NONE. "
+                            + "Only primary guidance changes. Structural validation is not semantic harmlessness. "
+                            + "Accept stages only this exact volatile proposal. Validate, separately confirmed whole-tree disabled Save/readback, "
+                            + "reference-body review, enablement and use remain independent.\n\n" + disclosure,
+                            draft, proposal.Proposed, ["Use proposal for next Save", "Reject proposal"],
+                            () => Current() && proposal.IsCurrent(), admitted) == 0 && proposal.IsCurrent();
+                    }
                     return await opened.ChooseInitial("Review complete generated skill source",
                         "Exact host-chosen owned destination: " + proposal.Destination
                         + "\nComplete " + format + " source, local runtime, tools none, references none. Required names: "
@@ -91,6 +117,14 @@ internal sealed partial class OwnedSkillEditorController
                         + "Accept stages only this exact source. Validate and Save still require separate complete review and publication confirmation. "
                         + "Saved disabled; no grants, trust, applicability, enablement or invocation.\n\n" + disclosure,
                         proposal.Proposed.ManifestText, proposal.Proposed.Guidance, ["Use proposal for next Save", "Reject proposal"],
+                        () => Current() && proposal.IsCurrent(), admitted) == 0 && proposal.IsCurrent();
+                }
+                if (package)
+                {
+                    return await opened.ChoosePackageGuidance("Compare complete skill guidance proposal",
+                        "Complete old/proposed primary and ALL unchanged components. Only primary guidance changes. "
+                        + "Volatile adoption only; Validate and separately confirmed disabled Save remain required.\n\nCRITIQUE\n" + critique,
+                        draft, proposal.Proposed, ["Use proposal for next Save", "Reject proposal"],
                         () => Current() && proposal.IsCurrent(), admitted) == 0 && proposal.IsCurrent();
                 }
                 return await opened.ChooseGuidance("Compare complete skill guidance proposal",

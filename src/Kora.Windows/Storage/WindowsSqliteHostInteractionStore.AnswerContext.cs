@@ -45,6 +45,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
                         && string.Equals(reader.GetString(5), "object", StringComparison.Ordinal));
                 states.Add(retained ? SubmittedHistoryAvailability.RetainedRevision : SubmittedHistoryAvailability.Unavailable);
             }
+            if (context.InstructionSource is not null)
+            { states.Add(SubmittedHistoryAvailability.Unknown); }
             if (!context.MemorySources.IsDefault)
             {
                 foreach (var source in context.MemorySources)

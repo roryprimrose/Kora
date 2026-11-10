@@ -19,11 +19,14 @@ public sealed partial class WindowsSqliteConversationTests
     [InlineData(false)]
     [InlineData(true)]
     [InlineData(true, true)]
-    public async Task MissingExactMemoryAtTerminalCommitCannotRetainAnswerOrSuccessReceipt(bool deviceProfile, bool foreignProfile = false)
+    [InlineData(false, false, true)]
+    public async Task MissingExactMemoryAtTerminalCommitCannotRetainAnswerOrSuccessReceipt(
+        bool deviceProfile, bool foreignProfile = false, bool mixed = false)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await FinishInitial(f);
+        var history = mixed ? await Submit(f, f.Request.SessionId, "earlier mixed source") : null;
         var request = Fresh(f.Request.SessionId);
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request, ModelProviderSelection.OllamaCandidate);
         var source = new SubmittedMemorySource(new(Guid.NewGuid()), new(3), request.SessionId);
@@ -39,6 +42,20 @@ public sealed partial class WindowsSqliteConversationTests
         var submitted = SubmittedAnswerContext.Capture(provenance, new(1),
             new(ProviderService.Local, new("device"), new(1), new("model"), new("default"), new("default")),
             envelope, envelope.Serialize(), f.Time.Now);
+        if (mixed)
+        {
+            var snapshot = new Kora.Core.Artifacts.OwnedInstructionSnapshot("example", new string('a', 48), new string('b', 48),
+                Kora.Core.Artifacts.ArtifactFileDocument.Parse(Kora.Core.Artifacts.ArtifactFileDocument.Encode(
+                    "---\nkora-format: 1\nname: example\ndescription: Brief style\n---\nGuidance.", false),
+                    Kora.Core.Artifacts.ArtifactKind.Instruction, "kora-profile", "example"));
+            submitted = submitted! with
+            {
+                Version = 4,
+                Sources = [new(history!.Message.Request.RequestId, history.Message.Generation,
+                    history.Message.Sequence, history.Message.Revision, ConversationHistoryRole.User)],
+                InstructionSource = new(Guid.NewGuid(), snapshot.Revision, snapshot.Document.Definition.Digest),
+            };
+        }
         await f.Store.RetainConversationMessageAsync(request, new(1), 0, "question", static () => true, f.Token);
         var dispatch = await f.Store.BeginConversationExecutionAsync(request, provenance, 0, static () => true, f.Token);
         var audit = AuditText(f);

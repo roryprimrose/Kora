@@ -425,6 +425,11 @@ internal sealed class OwnedSkillEditorView : UserControl, IOwnedSkillSaveReview,
         string[] choices, Func<bool> currentInput, CancellationToken token) =>
         ChooseOnUi(title, disclosure, current, proposed, choices, token, currentInput, "Complete current guidance", "Complete proposed guidance");
 
+    internal Task<int> ChoosePackageGuidance(string title, string disclosure, OwnedDeclarativeSkillDocument current,
+        OwnedDeclarativeSkillDocument proposed, string[] choices, Func<bool> currentInput, CancellationToken token) =>
+        ChooseOnUi(title, disclosure, current.CompleteText, proposed.CompleteText, choices, token, currentInput,
+            "Complete original primary and fixed components", "Complete proposed primary and unchanged components");
+
     internal async Task<bool> ReviewFixture(OwnedSkillFixtureWorkflow.Preview preview, Func<bool> current, CancellationToken token) =>
         await ChooseOnUi("Review SIMULATED skill example",
             "Native v1 only. One local tools-NONE inference after explicit Start. No actual tools, network, effects, grants, history, "

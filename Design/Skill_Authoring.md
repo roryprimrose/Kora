@@ -174,8 +174,9 @@ This does not assert unobserved source freshness or confer invocation grants;
 invocation independently revalidates physical source/account/schema/permission.
 Complete native comparison, volatile adoption, Validate, separately confirmed
 immutable publication/readback and disabled result preserve existing source,
-target, draft, critique, channel, privacy and expiry fences. V2/v4/v5, references,
-unknown profiles and original tool-bearing generation remain refused.
+target, draft, critique, channel, privacy and expiry fences. Reopened v2/v4/v5 refinement,
+unknown profiles and original tool-bearing generation remain refused; the bounded
+[initial v5 primary-guidance operation](../docs/owned-skill-authoring.md#generate-primary-guidance-for-your-fixed-markdown-components) below is separate.
 The [explicit literal owned Instruction body increment](../docs/instruction-editor.md#dictate-literal-instruction-body-text) now binds one foreground canonical owned draft/body caret or range before shared local capture, reviews the complete insertion/replacement and accepts into volatile memory only. Normal exact Save, dirty-close and separate enablement remain independent; metadata, prompts, profile originals and other definition kinds are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs)).
 The same editor supports [one volatile last-confirmed-save restore](../docs/instruction-editor.md#restore-the-last-confirmed-save-in-this-editor) for an existing owned native-v1 Instruction: complete current/previous-source review, separate normal Save and readback as a NEW disabled revision.
 It is not general history or a profile-original restore and cannot revive a renamed source identity.
@@ -231,6 +232,20 @@ inputs and v2 WebPageGet retain their independent contracts. The complete old
 and proposed trees, exact UTF-8 content, added/modified/removed paths, source,
 destination and bundle digest precede separate publication confirmation
 ([editor](../src/Kora/OwnedSkillEditorWindow.cs)).
+
+The [initial v5 primary-guidance proposal](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs)
+uses only original-user-authored complete fixed components. Separate local/tools-none
+disclosure freezes purpose/input/output, complete manifest, old primary, every exact
+component and host destination. Only one complete primary body may change; canonical
+v5 validation preserves all manifest/component bytes and rejects undeclared links,
+executable markup and extra output properties. Both the authoring envelope and
+canonical complete-package context must fit 32768 serialized UTF-8 bytes.
+Full old/proposed primary and every unchanged component precede explicit volatile
+adoption. Refining that generated proposal retains its original tree and generation
+bindings; it does not admit general reopened-v5 refinement, discover/read sources,
+save, enable or invoke. The
+[deterministic complete interaction](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillPackageGeneration.cs)
+continues through independent disabled Save/readback/reopen and separately reviewed use.
 
 New immutable versions use the existing no-replace whole-directory publication
 with complete identity/byte readback. A reopened base is pinned against

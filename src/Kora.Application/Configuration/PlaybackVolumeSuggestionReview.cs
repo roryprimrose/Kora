@@ -58,6 +58,7 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
     public string Description => Available
         ? $"Current desired: {current.Desired!.Value.Percent}%; effective: {current.Effective!.Value.Percent}% ({current.Source}). "
             + $"Proposed: {(proposed ?? PlaybackVolume.Default).Percent}%. "
+            + $"Default: {PlaybackVolume.Default.Percent}%. "
             + (proposed is null ? "Reset removes the saved preference; the authoritative default is unsaved (default). " : string.Empty)
             + "Scope: shared device-local, Kora-owned speech only, not system/device/call volume. "
             + "Nothing has changed. Applies to NEXT eligible speech only; this answer is never synthesized or replayed. "
@@ -68,7 +69,7 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
 
     public static async Task<PlaybackVolumeSuggestionReview> ReviewAsync(PlaybackVolumeConfigurationService configuration,
         CallCommunicationPolicy policy, TimeProvider time, ConversationMessage message, Func<bool> eligible,
-        Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<CancellationToken, Task> validateSource, CancellationToken token, RegisteredSetting? selectedSetting = null)
     {
         ArgumentNullException.ThrowIfNull(message);
         message.Validate();
@@ -77,7 +78,7 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
         var answer = message.AssistantResponse!;
-        var value = RegisteredSettingSuggestions.Parse(answer.Body) switch
+        var value = RegisteredSettingSuggestionCollection.ParseSelected(answer.Body, selectedSetting) switch
         {
             RegisteredSettingProposal.Volume proposal => (PlaybackVolume?)proposal.Value,
             RegisteredSettingProposal.Reset { Setting: RegisteredSetting.PlaybackVolume } => null,

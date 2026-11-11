@@ -63,6 +63,7 @@ public sealed class AppearanceSuggestionReview : IDisposable
                     ? $"{current!.Descriptor.Description}: current {AppearanceCommand.Format(current.Value)}"
                         + $" ({(current.IsSaved ? "saved" : "default")}); proposed {AppearanceCommand.Format(proposed!)}"
                         + $" {current.Descriptor.Units}. Scope: shared device-local appearance, not just this conversation. "
+                        + $"Default: {AppearanceCommand.Format(current.Descriptor.Default)} {current.Descriptor.Units}. "
                         + (reset ? current.Value == proposed
                             ? "Reset is unchanged: this option already equals its authoritative default; existing saved/default provenance is preserved. Other options are unchanged. "
                             : "Reset saves this option's authoritative default as a saved preference; other options are unchanged. " : string.Empty)
@@ -80,19 +81,19 @@ public sealed class AppearanceSuggestionReview : IDisposable
 
     public static Task<AppearanceSuggestionReview> ReviewAsync(AppearanceConfigurationService configuration,
         CallCommunicationPolicy policy, TimeProvider time, ConversationMessage message, Func<bool> eligible,
-        Func<CancellationToken, Task> validateSource, CancellationToken token) =>
-        ReviewCoreAsync(configuration, message, eligible, validateSource, policy, time, token);
+        Func<CancellationToken, Task> validateSource, CancellationToken token, RegisteredSetting? selectedSetting = null) =>
+        ReviewCoreAsync(configuration, message, eligible, validateSource, policy, time, token, selectedSetting);
 
     private static async Task<AppearanceSuggestionReview> ReviewCoreAsync(AppearanceConfigurationService configuration,
         ConversationMessage message, Func<bool> eligible, Func<CancellationToken, Task> validateSource,
-        CallCommunicationPolicy? policy, TimeProvider time, CancellationToken token)
+        CallCommunicationPolicy? policy, TimeProvider time, CancellationToken token, RegisteredSetting? selectedSetting = null)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(eligible);
         ArgumentNullException.ThrowIfNull(validateSource);
         message.Validate();
-        var suggestion = RegisteredSettingSuggestions.Parse(message.AssistantResponse?.Body ?? string.Empty);
+        var suggestion = RegisteredSettingSuggestionCollection.ParseSelected(message.AssistantResponse?.Body ?? string.Empty, selectedSetting);
         var (option, value, reset) = suggestion switch
         {
             RegisteredSettingProposal.Appearance proposal => (proposal.Option, proposal.Value, false),

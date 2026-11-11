@@ -61,7 +61,8 @@ public sealed class OrdinaryTurnDeadlineSuggestionReview : IDisposable
 
     public static async Task<OrdinaryTurnDeadlineSuggestionReview> ReviewAsync(
         OrdinaryTurnDeadlineConfigurationService configuration, CallCommunicationPolicy policy, TimeProvider time,
-        ConversationMessage message, Func<bool> eligible, Func<CancellationToken, Task> validateSource, CancellationToken token)
+        ConversationMessage message, Func<bool> eligible, Func<CancellationToken, Task> validateSource, CancellationToken token,
+        RegisteredSetting? selectedSetting = null)
     {
         ArgumentNullException.ThrowIfNull(message);
         message.Validate();
@@ -69,7 +70,7 @@ public sealed class OrdinaryTurnDeadlineSuggestionReview : IDisposable
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded
             || message.Request.Origin != RequestOrigin.LocalUi || message.Request.InvocationId is not null)
         { throw new InvalidOperationException("Deadline review requires the exact successful original local user answer and separate native input."); }
-        var value = RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body) switch
+        var value = RegisteredSettingSuggestionCollection.ParseSelected(message.AssistantResponse!.Body, selectedSetting) switch
         {
             RegisteredSettingProposal.OrdinaryDeadline proposal => proposal.Value,
             RegisteredSettingProposal.Reset { Setting: RegisteredSetting.OrdinaryTurnDeadline } => (OrdinaryTurnDeadline?)null,

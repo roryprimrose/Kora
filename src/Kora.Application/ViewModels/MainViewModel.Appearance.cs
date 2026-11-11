@@ -3,6 +3,7 @@ using Kora.Application.Infrastructure;
 using Kora.Application.Diagnostics;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Hosting;
 using Kora.Core.Diagnostics;
 
@@ -57,9 +58,14 @@ public sealed partial class MainViewModel
         finally { appearanceSuggestionPersistence = Task.CompletedTask; }
     }
 
+    public Task<AppearanceSuggestionReview> ReviewAppearanceSuggestionAsync(
+        Kora.Core.Conversation.ConversationMessage message, Func<bool> sourceCurrent,
+        Func<CancellationToken, Task> validateSource, CancellationToken token) =>
+        ReviewAppearanceSuggestionAsync(message, sourceCurrent, validateSource, null, token);
+
     public async Task<AppearanceSuggestionReview> ReviewAppearanceSuggestionAsync(
         Kora.Core.Conversation.ConversationMessage message, Func<bool> sourceCurrent,
-        Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<CancellationToken, Task> validateSource, RegisteredSetting? selectedSetting, CancellationToken token)
     {
         if (disposed || !appearanceSuggestionPersistence.IsCompleted)
         { throw new InvalidOperationException("Appearance review is unavailable while closing or another operation is pending."); }
@@ -80,7 +86,7 @@ public sealed partial class MainViewModel
             && string.Equals(AssistantName, name, StringComparison.Ordinal)
             && (!voice || IsVoiceEnabled && HasVoiceConsent) && sourceCurrent();
         var work = AppearanceSuggestionReview.ReviewAsync(appearanceConfiguration, communicationPolicy,
-            speechSuggestionBinding?.Time ?? TimeProvider.System, message, Eligible, validateSource, token);
+            speechSuggestionBinding?.Time ?? TimeProvider.System, message, Eligible, validateSource, token, selectedSetting);
         appearanceSuggestionPersistence = work;
         try { return await work.ConfigureAwait(false); }
         finally { appearanceSuggestionPersistence = Task.CompletedTask; }

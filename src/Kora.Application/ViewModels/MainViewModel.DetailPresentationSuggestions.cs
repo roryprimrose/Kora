@@ -1,5 +1,6 @@
 using Kora.Application.Configuration;
 using Kora.Core.Conversation;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Hosting;
 
 namespace Kora.Application.ViewModels;
@@ -8,8 +9,12 @@ public sealed partial class MainViewModel
 {
     private Task detailPresentationSuggestionWork = Task.CompletedTask;
 
+    public Task<DetailPresentationSuggestionReview> ReviewDetailPresentationSuggestionAsync(ConversationMessage message,
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token) =>
+        ReviewDetailPresentationSuggestionAsync(message, sourceCurrent, validateSource, null, token);
+
     public async Task<DetailPresentationSuggestionReview> ReviewDetailPresentationSuggestionAsync(ConversationMessage message,
-        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, RegisteredSetting? selectedSetting, CancellationToken token)
     {
         var service = detailPresentation ?? throw new InvalidOperationException("Details configuration is unavailable.");
         if (!CanControlDetailPresentation || !detailPresentationSuggestionWork.IsCompleted)
@@ -29,7 +34,7 @@ public sealed partial class MainViewModel
         try
         {
             return await DetailPresentationSuggestionReview.ReviewAsync(service, communicationPolicy,
-                speechSuggestionBinding?.Time ?? TimeProvider.System, message, Eligible, validateSource, token).ConfigureAwait(false);
+                speechSuggestionBinding?.Time ?? TimeProvider.System, message, Eligible, validateSource, token, selectedSetting).ConfigureAwait(false);
         }
         finally { detailPresentationSuggestionWork = Task.CompletedTask; completion.SetResult(); }
     }

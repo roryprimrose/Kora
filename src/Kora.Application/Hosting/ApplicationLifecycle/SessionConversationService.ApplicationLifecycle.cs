@@ -61,7 +61,9 @@ public sealed partial class SessionConversationService
         var expires = time.GetUtcNow().AddMinutes(1);
         ApplicationLifecycleReview? review = null;
         // Joined receipts survive voluntary input closure, not changes to their private control source.
-        bool SourceCurrent() => !token.IsCancellationRequested && admitted() && (access.CanControl || review is { Joined: true })
+        bool SourceCurrent() => !token.IsCancellationRequested && admitted() && (access.CanControl || review is { Joined: true }
+            || operation == ApplicationLifecycleOperation.Exit && origin == RequestOrigin.LocalUi
+                && access.CanReviewApplicationExit && (review is null || review.Work.IsEmpty))
             && access.ControlRevision == control && time.GetUtcNow() < expires;
         lock (cancellationGate)
         {
@@ -87,6 +89,8 @@ public sealed partial class SessionConversationService
                         entry.Target.Authority.SessionId == item.Target.Request.SessionId).Target,
                         item.Target.Request, item.Phase, null, lifecycleSubmissions.Single(entry =>
                             entry.Target.Authority.SessionId == item.Target.Request.SessionId).Description))).ToImmutableArray();
+            if (!access.CanControl && !work.IsEmpty)
+            { throw new InvalidOperationException("Submitted work requires its original private review. No work was stopped."); }
             lifecycleHeld = true;
             review = lifecycleReview = new(operation, origin, control, lifecycleRevision, expires, SourceCurrent,
                 work, running, pending, ReleaseApplicationLifecycle);

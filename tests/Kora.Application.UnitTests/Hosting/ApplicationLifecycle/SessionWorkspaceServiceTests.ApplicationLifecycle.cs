@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 
+using Kora.Application.Hosting;
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
@@ -8,6 +9,58 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Fact]
+    public async Task QuarantinedExitCannotInferEmptyWorkAuthorityFromLegacyAccess()
+    {
+        using var f = new Fixture();
+        await using var queue = new SessionQueueService(f, f, new(f), new LegacyExitAccess(), f,
+            new(executionSlots: 1), Microsoft.Extensions.Logging.Abstractions.NullLogger<SessionQueueService>.Instance);
+        await queue.Invoking(value => value.ReviewApplicationLifecycleAsync(RequestOrigin.LocalUi, () => true, f.Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.QueueActions.Should().Be(0);
+        f.TaskWrites.Should().BeEmpty();
+    }
+
+    private sealed class LegacyExitAccess : ISessionWorkspaceAccess
+    {
+        public bool CanInspect => false;
+        public bool CanControl => false;
+        public long ControlRevision => 1;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task QuarantinedExitQueueReviewAdmitsOnlyEmptyWorkWithoutRestoringControl(bool queued)
+    {
+        using var f = new Fixture { FileReceipts = true };
+        await using var queue = f.QueueService();
+        if (queued)
+        {
+            await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue),
+                RequestOrigin.LocalUi, () => true, f.Token);
+        }
+        f.CanInspect = false;
+        f.CanControl = false;
+        f.CanReviewApplicationExit = true;
+        if (queued)
+        {
+            await queue.Invoking(value => value.ReviewApplicationLifecycleAsync(RequestOrigin.LocalUi, () => true, f.Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+            f.QueueRows.Should().OnlyContain(entry => entry.State == SessionQueueState.Pending);
+        }
+        else
+        {
+            using var review = await queue.ReviewApplicationLifecycleAsync(RequestOrigin.LocalUi, () => true, f.Token);
+            await queue.ConfirmApplicationLifecycleAsync(review, f.Token);
+            review.Joined.Should().BeTrue();
+            review.Queues.Should().BeEmpty();
+        }
+        f.CanControl.Should().BeFalse();
+        f.CanInspect.Should().BeFalse();
+        f.QueueActions.Should().Be(0);
+    }
+
     [Theory]
     [InlineData(false, "unchanged")]
     [InlineData(true, "unchanged")]

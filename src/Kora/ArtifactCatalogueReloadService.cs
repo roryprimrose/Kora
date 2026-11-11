@@ -331,8 +331,12 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             {
                 continue;
             }
-            if (!target.IsFile && string.Equals(directory, desiredDirectory, StringComparison.OrdinalIgnoreCase)
-                && Path.GetDirectoryName(directory) is { } parent)
+            if (!string.Equals(directory, desiredDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                AddWatcher(target with { MembershipOnly = true }, directory, desiredDirectory, isDirectory: true);
+                continue;
+            }
+            if (!target.IsFile && Path.GetDirectoryName(directory) is { } parent)
             {
                 // A watcher inside an existing root cannot observe that root's own rename.
                 // Observe only its membership in the parent, never the moved sibling's contents.

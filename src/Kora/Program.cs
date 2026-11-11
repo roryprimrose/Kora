@@ -56,6 +56,13 @@ internal static class Program
     public static int Main(string[] args)
     {
         HostActivity.ConfigureW3C();
+        if (args.Contains("--exit", StringComparer.Ordinal))
+        {
+#pragma warning disable VSTHRD002 // CLI-only entry before the Avalonia synchronization context; joins bounded IPC and process-exit observation.
+            return ExitCommandStartup.RunAsync(args, WindowsInstanceCoordinator.RequestExitAsync,
+                Console.Out, Console.Error, CancellationToken.None).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+        }
         if (EvidenceCutoverRecoveryStartup.TryRun(args, RecoverEvidenceCutover, Console.Out, Console.Error,
             WindowsInstanceCoordinator.ReportStartupFailure, out var recoveryExitCode))
         {

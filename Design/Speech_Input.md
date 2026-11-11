@@ -258,6 +258,11 @@ The canonical [wake privacy rules](Security_Data_Flows.md#wake-listening-privacy
 own the two-second pre-roll cap, audio exclusions and clearing rules.
 Preserve "Kora, open settings" without a pause, without transcribing the preceding
 conversation. PTT enters command capture without requiring a wake name.
+The response-window PTT control remains visible beside Submit. It is disabled
+while the automatic wake listener owns input, but readiness without active wake
+listening does not hide or disable an otherwise eligible held gesture. The
+[call-time held exception](Call_Aware_Speech.md#default-behaviour)
+does not enable automatic listening or change saved call settings.
 Host-opened replies remain bound to their exact question/revision and cannot
 become general commands or extend ambient transcription.
 

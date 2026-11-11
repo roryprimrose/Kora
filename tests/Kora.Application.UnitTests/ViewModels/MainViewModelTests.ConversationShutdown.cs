@@ -3,11 +3,96 @@ using Kora.Application.ViewModels;
 using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Platform;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task QuarantinedExitUsesOnlyRetiredInputProofAndKeepsCaptureUnavailable()
+    {
+        var f = await QuarantinedExitFixtureAsync();
+        var reviews = 0;
+        var workReviews = 0;
+        f.ViewModel.BindConversationShutdown(() => { reviews++; return Task.FromResult(true); }, () => true,
+            () => () => true);
+        f.ViewModel.BindSubmittedWorkShutdown((operation, origin, current) =>
+        {
+            operation.Should().Be(ApplicationLifecycleOperation.Exit);
+            origin.Should().Be(RequestOrigin.LocalUi);
+            f.ViewModel.CanReviewApplicationExit.Should().BeTrue();
+            workReviews++;
+            return Task.FromResult<ApplicationLifecycleShutdown?>(new(current, () => Task.CompletedTask, () => { }));
+        });
+        using (var request = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request))
+        {
+            await f.ViewModel.ExitAsync();
+        }
+
+        reviews.Should().Be(0);
+        workReviews.Should().Be(1);
+        f.WindowActions.Should().Contain(WindowAction.Close);
+        f.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        f.ViewModel.CanRevealPrivatePresentation.Should().BeFalse();
+        f.ViewModel.CanReviewApplicationExit.Should().BeFalse();
+        f.Voice.IsCaptureQuiescent.Should().BeFalse();
+        f.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("missing-proof")]
+    [InlineData("input-required")]
+    [InlineData("stale-proof")]
+    [InlineData("voice")]
+    [InlineData("model")]
+    [InlineData("model-dispatch")]
+    [InlineData("owner")]
+    [InlineData("locked")]
+    public async Task QuarantinedExitCannotPromoteMissingInputOrUntrustedAuthority(string boundary)
+    {
+        var f = await QuarantinedExitFixtureAsync();
+        var proof = boundary is not "input-required";
+        f.ViewModel.BindConversationShutdown(() => throw new InvalidOperationException("Private review must not open."),
+            () => true, boundary is "missing-proof" ? null : () => () => proof);
+        f.ViewModel.BindSubmittedWorkShutdown((_, _, current) =>
+        {
+            if (boundary is "stale-proof") { proof = false; }
+            return Task.FromResult<ApplicationLifecycleShutdown?>(new(current, () => Task.CompletedTask, () => { }));
+        });
+        if (boundary is "owner") { f.ViewModel.BindCallOwnershipGate(static () => false); }
+        if (boundary is "locked")
+        {
+            f.Session.IsUnlocked = false;
+            f.PrivacyObservation.Current = f.PrivacyObservation.Current with { SessionState = WindowsSessionState.Locked };
+        }
+        var origin = boundary is "voice" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi;
+        var request = HostRequest.Create(origin);
+        if (boundary is "model") { request = new(request.RequestId, request.SessionId, request.TaskId, origin, new(Guid.NewGuid())); }
+        using (var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await f.ViewModel.ExitAsync(fromModelActionDispatch: boundary is "model-dispatch");
+        }
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+        f.ViewModel.TrayInputStatus.Should().StartWith("Exit not completed");
+        f.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        f.Voice.StartCalls.Should().Be(0);
+    }
+
+    private static async Task<Fixture> QuarantinedExitFixtureAsync()
+    {
+        var f = CreateVoicePrivacyFixture();
+        await f.ViewModel.InitializeAsync();
+        f.Voice.StopException = new InvalidOperationException("Synthetic unconfirmed native release.");
+        f.Voice.PreventQuiescence = true;
+        f.ViewModel.CloseForObservedPrivacyEvent("Synthetic capture quarantine", hidePresentation: true);
+        await f.ViewModel.PrivacyClosureTask;
+        f.WindowActions.Clear();
+        return f;
+    }
+
     [Theory]
     [InlineData("decline")]
     [InlineData("failure")]

@@ -174,6 +174,11 @@ internal sealed class ApplicationLifecycleController : IDisposable
                 && queue.IsApplicationLifecycleCurrent(finite);
             var finiteWork = finite.Queues.SelectMany(item => item.Entries)
                 .Where(item => item.State is SessionQueueState.Pending or SessionQueueState.Running).ToArray();
+            if (main.IsPrivacyPresentationHeld && (review.Work.Length != 0 || finiteWork.Length != 0))
+            {
+                main.ReportHostInteractionFailure("Submitted work requires its original private review. No work was stopped or disclosed.");
+                return null;
+            }
             if (operation == ApplicationLifecycleOperation.DebugHandoff && (review.Work.Length != 0 || finiteWork.Length != 0))
             {
                 main.ReportHostInteractionFailure("Debug handoff is blocked by submitted conversation or compatibility work. Finish or explicitly stop that work, then retry; nothing was cancelled.");

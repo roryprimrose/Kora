@@ -22,6 +22,11 @@ internal sealed partial class SessionsPresentationOwner
             registeredSettingReviewSource = (surface, message);
             RegisteredSettingOperation = ReviewRegisteredSettingAndFocusAsync(surface, button, message);
         }
+        else if (string.Equals(button.Name, "ReviewSelectedRegisteredSetting", StringComparison.Ordinal) && model.CanReviewSelectedRegisteredSetting)
+        {
+            args.Handled = true;
+            RegisteredSettingOperation = ReviewSelectedRegisteredSettingAndFocusAsync(surface);
+        }
         else if (string.Equals(button.Name, "ConfirmRegisteredSettingSuggestion", StringComparison.Ordinal) && model.CanConfirmRegisteredSettingSuggestion)
         {
             args.Handled = true;
@@ -45,10 +50,30 @@ internal sealed partial class SessionsPresentationOwner
             && registeredSettingReviewSource is { } current
             && ReferenceEquals(current.Surface, surface) && ReferenceEquals(current.Message, message))
         {
-            if (model.CanConfirmRegisteredSettingSuggestion) { readback.BringIntoView(); }
+            if (model.HasRegisteredSettingCollection)
+            {
+                var collection = surface.FindControl<TextBox>("RegisteredSettingCollectionReadback");
+                collection?.BringIntoView();
+                collection?.Focus();
+            }
+            else if (model.CanConfirmRegisteredSettingSuggestion) { readback.BringIntoView(); }
             else { ReturnToRegisteredSettingSource(surface); }
         }
+
         else if (!followReview) { RestoreRegisteredSettingFocus(surface, originalFocus); }
+    }
+
+    private async Task ReviewSelectedRegisteredSettingAndFocusAsync(Window surface)
+    {
+        var source = surface.FocusManager?.GetFocusedElement() as Control;
+        var followReview = string.Equals(source?.Name, "ReviewSelectedRegisteredSetting", StringComparison.Ordinal);
+        await model.ReviewSelectedRegisteredSettingAsync();
+        if (followReview && !revoked && surface.IsActive && surface.IsVisible && model.CanConfirmRegisteredSettingSuggestion)
+        {
+            var readback = surface.FindControl<TextBlock>("RegisteredSettingReviewReadback");
+            readback?.BringIntoView();
+            readback?.Focus();
+        }
     }
 
     private async Task ConfirmRegisteredSettingAndReturnAsync(Window surface)
@@ -85,7 +110,8 @@ internal sealed partial class SessionsPresentationOwner
     }
 
     private static bool IsRegisteredSettingReviewControl(Control control) =>
-        control.Name is "RegisteredSettingReviewReadback" or "ConfirmRegisteredSettingSuggestion" or "CancelRegisteredSettingSuggestion";
+        control.Name is "RegisteredSettingReviewReadback" or "ConfirmRegisteredSettingSuggestion" or "CancelRegisteredSettingSuggestion"
+            or "RegisteredSettingCollectionReadback" or "RegisteredSettingCollectionChoice" or "ReviewSelectedRegisteredSetting";
 
     private void ReturnToRegisteredSettingSource(Window surface)
     {

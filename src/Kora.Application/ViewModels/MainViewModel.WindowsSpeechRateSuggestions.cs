@@ -4,6 +4,7 @@ using Kora.Application.Diagnostics;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 
@@ -15,8 +16,12 @@ public sealed partial class MainViewModel
     private Task rateSuggestionReviewWork = Task.CompletedTask;
     private Task rateSuggestionPersistence = Task.CompletedTask;
 
+    public Task<WindowsSpeechRateSuggestionReview> ReviewWindowsSpeechRateSuggestionAsync(ConversationMessage message,
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token) =>
+        ReviewWindowsSpeechRateSuggestionAsync(message, sourceCurrent, validateSource, null, token);
+
     public async Task<WindowsSpeechRateSuggestionReview> ReviewWindowsSpeechRateSuggestionAsync(ConversationMessage message,
-        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, RegisteredSetting? selectedSetting, CancellationToken token)
     {
         var time = (speechSuggestionBinding
             ?? throw new InvalidOperationException("The host retained-setting suggestion workflow is unavailable.")).Time;
@@ -37,7 +42,7 @@ public sealed partial class MainViewModel
             && (message.Request.Origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent)
             && sourceCurrent();
         var work = audioPlaybackSettings.ReviewRateSuggestionAsync(communicationPolicy, time,
-            message, Eligible, validateSource, token);
+            message, Eligible, validateSource, token, selectedSetting);
         rateSuggestionReviewWork = work;
         try { return await work; }
         finally { rateSuggestionReviewWork = Task.CompletedTask; }

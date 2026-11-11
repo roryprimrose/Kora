@@ -61,6 +61,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
         ? $"Current: {current.SummaryLimits!.Sentences} sentences, {current.SummaryLimits.Words} words "
             + $"({(current.AreSummaryLimitsSaved ? "saved" : "default")}). "
             + $"Proposed: {proposed.Sentences} sentences, {proposed.Words} words. "
+            + $"Defaults: {SpokenSummaryLimits.Default.Sentences} sentences, {SpokenSummaryLimits.Default.Words} words. "
             + (value is null ? "Reset saves this complete pair with the selected cap's authoritative default (saved). " : string.Empty)
             + $"Only {descriptor.Id} is proposed; the companion cap is unchanged. Scope: shared device-local, not session-only. "
             + "Applies to NEXT ordinary speech only; this answer is not truncated, regenerated, spoken or replayed. "
@@ -70,7 +71,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
 
     public static async Task<SpeechSummarySuggestionReview> ReviewAsync(SpeechConfigurationService configuration,
         CallCommunicationPolicy policy, TimeProvider time, ConversationMessage message, Func<bool> eligible,
-        Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<CancellationToken, Task> validateSource, CancellationToken token, RegisteredSetting? selectedSetting = null)
     {
         ArgumentNullException.ThrowIfNull(message);
         message.Validate();
@@ -79,7 +80,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded
             || message.AssistantResponse is not { } answer)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
-        var (option, value) = RegisteredSettingSuggestions.Parse(answer.Body) switch
+        var (option, value) = RegisteredSettingSuggestionCollection.ParseSelected(answer.Body, selectedSetting) switch
         {
             RegisteredSettingProposal.Summary proposal => (proposal.Option, proposal.Value),
             RegisteredSettingProposal.Reset { Setting: RegisteredSetting.SummaryWords } =>

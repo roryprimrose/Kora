@@ -58,6 +58,7 @@ public sealed class WindowsSpeechRateSuggestionReview : IDisposable
     public string Description => Available
         ? $"Current desired: {current.Desired!.Value.Value}; effective: {current.Effective!.Value.Value} ({current.Source}). "
             + $"Proposed: {(proposed ?? WindowsSpeechRate.Default).Value}. Provider: {current.ProviderId}; support: {current.Support}. "
+            + $"Default: {WindowsSpeechRate.Default.Value} Windows native units. "
             + (proposed is null ? "Reset removes the saved preference; the authoritative default is unsaved (default). " : string.Empty)
             + "Units: Windows native -10 through 10, normal 0, not percent or a common speed scale. "
             + "Scope: shared device-local, Kora's Windows synthesizer only; Kokoro unchanged. "
@@ -67,7 +68,7 @@ public sealed class WindowsSpeechRateSuggestionReview : IDisposable
 
     public static async Task<WindowsSpeechRateSuggestionReview> ReviewAsync(WindowsSpeechRateConfigurationService configuration,
         CallCommunicationPolicy policy, TimeProvider time, ConversationMessage message, Func<bool> eligible,
-        Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<CancellationToken, Task> validateSource, CancellationToken token, RegisteredSetting? selectedSetting = null)
     {
         ArgumentNullException.ThrowIfNull(message);
         message.Validate();
@@ -75,7 +76,7 @@ public sealed class WindowsSpeechRateSuggestionReview : IDisposable
         var call = policy.Current.Revision;
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
-        var value = RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body) switch
+        var value = RegisteredSettingSuggestionCollection.ParseSelected(message.AssistantResponse!.Body, selectedSetting) switch
         {
             RegisteredSettingProposal.WindowsRate proposal => (WindowsSpeechRate?)proposal.Value,
             RegisteredSettingProposal.Reset { Setting: RegisteredSetting.WindowsSpeechRate } => null,

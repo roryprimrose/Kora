@@ -4,6 +4,7 @@ using Kora.Application.Diagnostics;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 
@@ -14,8 +15,12 @@ public sealed partial class MainViewModel
     private ResponseModeSuggestionReview? commandResponseModeReview;
     private Task responseModeSuggestionWork = Task.CompletedTask;
 
+    public Task<ResponseModeSuggestionReview> ReviewResponseModeSuggestionAsync(ConversationMessage message,
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token) =>
+        ReviewResponseModeSuggestionAsync(message, sourceCurrent, validateSource, null, token);
+
     public async Task<ResponseModeSuggestionReview> ReviewResponseModeSuggestionAsync(ConversationMessage message,
-        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, RegisteredSetting? selectedSetting, CancellationToken token)
     {
         var service = responseModeConfiguration
             ?? throw new InvalidOperationException("The response-mode configuration workflow is unavailable.");
@@ -37,7 +42,7 @@ public sealed partial class MainViewModel
             && string.Equals(AssistantName, name, StringComparison.Ordinal)
             && (message.Request.Origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent)
             && sourceCurrent();
-        var work = ResponseModeSuggestionReview.ReviewAsync(service, communicationPolicy, time, message, Eligible, validateSource, token);
+        var work = ResponseModeSuggestionReview.ReviewAsync(service, communicationPolicy, time, message, Eligible, validateSource, token, selectedSetting);
         responseModeSuggestionWork = work;
         try { return await work.ConfigureAwait(false); }
         finally { responseModeSuggestionWork = Task.CompletedTask; }

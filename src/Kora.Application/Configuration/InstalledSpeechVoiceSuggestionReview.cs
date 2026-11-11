@@ -2,6 +2,7 @@ using System.Diagnostics;
 
 using Kora.Application.Communication;
 using Kora.Application.Configuration.RegisteredSettings;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
 using Kora.Core.Conversation;
@@ -59,6 +60,7 @@ public sealed class InstalledSpeechVoiceSuggestionReview : IDisposable
         ? $"Current provider: {current.Selection!.ProviderId}; voice: {current.Selection.VoiceId ?? "provider default"} "
             + $"({(current.IsSaved ? "saved" : "default")}); effective: {current.EffectiveVoice?.ConfigurationId ?? "unavailable"}. "
             + $"Proposed provider: {proposed.ProviderId}; voice: {proposed.VoiceId} ({proposedVoice.Name}). "
+            + $"Default provider: {SpeechSelection.Default.ProviderId}; voice: provider default, not an inferred installed ID. "
             + "Source: exact successful retained answer; installed catalogue and configuration are bound to this review. "
             + "Scope: shared device-local, not session-only. Both provider and voice are saved atomically. "
             + "Nothing has changed. Applies to NEXT separately requested eligible ordinary speech only; "
@@ -69,7 +71,7 @@ public sealed class InstalledSpeechVoiceSuggestionReview : IDisposable
 
     public static async Task<InstalledSpeechVoiceSuggestionReview> ReviewAsync(SpeechConfigurationService configuration,
         CallCommunicationPolicy policy, TimeProvider time, ConversationMessage message, Func<bool> eligible,
-        Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<CancellationToken, Task> validateSource, CancellationToken token, RegisteredSetting? selectedSetting = null)
     {
         ArgumentNullException.ThrowIfNull(message);
         message.Validate();
@@ -77,7 +79,7 @@ public sealed class InstalledSpeechVoiceSuggestionReview : IDisposable
         var call = policy.Current.Revision;
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
-        if (RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body) is not RegisteredSettingProposal.InstalledVoice proposal)
+        if (RegisteredSettingSuggestionCollection.ParseSelected(message.AssistantResponse!.Body, selectedSetting) is not RegisteredSettingProposal.InstalledVoice proposal)
         { throw new InvalidDataException("Request one exact qualified speech.voice Set suggestion only."); }
         var state = configuration.Get();
         token.ThrowIfCancellationRequested();

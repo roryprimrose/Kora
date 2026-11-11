@@ -61,14 +61,14 @@ public sealed class QuietHoursSuggestionReview : IDisposable
 
     public static async Task<QuietHoursSuggestionReview> ReviewAsync(QuietHoursConfigurationService configuration,
         CallCommunicationPolicy policy, ConversationMessage message, Func<bool> eligible,
-        Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<CancellationToken, Task> validateSource, CancellationToken token, RegisteredSetting? selectedSetting = null)
     {
         ArgumentNullException.ThrowIfNull(message);
         message.Validate();
         var request = RequireNativeInput(message.Request.SessionId);
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires the exact successful retained answer and separate native input."); }
-        var value = RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body) switch
+        var value = RegisteredSettingSuggestionCollection.ParseSelected(message.AssistantResponse!.Body, selectedSetting) switch
         {
             RegisteredSettingProposal.QuietHours proposal => proposal.Value,
             RegisteredSettingProposal.Reset { Setting: RegisteredSetting.QuietHours } => null,

@@ -146,11 +146,14 @@ public sealed class EmbeddedUserDocumentationProviderTests
         {
             guide.Should().Contain(descriptor.Id);
         }
-        guide.Should().Contain("**Review setting suggestion...**").And.Contain("**Confirm exact setting change**")
+        guide.Should().Contain("**Inspect setting suggestions...**").And.Contain("**Confirm exact setting change**")
             .And.Contain("**Cancel setting review**").And.Contain("both").And.Contain("desired/effective")
             .And.Contain("Only one native setting review").And.Contain("original local UI request")
             .And.Contain("Unconfirmed").And.Contain("not success or rollback")
             .And.Contain("No new static setting aliases").And.Contain("Unqualified/unavailable models remain unavailable");
+        guide.Should().Contain("2-8").And.Contain("3072 UTF-16").And.Contain("LF")
+            .And.Contain("**Review this one chosen setting**").And.Contain("initially unselected")
+            .And.Contain("inspect the same original answer again").And.Contain("independent");
         guide.Should().Contain("review response timeout suggestion").And.Contain("confirm response timeout change")
             .And.Contain("cancel response timeout review").And.Contain("not a provider/request deadline")
             .And.Contain("Other appearance settings stay");

@@ -49,19 +49,21 @@ public sealed class DetailPresentationSuggestionReview : IDisposable
     public bool Available { get { lock (gate) { return !consumed && candidate is not null && Current(); } } }
     internal bool BelongsTo(DetailPresentationConfigurationService owner) => ReferenceEquals(configuration, owner);
     public string Description => Available
-        ? candidate!.Description + " Source: exact retained suggestion. Nothing has changed; original native confirmation is separate."
+        ? candidate!.Description + $" Default: {Kora.Core.Presentation.DetailPresentationPreference.Default}."
+            + " Source: exact retained suggestion. Nothing has changed; original native confirmation is separate."
         : string.Empty;
 
     public static async Task<DetailPresentationSuggestionReview> ReviewAsync(
         DetailPresentationConfigurationService configuration, CallCommunicationPolicy policy, TimeProvider time,
-        ConversationMessage message, Func<bool> eligible, Func<CancellationToken, Task> validateSource, CancellationToken token)
+        ConversationMessage message, Func<bool> eligible, Func<CancellationToken, Task> validateSource, CancellationToken token,
+        RegisteredSetting? selectedSetting = null)
     {
         ArgumentNullException.ThrowIfNull(message);
         message.Validate();
         var request = RequireNativeInput(message.Request.SessionId);
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires the exact successful retained answer and separate native input."); }
-        var value = RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body) switch
+        var value = RegisteredSettingSuggestionCollection.ParseSelected(message.AssistantResponse!.Body, selectedSetting) switch
         {
             RegisteredSettingProposal.DetailPresentation proposal => proposal.Value,
             RegisteredSettingProposal.Reset { Setting: RegisteredSetting.DetailPresentation } => DetailPresentationPreference.Default,

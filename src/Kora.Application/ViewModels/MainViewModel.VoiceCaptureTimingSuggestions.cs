@@ -1,5 +1,6 @@
 using Kora.Application.Configuration;
 using Kora.Core.Conversation;
+using Kora.Core.Configuration.RegisteredSettings;
 
 namespace Kora.Application.ViewModels;
 
@@ -7,9 +8,14 @@ public sealed partial class MainViewModel
 {
     private Task timingSuggestionWork = Task.CompletedTask;
 
+    public Task<VoiceCaptureTimingSuggestionReview> ReviewVoiceCaptureTimingSuggestionAsync(
+        ConversationMessage message, Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource,
+        CancellationToken token) =>
+        ReviewVoiceCaptureTimingSuggestionAsync(message, sourceCurrent, validateSource, null, token);
+
     public async Task<VoiceCaptureTimingSuggestionReview> ReviewVoiceCaptureTimingSuggestionAsync(
         ConversationMessage message, Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource,
-        CancellationToken token)
+        RegisteredSetting? selectedSetting, CancellationToken token)
     {
         var service = captureTiming ?? throw new InvalidOperationException("Capture timing is unavailable.");
         if (disposed || timingWriting || !timingSuggestionWork.IsCompleted)
@@ -30,7 +36,7 @@ public sealed partial class MainViewModel
             && assistantNameConfiguration.Get().Revision == name
             && SelectedMicrophone == microphone && MicrophoneTopologyRevision == topology && sourceCurrent();
         var work = VoiceCaptureTimingSuggestionReview.ReviewAsync(service, communicationPolicy,
-            speechSuggestionBinding?.Time ?? TimeProvider.System, message, Eligible, validateSource, token);
+            speechSuggestionBinding?.Time ?? TimeProvider.System, message, Eligible, validateSource, token, selectedSetting);
         timingSuggestionWork = work;
         try { return await work.ConfigureAwait(false); }
         finally { timingSuggestionWork = Task.CompletedTask; }

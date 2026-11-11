@@ -134,6 +134,19 @@
       <local:ModelMemoryProposalPanel />
       <local:AssistantReplyPanel />
       <TextBlock Text="{Binding RegisteredSettingsDescription}" TextWrapping="Wrap" />
+      <StackPanel IsVisible="{Binding HasRegisteredSettingCollection}" Spacing="6">
+        <TextBlock Text="Inspect the complete inert original answer. Choose one member; no approval applies to all." TextWrapping="Wrap" />
+        <TextBox Name="RegisteredSettingCollectionReadback" Text="{Binding RegisteredSettingCollectionText, Mode=OneWay}"
+            IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+            AutomationProperties.Name="Complete original setting suggestion collection; inert source, not approval" />
+        <ComboBox Name="RegisteredSettingCollectionChoice" ItemsSource="{Binding RegisteredSettingCollectionMembers}"
+            SelectedItem="{Binding SelectedRegisteredSettingMember}"
+            AutomationProperties.Name="Deliberately choose one exact registered setting; no default selection">
+          <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Descriptor.Id}" /></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <Button Name="ReviewSelectedRegisteredSetting" Content="Review this one chosen setting"
+            IsEnabled="{Binding CanReviewSelectedRegisteredSetting}" />
+      </StackPanel>
       <TextBlock Name="RegisteredSettingReviewReadback" Text="{Binding RegisteredSettingSuggestionDescription}" TextWrapping="Wrap"
           Focusable="True"
           AutomationProperties.Name="Exact current and proposed registered setting values, provenance, shared scope, timing and recovery; review is not approval" />

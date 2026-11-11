@@ -12,20 +12,21 @@ public static class RegisteredSettingSuggestions
 {
     public static string ModelPolicy { get; } =
         "Registered Kora setting suggestions are inert data, never write authority. "
-        + "Only when requested, the entire final answer may be one inert suggestion from this closed registry: "
+        + "Only when requested, the entire answer is one inert suggestion or 2 through 8 canonical LF-separated commands "
+        + "(3072 UTF-16 characters), unique exact IDs; no blanks, trailing LF, numbering, fences or commentary. "
+        + "Validate all; the original user selects one member for current/proposed/default/scope review. Require separate confirmation: separately confirm or cancel. "
+        + "No approval for all or automatic selection/continuation/retry/rollback; repeat selection/review/confirmation per member. Closed registry: "
         + string.Join("; ", RegisteredSettingRegistry.Settings.Select(item =>
             $"'{item.Id}' ({item.Description}; "
             + item.SuggestedValues
             + (item.RequiresNativeReview ? "; native-only)" : ")")))
         + ". All have shared device-local scope. Native-only entries require original local UI and separate native confirmation only. "
         + "Use 'set <exact ID> to <value>', canonical decimal integers for numeric values except exact decimal capture seconds, and true/false for booleans, "
-        + "Capture timing uses one exact voice.command-start-wait, voice.reply-start-wait, voice.trailing-silence or voice.maximum-capture ID. "
-        + "Use canonical seconds without exponent, suffix, redundant leading or fractional trailing zeros, or rounding. Native review shows the full old/new timing tuple; "
+        + "Capture timing uses canonical seconds without exponent, suffix, redundant leading or fractional trailing zeros, or rounding. Native review shows the full old/new timing tuple; "
         + "separate native confirmation changes future captures only, never an in-flight capture, microphone consent or provider readiness. "
         + "or exactly 'reset <exact ID>' with no value. Only the host resolves the owner's default and saved/default result, "
         + "including companion fields; never supply a default value. Reset requires the same separate review and confirmation as Set. "
-        + "Presence and response-timeout suggestions require that exact syntax, ID and canonical value, without aliases or surrounding text. "
-        + "No adjustment, batch, commentary, other setting, approval or claimed save. "
+        + "No adjustment, batch application, commentary, other setting, approval or claimed save. "
         + "work.active-deadline-minutes defaults to five minutes. Confirmation changes future ordinary dispatch only, "
         + "never running work, original context expiry or earlier provider/tool ceilings. No deadline undo or inferred allowance. "
         + "Quiet hours requires exact 'set notices.quiet-hours to Off' or 'set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC', "
@@ -42,7 +43,6 @@ public static class RegisteredSettingSuggestions
         + "Appearance undo remains native-only except response timeout. A model suggestion cannot create or confirm an undo receipt. "
         + "Response timeout is only the existing response-window inactivity hide delay, 1-60 seconds, default 5. "
         + "It never changes provider deadlines, Always show, presence timeout, questions or approvals. "
-        + "The original user must review exact current/proposed values and scope, then separately confirm or cancel. "
         + "Spoken-summary review includes both caps and preserves the companion cap. Volume review includes desired/effective "
         + "values and saved/default provenance; zero blocks future synthesis, preserving full visual output. "
         + "Windows rate uses exact 'set speech.windows-rate to <canonical integer>' from -10 through 10, normal 0, "

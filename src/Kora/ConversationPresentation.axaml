@@ -33,9 +33,9 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <Button Name="ReviewRegisteredSettingSuggestion" Content="Review setting suggestion..."
+        <Button Name="ReviewRegisteredSettingSuggestion" Content="Inspect setting suggestions..."
             IsEnabled="{Binding $parent[Window].DataContext.CanReviewRegisteredSettingSuggestion}"
-            AutomationProperties.Name="Review this exact inert answer as one registered shared setting proposal; nothing is applied without separate original-user confirmation" />
+            AutomationProperties.Name="Inspect this complete exact inert answer; choose one collection member for review and separate original-user confirmation, never approve all" />
         <Button Name="ReviewModelMemoryProposal" Content="Review session-memory proposal..."
             IsEnabled="{Binding $parent[Window].DataContext.CanReviewModelMemoryProposal}"
             AutomationProperties.Name="Explicitly inspect this exact answer as one inert session-only memory proposal; separate acceptance and admission, never automatic learning" />

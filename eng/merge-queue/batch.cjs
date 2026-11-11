@@ -1,7 +1,7 @@
 const { randomUUID } = require('node:crypto');
 const { SHA, invariant, validateState, readinessIssue, matchingRuns, requiredJobsState, terminalJobs,
   JOB_OBSERVATION_MS, DISPATCH_OBSERVATION_MS, MERGE_CONFIRMATION_MS } = require('./policy.cjs');
-const { PROFILE, MAX_MEMBERS, CONTROL_PATH, digest, manifestFor, liveMember, ordered, gateMessage, GATE,
+const { PROFILE, MAX_MEMBERS, CONTROL_PATH, digest, manifestFor, completedBatchTip, liveMember, ordered, gateMessage, GATE,
   BatchUpdateError } = require('./batch-policy.cjs');
 const { priority } = require('./policy.cjs');
 
@@ -317,24 +317,12 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
         return recoverRequired('Actual merged prefix parent, tree or main reachability differs from the frozen manifest.');
       member.merged = pr.merge_commit_sha;
       active.phase = 'proven';
-      await save();
       api.info(`Batch ${active.ticket}: confirmed original PR #${member.number} merged at ${member.merged}; prefix ${index + 1}.`);
       if (recovering) return recoverRequired('Late actual merge recorded; explicit reviewed suffix recovery is still required.');
       if (index + 1 === active.members.length) {
-        invariant(commit.tree === active.prefixes.at(-1).tree, 'Completed main differs from combined candidate tree.');
-        state.completedTip = { sha: member.merged, tree: commit.tree, ticket: active.ticket,
-          combined: active.head, manifest: active.digest,
-          members: active.members.map(item => ({ number: item.number, source: item.head,
-            admittedHead: item.mergeIntent.head, merged: item.merged })) };
-        if (api.independent) {
-          invariant(['windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1'].includes(active.inventory.schema),
-            'Independent delivery requires the reviewed delivery workflow.');
-          Object.assign(state.completedTip, { delivery: 'independent-v1', base: active.base,
-            admission: manifestFor(active),
-            validation: { run: run.id, attempt: 1, source: active.head, workflow: active.base,
-              inventory: active.inventory.blob, schema: active.inventory.schema } });
-          state.deliveryProfile = 'independent-v1';
-        }
+        // The last merged member and its completion receipt must share one durable checkpoint.
+        state.completedTip = completedBatchTip(active, member.merged, commit.tree, run, api.independent);
+        if (api.independent) state.deliveryProfile = 'independent-v1';
         state.active = null;
         state.singletonRetries = state.singletonRetries.filter(item => !active.members.some(done =>
           done.number === item.number && done.head === item.head && done.enrollment === item.enrollment));
@@ -342,6 +330,7 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
         await api.wake();
         return 'batch-completed';
       }
+      await save();
       await api.wake();
       return 'prefix-confirmed';
     }

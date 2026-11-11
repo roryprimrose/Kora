@@ -68,7 +68,10 @@ class BatchFake {
   async runs() { return clone(this.workflowRuns); }
   async jobs() { return clone(this.workflowJobs); }
   async containsBase(base, head) {
-    return head === base || this.commits.get(head)?.parents.includes(base) === true;
+    if (head === base) return true;
+    for (const parent of this.commits.get(head)?.parents ?? [])
+      if (await this.containsBase(base, parent)) return true;
+    return false;
   }
   async memberTree(head, tree) { return this.commits.get(head)?.tree === tree; }
   async commitInfo(head) { return clone(this.commits.get(head)); }
@@ -1265,6 +1268,63 @@ test('native Auto-merge between a pending snapshot and authority reads is confir
   assert.equal(count(api, 'dispatch'), 1);
 });
 
+test('final merge confirmation and completion proof survive interrupted checkpoint saves atomically', async t => {
+  for (const delivery of ['serial', 'independent', 'hourly']) {
+    for (const members of [1, 5]) {
+      for (const persisted of [false, true]) {
+        await t.test(`${delivery}, ${members} members, failure ${persisted ? 'after' : 'before'} persistence`, async () => {
+          const api = delivery === 'hourly' ? hourlyApi() : new BatchFake();
+          api.prs = new BatchFake().prs.slice(0, members);
+          if (delivery !== 'serial') {
+            api.independent = true;
+            api.inventory = { schema: 'parallel-pr-v1', blob: sha(999), jobs: [...PARALLEL_PR_JOBS] };
+            api.releaseSource = async source => ({ source, tree: api.commits.get(source).tree });
+          }
+          const previousTip = clone(api.state.completedTip);
+          const save = api.save.bind(api);
+          let interrupted = false;
+          let finalBatch;
+          api.save = async state => {
+            if (!interrupted && state.active === null && state.completedTip?.sha === api.base) {
+              interrupted = true;
+              finalBatch = clone(api.state.active);
+              if (persisted) await save(state);
+              throw new Error('Interrupted completion checkpoint');
+            }
+            await save(state);
+          };
+          await assert.rejects(until(api, 'batch-completed'), /Interrupted completion checkpoint/);
+          assert.equal(count(api, 'merge'), members);
+          assert.equal(count(api, 'dispatch'), 1);
+          if (!persisted) {
+            assert.equal(api.state.active.members.at(-1).merged, undefined);
+            assert.deepEqual(api.state.completedTip, previousTip);
+            assert.equal(await step(api), 'batch-completed');
+          }
+          const tip = api.state.completedTip;
+          assert.equal(api.state.active, null);
+          assert.equal(tip.sha, api.base);
+          assert.equal(tip.tree, finalBatch.prefixes.at(-1).tree);
+          assert.equal(tip.combined, finalBatch.head);
+          assert.equal(tip.manifest, finalBatch.digest);
+          assert.equal(tip.members.length, members);
+          assert.equal(tip.members.at(-1).merged, api.base);
+          if (delivery !== 'serial') {
+            assert.equal(tip.delivery, 'independent-v1');
+            assert.deepEqual(tip.admission, manifestFor(finalBatch));
+            assert.deepEqual(tip.validation, { run: 9, attempt: 1, source: finalBatch.head,
+              workflow: finalBatch.base, inventory: sha(999), schema: 'parallel-pr-v1' });
+          }
+          api.qualified = true;
+          assert.equal(await step(api), 'idle');
+          assert.equal(count(api, 'merge'), members);
+          assert.equal(count(api, 'dispatch'), 1);
+        });
+      }
+    }
+  }
+});
+
 test('affirmative merge response alone, wrong parent/tree and unexpected main never establish completion', async () => {
   for (const kind of ['unobserved', 'parent', 'tree', 'main']) {
     const api = new BatchFake();
@@ -1403,6 +1463,178 @@ test('reviewed batch recovery accepts exact terminal preflight rejection but nev
     assert.equal(count(api, 'merge'), 0);
     assert.equal(count(api, 'dispatch'), 1);
     assert.equal(api.state.completedTip, null);
+  }
+});
+
+async function strandedBatch(delivery, members = 1) {
+  const api = delivery === 'hourly' ? hourlyApi() : new BatchFake();
+  api.prs = new BatchFake().prs.slice(0, members);
+  if (delivery !== 'serial') {
+    api.independent = true;
+    api.inventory = { schema: 'parallel-pr-v1', blob: sha(999), jobs: [...PARALLEL_PR_JOBS] };
+    api.state.deliveryProfile = 'independent-v1';
+    api.releaseSource = async source => ({ source, tree: api.commits.get(source).tree });
+  }
+  const save = api.save.bind(api);
+  let held;
+  api.save = async state => {
+    if (state.active === null && state.completedTip?.sha === api.base) {
+      held = clone(api.state);
+      held.active.members.at(-1).merged = api.base;
+      held.active.phase = 'recovery-required';
+      held.active.reason = 'Unexpected exhausted batch without completed-tip receipt.';
+    }
+    await save(state);
+  };
+  await until(api, 'batch-completed');
+  const expectedTip = clone(api.state.completedTip);
+  api.save = save;
+  await save(held);
+  return { api, expectedTip };
+}
+
+const batchRecoveryOptions = (api, operation = 'resume-batch') => ({
+  context: { eventName: 'workflow_dispatch', ref: 'refs/heads/main', runId: 123, actor: 'operator' },
+  inputs: { operation, recovery_checkpoint: api.commit, recovery_ticket: TICKET, acknowledge_batch_change: true },
+  attempt: 1, now: NOW,
+});
+
+test('reviewed exhausted-batch resume restores the full source receipt for every delivery profile', async t => {
+  for (const delivery of ['serial', 'independent', 'hourly']) {
+    for (const members of [1, 5]) {
+      await t.test(`${delivery}, ${members} members`, async () => {
+        const { api, expectedTip } = await strandedBatch(delivery, members);
+        const options = batchRecoveryOptions(api);
+        assert.equal(await changeBatchState(api, options), 'resume-batch');
+        assert.equal(api.state.active, null);
+        assert.deepEqual(api.state.completedTip, expectedTip);
+        api.qualified = true;
+        assert.equal(await step(api), 'idle');
+        assert.equal(count(api, 'merge'), members);
+        assert.equal(count(api, 'dispatch'), 1);
+        await assert.rejects(changeBatchState(api, options), /checkpoint/);
+      });
+    }
+  }
+});
+
+test('exhausted-batch recovery rejects unsuccessful proof, changed actual prefixes and profile mismatches without writes', async () => {
+  for (const change of [
+    api => { api.workflowRuns[0].conclusion = 'failure'; },
+    api => { api.workflowJobs[2].conclusion = 'skipped'; },
+    api => { api.prs[0].merged = false; },
+    api => { api.prs[0].merge_commit_sha = sha(999); },
+    api => { api.prs[0].head.sha = sha(999); },
+    api => { api.commits.get(api.prs[0].merge_commit_sha).parents = [sha(999)]; },
+    api => { api.commits.get(api.prs[0].merge_commit_sha).tree = sha(999); },
+    api => { api.independent = false; },
+    api => { api.mainBuildProfile = 'per-merge'; },
+  ]) {
+    const { api } = await strandedBatch('hourly', 5);
+    change(api);
+    const before = clone(api.state);
+    const checkpoint = api.commit;
+    const wakes = count(api, 'wake');
+    await assert.rejects(changeBatchState(api, batchRecoveryOptions(api)));
+    assert.deepEqual(api.state, before);
+    assert.equal(api.commit, checkpoint);
+    assert.equal(count(api, 'wake'), wakes);
+    assert.equal(count(api, 'merge'), 5);
+    assert.equal(count(api, 'dispatch'), 1);
+  }
+});
+
+test('hourly repair preserves unchanged source proof and cannot discard a merged prefix awaiting its receipt', async () => {
+  const api = hourlyApi();
+  api.prs = new BatchFake().prs.slice(0, 1);
+  const previousTip = clone(api.state.completedTip);
+  await step(api);
+  api.state.active.phase = 'recovery-required';
+  api.state.active.reason = 'Reviewed terminal work.';
+  assert.equal(await changeBatchState(api, batchRecoveryOptions(api, 'repair-batch')), 'repair-batch');
+  assert.deepEqual(api.state.completedTip, previousTip);
+  assert.equal(api.state.active, null);
+  assert.equal(api.state.history.length, 1);
+  assert.equal(await step(api), 'dispatched');
+
+  const { api: merged } = await strandedBatch('hourly');
+  const before = clone(merged.state);
+  const checkpoint = merged.commit;
+  await assert.rejects(changeBatchState(merged, batchRecoveryOptions(merged, 'repair-batch')), /source proof/);
+  assert.deepEqual(merged.state, before);
+  assert.equal(merged.commit, checkpoint);
+});
+
+async function controllerRepairApi() {
+  const { api } = await strandedBatch('hourly');
+  const previous = api.base;
+  api.base = sha(900);
+  api.commits.set(api.base, { tree: sha(901), parents: [previous] });
+  api.independent = false;
+  api.mainBuildProfile = 'per-merge';
+  return api;
+}
+
+function controllerRepairOptions(api) {
+  const options = batchRecoveryOptions(api, 'repair-controller');
+  Object.assign(options.inputs, { recovery_main: api.base, main_build_profile: 'per-merge' });
+  return options;
+}
+
+test('controller deployment recovery archives old hourly proof and demands fresh actual-main qualification', async () => {
+  const api = await controllerRepairApi();
+  const before = clone(api.state);
+  const options = controllerRepairOptions(api);
+  assert.equal(await changeBatchState(api, options), 'repair-controller');
+  assert.equal(api.state.active, null);
+  assert.deepEqual(api.state.completedTip, { sha: api.base, tree: sha(901), ticket: TICKET });
+  for (const key of ['deliveryProfile', 'mainBuildProfile', 'hourlyMain',
+    'deliveryTransition', 'mainSchedulingTransition']) assert.equal(api.state[key], undefined);
+  assert.deepEqual(api.state.history[0].batch, before.active);
+  assert.deepEqual(api.state.history[0].hourlyMain, before.hourlyMain);
+  assert.deepEqual(api.state.history[0].completedTip, before.completedTip);
+  assert.equal(count(api, 'merge'), 1);
+  assert.equal(count(api, 'dispatch'), 1);
+  api.tipQualification = BatchFake.prototype.tipQualification;
+  api.dispatchQualification = BatchFake.prototype.dispatchQualification;
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(count(api, 'qualification'), 1);
+  assert.equal(count(api, 'dispatch'), 1);
+  await assert.rejects(changeBatchState(api, options), /checkpoint/);
+});
+
+test('controller deployment recovery cannot bypass explicit source, administrator, quiescence or merged proof', async () => {
+  for (const change of [
+    (api, options) => { options.inputs.recovery_main = sha(999); },
+    (api, options) => { options.inputs.main_build_profile = 'hourly-v1'; },
+    (api, options) => { options.inputs.acknowledge_batch_change = false; },
+    (api, options) => { options.inputs.recovery_checkpoint = sha(999); },
+    (api, options) => { options.inputs.recovery_ticket = '11234567-89ab-cdef-0123-456789abcdef'; },
+    (api, options) => { options.context.ref = 'refs/heads/repair'; },
+    (api, options) => { options.attempt = 2; },
+    api => { api.administratorAllowed = false; },
+    api => { api.quiet = false; },
+    api => { api.independent = true; },
+    api => { api.mainBuildProfile = 'hourly-v1'; },
+    api => { api.workflowRuns[0].conclusion = 'failure'; },
+    api => { api.workflowJobs[2].conclusion = 'skipped'; },
+    api => { api.prs[0].merged = false; },
+    api => { api.commits.get(api.base).parents = [sha(999)]; },
+    api => { api.state.active.members[0].merged = undefined; },
+    api => { api.base = api.state.active.members[0].merged; },
+  ]) {
+    const api = await controllerRepairApi();
+    const options = controllerRepairOptions(api);
+    change(api, options);
+    const before = clone(api.state);
+    const checkpoint = api.commit;
+    const wakes = count(api, 'wake');
+    await assert.rejects(changeBatchState(api, options));
+    assert.deepEqual(api.state, before);
+    assert.equal(api.commit, checkpoint);
+    assert.equal(count(api, 'wake'), wakes);
+    assert.equal(count(api, 'merge'), 1);
+    assert.equal(count(api, 'dispatch'), 1);
   }
 });
 

@@ -577,6 +577,10 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
 
     private sealed class Stage : IHandsFreeAudioStage
     {
+        public bool InterruptionAvailable { get; set; }
+        public bool SupportsSpeechInterruption(string assistantName, SpeechInputSelection selection) => InterruptionAvailable;
+        public Task<IHandsFreeAudioSession> OpenSpeechInterruptionAsync(HandsFreeAudioBinding binding, CancellationToken cancellationToken) =>
+            OpenAsync(binding, cancellationToken);
         public bool SupportsNative { get; set; }
         public Exception? PrepareFailure { get; set; }
         public ProfileAssets Assets { get; } = new();

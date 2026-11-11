@@ -17,7 +17,7 @@ public sealed partial class HandsFreeVoiceRecognitionService : ISpeechSetupCompa
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (comparisonActive || profileSwitchActive || profileRetirementFailed || !IsCaptureQuiescent
+            if (speechInterruption is not null || comparisonActive || profileSwitchActive || profileRetirementFailed || !IsCaptureQuiescent
                 || !run.IsCompleted || activatedOpenRequests != 0 || activated is not ISpeechSetupComparisonRuntime)
             { throw new InvalidOperationException("Comparison requires unowned quiescent input. Finish current voice work first."); }
             comparisonActive = true;

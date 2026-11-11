@@ -71,7 +71,7 @@ public sealed partial class HandsFreeVoiceRecognitionService
     {
         lock (gate)
         {
-            if (directRoutingCapture is not null || routingContinuation is not null)
+            if (speechInterruption is not null || directRoutingCapture is not null || routingContinuation is not null)
             { throw new InvalidOperationException("Another routing owner already holds capture."); }
             directRoutingCapture = release;
         }
@@ -105,7 +105,7 @@ public sealed partial class HandsFreeVoiceRecognitionService
         var quiescent = activated.IsCaptureQuiescent;
         lock (gate)
         {
-            if (routingContinuation is not null || directRoutingCapture is not null || !wakeUtteranceConsumed
+            if (speechInterruption is not null || routingContinuation is not null || directRoutingCapture is not null || !wakeUtteranceConsumed
                 || !IsWakeActivationCurrentCore(utterance, request, observation, quiescent))
             { throw new InvalidOperationException("Only the exact consumed original wake owner can acquire routing continuation."); }
             return routingContinuation = new(this, utterance, request, activated);

@@ -412,6 +412,14 @@ Device reconnection cannot reopen capture, and stale pre-failure input cannot ap
 Detection of "Kora" is neither authentication nor approval; all commands still pass existing policy and approval checks.
 Playback echo rejection must prevent spoken answers and activation cues from becoming user input.
 
+The [source-only retained-playback interruption path](Speech_Input.md#exact-retained-playback-wake-interruption-source-only)
+requires independent playback-discriminating wake/command qualification; ordinary
+wake readiness cannot admit it. No Windows adapter currently supplies that
+capability. Deterministic host capture binds one original foreground playback,
+joins microphone resources before the audited stop fence, rejects all other
+recognized commands, and never grants general activation or approval evidence.
+Failed native release retains ownership rather than admitting replacement input.
+
 The [speech-input contract](Speech_Input.md) keeps wake detection, endpointing,
 transcription and optional verification local, with zero hosted speech requests
 or billed token/audio-duration usage. Hosted reasoning preferences cannot grant

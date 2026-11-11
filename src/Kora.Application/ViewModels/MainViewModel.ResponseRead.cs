@@ -23,6 +23,7 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
     private long ordinaryResponseRevision;
     private CancellationTokenSource? responseReadCancellation;
     private Task responseReadQuiescence = Task.CompletedTask;
+    private Task responseReadPlaybackQuiescence = Task.CompletedTask;
     private SecurityAuditEvent? responseReadAudit;
     private Func<bool> responseReadDecisionsEligible = static () => true;
 
@@ -241,15 +242,19 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
             callSpeechLease?.Expiration ?? CancellationToken.None);
         cancellation.CancelAfter(TimeSpan.FromMinutes(2));
         var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var playbackReleased = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         responseReadCancellation = cancellation;
         using var invalidation = cancellation.Token.Register(() => textToSpeech.InvalidateOutput());
         responseReadQuiescence = released.Task;
+        responseReadPlaybackQuiescence = playbackReleased.Task;
         NotifyResponseReadChanged();
         SecurityAuditEvent? audit = null;
         var retained = retainedAnswerSpeech;
         var outcome = SpeechReadOutcome.Cancelled;
         var playbackCompleted = false;
         var terminalAuditStarted = false;
+        var wakeOwner = voiceRecognition as HandsFreeVoiceRecognitionService;
+        WakeSpeechInterruptionCapture? wakeInterruption = null;
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Presentation);
         try
         {
@@ -265,6 +270,8 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
                 sourceActivity.SetTag("kora.source.revision", retained.Source.Revision);
             }
             bool Eligible() => input.Eligible() && !cancellation.IsCancellationRequested;
+            if (retained is not null && wakeOwner is not null)
+            { wakeInterruption = await StartWakeSpeechInterruptionAsync(wakeOwner, cancellation.Token); }
             var played = Eligible() && await TrySpeakCurrentResponseAsync(cancellationToken: cancellation.Token,
                 additionalEligibility: Eligible, spokenText: callSpeechLease?.Text ?? retained?.Source.AssistantResponse!.Body,
                 boundedExactReadback: retained is not null || callSpeechLease is not null, validateReadSource: retained?.Validate,
@@ -335,6 +342,24 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         {
             responseReadAudit = null;
             responseReadCancellation = null;
+            // The interruption action joins playback; release that receipt before joining its callback.
+            playbackReleased.TrySetResult();
+            if (wakeInterruption is not null)
+            {
+                try
+                {
+                    await wakeInterruption.DisposeAsync();
+                    await wakeOwner!.ResumeAfterActivatedInputAsync();
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    SpeechInterruptionFailed(logger, exception.GetType().Name);
+                    outcome = SpeechReadOutcome.Unknown;
+                    HoldVoiceInput("Microphone closed - wake interruption capture or cleanup failed");
+                    ReportResponseRead("Wake interruption is unconfirmed. No capture readiness or successful interruption is claimed; inspect voice recovery.");
+                    retained!.Result = ReadCurrentResponseStatus;
+                }
+            }
             released.TrySetResult();
             NotifyResponseReadChanged();
         }

@@ -9,10 +9,21 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private sealed record SpeechInterruptionInput(ForegroundConversationTarget? Session,
-        RetainedAnswerSpeech? Playback, Func<bool> Eligible, long Generation = -1);
+        RetainedAnswerSpeech? Playback, Func<bool> Eligible, long Generation = -1)
+    {
+        internal Func<bool> WakeCurrent { get; init; } = static () => false;
+    }
+
+    private enum SpeechInterruptionChannel { Typed, PushToTalk, Wake }
 
     private SpeechInterruptionInput? capturedSpeechInterruption;
     private bool speechInterruptionActive;
+
+    private bool IsExactRetainedPlaybackWakeCapture =>
+        voiceRecognition is Voice.HandsFreeVoiceRecognitionService { HasSpeechInterruptionCapture: true }
+        && retainedAnswerSpeech is { } playback
+        && ReferenceEquals(HostActivity.Current?.Request, playback.Request)
+        && responseReadCancellation is { IsCancellationRequested: false };
 
     private SpeechInterruptionInput CaptureSpeechInterruptionInput()
     {
@@ -39,16 +50,21 @@ public sealed partial class MainViewModel
     private bool IsSpeechInterruptionCommand(string text) =>
         commandRouter.Match(text, AssistantName).Command?.Action == BuiltInAction.StopSpeaking;
 
-    private async Task InterruptSessionSpeechAsync(SpeechInterruptionInput? input, bool voice)
+    private bool IsSpeechInterruptionChannelCurrent(SpeechInterruptionInput input, SpeechInterruptionChannel channel) =>
+        channel == SpeechInterruptionChannel.Typed || (channel == SpeechInterruptionChannel.Wake
+            ? input.WakeCurrent() && voiceRecognition.IsCaptureQuiescent
+            : input.Generation == voiceRecognition.Generation && HasVoiceConsent && IsVoiceEnabled
+                && voiceRecognition.IsSpeechInterruptionAvailable);
+
+    private async Task InterruptSessionSpeechAsync(SpeechInterruptionInput? input, SpeechInterruptionChannel channel)
     {
         if (input is null || !input.Eligible() || responseReadCancellation is null
-            || voice && (input.Generation != voiceRecognition.Generation || !HasVoiceConsent || !IsVoiceEnabled
-                || !voiceRecognition.IsSpeechInterruptionAvailable))
+            || !IsSpeechInterruptionChannelCurrent(input, channel))
         {
             ReportResponseRead("Speech interruption refused: the original session, playback or explicit command channel is unavailable or changed. No other speech or model work was stopped.");
             return;
         }
-        if (voice)
+        if (channel == SpeechInterruptionChannel.PushToTalk)
         {
             await voiceRecognition.EndPushToTalkAsync();
             IsListening = voiceRecognition.IsListening;
@@ -64,11 +80,11 @@ public sealed partial class MainViewModel
             original.TaskId, original.Origin, original.InvocationId), HostActivityLayer.Application,
             HostOperation.Request, [new(HostActivity.RequireCurrent().Activity!.Context)]);
         var audit = await StartAuditAsync(SecurityAuditCategory.ApplicationExecution, "speech.interrupt",
-            voice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand,
+            channel == SpeechInterruptionChannel.Typed ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.VoiceCommand,
             playback.Target.ResponseId.ToString("D"));
         try
         {
-            if (!input.Eligible() || voice && input.Generation != voiceRecognition.Generation)
+            if (!input.Eligible() || !IsSpeechInterruptionChannelCurrent(input, channel))
             {
                 await WriteAuditAsync(audit.WithOutcome(SecurityAuditOutcome.Cancelled, "original-speech-target-retired"));
                 activity.Complete(HostOperationOutcome.Cancelled);
@@ -82,7 +98,7 @@ public sealed partial class MainViewModel
             RetireSpeechCaption();
             await textToSpeech.StopAsync();
 #pragma warning disable VSTHRD003 // Join the captured one-shot; cancellation alone is not a release receipt.
-            await responseReadQuiescence;
+            await responseReadPlaybackQuiescence;
 #pragma warning restore VSTHRD003
             if (textToSpeech.IsSpeaking || !playback.InterruptionConfirmed)
             {
@@ -110,5 +126,20 @@ public sealed partial class MainViewModel
             NotifyDetailPresentationAvailability();
             NotifyResponseReadChanged();
         }
+
+    }
+
+    private Task<Voice.WakeSpeechInterruptionCapture?> StartWakeSpeechInterruptionAsync(
+        Voice.HandsFreeVoiceRecognitionService owner, CancellationToken token)
+    {
+        var input = CaptureSpeechInterruptionInput();
+        if (!input.Eligible())
+        { return Task.FromResult<Voice.WakeSpeechInterruptionCapture?>(null); }
+        return owner.StartSpeechInterruptionAsync(input.Eligible, (transcript, current) =>
+            uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(RequestOrigin.ActivatedVoice, async () =>
+            {
+                if (!current() || !input.Eligible() || !IsSpeechInterruptionCommand(transcript.Transcript)) { return; }
+                await InterruptSessionSpeechAsync(input with { WakeCurrent = current }, SpeechInterruptionChannel.Wake);
+            })), token);
     }
 }

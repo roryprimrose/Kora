@@ -95,6 +95,43 @@ The separate reviewed-command owner cannot take an active wake capture or its pe
 
 The [service regressions](../tests/Kora.Application.UnitTests/Voice/HandsFreeVoiceRecognitionServiceTests.Activation.cs), [admission concurrency regressions](../tests/Kora.Application.UnitTests/Voice/HandsFreeVoiceRecognitionServiceTests.AdmissionConcurrency.cs), [consumer/model regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AdmittedWakeConversation.cs) and [native PCM/routing regressions](../tests/Kora.Windows.IntegrationTests/SessionRoutingTests.AdmittedWake.cs) exercise deterministic implementation behavior. The native cases use synthetic PCM, keyword/recognizer/model and headless focus notifications with the actual Windows PCM owner, foreground session owner, advice/destination windows and governed conversation/model route; they cover compact/expanded answers, unchanged ordinary text, idle typing, post-activation edits, physical join and source/focus replacement. Explicit barriers also cover real configuration-status reads overlapping PCM admission/activation, stale post-observation state, and Stop/disposal retaining ownership until paused PCM processing joins. Joined disposal clears the owned cancellation source before later invalidation can observe it. These fixtures are not acoustic, hardware, provider or installed qualification. No native profile, configured name, model or production listening is enabled by this source increment.
 
+### Exact retained-playback wake interruption (source-only)
+
+The [interruption capture owner](../src/Kora.Application/Voice/WakeSpeechInterruptionCapture.cs)
+and [host binding](../src/Kora.Application/ViewModels/MainViewModel.SpeechInterruption.cs)
+implement one wake-activated **stop speaking** request against the original
+foreground retained-answer playback. This is not general command barge-in or
+interruption of arbitrary TTS. The host freezes playback/session and input
+admission before opening; changed admission or lost qualification permanently
+retires the attempt. Other recognized text is discarded, never dispatched to
+commands, models, questions or approvals.
+
+The [platform contract](../src/Kora.Core/Voice/IHandsFreeAudioStage.cs)
+separates `SupportsSpeechInterruption` / `OpenSpeechInterruptionAsync` from
+ordinary no-playback wake capture. Both default to unavailable, with no fallback
+to `OpenAsync`. A future adapter must exclude known Kora/device playback from
+both wake observations and command PCM, preserve the original sample-clock/name
+boundary, and retire on missing/lost discrimination. A host Boolean, transcript
+filter or ordinary wake qualification is not an echo-rejection implementation.
+**No production Windows adapter implements this discrimination yet.**
+
+The shared voice owner excludes competing capture and profile initialization.
+Stop/profile retirement joins physical capture; failed release retains ownership.
+Only a current final from the original generation can reach the existing
+audited exact-session interruption action, after capture has physically joined.
+The action rechecks admission after its requested audit, cancels only the
+original playback and joins output before reporting success. Playback shutdown
+releases a playback-only receipt before joining the interruption callback,
+avoiding a mutual wait. The full read-operation receipt remains pending until
+capture cleanup finishes, so host disposal cannot return early. Eligible
+ordinary wake listening can resume only after capture cleanup.
+
+The [capture regressions](../tests/Kora.Application.UnitTests/Voice/HandsFreeVoiceRecognitionServiceTests.SpeechInterruption.cs)
+and [host regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.WakeSpeechInterruption.cs)
+use deterministic adapters. Native discrimination, actual acoustic/playback
+measurements, exact name/profile admission and installed qualification remain
+outstanding. Production names, listening availability and consent are unchanged.
+
 ### One explicitly reviewed activated command
 
 The [reviewed command owner](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs) implements supporting voice reliability: **Review one spoken command**, bounded local capture, **Finish capture**, exact inert transcript, optional correction, then separate **Dispatch this exact voice command once** or cancellation. This is one utterance, not a saved setting or a change to direct activated/PTT routing.

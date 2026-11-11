@@ -1060,7 +1060,8 @@ behavior; unsupported scope/metadata cannot be implicitly repaired in place.
 Header editing is bounded to 16 fields/4096 UTF-8 bytes. The separately reviewed
 [owned Instruction rename](../docs/instruction-editor.md#rename-one-owned-instruction)
 adds only `instructions rename <new-id>` / `instructions recover-rename` and the
-same native controls. General revision history, prompt/profile-original rename, other profile
+same native controls. [Owned Prompt rename](../docs/instruction-editor.md#rename-one-owned-prompt)
+uses the corresponding `prompts` controls. General revision history, profile-original rename, other profile
 mutations, executable content and agent runtime remain absent.
 
 #### Bounded recoverable owned Instruction rename
@@ -1130,6 +1131,37 @@ still apply. Exact requested/terminal audit records contain only content-free
 operation hashes and truthful failed/cancelled/unknown/succeeded outcomes
 ([reconciliation](../src/Kora/ArtifactCatalogueReloadService.cs),
 [complete editor fixtures](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rename.cs)).
+
+**Recoverable owned Prompt rename** applies the same host-owned source, consent,
+native writer and separate confirmation boundaries to one clean canonical native
+v1/v2 Prompt, within the approved governed-definition editor outcome.
+The typed/current-name activated `prompts rename <new-id>` and `prompts recover-rename`
+routes share the native reviews; profile originals, unsupported/legacy files and
+dirty drafts remain excluded
+([native owner](../src/Kora/OwnedInstructionEditorController.Rename.cs),
+[product admission](MVP_Scope.md#product-admission-and-realignment)).
+
+The [typed Prompt proposal](../src/Kora.Core/ArtifactInvocation/OwnedPromptRename.cs)
+reuses the authoritative parser's name-only byte edit. Literal request bodies,
+raw formatting, BOM, attribution and v2 input names/order remain unchanged;
+no version upgrade, history/reference rewrite or permission/activation transfer occurs.
+Prompt and Instruction intents occupy distinct host-owned roots; original Instruction
+intent encoding and recovery remain compatible. The same handle-bound phase machine,
+root/file revalidation, no-overwrite publication, cancellation joining and exact
+readback govern both kinds
+([native phases](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs),
+[Prompt boundary regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedPromptRenameTests.cs)).
+
+Reconciliation withdraws the old Prompt ID and exposes the new exact candidate
+disabled/review-required. Explicitly reopening and separately reviewing its use
+precede invocation; native v2 then independently reviews literal values, complete
+expansion and the exact Active target before canonical conversation submission.
+Only the genuinely executed answer is retained beside that original expanded USER
+request; stale input/target/source/control/private admission cannot become write
+or execution authority
+([application admission/audit](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rename.cs),
+[complete deterministic native operation](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.RenamedPrompt.cs)).
+These deterministic adapters do not enable or qualify a live provider.
 
 **Restore previous saved content** completes one bounded same-source owned native-v1 Instruction restoration.
 Only a changed normal Save with known terminal audit, native readback and coherent catalogue reconciliation retains one prior complete source in the same private editor/run.

@@ -24,22 +24,25 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
     internal Action<OwnedInstructionRenamePhase>? AfterRenamePhase { get; set; }
     internal Action? BeforeRenameStagingFlush { get; set; }
     internal Func<SafeFileHandle, uint> RenameDirectoryFlags { get; set; } = ReadRenameDirectoryFlags;
-    private static string RenameIntentDirectory(IApplicationDataPaths paths) => Path.Combine(paths.LocalRoot, "OwnedInstructionRename");
-    private static string RenameIntentPath(IApplicationDataPaths paths) => Path.Combine(RenameIntentDirectory(paths), RenameIntentName);
+    private static string RenameIntentDirectory(IApplicationDataPaths paths, ArtifactKind kind) =>
+        Path.Combine(paths.LocalRoot, kind == ArtifactKind.Prompt ? "OwnedPromptRename" : "OwnedInstructionRename");
+    private static string RenameIntentPath(IApplicationDataPaths paths, ArtifactKind kind) =>
+        Path.Combine(RenameIntentDirectory(paths, kind), kind == ArtifactKind.Prompt ? "prompt-rename.json" : RenameIntentName);
+    private string RenameSlotPrefix => kind == ArtifactKind.Prompt ? ".prompt-rename-" : ".instruction-rename-";
     private string RenameSlot(RenameIntent intent, bool original) =>
-        Path.Combine(directory, $".instruction-rename-{intent.Operation:N}.{(original ? "original" : "proposed")}");
+        Path.Combine(directory, $"{RenameSlotPrefix}{intent.Operation:N}.{(original ? "original" : "proposed")}");
 
     internal static void RequireNoInstructionRename(IApplicationDataPaths paths, ArtifactKind kind, CancellationToken token)
     {
-        if (kind != ArtifactKind.Instruction) { return; }
+        if (kind is not (ArtifactKind.Instruction or ArtifactKind.Prompt)) { return; }
         token.ThrowIfCancellationRequested();
-        using var probe = CreateFile(RenameIntentPath(paths), 0x80000000, 5, nint.Zero, 3, 0x00200000, nint.Zero);
+        using var probe = CreateFile(RenameIntentPath(paths, kind), 0x80000000, 5, nint.Zero, 3, 0x00200000, nint.Zero);
         if (probe.IsInvalid)
         {
             if (Marshal.GetLastWin32Error() is 2 or 3) { return; }
             throw NativeFailure("Owned instruction rename recovery state is inaccessible; use and writes are withheld.");
         }
-        throw new InvalidOperationException("An unfinished owned Instruction rename requires explicit Recover rename. No automatic replay, rollback, write or use is permitted.");
+        throw new InvalidOperationException("An unfinished owned definition rename requires explicit Recover rename. No automatic replay, rollback, write or use is permitted.");
     }
 
     internal Task<OwnedInstructionSnapshot> RenameInstruction(OwnedInstructionRename proposal, Func<bool> eligible,
@@ -52,16 +55,18 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
     private OwnedInstructionSnapshot BeginInstructionRename(OwnedInstructionRename proposal, Func<bool> eligible, CancellationToken token)
     {
         RequireInstructionRenameKind();
+        if (proposal.Source.Document.Definition.Kind != kind)
+        { throw new InvalidDataException("The rename proposal belongs to another owned root kind."); }
         RequireNoInstructionRename(paths, kind, token);
         using var pinned = PinRoot(token);
         RequireRenameDirectory(pinned);
-        using var journalRoot = PinDefinitionDirectory(RenameIntentDirectory(paths), true, token);
+        using var journalRoot = PinDefinitionDirectory(RenameIntentDirectory(paths, kind), true, token);
         using var source = OpenFile(Target(proposal.Source.Name), 0x80010000, 1);
         RequireRenameSource(proposal.Source, pinned, source, token);
         RequireRenameAbsent(Target(proposal.DestinationName));
         RequireEligible(eligible, token);
         var operation = Guid.NewGuid();
-        var proposedPath = Path.Combine(directory, $".instruction-rename-{operation:N}.proposed");
+        var proposedPath = Path.Combine(directory, $"{RenameSlotPrefix}{operation:N}.proposed");
         string stagedIdentity;
         using (var staged = CreatePrivateStaging(proposedPath))
         {
@@ -94,10 +99,10 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
             RequireRenameAbsent(Target(proposal.DestinationName));
             RequireEligible(eligible, token);
             intentAttempted = true;
-            WriteDefinitionFile(RenameIntentDirectory(paths), journalRoot, RenameIntentName,
+            WriteDefinitionFile(RenameIntentDirectory(paths, kind), journalRoot, Path.GetFileName(RenameIntentPath(paths, kind)),
                 JsonSerializer.SerializeToUtf8Bytes(intent, RenameJson), false, eligible, token);
             // Reopen the durable intent before any identity move; the original is still pinned.
-            using var journal = OpenFile(RenameIntentPath(paths), 0x80010000, 1);
+            using var journal = OpenFile(RenameIntentPath(paths, kind), 0x80010000, 1);
             var read = ReadRenameIntent(journal, token);
             if (read != intent && !JsonSerializer.SerializeToUtf8Bytes(read, RenameJson).AsSpan()
                 .SequenceEqual(JsonSerializer.SerializeToUtf8Bytes(intent, RenameJson)))
@@ -118,7 +123,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
         lock (gate)
         {
             RequireInstructionRenameKind();
-            using var probe = CreateFile(RenameIntentPath(paths), 0x80000000, 5, nint.Zero, 3, 0x00200000, nint.Zero);
+            using var probe = CreateFile(RenameIntentPath(paths, kind), 0x80000000, 5, nint.Zero, 3, 0x00200000, nint.Zero);
             if (probe.IsInvalid)
             {
                 if (Marshal.GetLastWin32Error() is 2 or 3) { return null; }
@@ -126,8 +131,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
             }
             using var pinned = PinRoot(token);
             RequireRenameDirectory(pinned);
-            using var journalRoot = PinDefinitionDirectory(RenameIntentDirectory(paths), false, token);
-            VerifyFile(probe, RenameIntentPath(paths));
+            using var journalRoot = PinDefinitionDirectory(RenameIntentDirectory(paths, kind), false, token);
+            VerifyFile(probe, RenameIntentPath(paths, kind));
             var intent = ReadRenameIntent(probe, token);
             return ObserveInstructionRename(intent, pinned, token);
         }
@@ -140,10 +145,12 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
             lock (gate)
             {
                 RequireInstructionRenameKind();
+                if (recovery.Proposal.Source.Document.Definition.Kind != kind)
+                { throw new InvalidDataException("The rename recovery belongs to another owned root kind."); }
                 using var pinned = PinRoot(token);
                 RequireRenameDirectory(pinned);
-                using var journalRoot = PinDefinitionDirectory(RenameIntentDirectory(paths), false, token);
-                using var journal = OpenFile(RenameIntentPath(paths), 0x80010000, 1);
+                using var journalRoot = PinDefinitionDirectory(RenameIntentDirectory(paths, kind), false, token);
+                using var journal = OpenFile(RenameIntentPath(paths, kind), 0x80010000, 1);
                 var intent = ReadRenameIntent(journal, token);
                 var observed = ObserveInstructionRename(intent, pinned, token);
                 if (!string.Equals(observed.ObservationRevision, recovery.ObservationRevision, StringComparison.Ordinal)
@@ -222,9 +229,10 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
             || !string.Equals(intent.DirectoryIdentity, WindowsFileIdentity.Read(pinned.Last), StringComparison.Ordinal))
         { throw new InvalidDataException("Rename source root or parent identities changed. No recovery publication is permitted."); }
         var source = new OwnedInstructionSnapshot(intent.SourceName, intent.DirectoryIdentity, intent.SourceIdentity,
-            ArtifactFileDocument.Parse(intent.Original, ArtifactKind.Instruction, "kora-profile", intent.SourceName))
+            ArtifactFileDocument.Parse(intent.Original, kind, "kora-profile", intent.SourceName))
         { RootBindingIdentity = intent.RootBindingIdentity };
-        var proposal = new OwnedInstructionRename(source, intent.DestinationName);
+        OwnedInstructionRename proposal = kind == ArtifactKind.Prompt
+            ? new OwnedPromptRename(source, intent.DestinationName) : new OwnedInstructionRename(source, intent.DestinationName);
         var original = ReadRenameFile(Target(intent.SourceName), token);
         var held = ReadRenameFile(RenameSlot(intent, true), token);
         var staged = ReadRenameFile(RenameSlot(intent, false), token);
@@ -328,7 +336,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
 
     private void RequireInstructionRenameKind()
     {
-        if (kind != ArtifactKind.Instruction) { throw new InvalidOperationException("Rename and its recovery support owned Instructions only."); }
+        if (kind is not (ArtifactKind.Instruction or ArtifactKind.Prompt))
+        { throw new InvalidOperationException("Rename and its recovery require an owned Instruction or Prompt root."); }
     }
 
     private void RequireRenameDirectory(Pinned pinned)

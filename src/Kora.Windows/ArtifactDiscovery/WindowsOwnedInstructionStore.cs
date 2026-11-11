@@ -5,7 +5,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Kora.Windows.Artifacts;
 
-public sealed class WindowsOwnedInstructionStore : IOwnedInstructionStore, IOwnedInstructionRenameStore
+public sealed class WindowsOwnedInstructionStore : IOwnedInstructionStore, IOwnedInstructionRenameStore, IOwnedPromptRenameStore
 {
     private readonly WindowsOwnedDefinitionFileAccess files;
 

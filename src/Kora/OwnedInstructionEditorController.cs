@@ -204,8 +204,8 @@ internal sealed partial class OwnedInstructionEditorController(
         if (busy) { return; }
         if (operation is "Rename")
         {
-            if (requestedKind != ArtifactKind.Instruction || kind != requestedKind)
-            { window.Report("Rename requires the inspected canonical owned Instruction, not a prompt or profile original."); return; }
+            if (kind != requestedKind)
+            { window.Report("Rename requires the inspected canonical owned source of the requested kind, not a profile original."); return; }
             window.RenameNameInput.Text = name;
         }
         else if (operation is "Save as new copy")

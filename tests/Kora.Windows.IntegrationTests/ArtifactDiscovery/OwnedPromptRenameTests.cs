@@ -131,7 +131,7 @@ public sealed class OwnedPromptRenameTests : IDisposable, IApplicationDataPaths
         {
             if (phase == OwnedInstructionRenamePhase.OriginalHeld)
             {
-                if (failure is "destination") { File.WriteAllBytes(destination, [1, 0, 3]); }
+                if (failure is "destination") { WindowsOwnedInstructionStoreTests.WriteOwnedFile(destination, [1, 0, 3]); }
                 if (failure is "readback")
                 { File.WriteAllBytes(Directory.GetFiles(Path.Combine(RoamingRoot, "Prompts"), ".prompt-rename-*.proposed").Single(), [9, 0, 8]); }
                 if (failure is "cancel") { cancellation.Cancel(); }

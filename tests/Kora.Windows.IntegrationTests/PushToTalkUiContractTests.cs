@@ -91,7 +91,7 @@ public sealed class PushToTalkUiContractTests
     }
 
     [Fact]
-    public async Task Response_window_exposes_hold_to_talk_only_for_disabled_listening_mode()
+    public async Task Response_window_keeps_hold_to_talk_visible_with_voice_readiness_or_disabled_listening()
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -107,7 +107,9 @@ public sealed class PushToTalkUiContractTests
                 HeadlessSession.SetActivation(response, true);
                 response.UpdateLayout();
                 var button = response.FindControl<Button>("PushToTalkButton")!;
-                button.IsVisible.Should().BeFalse();
+                button.IsVisible.Should().BeTrue();
+                button.IsEnabled.Should().BeTrue("voice readiness is not an active automatic wake listener");
+                button.Content.Should().BeOfType<PathIcon>();
                 fixture.Voice.StartCalls.Should().Be(0);
                 await fixture.Main.ToggleListeningCommand.ExecuteAsync();
                 response.UpdateLayout();

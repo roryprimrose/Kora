@@ -333,6 +333,70 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ResponseTitle.Should().Be("Artifact changes could not be loaded.");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Artifact_reload_recovery_replaces_only_its_current_failure_notice(bool newerResponse)
+    {
+        var fixture = new Fixture(enableArtifactConfiguration: true);
+        var candidates = fixture.ArtifactCatalogue.SourceCandidates;
+        fixture.ViewModel.CommandText = "Unsent input";
+        fixture.ArtifactCatalogue.ReportReloadFailure(new InternalBufferOverflowException("Synthetic overflow"));
+        fixture.ViewModel.ResponseTitle.Should().Be("Artifact changes could not be loaded.");
+        fixture.ArtifactCatalogue.ReportReloadFailure(new IOException("Another unavailable observation"));
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+
+        fixture.Dispatcher.DeferPosts = true;
+        fixture.ArtifactCatalogue.Publish(candidates);
+        if (newerResponse) { fixture.ViewModel.ReportHostInteractionFailure("A newer interaction is unavailable."); }
+        var previousTitle = fixture.ViewModel.ResponseTitle;
+        var previousBody = fixture.ViewModel.ResponseBody;
+        fixture.WindowActions.Clear();
+        fixture.Dispatcher.FlushPosts();
+        await fixture.ViewModel.ArtifactChangeUpdate;
+
+        if (newerResponse)
+        {
+            fixture.ViewModel.ResponseTitle.Should().Be(previousTitle);
+            fixture.ViewModel.ResponseBody.Should().Be(previousBody);
+        }
+        else
+        {
+            fixture.ViewModel.State.Should().Be(AssistantState.Information);
+            fixture.ViewModel.ResponseTitle.Should().Be("Artifact sources reloaded.");
+            fixture.ViewModel.ResponseBody.Should().Contain("exact revision review is still needed");
+        }
+        fixture.ArtifactCatalogue.IsReloadUnavailable.Should().BeFalse();
+        fixture.ViewModel.CommandText.Should().Be("Unsent input");
+        fixture.WindowActions.Should().BeEmpty();
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Queued_artifact_reload_failure_does_not_replace_recovered_or_disposed_responses(bool dispose)
+    {
+        var fixture = new Fixture(enableArtifactConfiguration: true);
+        var candidates = fixture.ArtifactCatalogue.SourceCandidates;
+        fixture.ViewModel.ReportHostInteractionFailure("Earlier interaction");
+        fixture.Dispatcher.DeferPosts = true;
+        fixture.ArtifactCatalogue.ReportReloadFailure(new InternalBufferOverflowException("Synthetic overflow"));
+        if (dispose) { fixture.ViewModel.Dispose(); }
+        else { fixture.ArtifactCatalogue.Publish(candidates); }
+        var title = fixture.ViewModel.ResponseTitle;
+        var body = fixture.ViewModel.ResponseBody;
+        fixture.WindowActions.Clear();
+        fixture.Dispatcher.FlushPosts();
+        await fixture.ViewModel.ArtifactChangeUpdate;
+
+        fixture.ViewModel.ResponseTitle.Should().Be(title);
+        fixture.ViewModel.ResponseBody.Should().Be(body);
+        fixture.WindowActions.Should().BeEmpty();
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.ArtifactCatalogue.IsReloadUnavailable.Should().Be(dispose);
+    }
+
     [Fact]
     public async Task Unavailable_or_disposed_artifact_controls_fail_closed()
     {

@@ -6,6 +6,47 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed class InstallerShutdownHandshakeTests
 {
+    [Fact]
+    public async Task ApplicationExitAlsoWaitsForActualProcessExitRatherThanPipeClosure()
+    {
+        using var pipe = new DuplexStream(await FramesAsync(Acknowledged()));
+        var exit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var command = InstanceShutdownHandshake.RequestStopAsync(pipe, token => exit.Task.WaitAsync(token),
+            "Exit", TestContext.Current.CancellationToken);
+        command.IsCompleted.Should().BeFalse();
+        using var sent = new MemoryStream(pipe.Requests);
+        (await InstanceProtocol.ReadAsync(sent, TestContext.Current.CancellationToken)).Kind.Should().Be("Exit");
+        exit.SetResult();
+        await command;
+    }
+
+    [Theory]
+    [InlineData("Denied")]
+    [InlineData("Busy")]
+    [InlineData("Activated")]
+    public async Task ApplicationExitCannotTreatRefusalOrLegacyActivationAsShutdown(string reply)
+    {
+        using var pipe = new DuplexStream(await FramesAsync(new InstanceMessage(InstanceProtocol.Version, reply)));
+        var waits = 0;
+        var command = () => InstanceShutdownHandshake.RequestStopAsync(pipe, _ =>
+        {
+            waits++;
+            return Task.CompletedTask;
+        }, "Exit", TestContext.Current.CancellationToken);
+        await command.Should().ThrowAsync<InvalidOperationException>().WithMessage("*No process was killed*");
+        waits.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task MalformedTerminalFrameIsNotPipeClosureEvenWhenProcessExited()
+    {
+        var bytes = await FramesAsync(Acknowledged());
+        using var pipe = new DuplexStream([.. bytes, 0, 0, 0, 0]);
+        var command = () => InstanceShutdownHandshake.RequestStopAsync(pipe, _ => Task.CompletedTask,
+            "Exit", TestContext.Current.CancellationToken);
+        await command.Should().ThrowAsync<InvalidDataException>();
+    }
+
     [Theory]
     [InlineData("Denied")]
     [InlineData("Declined")]

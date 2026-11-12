@@ -103,8 +103,8 @@ public sealed partial class EvidenceLiteralFindTests
                 fixture.Main.ReaderTextScalePercent = percent == 75 ? 200 : 75;
                 await fixture.Main.AppearanceUpdate;
                 Dispatcher.UIThread.RunJobs();
-                body.Text.Should().BeEmpty();
-                match.Text.Should().BeEmpty();
+                body.Text.Should().BeNullOrEmpty();
+                match.Text.Should().BeNullOrEmpty();
                 body.FontSize.Should().Be(bodyFont);
                 match.FontSize.Should().Be(matchFont);
             }
@@ -158,8 +158,8 @@ public sealed partial class EvidenceLiteralFindTests
                 viewer.IsFindCurrent(revision).Should().BeFalse();
                 Retired(viewer);
                 viewer.CanFind.Should().BeFalse();
-                body.Text.Should().BeEmpty();
-                match.Text.Should().BeEmpty();
+                body.Text.Should().BeNullOrEmpty();
+                match.Text.Should().BeNullOrEmpty();
                 body.FontSize.Should().Be(baseline);
                 match.FontSize.Should().Be(baseline);
                 reader.Queries.Should().HaveCount(latePreference ? 2 : 1);
@@ -227,11 +227,16 @@ public sealed partial class EvidenceLiteralFindTests
                 await pending;
                 viewer.IsFindCurrent(revision).Should().BeFalse();
                 Retired(viewer);
-                match.Text.Should().BeEmpty();
-                match.IsVisible.Should().BeFalse();
+                match.Text.Should().BeNullOrEmpty();
+                if (change is "close")
+                {
+                    window.IsVisible.Should().BeFalse();
+                    window.View.DataContext.Should().BeNull();
+                }
+                else { match.IsVisible.Should().BeFalse(); }
                 match.FontSize.Should().Be(baseline);
                 body.FontSize.Should().Be(string.Equals(change, "replace", StringComparison.Ordinal) ? baseline * 2 : baseline);
-                if (change is not ("replace" or "partial" or "omitted")) { body.Text.Should().BeEmpty(); }
+                if (change is not ("replace" or "partial" or "omitted")) { body.Text.Should().BeNullOrEmpty(); }
                 reader.Queries.Should().HaveCount(2);
             }
             finally { window.Close(); }
@@ -277,8 +282,8 @@ public sealed partial class EvidenceLiteralFindTests
                 window.IsVisible.Should().BeFalse();
                 viewer.CanQuery.Should().BeFalse();
                 Retired(viewer);
-                body.Text.Should().BeEmpty();
-                match.Text.Should().BeEmpty();
+                body.Text.Should().BeNullOrEmpty();
+                match.Text.Should().BeNullOrEmpty();
                 body.FontSize.Should().Be(baseline);
                 match.FontSize.Should().Be(baseline);
                 fixture.Main.ResponseBody.Should().Contain("preference evidence");

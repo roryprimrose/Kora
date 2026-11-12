@@ -86,6 +86,68 @@ event for the startup exception.
 Run `.\eng\Test-Run.ps1` to check launcher ordering, failure handling and working
 directory restoration with fake commands; it never updates source or opens Kora.
 
+### Live XAML design iteration
+
+For a user-authorized stop before rebuilding, follow the repository
+[Kora exit skill](.github/skills/kora-exit/SKILL.md). With an updated, already-built
+Debug client and matching running owner:
+
+```powershell
+dotnet run --project .\src\Kora\Kora.csproj --configuration Debug --no-build --no-restore -- --exit
+```
+
+This requests authenticated graceful exit through the existing instance pipe;
+it never starts an assistant, installs a package or force-kills a process.
+Normal input/editor/work reviews still apply. Verify the reported target-process
+exit before replacing binaries; `NO_OWNER` is not a clean-shutdown receipt.
+Older clients/owners need a one-time normal exit and update first.
+
+Kora has an opt-in, Debug-only [HotAvalonia](https://github.com/Kira-NT/HotAvalonia)
+workflow. Start once, open the relevant screen, edit its `.axaml` layout or
+shared styles/resources, and save to update the running UI without rebuilding:
+
+```powershell
+dotnet restore .\src\Kora\Kora.csproj --locked-mode -p:KoraHotReload=true
+dotnet run --project .\src\Kora\Kora.csproj --configuration Debug -p:KoraHotReload=true --no-restore
+```
+
+Exit any existing Kora instance first. This starts the real application with its
+normal host services and data; use non-sensitive test content and do not use
+this mode to validate permissions, privacy, approvals or functional correctness.
+Hot reload does not bypass startup or runtime admission.
+
+The tooling is excluded from ordinary Debug and all Release configurations,
+including Release with `KoraHotReload=true`. References remain in the locked
+dependency graph so switching configurations does not require different lock
+files. Remote hot reload is disabled. Restore and rebuild when switching modes;
+`--no-build` can otherwise run a previously enabled binary.
+
+Limitations:
+
+- This reloads XAML, not arbitrary C# edits or C#-constructed UI. Restart for
+  constructor changes; reopening a view may be sufficient for other C# changes
+  applied separately through .NET Hot Reload.
+- Reload does not rerun constructors. Kora views can cache named controls and
+  attach handlers in their constructors, so structural edits can leave stale
+  references or unbound controls. Restart after such edits before exercising
+  commands or reviewing behavior. Local control state can also reset.
+- If an edit fails to reload, inspect the development output and correct the
+  XAML or restart; an unchanged window is not proof that the edit applied.
+- The VS Code Avalonia extension also offers a live XAML previewer, but views
+  requiring host-owned constructor arguments are not automatically previewable.
+
+### Iterate from the VS Code Agents window
+
+Use the repository [Kora UI design iteration skill](.github/skills/kora-ui-iterate/SKILL.md)
+in a local Windows session opened on the intended checkout. It includes a
+copyable starter prompt, desktop-tool preflight, one-time hot-reload build,
+window/source map and the edit/save/inspect loop. Mention `kora-ui-iterate`,
+or ask the agent to read the skill file if the current session has not indexed it.
+
+Keep the app open between visual changes; restart for C# changes and before
+functional validation of structurally reloaded views. The skill reuses the
+authenticated exit command rather than requiring tray automation.
+
 ## Development checks
 
 PR merge orchestration can run entirely on GitHub, without a local agent.
@@ -340,8 +402,13 @@ of the shared build and twelve execution jobs. This preserves queue retirement
 of predecessor runs without adding required job names to queue policy.
 `windows-execution-results-<partition>` artifacts retain every TRX and console log.
 The unchanged required **Windows integration tests** check validates all twelve
-reports against the admitted-source catalog: every method and theory case must
-pass exactly once. Failure, cancellation, missing or skipped jobs cannot pass.
+reports against the admitted-source catalog: every mandatory method and theory case must
+pass exactly once. The [catalog producer and shared validator](eng/WindowsTestEvidence.ps1)
+use compiled xUnit discovery with pre-enumerated theory rows to retain each case's explicit classification.
+Already-explicit qualification cases must appear exactly once as `NotExecuted`, never as passing qualification.
+Partitions explicitly select `--explicit off`; unexpected skips, omitted or duplicate cases,
+executed explicit cases, failure, cancellation, missing or skipped jobs cannot pass.
+This does not authorize or qualify the separately gated [actual-native evaluation](tests/Kora.Windows.IntegrationTests/Audio/README.md#separately-authorized-actual-native-execution).
 Payload/bootstrap fixtures still run once in the build producer.
 This scheduling isolates competing test processes without removing tests or
 changing test/product or 30-minute Windows job timeouts. Run

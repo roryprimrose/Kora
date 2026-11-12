@@ -12,6 +12,8 @@
 ## Implementation and scoped guidance
 
 - Keep these repository workflow defaults scoped to Kora; do not change shared skills, personal profiles or global Git/authentication configuration to apply them.
+- For an authorized local app stop/restart, use the [Kora exit skill](skills/kora-exit/SKILL.md) and supported authenticated pipe command before tray automation. Verify actual target-process exit; pipe acknowledgement is not proof of clean shutdown, and force-kill still requires separate explicit authorization.
+- For live window/layout design in the VS Code Agents window, use the [Kora UI design iteration skill](skills/kora-ui-iterate/SKILL.md): prepare the owned Debug hot-reload host once, then edit/save/inspect through the desktop tool instead of rebuilding for every XAML adjustment. Restart before functional validation; no automatic microphone/model activity or unrelated app takeover.
 - Use small cohesive owners, strong types and nullable analysis. Keep policy/serialization authoritative in one place; reuse domain validation and shared admitted actions. Surface failures with repository-standard diagnostics and recovery, never silent defaults or success-shaped fallbacks.
 - Use asynchronous I/O/lifecycle APIs and deterministic disposal. Allow `async void` only at framework event or `ICommand` boundaries with explicit failure handling.
 - Follow the applicable scoped guidance for matching edits and cross-cutting work:

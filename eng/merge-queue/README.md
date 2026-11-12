@@ -426,6 +426,12 @@ An authorized operator can request a **fresh ordinary main run**, using the same
 
 This retry does not dispatch candidate CI, edit queue state, change protection or bypass a check. A source change, active candidate, uncertain owned work or incomplete evidence requires the corresponding reviewed recovery instead ([batch admission](github.cjs#L383), [recovery](#interrupted-batches-repair-and-rollback)).
 
+When a code repair must advance an unqualified serial main, use the separately authorized protected maintenance route, not a workflow rerun or direct queue-state edit. Keep enrollment paused, require ordinary protected candidate CI for the repair PR, merge without administrator bypass, and restore the App-owned protection immediately ([controller-deployment procedure](#controller-deployment-after-an-exhausted-batch)).
+
+After all CI is physically terminal, the administrator may dispatch `repair-completed-tip` with the freshly reviewed checkpoint, existing completed-tip ticket, exact new `recovery_main`, `main_build_profile=per-merge` and `acknowledge_batch_change=true`. It accepts only idle serial/per-merge state with a previously requested but unqualified tip, no pending profile transition, and exactly one main commit whose sole parent is that old tip ([recovery guards](recovery.cjs), [behavioral regressions](batch.test.cjs)).
+
+The operation archives the previous tip and creates a new **unqualified** actual-main receipt, then wakes normal reconciliation. It transfers no qualification, source proof or dispatch ownership, admits no PR and writes no configuration. Require successful fresh full main qualification before restoring enrollment or delivery profiles. A changed checkpoint, ticket, authority, main, profile or physical ownership refuses the operation without releasing admission ([recovery guards](recovery.cjs), [behavioral regressions](batch.test.cjs)).
+
 ### Operator cutover: separate administrator authorization required
 
 These are rollout instructions, **not actions performed by the implementation**:
@@ -497,6 +503,11 @@ The follow-up still joins owned work before releasing the lane. An uncertain ret
   checkpoint/ticket, `acknowledge_batch_change=true`, terminal owned CI, exact
   recorded main/prefix and an unchanged, still-authorized suffix. It cannot
   repeat or erase an unresolved merge request.
+  For an exhausted batch, it additionally requires successful first-attempt
+  candidate gates and revalidates every actual merged PR, admitted head,
+  parent, prefix tree and main reachability. It restores the same complete
+  receipt as normal completion, including independent delivery proof and the
+  atomic source record required by hourly admission.
 - `repair-batch` has the same checkpoint, authority, actual-main and physical
   quiescence fences. It archives the old prefix/manifest and clears only the
   controller's active record, never main. Remaining current eligible work must
@@ -507,6 +518,10 @@ The follow-up still joins owned work before releasing the lane. An uncertain ret
   advanced main. An unresolved merge request or missing/duplicate terminal
   metadata cannot be erased with repair. Reconcile those facts explicitly
   before a fully validated repair/revert.
+  Under hourly scheduling, repair retains the existing independent receipt
+  only while it still exactly matches actual main and its tree. It cannot
+  discard a merged prefix that lacks its source receipt; use reviewed
+  exhausted-batch resume when its complete proof can be revalidated.
 - Recovery calls are checkpoint-specific; repeating one after its successful
   write fails rather than replaying effects. Inspect checkpoint readback after
   transport uncertainty. After verified checkpoint readback, `resume-batch` and
@@ -1009,6 +1024,12 @@ merged. Inspect its `Merge queue:` outcome and the durable active/blocked state.
 Conflicts still require a contributor repair; the controller does not resolve
 them or retry the same failed head/enrollment automatically.
 
+Final batch-member confirmation, the completed-tip receipt and any independent
+release source record share one atomic state checkpoint. If that save is
+interrupted, reconciliation either reobserves the actual merge against the
+frozen proof or reads the completed receipt; it does not replay the merge.
+Existing `recovery-required` holds still require separately authorized recovery.
+
 State is a versioned JSON file on `automation/merge-queue-state`, not an artifact,
 runner cache or local file. Updates are linear, compare the observed parent and
 never force-update that branch. GitHub retains the state commit history.
@@ -1125,6 +1146,36 @@ installation, GitHub permission configuration or this hosted canary has happened
   ordinary protection, ensure other open PRs cannot qualify using only skipped
   queue-waiting checks. Merge the tested repair through ordinary protected CI,
   retain the durable state history, then repeat the App-source canary.
+  Disabled-mode CI requires the batch, independent-delivery and hourly-main
+  variables to be absent as well as mode `disabled`. Preserve their previous
+  values and all enrollment/protection settings for guarded restoration.
+
+### Controller deployment after an exhausted batch
+
+When an interrupted final checkpoint leaves a fully merged batch held, deploy
+the controller repair through the ordinary protected-CI procedure above. Do not
+give the repair commit the old batch's tested-tree authority. With all candidate
+work physically terminal, restore App admission protection and enable only
+`batch-v1` (serial delivery, per-merge main validation).
+
+The separately authorized administrator can then dispatch `repair-controller`
+on trusted main, with the exact `recovery_checkpoint`, held `recovery_ticket`,
+actual `recovery_main`, `main_build_profile=per-merge` and
+`acknowledge_batch_change=true`. This operation accepts only one main advance
+after a fully merged batch with successful first-attempt candidate gates. It
+revalidates every actual merged prefix, archives the held batch and former
+profile/qualification metadata, and creates an **unqualified** serial tip for
+actual main. It never writes configuration, publishes proof for the repair from
+another tree, or merges a PR.
+
+The normal controller must obtain fresh full main qualification/publication
+before admitting another PR. After that succeeds, use the existing guarded
+independent-delivery transition. A subsequent independently admitted source must
+receive its own source record and successful full main qualification before the
+guarded hourly transition can restore the old scheduling profile. Restore
+enrollment in bounded stages; do not activate hourly scheduling against an
+unrecorded serial tip. Read back each checkpoint before continuing, and never
+replay ambiguous recovery writes.
 
 ### Reviewed unobservable-dispatch recovery
 

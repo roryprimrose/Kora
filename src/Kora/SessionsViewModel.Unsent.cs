@@ -83,9 +83,9 @@ internal sealed partial class SessionsViewModel
         unsentRevision++;
     }
 
-    internal Func<bool> CaptureUnsentShutdownEligibility()
+    internal Func<bool> CaptureUnsentShutdownEligibility(bool exitWithoutDisclosure = false)
     {
-        var admitted = CanRead && access.CanControl;
+        var admitted = CanRead && access.CanControl || exitWithoutDisclosure && access.CanReviewApplicationExit;
         var control = access.ControlRevision;
         var selection = selectionEpoch;
         var target = selected;

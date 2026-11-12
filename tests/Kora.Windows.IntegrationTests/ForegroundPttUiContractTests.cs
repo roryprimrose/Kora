@@ -23,20 +23,31 @@ public sealed partial class ForegroundPttUiContractTests
     private const RawInputModifiers Chord = RawInputModifiers.Control | RawInputModifiers.Shift;
 
     [Theory]
-    [InlineData(Key.Space)]
-    [InlineData(Key.F9)]
-    public async Task ForegroundShortcutUsesOneExistingCaptureAndOnlyItsMatchingRelease(Key key)
+    [InlineData(Key.Space, false, false)]
+    [InlineData(Key.F9, false, false)]
+    [InlineData(Key.Space, true, false)]
+    [InlineData(Key.Space, false, true)]
+    public async Task ForegroundShortcutUsesOneExistingCaptureAndOnlyItsMatchingRelease(
+        Key key, bool readinessEnabled, bool inCall)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true);
             await using var admission = new AudioControlAdmission(fixture.Interactions, fixture.Interactions, new(fixture.Tasks));
             var configuration = new ForegroundPttConfigurationService(new(fixture), admission, fixture.Audit);
-            await fixture.InitializeAsync(null, foregroundPtt: configuration);
+            var calls = new FixtureBoundaries.FixtureCallState(inCall ? CallState.Active : CallState.Clear);
+            await fixture.InitializeAsync(null, foregroundPtt: configuration, callState: calls);
             await SaveShortcut(fixture, key == Key.Space ? ForegroundPttShortcut.ControlShiftSpace : ForegroundPttShortcut.ControlShiftF9);
             fixture.Main.BindVoiceOwnershipGate(static () => true);
             await fixture.Main.SetVoiceConsentAsync(true);
-            await fixture.Main.ToggleListeningCommand.ExecuteAsync();
+            if (inCall)
+            {
+                fixture.Main.BindCallOwnershipGate(static () => true);
+                await fixture.Main.SetAllowVoiceActivationDuringCallsAsync(false);
+                await fixture.Main.CallClosureTask;
+                fixture.Main.IsVoiceActivationAvailable.Should().BeFalse();
+            }
+            else if (!readinessEnabled) { await fixture.Main.ToggleListeningCommand.ExecuteAsync(); }
             var response = new ResponseWindow(fixture.Main);
             try
             {
@@ -76,7 +87,6 @@ public sealed partial class ForegroundPttUiContractTests
     [InlineData("unassigned")]
     [InlineData("editor")]
     [InlineData("background")]
-    [InlineData("mode")]
     [InlineData("consent")]
     [InlineData("owner")]
     [InlineData("lock")]
@@ -89,13 +99,19 @@ public sealed partial class ForegroundPttUiContractTests
             await using var admission = new AudioControlAdmission(fixture.Interactions, fixture.Interactions, new(fixture.Tasks));
             var configuration = new ForegroundPttConfigurationService(new(fixture), admission, fixture.Audit);
             await fixture.InitializeAsync(null, foregroundPtt: configuration,
-                callState: new FixtureBoundaries.FixtureCallState(boundary is "call" ? CallState.Active : CallState.Clear));
+                callState: new FixtureBoundaries.FixtureCallState(boundary is "call" ? CallState.Unknown : CallState.Clear));
             if (boundary is not "unassigned") { await SaveShortcut(fixture, ForegroundPttShortcut.ControlShiftSpace); }
             fixture.Main.BindVoiceOwnershipGate(() => boundary is not "owner");
             if (boundary is not "consent" and not "owner")
             {
                 await fixture.Main.SetVoiceConsentAsync(true);
-                if (boundary is not "mode" and not "call") { await fixture.Main.ToggleListeningCommand.ExecuteAsync(); }
+                if (boundary is not "call") { await fixture.Main.ToggleListeningCommand.ExecuteAsync(); }
+            }
+            if (boundary is "call")
+            {
+                fixture.Main.BindCallOwnershipGate(static () => true);
+                await fixture.Main.SetAllowVoiceActivationDuringCallsAsync(false);
+                await fixture.Main.CallClosureTask;
             }
             if (boundary is "lock") { fixture.Access.SetOpen(false); }
             var response = new ResponseWindow(fixture.Main);

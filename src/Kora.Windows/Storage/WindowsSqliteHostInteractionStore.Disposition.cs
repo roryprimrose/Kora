@@ -118,7 +118,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
             database.RequireEmptyArtifactInventory();
             Execute(connection, transaction, "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0;");
             var sequence = AppendAudit(connection, transaction, intent, removed, audit,
-                changes: [SessionChange(removed, 2), TaskChange(completed), .. memories.Select(MemoryChange), .. attachments]);
+                changes: [SessionChange(removed, 2), TaskChange(completed), .. memories.Select(MemoryChange), .. attachments,
+                    .. KnowledgeSourceBindingInvalidation(connection, request.SessionId)]);
+            RevokeKnowledgeSourceBinding(connection, transaction, request.SessionId, sequence);
             RevokeAttachment(connection, transaction, request.SessionId, sequence);
             WriteSession(connection, transaction, removed, 2, sequence);
             foreach (var memory in memories) { WriteMemory(connection, transaction, memory, sequence); }
@@ -186,6 +188,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             CountDispositionRows(connection, "host_observations", session), CountDispositionRows(connection, "host_task_waits", session))
         {
             Attachments = ReadAttachmentRow(connection, session)?.Attachment is null ? 0 : 1,
+            KnowledgeSourceBindings = ReadKnowledgeSourceBindingRow(connection, session)?.Binding is null ? 0 : 1,
             ProviderProfiles = CountDispositionRows(connection, "session_provider_profile", session),
             ConversationMessages = CountDispositionRows(connection, "conversation_messages", session),
             SavedConversationDrafts = CountDispositionRows(connection, "conversation_drafts", session),
@@ -265,6 +268,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM session_admissions WHERE session_id=$id ORDER BY admission_id;",
             "SELECT * FROM reviewed_memory WHERE session_id=$id ORDER BY memory_id;",
             "SELECT * FROM session_file WHERE session_id=$id ORDER BY session_id;",
+            "SELECT * FROM session_knowledge_source WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM session_provider_profile WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM conversation_drafts WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM conversation_answer_reviews WHERE session_id=$id ORDER BY request_id;",

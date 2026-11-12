@@ -258,7 +258,7 @@ public sealed class WindowsSqliteSessionModelMetricsTests
         using var migrated = f.OpenRaw();
         using var schema = migrated.CreateCommand();
         schema.CommandText = "PRAGMA user_version;";
-        schema.ExecuteScalar().Should().Be(16L);
+        schema.ExecuteScalar().Should().Be((long)HostInteractionSchema.Version);
         schema.CommandText = "SELECT sequence FROM authority_retention_anchor WHERE singleton=1;";
         schema.ExecuteScalar().Should().Be(0L);
     }

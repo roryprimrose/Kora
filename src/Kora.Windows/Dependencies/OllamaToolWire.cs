@@ -248,7 +248,7 @@ internal static partial class OllamaToolWire
     private static void ValidateReplyEnvelope(JsonElement root, string model, bool completed)
     {
         RequireFields(root, ["model", "message", "done"],
-            ["created_at", "done_reason", "total_duration", "load_duration", "prompt_eval_count",
+            ["created_at", "done_reason", "total_duration", "load_duration", "prompt_eval_count", "prompt_eval_cached_count",
                 "prompt_eval_duration", "eval_count", "eval_duration"]);
         if (!string.Equals(Text(root, "model"), model, StringComparison.Ordinal)
             || root.GetProperty("done").ValueKind != (completed ? JsonValueKind.True : JsonValueKind.False))

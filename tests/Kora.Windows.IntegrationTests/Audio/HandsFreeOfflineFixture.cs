@@ -23,14 +23,14 @@ internal sealed class HandsFreeOfflineFixture : IAsyncDisposable
         RespectRequiredConstructorParameters = true,
         AllowDuplicateProperties = false,
     };
-    private readonly HandsFreeAssetLease assets;
+    private readonly NativeAssets assets;
     private readonly SpeechComponentFileBinding roots;
     private readonly ImmutableDictionary<string, FileStream> corpus;
     private Task? release;
     private bool sessionOwned;
 
     private HandsFreeOfflineFixture(Manifest manifest, string manifestDigest, HandsFreeNativeProfile profile,
-        HandsFreeAssetLease assets, ImmutableDictionary<string, FileStream> corpus, SpeechComponentFileBinding roots)
+        NativeAssets assets, ImmutableDictionary<string, FileStream> corpus, SpeechComponentFileBinding roots)
     {
         Specification = manifest;
         ManifestDigest = manifestDigest;
@@ -72,35 +72,14 @@ internal sealed class HandsFreeOfflineFixture : IAsyncDisposable
         var manifest = await JsonSerializer.DeserializeAsync<Manifest>(manifestStream, ManifestOptions, cancellationToken)
             ?? throw new InvalidDataException("The evaluation manifest is absent.");
         Validate(manifest);
-        var definitions = HandsFreeSetupCatalogue.Component.Assets;
-        var identities = definitions.Select(asset => new HandsFreeNativeAsset(
-            Path.Combine(manifest.AssetsRoot, asset.Name), asset.SizeBytes, asset.Sha256)).ToList();
-        identities.Add(new(manifest.NativePath, HandsFreeSetupCatalogue.NativeBytes, HandsFreeSetupCatalogue.NativeSha256));
-        var configuration = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["mdef"] = Path.Combine(manifest.AssetsRoot, "mdef.data"),
-            ["mean"] = Path.Combine(manifest.AssetsRoot, "means.data"),
-            ["var"] = Path.Combine(manifest.AssetsRoot, "variances.data"),
-            ["tmat"] = Path.Combine(manifest.AssetsRoot, "transition.data"),
-            ["sendump"] = Path.Combine(manifest.AssetsRoot, "sendump.data"),
-            ["fdict"] = Path.Combine(manifest.AssetsRoot, "noise.data"),
-            ["featparams"] = Path.Combine(manifest.AssetsRoot, "features.data"),
-        };
-        var profile = new HandsFreeNativeProfile(manifest.NativePath, manifest.AssetsRoot,
-            Path.Combine(manifest.AssetsRoot, "dictionary.data"), Path.Combine(manifest.AssetsRoot, "silero.onnx"),
-            identities, ["Kora"], "EVALUATION ONLY: no acoustic qualification or production capture authority", configuration);
         var corpusFiles = ImmutableDictionary.CreateBuilder<string, FileStream>(StringComparer.Ordinal);
         var pinnedRoots = new SpeechComponentFileBinding();
-        HandsFreeAssetLease? assetLease = null;
+        NativeAssets? assetLease = null;
         try
         {
-            pinnedRoots.PinAncestors(manifest.AssetsRoot);
-            pinnedRoots.PinAncestors(Path.GetDirectoryName(manifest.NativePath)!);
+            assetLease = await AdmitNativeAssets(manifest.AssetsRoot, manifest.NativePath, cancellationToken);
             pinnedRoots.PinAncestors(manifest.CorpusRoot);
-            RequireInventory(manifest.AssetsRoot, definitions.Select(asset => asset.Name));
-            RequireInventory(Path.GetDirectoryName(manifest.NativePath)!, [HandsFreeSetupCatalogue.NativeFileName]);
             RequireInventory(manifest.CorpusRoot, manifest.Cases.Select(item => item.File));
-            assetLease = await profile.BindAsync(cancellationToken);
             foreach (var item in manifest.Cases)
             {
                 var stream = Open(Path.Combine(manifest.CorpusRoot, item.File));
@@ -111,11 +90,63 @@ internal sealed class HandsFreeOfflineFixture : IAsyncDisposable
                     throw new InvalidDataException("The selected PCM fixture identity changed.");
                 }
             }
-            return new(manifest, actual, profile, assetLease, corpusFiles.ToImmutable(), pinnedRoots);
+            return new(manifest, actual, assetLease.Profile, assetLease, corpusFiles.ToImmutable(), pinnedRoots);
         }
         catch
         {
             foreach (var stream in corpusFiles.Values) { await stream.DisposeAsync(); }
+            if (assetLease is not null) { await assetLease.DisposeAsync(); }
+            pinnedRoots.Dispose();
+            throw;
+        }
+    }
+
+    internal static Task<NativeAssets> AdmitSelectedNativeAssets(CancellationToken cancellationToken)
+    {
+        var root = Environment.GetEnvironmentVariable("KORA_OFFLINE_ASSETS_ROOT");
+        var native = Environment.GetEnvironmentVariable("KORA_OFFLINE_NATIVE_PATH");
+        if (string.IsNullOrWhiteSpace(root) || string.IsNullOrWhiteSpace(native))
+        { throw new InvalidOperationException("Explicit native smoke requires KORA_OFFLINE_ASSETS_ROOT and KORA_OFFLINE_NATIVE_PATH."); }
+        return AdmitNativeAssets(root, native, cancellationToken);
+    }
+
+    internal static async Task<NativeAssets> AdmitNativeAssets(string assetsRoot, string nativePath,
+        CancellationToken cancellationToken)
+    {
+        RequirePlainAbsolutePath(assetsRoot);
+        RequirePlainAbsolutePath(nativePath);
+        if (!string.Equals(Path.GetFileName(nativePath), HandsFreeSetupCatalogue.NativeFileName, StringComparison.Ordinal))
+        { throw new InvalidDataException("The exact bundled native filename is required."); }
+        var definitions = HandsFreeSetupCatalogue.Component.Assets;
+        var identities = definitions.Select(asset => new HandsFreeNativeAsset(
+            Path.Combine(assetsRoot, asset.Name), asset.SizeBytes, asset.Sha256)).ToList();
+        identities.Add(new(nativePath, HandsFreeSetupCatalogue.NativeBytes, HandsFreeSetupCatalogue.NativeSha256));
+        var configuration = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["mdef"] = Path.Combine(assetsRoot, "mdef.data"),
+            ["mean"] = Path.Combine(assetsRoot, "means.data"),
+            ["var"] = Path.Combine(assetsRoot, "variances.data"),
+            ["tmat"] = Path.Combine(assetsRoot, "transition.data"),
+            ["sendump"] = Path.Combine(assetsRoot, "sendump.data"),
+            ["fdict"] = Path.Combine(assetsRoot, "noise.data"),
+            ["featparams"] = Path.Combine(assetsRoot, "features.data"),
+        };
+        var profile = new HandsFreeNativeProfile(nativePath, assetsRoot,
+            Path.Combine(assetsRoot, "dictionary.data"), Path.Combine(assetsRoot, "silero.onnx"),
+            identities, ["Kora"], "EVALUATION ONLY: no acoustic qualification or production capture authority", configuration);
+        var pinnedRoots = new SpeechComponentFileBinding();
+        HandsFreeAssetLease? assetLease = null;
+        try
+        {
+            pinnedRoots.PinAncestors(assetsRoot);
+            pinnedRoots.PinAncestors(Path.GetDirectoryName(nativePath)!);
+            RequireInventory(assetsRoot, definitions.Select(asset => asset.Name));
+            RequireInventory(Path.GetDirectoryName(nativePath)!, [HandsFreeSetupCatalogue.NativeFileName]);
+            assetLease = await profile.BindAsync(cancellationToken);
+            return new(profile, assetLease, pinnedRoots);
+        }
+        catch
+        {
             if (assetLease is not null) { await assetLease.DisposeAsync(); }
             pinnedRoots.Dispose();
             throw;
@@ -249,6 +280,17 @@ internal sealed class HandsFreeOfflineFixture : IAsyncDisposable
     internal sealed record ReplayCase(string Id, string File, long Bytes, string Sha256, int ChunkSamples,
         int FirstFrameMinimum, int FirstFrameMaximum, int LastFrameMinimum, int LastFrameMaximum,
         long CommandEndMinimum, long CommandEndMaximum);
+
+    internal sealed class NativeAssets(HandsFreeNativeProfile profile, HandsFreeAssetLease lease,
+        SpeechComponentFileBinding roots) : IAsyncDisposable
+    {
+        internal HandsFreeNativeProfile Profile { get; } = profile;
+        public async ValueTask DisposeAsync()
+        {
+            try { await lease.DisposeAsync(); }
+            finally { roots.Dispose(); }
+        }
+    }
 
     private sealed class SessionAssets(HandsFreeOfflineFixture owner) : IAsyncDisposable
     {

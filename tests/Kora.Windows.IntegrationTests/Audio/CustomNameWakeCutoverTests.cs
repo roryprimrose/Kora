@@ -392,13 +392,16 @@ public sealed class CustomNameWakeCutoverTests
                 "ps_config_init" => (CreateConfig)(_ => 1),
                 "ps_config_free" or "ps_free" => (Free)(_ => 0),
                 "ps_config_set_str" => (SetString)((_, key, value) => { Strings[key] = value; return 1; }),
-                "ps_config_set_float" => (SetFloat)((_, key, value) => { key.Should().Be("samprate"); value.Should().Be(16000); return 1; }),
-                "ps_config_set_int" => (SetInt)((_, key, value) => { key.Should().Be("frate"); value.Should().Be(100); return 1; }),
+                "ps_config_set_int" => (SetInt)((_, key, value) =>
+                {
+                    key.Should().BeOneOf("samprate", "frate");
+                    value.Should().Be(key is "samprate" ? 16000 : 100);
+                    return 1;
+                }),
                 "ps_init" => (UnaryPointer)(_ => 2),
                 "ps_get_config" => (UnaryPointer)(_ => 1),
                 "ps_config_str" => (GetString)((_, key) => Text(Failure is "keyword-readback" ? "wrong" : Strings[key]!)),
-                "ps_config_float" => (GetFloat)((_, _) => Failure is "clock" ? 8000 : 16000),
-                "ps_config_int" => (GetInt)((_, _) => 100),
+                "ps_config_int" => (GetInt)((_, key) => key is "samprate" ? Failure is "clock" ? 8000 : 16000 : 100),
                 "ps_start_utt" => (UnaryInt)(_ => Failure is "start" ? -1 : 0),
                 "ps_end_utt" => (UnaryInt)(_ => 0),
                 "ps_process_raw" => (ProcessRaw)((_, _, _, noSearch, full) => { noSearch.Should().Be(0); full.Should().Be(0); return 0; }),

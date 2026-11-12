@@ -35,6 +35,33 @@ Ordinary cases perform bounded local file I/O and fake-export calls. They never 
 
 ## Separately authorized actual-native execution
 
+For a bundled keyword-engine smoke check only, no recorded/annotated corpus is
+consumed. Use the same thirteen exact `AssetsRoot` files and isolated
+`NativePath` inventory described below. After separately authorizing native
+loading, select the explicit asset-only method:
+
+```powershell
+$env:KORA_OFFLINE_ASSETS_ROOT = 'Q:\approved-offline\assets'
+$env:KORA_OFFLINE_NATIVE_PATH = 'Q:\approved-offline\native\pocketsphinx-win-x64.dll'
+& $runner -explicit only -method Kora.Windows.IntegrationTests.Audio.HandsFreeOfflineEvaluationTests.ActualNativeAssetsOnlySilenceSmoke
+& $runner -explicit only -method Kora.Windows.IntegrationTests.Audio.HandsFreeOfflineEvaluationTests.ActualNativeAssetsOnlySileroSilenceTimeout
+```
+
+It verifies every compiled asset identity, loads the actual bundled DLL, feeds
+one second of generated zero-valued PCM and confirms no wake. It captures and
+plays no audio, uses no transcript, and grants no production qualification.
+Missing or altered assets fail. Its `kora-native-silence-v1` receipt is a
+negative native smoke observation, not acoustic, VAD, ASR or playback evidence.
+The original corpus-bound smoke and seven replay cases remain unchanged.
+The separate Silero smoke loads the pinned ONNX model and feeds generated
+silence until the default five-second no-command timeout. It requires no early
+endpoint and completion at the first 512-sample boundary at or after 80000
+samples. Its `kora-native-silero-silence-v1` receipt proves only that bounded
+negative native path, not speech discrimination or real microphone timing.
+The pinned native engine declares sample rate as an integer configuration
+parameter. The adapter uses the integer setter/getter for both 16000-Hz sample
+rate and 100-fps frame rate; a floating getter returns zero for this parameter.
+
 **Do not run the following under a deterministic-only grant.** Native evaluation requires separate explicit permission, already available exact assets, independently approved audio fixtures and their retention decision. No code here downloads, installs assets into application data, captures a device, plays sound, invokes an application router or dispatches a conversation/tool effect.
 
 [HandsFreeOfflineFixture](HandsFreeOfflineFixture.cs) admits one immutable hash-approved manifest, at most 65536 bytes. Unknown fields/versions, incomplete/extra inventories, relative/network/reparse paths, changed identities and missing files fail before native loading. The speech file binder pins directories and rejects hard-linked corpus/manifest files; verified files stay open read-only.

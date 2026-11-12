@@ -90,6 +90,15 @@ bootstrap readiness cannot bypass exact host/session/task admission. Transport
 implementation is not candidate acceptance, qualification evidence, permission
 to start a server, or permission to install/download/select another model.
 
+The catalogue parser accepts typed optional `capabilities`, `context_length`,
+`embedding_length` and `runner` observations from current Ollama metadata.
+These observations cannot expand the host-owned tool set, establish a usable
+context envelope, select a runner or qualify a profile. Malformed, duplicate
+or unknown fields and changed model/runtime identities still fail closed.
+Native responses also accept the nonnegative `prompt_eval_cached_count`
+observation without changing canonical input/output usage semantics or
+inferring a billing, context-capacity or qualification claim.
+
 Desktop composition now uses a [fresh runtime resolver](../src/Kora.Windows/Dependencies/WindowsOllamaRuntimeResolver.cs)
 for the local capability catalogue and exact-profile registration. It consumes
 an independently issued [qualification and process-use receipt](../src/Kora.Windows/Dependencies/WindowsOllamaQualification.cs),

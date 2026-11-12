@@ -13,6 +13,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'WindowsTestEvidence.ps1')
 $root = Split-Path -Parent $PSScriptRoot
 $modules = [IO.Path]::GetFullPath($ModuleDirectory, $root)
 $archive = [IO.Path]::GetFullPath($OutputArchive, $root)
@@ -23,33 +24,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $modules 'Kora.Windows.IntegrationTe
     throw 'The built Windows test assembly is missing.'
 }
 $dotnet = (Get-Command dotnet -CommandType Application, ExternalScript -ErrorAction Stop | Select-Object -First 1).Source
-$catalog = @(& $dotnet test --root-directory $modules --test-modules 'Kora.Windows.IntegrationTests.dll' --list-tests)
-if ($LASTEXITCODE -ne 0) { throw 'Unfiltered Windows test artifact discovery failed.' }
-$methods = @{}
-$testNames = @{}
-foreach ($line in $catalog) {
-    if ($line -cmatch '^  (?<method>Kora\.Windows\.IntegrationTests\.[A-Za-z0-9_.]+)(?:\(|\s|$)') {
-        $name = $Matches['method']
-        if (-not $methods.ContainsKey($name)) { $methods[$name] = 0 }
-        $methods[$name]++
-        $displayName = $line.Substring(2)
-        if (-not $testNames.ContainsKey($displayName)) { $testNames[$displayName] = 0 }
-        $testNames[$displayName]++
-    }
-}
-$totals = @($catalog | Select-String '^Discovered (\d+) tests' |
-    ForEach-Object { [int] $_.Matches[0].Groups[1].Value } | Sort-Object -Unique)
-$total = ($methods.Values | Measure-Object -Sum).Sum
-if ($totals.Count -ne 1 -or $total -le 0 -or $total -ne $totals[0]) {
-    throw 'The unfiltered Windows test catalog is missing, empty or incomplete.'
-}
-[pscustomobject]@{
-    Version = 1
-    SourceRevision = $SourceRevision
-    Total = $total
-    Methods = @($methods.Keys | Sort-Object | ForEach-Object { [pscustomobject]@{ Name = $_; Cases = $methods[$_] } })
-    Tests = @($testNames.Keys | Sort-Object | ForEach-Object { [pscustomobject]@{ Name = $_; Cases = $testNames[$_] } })
-} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $catalogPath -Encoding utf8
+$catalog = Get-WindowsTestCatalog $dotnet $modules $SourceRevision
+$catalog | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $catalogPath -Encoding utf8
 $files = @(Get-ChildItem -LiteralPath $modules -Recurse -File | Where-Object FullName -CNE $receiptPath |
     Sort-Object FullName | ForEach-Object {
         [pscustomobject]@{
@@ -62,4 +38,4 @@ $files = @(Get-ChildItem -LiteralPath $modules -Recurse -File | Where-Object Ful
 New-Item -ItemType Directory -Path (Split-Path -Parent $archive) -Force | Out-Null
 Copy-Item -LiteralPath $catalogPath -Destination (Join-Path (Split-Path -Parent $archive) 'kora-test-catalog.json')
 [IO.Compression.ZipFile]::CreateFromDirectory($modules, $archive)
-Write-Host "Published exact-source Windows test archive: $total cases, $($files.Count) files."
+Write-Host "Published exact-source Windows test archive: $($catalog.Total) cases, $($files.Count) files."

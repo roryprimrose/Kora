@@ -540,6 +540,10 @@ public sealed partial class MainViewModelTests
 
     private sealed class HandsFreeStage : IHandsFreeAudioStage
     {
+        public bool InterruptionAvailable { get; set; }
+        public bool SupportsSpeechInterruption(string assistantName, SpeechInputSelection selection) => InterruptionAvailable;
+        public Task<IHandsFreeAudioSession> OpenSpeechInterruptionAsync(HandsFreeAudioBinding binding, CancellationToken cancellationToken) =>
+            OpenAsync(binding, cancellationToken);
         public IReadOnlyList<string> SupportedNames { get; init; } = [];
         public bool SupportsProfile(string assistantName, SpeechInputSelection selection) =>
             SupportedNames.Contains(assistantName, StringComparer.Ordinal) && selection == SpeechInputProfileCatalogue.NativeWakeSelection;

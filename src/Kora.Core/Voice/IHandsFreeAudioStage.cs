@@ -15,4 +15,15 @@ public interface IHandsFreeAudioStage
 
     Task<IHandsFreeAudioSession> OpenAsync(
         HandsFreeAudioBinding binding, CancellationToken cancellationToken);
+
+    /// <summary>Independent exact-profile qualification for wake and command PCM discrimination during playback.</summary>
+    bool SupportsSpeechInterruption(string assistantName, SpeechInputSelection selection) => false;
+
+    /// <summary>
+    /// Opens one playback-discriminating wake/command session. Known playback must never yield a wake or command;
+    /// missing or lost discrimination retires capture. Ordinary wake availability is not qualification for this path.
+    /// </summary>
+    Task<IHandsFreeAudioSession> OpenSpeechInterruptionAsync(
+        HandsFreeAudioBinding binding, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException("Playback-discriminating wake capture is unavailable.");
 }

@@ -97,6 +97,25 @@ If admission, execution or retained readback fails, no supported retained answer
 
 Refresh, disable, removal, session retirement and private window closure revoke source use and join cancellation-ignoring model resources before releasing native ownership. Retained conversation history follows its separate retention policy; source removal does not delete that history or renew access to removed source copies ([native lifecycle](../src/Kora/KnowledgeSources/KnowledgeSourcesView.Answers.cs)).
 
+## Keep one documentation revision with a conversation
+
+In the conversation workbench, select the exact active conversation and choose **Review this conversation's documentation source**. This associates one already registered source revision; it does not add/import a folder, change attachment limits or automatically read source content ([entry action](../src/Kora/SessionsManagementView.axaml)).
+
+Deliberately select one existing enabled source. Choose **Open selected existing revision and review association**. Review its original root, file membership, traversal, registered revision information, selected conversation, privacy and independent retention disclosure.
+Separately choose **Confirm this exact metadata-only association** within two minutes ([binding review](../src/Kora/KnowledgeSources/SessionKnowledgeSourceController.cs)).
+
+After restarting Kora, reopen that same conversation and action. Reopening displays association metadata only, not source bodies or renewed permission. Choose **Explicitly open associated source with current access and integrity checks** to read its exact retained revision.
+Changed, refreshed, disabled, deleted or unavailable sources are not replaced with a newer revision ([workflow](../src/Kora.Application/KnowledgeSources/SessionKnowledgeSourceWorkflow.cs)).
+
+Enter one new question, then choose **Review question, exact excerpts and original conversation target**. Review the unchanged question, complete shown excerpts, limits, target conversation and privacy disclosure.
+Separately choose **Confirm one LocalOnly toolsNONE answer retained in this original conversation**. Only this confirmed use invokes the qualified local model; no tools, hosted fallback, speech or automatic future context is granted ([answer operation](../src/Kora/KnowledgeSources/SessionKnowledgeSourceController.cs)).
+
+A successful validated cited answer and its unchanged question remain in this original conversation under session-history retention, rather than a new **Local context** conversation. Use **Inspect retained citation** to inspect the exact retained span.
+Unavailable or invalid output is not presented as a supported retained answer ([canonical answer owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
+
+To remove the association, choose **Review detach association only**, then **Confirm detach this exact association only**. This leaves the registered source, its independent retention and retained conversation answers unchanged.
+A retired association needs explicit detach before another revision can be reviewed. Neither binding nor detach renews retention or source/model authority ([audited metadata store](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.KnowledgeSourceBindings.cs)).
+
 ## Refresh, disable and remove
 
 - **Refresh selected source** first joins revocation of old use, then reviews only the same canonical physical root and stored traversal policy. The add checkbox cannot change refresh scope. Read and save each require a fresh exact confirmation. Failed, cancelled or interrupted refresh leaves the old source unavailable, not silently current. A replaced physical root or scope change requires removing and explicitly adding a new source ([refresh owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceManager.cs)).

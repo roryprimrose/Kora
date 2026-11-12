@@ -7,10 +7,12 @@ using Kora.Core.Hosting;
 using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Audio;
 using Kora.Windows.Storage;
+using Neovolve.Logging.Xunit;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-public sealed class WindowsSqliteSessionRetentionPlannerTests
+public sealed class WindowsSqliteSessionRetentionPlannerTests(ITestOutputHelper output)
+    : LoggingTestsBase<WindowsSqliteSessionRetentionPlannerReader>(output)
 {
     [WindowsFact]
     public async Task VerifiedExpiredAuditPrefixPreservesReadOnlyRetentionPlanningAfterRestart()
@@ -71,7 +73,7 @@ public sealed class WindowsSqliteSessionRetentionPlannerTests
         fixture.Mutate(mutation);
         var bytes = File.ReadAllBytes(fixture.DatabasePath);
         var journal = File.ReadAllBytes(fixture.DatabasePath + "-journal");
-        using var reader = new WindowsSqliteSessionRetentionPlannerReader(fixture.Store, fixture.Paths);
+        using var reader = new WindowsSqliteSessionRetentionPlannerReader(fixture.Store, fixture.Paths, Logger);
 
         var result = await reader.ReadAsync(new(1, 3), fixture.Time.Now,
             HostRequest.Create(RequestOrigin.LocalUi), fixture.Token);
@@ -250,7 +252,7 @@ public sealed class WindowsSqliteSessionRetentionPlannerTests
         reader.IsCurrent(result).Should().BeFalse();
         preferences.Reset();
         reader.IsCurrent(result).Should().BeFalse();
-        using var secondReader = new WindowsSqliteSessionRetentionPlannerReader(fixture.Store, fixture.Paths);
+        using var secondReader = new WindowsSqliteSessionRetentionPlannerReader(fixture.Store, fixture.Paths, Logger);
         var second = await secondReader.ReadAsync(new(1, 3), fixture.Time.Now, HostRequest.Create(RequestOrigin.LocalUi), fixture.Token);
         second.Status.Should().Be(SessionRetentionPlanStatus.Complete);
         fixture.Mutate("UPDATE session_retention SET last_activity='invalid';");

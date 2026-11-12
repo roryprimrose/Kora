@@ -5,7 +5,7 @@ internal static class HostInteractionSchema
     internal const string Partition = "InteractionStorageV1";
     internal const string FileName = "interaction.db";
     internal const int ApplicationId = 1263489587;
-    internal const int Version = 16;
+    internal const int Version = 17;
     internal static readonly string[] Tables =
     [
         """
@@ -246,5 +246,13 @@ internal static class HostInteractionSchema
             cutoff_utc INTEGER NOT NULL CHECK(cutoff_utc>=0)) STRICT
         """;
     internal static readonly string[] AuditRetentionTables = [.. AnswerReviewTables, AuditAnchorTable];
-    internal static readonly string[] CurrentTables = [.. AuditRetentionTables, ModelUsageTable];
+    internal static readonly string[] ModelUsageTables = [.. AuditRetentionTables, ModelUsageTable];
+    internal const string KnowledgeSourceBindingTable = """
+        CREATE TABLE session_knowledge_source(
+            session_id TEXT PRIMARY KEY NOT NULL REFERENCES work_sessions(session_id),
+            revision INTEGER NOT NULL CHECK(revision>0),
+            payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 2048),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """;
+    internal static readonly string[] CurrentTables = [.. ModelUsageTables, KnowledgeSourceBindingTable];
 }

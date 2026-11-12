@@ -1581,6 +1581,88 @@ function controllerRepairOptions(api) {
   return options;
 }
 
+function completedTipRepairApi() {
+  const api = new BatchFake();
+  api.state.completedTip = { sha: BASE, tree: sha(200), ticket: TICKET, qualificationRequested: true };
+  api.base = sha(900);
+  api.commits.set(api.base, { tree: sha(901), parents: [BASE] });
+  return api;
+}
+
+function completedTipRepairOptions(api) {
+  const options = batchRecoveryOptions(api, 'repair-completed-tip');
+  Object.assign(options.inputs, { recovery_main: api.base, main_build_profile: 'per-merge' });
+  return options;
+}
+
+test('completed-tip repair archives failed source and requires fresh full qualification without admitting a PR', async () => {
+  const api = completedTipRepairApi();
+  const before = clone(api.state);
+  const options = completedTipRepairOptions(api);
+  assert.equal(await changeBatchState(api, options), 'repair-completed-tip');
+  assert.equal(api.state.active, null);
+  assert.deepEqual(api.state.completedTip, { sha: api.base, tree: sha(901), ticket: TICKET });
+  assert.deepEqual(api.state.history[0].completedTip, before.completedTip);
+  assert.deepEqual(api.state.blocked, before.blocked);
+  assert.equal(count(api, 'wake'), 1);
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(count(api, 'qualification'), 1);
+  assert.equal(count(api, 'merge'), 0);
+  assert.equal(count(api, 'dispatch'), 0);
+  await assert.rejects(changeBatchState(api, options), /checkpoint/);
+});
+
+test('completed-tip repair refuses changed authority, source, profiles, active work and existing qualification without writes', async () => {
+  for (const change of [
+    (api, options) => { options.inputs.recovery_main = sha(999); },
+    (api, options) => { options.inputs.recovery_ticket = '11234567-89ab-cdef-0123-456789abcdef'; },
+    (api, options) => { options.inputs.recovery_checkpoint = sha(999); },
+    (api, options) => { options.inputs.main_build_profile = 'hourly-v1'; },
+    (api, options) => { options.inputs.acknowledge_batch_change = false; },
+    (api, options) => { options.context.ref = 'refs/heads/repair'; },
+    (api, options) => { options.attempt = 2; },
+    api => { api.administratorAllowed = false; },
+    api => { api.quiet = false; },
+    api => { api.independent = true; },
+    api => { api.mainBuildProfile = 'hourly-v1'; },
+    api => { api.state.mainBuildProfile = 'hourly-v1'; },
+    api => { api.state.deliveryProfile = 'independent-v1'; },
+    api => { api.state.deliveryTransition = { phase: 'draining' }; },
+    api => { api.state.mainSchedulingTransition = { phase: 'ready' }; },
+    api => { api.state.active = { ticket: TICKET }; },
+    api => { api.state.completedTip.qualification = { run: 9 }; },
+    api => { delete api.state.completedTip.qualificationRequested; },
+    api => { api.commits.get(api.base).parents = [sha(999)]; },
+    api => { api.commits.get(api.base).parents.push(sha(999)); },
+    api => { api.base = BASE; },
+  ]) {
+    const api = completedTipRepairApi();
+    const options = completedTipRepairOptions(api);
+    change(api, options);
+    const before = clone(api.state);
+    const checkpoint = api.commit;
+    await assert.rejects(changeBatchState(api, options));
+    assert.deepEqual(api.state, before);
+    assert.equal(api.commit, checkpoint);
+    assert.equal(count(api, 'wake'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+    assert.equal(count(api, 'merge'), 0);
+  }
+});
+
+test('completed-tip repair rechecks main, administrator and physical quiescence immediately before saving', async () => {
+  for (const method of ['main', 'administrator', 'ciQuiescent']) {
+    const api = completedTipRepairApi();
+    const read = api[method].bind(api);
+    let calls = 0;
+    api[method] = async (...args) => ++calls === 1 ? read(...args) : method === 'main' ? sha(999) : false;
+    const before = clone(api.state);
+    await assert.rejects(changeBatchState(api, completedTipRepairOptions(api)));
+    assert.deepEqual(api.state, before);
+    assert.equal(count(api, 'wake'), 0);
+  }
+});
+
 test('controller deployment recovery archives old hourly proof and demands fresh actual-main qualification', async () => {
   const api = await controllerRepairApi();
   const before = clone(api.state);

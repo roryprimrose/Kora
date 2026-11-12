@@ -546,7 +546,8 @@ public sealed partial class EvidenceLiteralFindTests
                 reader.Queries[^1].SpanId.Should().BeNull();
                 field.Text = "0123456789abcdef";
                 window.Close();
-                field.Text.Should().BeEmpty();
+                field.Text.Should().BeNull();
+                window.View.DataContext.Should().BeNull();
                 viewer.TraceFilter.Should().BeEmpty();
                 viewer.CanQuery.Should().BeFalse();
             }
@@ -625,11 +626,11 @@ public sealed partial class EvidenceLiteralFindTests
     private static bool PressKey(Control control, Key key, KeyModifiers modifiers = KeyModifiers.None)
     {
         var args = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key, KeyModifiers = modifiers };
-        control.RaiseEvent(args);
+        (control is EvidenceWindow window ? window.View : control).RaiseEvent(args);
         return args.Handled;
     }
 
-    private static void Click(Window window, string name) =>
+    private static void Click(EvidenceWindow window, string name) =>
         window.FindControl<Button>(name)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
     private static void Match(EvidenceViewModel viewer)

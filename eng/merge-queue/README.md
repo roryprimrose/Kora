@@ -426,6 +426,12 @@ An authorized operator can request a **fresh ordinary main run**, using the same
 
 This retry does not dispatch candidate CI, edit queue state, change protection or bypass a check. A source change, active candidate, uncertain owned work or incomplete evidence requires the corresponding reviewed recovery instead ([batch admission](github.cjs#L383), [recovery](#interrupted-batches-repair-and-rollback)).
 
+When a code repair must advance an unqualified serial main, use the separately authorized protected maintenance route, not a workflow rerun or direct queue-state edit. Keep enrollment paused, require ordinary protected candidate CI for the repair PR, merge without administrator bypass, and restore the App-owned protection immediately ([controller-deployment procedure](#controller-deployment-after-an-exhausted-batch)).
+
+After all CI is physically terminal, the administrator may dispatch `repair-completed-tip` with the freshly reviewed checkpoint, existing completed-tip ticket, exact new `recovery_main`, `main_build_profile=per-merge` and `acknowledge_batch_change=true`. It accepts only idle serial/per-merge state with a previously requested but unqualified tip, no pending profile transition, and exactly one main commit whose sole parent is that old tip ([recovery guards](recovery.cjs), [behavioral regressions](batch.test.cjs)).
+
+The operation archives the previous tip and creates a new **unqualified** actual-main receipt, then wakes normal reconciliation. It transfers no qualification, source proof or dispatch ownership, admits no PR and writes no configuration. Require successful fresh full main qualification before restoring enrollment or delivery profiles. A changed checkpoint, ticket, authority, main, profile or physical ownership refuses the operation without releasing admission ([recovery guards](recovery.cjs), [behavioral regressions](batch.test.cjs)).
+
 ### Operator cutover: separate administrator authorization required
 
 These are rollout instructions, **not actions performed by the implementation**:

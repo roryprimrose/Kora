@@ -85,10 +85,11 @@ function controllerOperation(inputs) {
   invariant(inputs && typeof inputs === 'object' && !Array.isArray(inputs), 'Invalid controller inputs.');
   const operation = inputs.operation ?? 'reconcile';
   invariant(['reconcile', 'recover-unobservable-dispatch', 'migrate-batch-v1', 'rollback-batch-v1',
-    'repair-batch', 'resume-batch', 'repair-controller', 'hold-independent-delivery', 'prepare-independent-delivery',
+    'repair-batch', 'resume-batch', 'repair-controller', 'repair-completed-tip', 'hold-independent-delivery', 'prepare-independent-delivery',
     'resume-independent-delivery', 'abort-independent-delivery', 'hold-main-builds', 'prepare-main-builds',
     'resume-main-builds', 'abort-main-builds'].includes(operation), 'Unknown controller operation.');
-  invariant(operation.endsWith('-main-builds') || operation === 'repair-controller' || !inputs.main_build_profile,
+  invariant(operation.endsWith('-main-builds') || ['repair-controller', 'repair-completed-tip'].includes(operation)
+    || !inputs.main_build_profile,
     'Main build profile inputs require the explicit main scheduling operation.');
   invariant(inputs.acknowledge_uncertain_dispatch === undefined
     || typeof inputs.acknowledge_uncertain_dispatch === 'boolean', 'Invalid recovery acknowledgement.');

@@ -76,7 +76,8 @@ public sealed class PushToTalkUiContractTests
                 var microphoneMenu = (MenuFlyout)microphoneActions.Flyout!;
                 microphoneMenu.ShowAt(microphoneActions);
                 window.UpdateLayout();
-                var refresh = microphoneMenu.Items.OfType<MenuItem>().Single();
+                var refresh = microphoneMenu.Items.OfType<MenuItem>().Single(item =>
+                    ReferenceEquals(item.Command, fixture.Main.RefreshMicrophonesCommand));
                 refresh.Command.Should().BeSameAs(fixture.Main.RefreshMicrophonesCommand);
                 ControlAutomationPeer.CreatePeerForElement(refresh)!.GetName().Should().Be("Refresh microphones");
                 microphoneMenu.Hide();

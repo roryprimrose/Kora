@@ -1,5 +1,6 @@
 ﻿using Kora.Application.Presentation;
 using Kora.Core.Artifacts;
+using Kora.Core.Commands;
 using Kora.Core.Tools;
 
 namespace Kora.Application.Configuration;
@@ -19,6 +20,7 @@ public sealed record SettingsSectionCommand(SettingsSection? Section, string? Er
     public static SettingsSectionCommand? Parse(string transcript, string assistantName)
     {
         if (string.IsNullOrWhiteSpace(transcript)) { return null; }
+        if (WorkspaceSurfaceCommand.Parse(transcript, assistantName) is not null) { return null; }
         var text = ArtifactCommandRouter.RemoveActivationPrefix(transcript.Trim(), assistantName);
         foreach (var prefix in new[] { "show me the settings for", "show settings for", "show setting", "view setting", "open setting" })
         {

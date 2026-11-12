@@ -25,6 +25,7 @@ public sealed class SettingsSectionCommandTests
     [InlineData("show setting")]
     [InlineData("view setting ")]
     [InlineData("open setting voice\nspeed")]
+    [InlineData("\tshow setting voice speed")]
     [InlineData("show test.option\n")]
     public void MalformedSearchNeverDefaultsToASectionOrChangesASetting(string phrase)
     {

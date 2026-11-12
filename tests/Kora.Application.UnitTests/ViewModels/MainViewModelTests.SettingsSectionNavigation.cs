@@ -50,6 +50,45 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ConversationalSettingsSearchRejectsArtifactAuthorityAndHostChangesBeforeTheModelReturns(bool artifact)
+    {
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "fixture");
+        await f.ViewModel.InitializeAsync();
+        var presenter = new SettingsNavigationFake();
+        f.ViewModel.BindSettingsSectionNavigation(presenter);
+        long ownerRevision = 1;
+        f.ViewModel.BindCallOwnershipGate(static () => true, () => ownerRevision);
+        f.Reasoner.DecisionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Reasoner.Response = new(null, null, SettingsFilter: "speech.windows-rate");
+        var consent = f.ViewModel.HasVoiceConsent;
+
+        await f.RunAsync(artifact ? "/lock" : "Where can I change how fast you speak?");
+        var reasoning = f.ViewModel.ActiveReasoningTask!;
+        f.Reasoner.Requests.Should().ContainSingle();
+        if (artifact) { f.Reasoner.LastArtifact.Should().NotBeNull(); }
+        else
+        {
+            f.Reasoner.LastArtifact.Should().BeNull();
+            ownerRevision++;
+        }
+        f.Reasoner.DecisionGate.SetResult();
+        await reasoning;
+
+        f.ViewModel.ResponseTitle.Should().Be("Local reasoning failed.");
+        f.ViewModel.ResponseBody.Should().Contain("Settings navigation requires the current original user request.");
+        presenter.Filters.Should().BeEmpty();
+        presenter.Sections.Should().BeEmpty();
+        f.AppearancePreferences.SavedMode.Should().BeNull();
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        f.ViewModel.HasVoiceConsent.Should().Be(consent);
+        f.Session.LockCalls.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData("source")]
     [InlineData("token")]
     [InlineData("lifetime")]

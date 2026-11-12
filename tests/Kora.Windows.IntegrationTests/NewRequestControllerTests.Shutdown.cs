@@ -4,6 +4,8 @@ using Kora.Application;
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
 using Kora.Core.Storage;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 using Kora.NativeUxFixture;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -11,6 +13,70 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class NewRequestControllerTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task QuarantinedNativeExitUsesRetiredInputAndEmptyWorkWithoutPrivateWindows(bool loaded, bool queued)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: !queued, listOverflow: queued);
+            await f.InitializeAsync();
+            var access = new ShutdownAccess(f.Access, f.Main);
+            await using var conversation = new SessionConversationService(f.Interactions, f.Interactions, f.Sessions,
+                access, new NoAdmission(), TimeProvider.System, NullLogger<SessionConversationService>.Instance);
+            using var sessions = new SessionsWindowController(f.Main, f.Sessions, f.Evidence, access,
+                NullLogger<SessionsViewModel>.Instance, conversation: conversation);
+            using var requests = new NewRequestWindowController(f.Main, f.Sessions, access,
+                () => new(f.Sessions, conversation, access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
+            sessions.Bind();
+            requests.Bind();
+            ConversationShutdownGuard.Bind(f.Main, requests, sessions);
+            using var questions = new NativeQuestionHost(f.Interactions, TimeProvider.System, NullLogger<NativeQuestionViewModel>.Instance);
+            using var lifecycle = new ApplicationLifecycleController(f.Main, conversation, f.Queue, questions, new(f.Tasks),
+                new(NullLogger<NativeDetailRenderer>.Instance),
+                () => throw new InvalidOperationException("Private work must not be shown during quarantined Exit."));
+            SessionsWindow? window = null;
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<SessionsWindow>((view, _) => window = view);
+            if (loaded)
+            {
+                sessions.Open();
+                var model = (SessionsViewModel)window!.DataContext!;
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.First(row => row.Authority.IsActive));
+                model.ComposerBody = "Private input retired by privacy, not discarded by Exit";
+                model.DecideComposerDraft = () => throw new InvalidOperationException("Private discard review must not open.");
+            }
+            f.Main.CloseForObservedPrivacyEvent("Synthetic private retirement", hidePresentation: true);
+            await f.Main.PrivacyClosureTask;
+            f.Main.IsPrivacyPresentationHeld.Should().BeTrue();
+            var closed = false;
+            f.Main.WindowActionRequested += (_, action) => closed |= action == WindowAction.Close;
+            using (var request = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+                HostActivityLayer.Application, HostOperation.Request))
+            {
+                await f.Main.ExitAsync();
+            }
+
+            closed.Should().Be(!queued);
+            f.Main.IsPrivacyPresentationHeld.Should().BeTrue();
+            access.CanInspect.Should().BeFalse();
+            access.CanControl.Should().BeFalse();
+            access.CanReviewApplicationExit.Should().BeFalse();
+            f.Voice.StartCalls.Should().Be(0);
+            if (queued)
+            {
+                var target = f.LifecycleTarget ?? throw new InvalidOperationException("The pending fixture queue is unavailable.");
+                (await f.Interactions.ReadQueueAsync(target.SessionId, TestContext.Current.CancellationToken)).Entries
+                    .Should().Contain(entry => entry.State == SessionQueueState.Pending);
+                f.Main.TrayInputStatus.Should().StartWith("Exit not completed");
+            }
+            f.Main.BindConversationShutdown(null);
+        });
+    }
+
     [Theory]
     [InlineData("discard")]
     [InlineData("cancel")]
@@ -81,6 +147,7 @@ public sealed partial class NewRequestControllerTests
     {
         public bool CanInspect => inner.CanInspect && main.CanRevealPrivatePresentation;
         public bool CanControl => CanInspect && inner.CanControl;
+        public bool CanReviewApplicationExit => inner.CanInspect && inner.CanControl && main.CanReviewApplicationExit;
         public long ControlRevision => inner.ControlRevision;
     }
 }

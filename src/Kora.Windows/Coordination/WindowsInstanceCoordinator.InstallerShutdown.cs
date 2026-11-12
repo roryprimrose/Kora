@@ -5,11 +5,11 @@ namespace Kora.Windows.Coordination;
 public sealed partial class WindowsInstanceCoordinator
 {
     private bool installerShutdownPending;
-    private Func<CancellationToken, Task<bool>>? installerShutdown;
+    private Func<CancellationToken, Task<bool>>? applicationShutdown;
 
     public void BindInstallerShutdown(Func<CancellationToken, Task<bool>>? shutdown)
     {
-        lock (sync) { installerShutdown = shutdown; }
+        lock (sync) { applicationShutdown = shutdown; }
     }
 
     private async Task HandleInstallerShutdownAsync(NamedPipeServerStream pipe, int processId,
@@ -25,12 +25,12 @@ public sealed partial class WindowsInstanceCoordinator
         Func<CancellationToken, Task<bool>> shutdown;
         lock (sync)
         {
-            if (!ownsMutex || !callbacks.IsReady || installerShutdown is null ||
-                pending is not null || restartRequested || installerShutdownPending)
+            if (!ownsMutex || !callbacks.IsReady || applicationShutdown is null ||
+                pending is not null || restartRequested || installerShutdownPending || exitPending)
             {
                 throw new InvalidOperationException("The owner is busy with startup, shutdown or another lifecycle operation.");
             }
-            shutdown = installerShutdown;
+            shutdown = applicationShutdown;
             installerShutdownPending = true;
         }
         try

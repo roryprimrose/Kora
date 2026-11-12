@@ -526,6 +526,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal bool? InspectOverride { get; set; }
         public bool CanInspect => InspectOverride ?? (CanControl && Inspect);
         public bool CanControl { get; set; } = true;
+        public bool CanReviewApplicationExit { get; set; }
         public long ControlRevision { get; set; }
         internal string ObservedVersion { get; set; } = "1.0";
         public string Version { get { OnVersion?.Invoke(); return ObservedVersion; } }

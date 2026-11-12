@@ -28,7 +28,12 @@ public sealed partial class MainViewModel
     }
 
     public Task<SpeechSummarySuggestionReview> ReviewSpeechSummarySuggestionAsync(ConversationMessage message,
-        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token) =>
+        ReviewSpeechSummarySuggestionAsync(message, sourceCurrent, validateSource, null, token);
+
+    public Task<SpeechSummarySuggestionReview> ReviewSpeechSummarySuggestionAsync(ConversationMessage message,
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource,
+        Kora.Core.Configuration.RegisteredSettings.RegisteredSetting? selectedSetting, CancellationToken token)
     {
         var time = (speechSuggestionBinding
             ?? throw new InvalidOperationException("The host speech suggestion workflow is unavailable.")).Time;
@@ -49,7 +54,7 @@ public sealed partial class MainViewModel
             && (message.Request.Origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent)
             && sourceCurrent();
         return SpeechSummarySuggestionReview.ReviewAsync(speechConfiguration, communicationPolicy, time,
-            message, Eligible, validateSource, token);
+            message, Eligible, validateSource, token, selectedSetting);
     }
 
     public async Task<SpeechApplyResult> ConfirmSpeechSummarySuggestionAsync(SpeechSummarySuggestionReview review,

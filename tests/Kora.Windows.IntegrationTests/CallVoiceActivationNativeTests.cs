@@ -77,7 +77,11 @@ public sealed class CallVoiceActivationNativeTests
                 switch (change)
                 {
                     case "hide": window.Hide(); window.Show(); break;
-                    case "deactivate": other.Show(); other.Activate(); break;
+                    case "deactivate":
+                        other.Show();
+                        other.Activate();
+                        HeadlessSession.SetActivation(window, false);
+                        break;
                     case "tab": window.ShowSection(SettingsSection.Appearance); window.ShowSection(SettingsSection.Calls); break;
                     case "close": window.Close(); break;
                 }

@@ -6,17 +6,25 @@ namespace Kora.Application.Definitions;
 
 public sealed partial class OwnedInstructionEditorActions
 {
-    private IOwnedInstructionRenameStore RenameStore => Kind == ArtifactKind.Instruction && store is IOwnedInstructionRenameStore renames
-        ? renames : throw new InvalidOperationException("Native owned Instruction rename/recovery is unavailable for this source.");
+    private IOwnedInstructionRenameStore RenameStore => Kind switch
+    {
+        ArtifactKind.Instruction when store is IOwnedInstructionRenameStore renames => renames,
+        ArtifactKind.Prompt when store is IOwnedPromptRenameStore renames => renames,
+        _ => throw new InvalidOperationException("Native owned definition rename/recovery is unavailable for this source."),
+    };
 
     public Task<OwnedInstructionRenameReview> ReviewRename(OwnedInstructionSnapshot source, string destination,
         Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (_, _, current, admitted) =>
         {
             _ = RenameStore;
-            if (!IsRefinementSourceObserved(source))
+            if (source.Document.Definition.Kind != Kind || catalogue.IsReloadUnavailable
+                || !catalogue.Candidates.Any(candidate => Matches(candidate, source.Name)
+                    && string.Equals(candidate.OwnedInstructionRevision, source.Revision, StringComparison.Ordinal)
+                    && string.Equals(candidate.Digest, source.Document.Definition.Digest, StringComparison.Ordinal)))
             { throw new InvalidOperationException("Reload the current exact owned source catalogue before a new rename review; excluded or unavailable sources cannot be substituted."); }
-            var proposal = new OwnedInstructionRename(source, destination);
+            OwnedInstructionRename proposal = Kind == ArtifactKind.Prompt
+                ? new OwnedPromptRename(source, destination) : new OwnedInstructionRename(source, destination);
             ValidateRenameNamespace(proposal);
             var live = await store.Read(source.Name, admitted).ConfigureAwait(false);
             var occupied = await store.Read(destination, admitted).ConfigureAwait(false);
@@ -30,6 +38,8 @@ public sealed partial class OwnedInstructionEditorActions
         {
             var recovery = await RenameStore.ReadRenameRecovery(admitted).ConfigureAwait(false);
             if (!current()) { throw new InvalidOperationException("Rename recovery inspection admission changed."); }
+            if (recovery is not null && recovery.Proposal.Source.Document.Definition.Kind != Kind)
+            { throw new InvalidDataException("Rename recovery belongs to a different owned kind."); }
             return recovery is null ? null : new OwnedInstructionRenameReview(recovery.Proposal, catalogue.Candidates, recovery);
         }, token);
 
@@ -48,6 +58,8 @@ public sealed partial class OwnedInstructionEditorActions
         admission.Run(eligible, async (request, session, current, admitted) =>
         {
             var native = RenameStore;
+            if (review.Proposal.Source.Document.Definition.Kind != Kind)
+            { throw new InvalidDataException("Rename review belongs to a different owned kind."); }
             if (!ReferenceEquals(review.Candidates, catalogue.Candidates))
             { throw new InvalidOperationException("Rename reference/catalogue consequences changed. Review again."); }
             if (!await exactConfirmation(review, admitted).ConfigureAwait(false)) { return null; }
@@ -56,7 +68,9 @@ public sealed partial class OwnedInstructionEditorActions
             await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
             var proposal = review.Proposal;
             var audit = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
-                review.Recovery is null ? "definition.instruction.rename" : "definition.instruction.recover-rename",
+                Kind == ArtifactKind.Prompt
+                    ? review.Recovery is null ? "definition.prompt.rename" : "definition.prompt.recover-rename"
+                    : review.Recovery is null ? "definition.instruction.rename" : "definition.instruction.recover-rename",
                 SecurityAuditOutcome.Requested, request.Origin == RequestOrigin.ActivatedVoice
                     ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser, review.AuditTarget);
             auditLog.Write(audit);

@@ -268,12 +268,14 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     {
         lock (gate)
         {
-            if (disposed || instructionRevisions is null) { return false; }
+            var kind = original.Document.Definition.Kind;
+            if (disposed || saved.Document.Definition.Kind != kind
+                || (kind == ArtifactKind.Instruction ? instructionRevisions is null : promptRevisions is null)) { return false; }
             var settings = preferences.Load();
-            var sourceRoot = Path.Combine(paths.RoamingRoot, "Instructions");
+            var sourceRoot = Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind));
             var include = settings.UseDefaultDirectories
-                || settings.GetDirectories(ArtifactKind.Instruction).Contains(sourceRoot, StringComparer.OrdinalIgnoreCase);
-            var retained = catalogue.SourceCandidates.Where(item => item.Kind != ArtifactKind.Instruction
+                || settings.GetDirectories(kind).Contains(sourceRoot, StringComparer.OrdinalIgnoreCase);
+            var retained = catalogue.SourceCandidates.Where(item => item.Kind != kind
                 || !string.Equals(item.OwnedInstructionName, original.Name, StringComparison.Ordinal)
                     && !string.Equals(item.OwnedInstructionName, saved.Name, StringComparison.Ordinal));
             ArtifactDefinition[] candidates = include
@@ -284,9 +286,9 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
                 }]
                 : retained.ToArray();
             PublishReconciled(candidates);
-            return !catalogue.Candidates.Any(item => item.Kind == ArtifactKind.Instruction
+            return !catalogue.Candidates.Any(item => item.Kind == kind
                     && string.Equals(item.OwnedInstructionName, original.Name, StringComparison.Ordinal))
-                && !catalogue.Artifacts.Any(item => item.Kind == ArtifactKind.Instruction
+                && !catalogue.Artifacts.Any(item => item.Kind == kind
                     && string.Equals(item.OwnedInstructionName, saved.Name, StringComparison.Ordinal));
         }
     }
@@ -331,8 +333,12 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             {
                 continue;
             }
-            if (!target.IsFile && string.Equals(directory, desiredDirectory, StringComparison.OrdinalIgnoreCase)
-                && Path.GetDirectoryName(directory) is { } parent)
+            if (!string.Equals(directory, desiredDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                AddWatcher(target with { MembershipOnly = true }, directory, desiredDirectory, isDirectory: true);
+                continue;
+            }
+            if (!target.IsFile && Path.GetDirectoryName(directory) is { } parent)
             {
                 // A watcher inside an existing root cannot observe that root's own rename.
                 // Observe only its membership in the parent, never the moved sibling's contents.

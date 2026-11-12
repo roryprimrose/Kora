@@ -283,6 +283,11 @@ public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator, I
                 return;
             }
             peer = VerifiedInstanceProcess.Open(pid, sid, sessionId);
+            if (request.Kind is "Exit")
+            {
+                await HandleExitAsync(pipe, peer, request, timeout.Token).ConfigureAwait(false);
+                return;
+            }
             if (string.Equals(request.Kind, "Ready", StringComparison.Ordinal))
             {
                 await ReplyAsync(pipe, callbacks.IsReady && ownsMutex ? "Ready" : "Busy", "", timeout.Token)
@@ -316,7 +321,7 @@ public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator, I
 
             lock (sync)
             {
-                if (pending is null && !restartRequested && !installerShutdownPending)
+                if (pending is null && !restartRequested && !installerShutdownPending && !exitPending)
                 {
                     transaction = new PendingHandoff(peer, new HandoffTransaction(epoch, original.Identity,
                         peer.Identity, DateTimeOffset.UtcNow.AddSeconds(90)));
@@ -758,7 +763,7 @@ public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator, I
     {
         lock (sync)
         {
-            if (!ownsMutex || pending is not null || restartRequested || installerShutdownPending || !prompt.IsEligible())
+            if (!ownsMutex || pending is not null || restartRequested || installerShutdownPending || exitPending || !prompt.IsEligible())
             {
                 throw new InvalidOperationException("Another lifecycle transition is pending or the session is ineligible.");
             }

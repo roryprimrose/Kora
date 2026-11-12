@@ -10,9 +10,25 @@ public sealed partial class MainViewModel
 {
     private Func<Task<bool>>? conversationShutdown;
     private Func<bool>? conversationShutdownCurrent;
+    private Func<Func<bool>>? retiredConversationShutdown;
+    private HostRequest? quarantinedExitRequest;
+    private string? applicationExitStatus;
     private Func<ApplicationLifecycleOperation, RequestOrigin, Func<bool>, Task<ApplicationLifecycleShutdown?>>? submittedWorkShutdown;
     private bool voluntaryShutdownRunning;
     private ApplicationLifecycleShutdown? handoffSubmittedWork;
+
+    public bool CanReviewApplicationExit => IsPrivacyPresentationHeld && !disposed && !auditEvidenceUnavailable
+        && !lifecycleAdmissionClosed && !hostExitRequested
+        && sessionController.IsCurrentSessionUnlocked()
+        && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked && callOwnershipEligible()
+        && HostActivity.Current?.Request is { Origin: RequestOrigin.LocalUi, InvocationId: null } request
+        && ReferenceEquals(request, quarantinedExitRequest);
+
+    private void SetApplicationExitStatus(string? status)
+    {
+        applicationExitStatus = status;
+        OnPropertyChanged(nameof(TrayInputStatus));
+    }
 
     public void BindSubmittedWorkShutdown(
         Func<ApplicationLifecycleOperation, RequestOrigin, Func<bool>, Task<ApplicationLifecycleShutdown?>>? prepare) =>
@@ -59,10 +75,12 @@ public sealed partial class MainViewModel
             "Submitted work, required audit or resource release is unconfirmed. No application effect was performed. Inspect current work before trying again. Failure type: " + exception.GetType().Name);
     }
 
-    public void BindConversationShutdown(Func<Task<bool>>? shutdown, Func<bool>? current = null)
+    public void BindConversationShutdown(Func<Task<bool>>? shutdown, Func<bool>? current = null,
+        Func<Func<bool>>? retired = null)
     {
         conversationShutdown = shutdown;
         conversationShutdownCurrent = current;
+        retiredConversationShutdown = retired;
     }
 
     private async Task<Func<bool>?> PrepareConversationShutdown()
@@ -78,17 +96,33 @@ public sealed partial class MainViewModel
             var shutdown = conversationShutdown;
             if (shutdown is null) { return static () => true; }
             var validation = conversationShutdownCurrent;
+            var retired = retiredConversationShutdown;
+            var heldExit = CanReviewApplicationExit;
+            var presentation = Interlocked.Read(ref privatePresentationRevision);
             var call = CallPolicyRevision;
             var privacy = privacyObservation.Current.TopologyRevision;
             var binding = Interlocked.Read(ref settingsOwnershipBindingRevision);
             var owner = settingsOwnershipRevision();
-            bool Current() => !disposed && callOwnershipEligible() && !IsPrivacyPresentationHeld
+            bool Current() => !disposed && !auditEvidenceUnavailable && callOwnershipEligible()
+                && (!IsPrivacyPresentationHeld || heldExit && presentation == Interlocked.Read(ref privatePresentationRevision))
                 && sessionController.IsCurrentSessionUnlocked()
                 && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked
                 && CallPolicyRevision == call && privacyObservation.Current.TopologyRevision == privacy
                 && Interlocked.Read(ref settingsOwnershipBindingRevision) == binding && settingsOwnershipRevision() == owner
                 && ReferenceEquals(conversationShutdown, shutdown) && ReferenceEquals(conversationShutdownCurrent, validation)
-                && (validation?.Invoke() ?? true);
+                && (heldExit ? ReferenceEquals(retiredConversationShutdown, retired) : validation?.Invoke() ?? true);
+            if (heldExit)
+            {
+                if (retired is null)
+                {
+                    ShowInformation("Exit requires a fresh input check.",
+                        "Private content remains withheld. The native empty-input shutdown check is unavailable; nothing was discarded or stopped.");
+                    return null;
+                }
+                var empty = retired();
+                bool RetiredCurrent() => Current() && empty();
+                return RequireConversationShutdownCurrent(RetiredCurrent) ? RetiredCurrent : null;
+            }
             if (!IsCallMutationHostEligible || !await shutdown())
             {
                 ShowInformation("Exit or restart cancelled.", "Unsent input remains open unless privacy retirement cleared it. Nothing was saved or submitted.");

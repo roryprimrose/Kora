@@ -70,14 +70,14 @@ public sealed class VoiceCaptureTimingSuggestionReview : IDisposable
     public static async Task<VoiceCaptureTimingSuggestionReview> ReviewAsync(
         VoiceCaptureTimingConfigurationService configuration, CallCommunicationPolicy policy, TimeProvider time,
         ConversationMessage message, Func<bool> eligible, Func<CancellationToken, Task> validateSource,
-        CancellationToken token)
+        CancellationToken token, RegisteredSetting? selectedSetting = null)
     {
         ArgumentNullException.ThrowIfNull(message);
         message.Validate();
         var request = RequireNativeInput(message.Request.SessionId);
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires an exact successful retained answer and separate native input."); }
-        var proposal = RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body);
+        var proposal = RegisteredSettingSuggestionCollection.ParseSelected(message.AssistantResponse!.Body, selectedSetting);
         var snapshot = configuration.Get();
         if (snapshot.Timing is null)
         { throw new InvalidOperationException("Capture timing is unavailable. Inspect Settings and audit before explicit recovery."); }

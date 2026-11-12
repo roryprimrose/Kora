@@ -90,7 +90,9 @@ public sealed partial class SessionQueueService
         var expires = time.GetUtcNow().AddMinutes(1);
         SessionQueueLifecycleReview? review = null;
         // Joined receipts survive voluntary input closure, not changes to their private control source.
-        bool Current() => !disposed && (access.CanControl || review is { Joined: true }) && access.ControlRevision == control && admitted()
+        bool Current() => !disposed && (access.CanControl || review is { Joined: true }
+            || origin == RequestOrigin.LocalUi && access.CanReviewApplicationExit && (review is null || review.Queues.IsEmpty))
+            && access.ControlRevision == control && admitted()
             && !token.IsCancellationRequested && time.GetUtcNow() < expires;
         long revision;
         long epoch;
@@ -109,7 +111,8 @@ public sealed partial class SessionQueueService
             var queues = await ReadLifecycleQueuesAsync(token).ConfigureAwait(false);
             lock (causeGate)
             {
-                if (!Current() || revision != lifecycleRevision || !lifecycleHeld || epoch != lifecycleEpoch)
+                if (!Current() || revision != lifecycleRevision || !lifecycleHeld || epoch != lifecycleEpoch
+                    || !access.CanControl && !queues.IsEmpty)
                 { throw new InvalidOperationException("Compatibility work changed while reviewing. No work was stopped."); }
                 return review = lifecycleReview = new(queues, revision, epoch, origin, expires, Current, ReleaseLifecycleReview);
             }

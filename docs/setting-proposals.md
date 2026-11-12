@@ -8,6 +8,34 @@ Only the following settings support this workflow. The exact option IDs are
 shown because the suggested command must use them; ordinary Settings controls
 do not require you to remember these names.
 
+## One answer, independently reviewed members
+
+The original successful retained answer may contain one existing suggestion, or **2-8 canonical commands**, each on its own LF-delimited line, with **at most 3072 UTF-16 characters** in the complete answer. Every setting ID must be known and unique, including Set versus Reset of the same ID.
+No blank lines, trailing newline, CRLF, numbering, code fences, commentary or partial parsing is admitted ([whole-answer parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestionCollection.cs)).
+
+For example, the complete inert answer can be:
+
+```text
+set appearance.theme to dark
+set work.active-deadline-minutes to 10
+set speech.playback-volume to 0
+```
+
+In the original Active conversation, choose **Inspect setting suggestions...**. Both native conversation sizes show the complete original answer and an initially unselected member list. Choose exactly one ID, then **Review this one chosen setting**.
+Read its authoritative current/proposed/default values, saved/default provenance, scope and effects. Review saves nothing; **Confirm exact setting change** is a separate original-user action ([native workflow](../src/Kora/RegisteredSettings/SessionsViewModel.RegisteredSettings.cs)).
+
+That selection consumes the collection chooser. To consider another member, deliberately inspect the same original answer again, choose that member, review fresh authoritative values and separately confirm. Nothing selects or applies the next member.
+A confirmation never covers all members, creates model authority, or establishes a cross-store transaction. Earlier confirmed effects remain; there is no batch retry or rollback ([native effect regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SettingSuggestionCollection.cs)).
+
+Existing single-command and Undo behavior remains independent. Exact typed/activated-voice review phrases still accept only a single-command answer; collection member choice is available through the native conversation controls only.
+Native-only members still require an original local-UI answer: clicking a voice-originated answer does not relabel its source.
+Session/generation/source/page, private control, host ownership, call policy, preference revision, expiry and cancellation checks remain in the existing per-setting owners ([review owners](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs), [deadline owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineSuggestionReview.cs)).
+
+An unconfirmed persistence/audit/readback outcome may have written the chosen value. The chooser and confirmation are retired; inspect Settings and audit receipts before any fresh deliberate review.
+There is no automatic continuation, retry, rollback, provider trial or new profile enablement ([recovery regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SettingSuggestionCollection.cs)).
+
+## Supported members
+
 | Setting | Suggested value | Review channel |
 | --- | --- | --- |
 | `appearance.theme` | `system`, `light`, `dark` | Original local UI, native review and confirmation |
@@ -40,10 +68,10 @@ For example, the complete answer may be `set appearance.theme to dark`,
 `set appearance.reduced-motion to true`, `set appearance.movement-speed to 50`,
 `set speech.summary-words to 40`, `set speech.playback-volume to 30`, or
 `set responses.default-mode to VoiceOnly`.
-For future ordinary tasks, the complete retained answer must be exactly
+For future ordinary tasks, a single-command answer or collection member must be exactly
 `set work.active-deadline-minutes to 10` (or another canonical integer 1-60),
 or `reset work.active-deadline-minutes` with no value.
-Choose **Review setting suggestion...** on that exact successful answer in the
+Choose **Inspect setting suggestions...** on that exact successful answer in the
 original Active conversation. Read the current saved/default, effective and
 proposed minutes, default five minutes, and future-only device-local scope.
 Review changes nothing. Separately confirm in the same current native surface
@@ -60,17 +88,17 @@ For slower Windows speech, the complete retained answer may be
 `set speech.windows-rate to -1`. Rate alone permits canonical negative integers;
 plus signs, negative zero, padding, leading zeroes, suffixes and commentary are rejected.
 Other numeric speech suggestions use canonical decimal digits, without signs,
-leading zeroes, fractions or commentary. Mixed settings, batches,
-relative changes and other setting families are not admitted as suggestions.
+leading zeroes, fractions or commentary. Mixed registered settings require the complete collection grammar above.
+Batch application, relative changes and unregistered setting families are not admitted.
 Response-mode answers require the exact spelling and case shown above; numeric
-enum values, aliases, surrounding commentary and batches are rejected.
+enum values, aliases, surrounding commentary and batch application are rejected.
 Presence suggestions likewise require the exact lowercase syntax and IDs above,
 canonical decimal integers or lowercase `true`/`false`, with no surrounding text.
 Response-timeout suggestions use the same canonical lowercase syntax, for example `set appearance.response-timeout to 15`. This is the response-window inactivity hide delay, not a provider/request deadline ([existing preference](settings.md#independent-visibility-timeouts)).
 Native renderer selection is not an admitted model suggestion.
-For detail presentation, the entire retained answer must be exactly `set responses.detail-presentation to Offer`, `set responses.detail-presentation to LinkOnly`, `set responses.detail-presentation to OpenAutomatically`, or `reset responses.detail-presentation`.
-Aliases, different case, numeric values, surrounding text and batches are rejected ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
-Choose **Review setting suggestion...** on that exact successful answer in the original Active conversation.
+For detail presentation, a single-command answer or collection member must be exactly `set responses.detail-presentation to Offer`, `set responses.detail-presentation to LinkOnly`, `set responses.detail-presentation to OpenAutomatically`, or `reset responses.detail-presentation`.
+Aliases, different case, numeric values, surrounding text and batch application are rejected ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+Choose **Inspect setting suggestions...** on that exact successful answer in the original Active conversation.
 Review shows the actual saved value (or unsaved Offer default), exact proposed choice and future-only shared device-local scope; it changes nothing.
 Separately confirm in the same current native surface within 60 seconds. The existing Details owner performs validation, audited atomic persistence and confirmed readback.
 Reset explicitly saves the owner's Offer default, not file deletion ([review adapter](../src/Kora.Application/Configuration/DetailPresentationSuggestionReview.cs), [native owner](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs)).
@@ -83,12 +111,12 @@ They never clear call protection or enable speech. A changed call observation,
 private host or source requires a fresh review; a later click cannot relabel a
 voice-originated suggestion as an original local source.
 
-For quiet hours, the complete retained answer may be
+For quiet hours, a single-command answer or selected collection member may be
 `set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC`,
 `set notices.quiet-hours to Off`, or `reset notices.quiet-hours`.
 Use distinct days in Mon-Sun order, exact 24-hour times and an explicitly requested
 installed zone ID (including spaces where the ID requires them). Missing zones,
-duplicate/reordered days, equal start/end, extra fields, commentary and batches
+duplicate/reordered days, equal start/end, extra fields, commentary and batch application
 are rejected. Kora never infers your local zone.
 Native review reads the actual current saved/effective schedule, shows the full
 proposal and default Off, and expires after 60 seconds. Confirming separately
@@ -101,21 +129,21 @@ Hide/reopen, source replacement, cancellation, expiry or changed host authority
 requires a fresh review. Unconfirmed saves remain unavailable, not successful.
 Native Cancel remains available while quiet-hours source validation is awaiting completion; it retires that review or confirmation without requesting a new write. It does not undo an already persisted write ([review owner](../src/Kora/RegisteredSettings/SessionsViewModel.QuietHoursSuggestions.cs)).
 
-For capture timing, the complete retained answer may be `set voice.trailing-silence to 2.5000001`, `set voice.maximum-capture to 40`, or `reset voice.maximum-capture`.
-Seconds use a canonical dot decimal with at most seven fractional digits; no exponent, suffix, padding, redundant zeros, rounding or batch is accepted.
+For capture timing, a single-command answer or selected collection member may be `set voice.trailing-silence to 2.5000001`, `set voice.maximum-capture to 40`, or `reset voice.maximum-capture`.
+Seconds use a canonical dot decimal with at most seven fractional digits; no exponent, suffix, padding, redundant zeros, rounding or batch application is accepted.
 Review reads the authoritative current timing service and shows all four old/new/default values and saved/default provenance. Maximum capture supports only 10-60 seconds and reset restores 60, without changing independent review/permission lifetimes or the hard resource envelope.
 Separate native confirmation saves only the selected field's change, preserving companions.
 Timing and appearance use distinct review owners; an appearance review cannot accept a timing Reset.
 The save affects future eligible captures only; it never replaces an in-flight snapshot, opens a microphone, selects a provider or grants consent.
 An unavailable timing service blocks review. The separate reviewed setting-inspection operation supplies confirmed timing scalars through `settings.get`; suggestion metadata alone is not confirmed-value read authority. No model result can confirm or apply a preference.
 
-For an [installed voice](voice-and-audio.md#review-an-installed-voice-suggestion), supply its exact qualified ID in your request. The complete answer must be `set speech.voice to <provider / voice ID>`.
+For an [installed voice](voice-and-audio.md#review-an-installed-voice-suggestion), supply its exact qualified ID in your request. A single-command answer or selected collection member must be `set speech.voice to <provider / voice ID>`.
 Kora validates that exact installed pair privately; the model cannot enumerate choices, select a provider alone, download assets or invent an available voice ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
 
 ## Propose one Reset
 
-The complete retained answer may instead be exactly `reset <exact ID>` for one setting in the table except `speech.voice`, for example `reset speech.playback-volume`.
-Installed voice remains Set-only and requires an exact installed pair. No value, model-supplied default, aliases, commentary or batch is accepted ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+A single-command answer or selected collection member may instead be exactly `reset <exact ID>` for one setting in the table except `speech.voice`, for example `reset speech.playback-volume`.
+Installed voice remains Set-only and requires an exact installed pair. No value, model-supplied default, aliases, commentary or batch application is accepted ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
 
 Use the same separate review and confirmation below. Review resolves the default through the host, shows current and proposed values/provenance and preserves the exact source and original channel. Reset does not mean every owner removes its saved preference:
 
@@ -132,9 +160,9 @@ Existing review-channel restrictions and uncertain-write recovery remain unchang
 
 ## Review, confirm or cancel
 
-1. In Sessions or its compact conversation, choose **Review setting suggestion...**
+1. In Sessions or its compact conversation, choose **Inspect setting suggestions...**
    on the exact retained successful answer. The supported IDs and bounds are
-   listed beside the review. Opening or reading that list saves nothing.
+   listed beside the review. Opening or reading that list saves nothing. For a collection, inspect the complete source, choose one member and then choose **Review this one chosen setting**.
 2. Inspect the exact current/proposed value, saved/default provenance, units,
    shared device-local scope and effects. Speech limits show **both** caps and
    preserve the companion cap. Volume shows desired/effective percentages and
@@ -161,8 +189,8 @@ Existing review-channel restrictions and uncertain-write recovery remain unchang
    once through the same validated, audited writer as the existing controls.
    Or choose **Cancel setting review**; no new write is requested.
 
-Keyboard activation of **Review setting suggestion...** moves focus to the
-complete readback in either conversation view. Focus and Enter on the readback
+Keyboard activation of **Inspect setting suggestions...** moves focus to the
+complete readback in either conversation view (the complete original source for a collection). Choosing and reviewing one member then exposes its independent confirmation. Focus and Enter on the readback
 do not confirm a change. **Escape** from the readback or its confirmation/cancel
 buttons cancels only this setting review and returns focus to the same answer's
 review action when that exact source is still available. Escape outside these

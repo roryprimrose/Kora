@@ -1,5 +1,6 @@
 using Kora.Application.Configuration;
 using Kora.Core.Conversation;
+using Kora.Core.Configuration.RegisteredSettings;
 
 namespace Kora.Application.ViewModels;
 
@@ -7,8 +8,12 @@ public sealed partial class MainViewModel
 {
     private Task quietHoursSuggestionWork = Task.CompletedTask;
 
+    public Task<QuietHoursSuggestionReview> ReviewQuietHoursSuggestionAsync(ConversationMessage message,
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token) =>
+        ReviewQuietHoursSuggestionAsync(message, sourceCurrent, validateSource, null, token);
+
     public async Task<QuietHoursSuggestionReview> ReviewQuietHoursSuggestionAsync(ConversationMessage message,
-        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, RegisteredSetting? selectedSetting, CancellationToken token)
     {
         var service = quietHours ?? throw new InvalidOperationException("Quiet-hours configuration is unavailable.");
         if (disposed || quietHoursActive || !quietHoursSuggestionWork.IsCompleted)
@@ -27,7 +32,7 @@ public sealed partial class MainViewModel
             && Volatile.Read(ref voiceRecoveryRevision) == recovery && HasVoiceConsent == consent
             && string.Equals(AssistantName, name, StringComparison.Ordinal)
             && sourceCurrent();
-        var work = QuietHoursSuggestionReview.ReviewAsync(service, communicationPolicy, message, Eligible, validateSource, token);
+        var work = QuietHoursSuggestionReview.ReviewAsync(service, communicationPolicy, message, Eligible, validateSource, token, selectedSetting);
         quietHoursSuggestionWork = work;
         try { return await work.ConfigureAwait(false); }
         finally { quietHoursSuggestionWork = Task.CompletedTask; }

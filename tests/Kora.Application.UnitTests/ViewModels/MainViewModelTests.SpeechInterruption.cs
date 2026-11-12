@@ -11,9 +11,10 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     private static async Task<(Fixture Fixture, ForegroundConversationTarget Target, Task<string> Read)>
-        StartInterruptibleAnswerAsync(bool qualified = true, bool ignoreCancellation = false)
+        StartInterruptibleAnswerAsync(bool qualified = true, bool ignoreCancellation = false, Fixture? preparedFixture = null,
+            Action<HostRequest>? captureRequest = null)
     {
-        var f = await CreateReadableResponseAsync();
+        var f = preparedFixture ?? await CreateReadableResponseAsync();
         await f.RaiseActivatedTranscriptAsync("Kora, what can you do", 1);
         f.Voice.IsSpeechInterruptionAvailable = qualified;
         var store = new SessionCommandStore(f);
@@ -22,6 +23,7 @@ public sealed partial class MainViewModelTests
         var original = HostRequest.Create(RequestOrigin.LocalUi);
         var request = new HostRequest(original.RequestId, store.Session.Authority.SessionId,
             original.TaskId, original.Origin, original.InvocationId);
+        captureRequest?.Invoke(request);
         f.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         f.TextToSpeech.SpeakStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         f.TextToSpeech.IgnoreSpeakCancellation = ignoreCancellation;
@@ -192,6 +194,31 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.StopCalls.Should().Be(stops);
         read.IsCompleted.Should().BeFalse();
         f.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Cancelled);
+        f.TextToSpeech.SpeakGate!.TrySetResult();
+        await read;
+    }
+
+    [Theory]
+    [InlineData("voiceConsent")]
+    [InlineData("voiceEnabled")]
+    public async Task SpeechInterruptionLateHostWithdrawalCannotBeRenewedByAnUnchangedNativeGeneration(string fieldName)
+    {
+        var (f, _, read) = await StartInterruptibleAnswerAsync();
+        var stops = f.TextToSpeech.StopCalls;
+        await f.ViewModel.BeginPushToTalkAsync();
+        await f.ViewModel.EndPushToTalkAsync();
+        // Isolate legacy host-state withdrawal from the generation invalidation normally coupled to its public setter.
+        var field = f.ViewModel.GetType().GetField(fieldName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        f.Audit.BeforeWrite = audit =>
+        {
+            if (string.Equals(audit.ActionId, "speech.interrupt", StringComparison.Ordinal)
+                && audit.Outcome == SecurityAuditOutcome.Requested)
+            { field.SetValue(f.ViewModel, fieldName is "voiceConsent" ? false : 0); }
+        };
+        await f.Voice.RaiseTranscriptAsync("Kora, stop speaking", 1);
+        f.TextToSpeech.StopCalls.Should().Be(stops);
+        f.Audit.Events.Should().Contain(item => item.ActionId == "speech.interrupt" && item.Outcome == SecurityAuditOutcome.Cancelled);
+        f.Audit.Events.Should().NotContain(item => item.ActionId == "speech.interrupt" && item.Outcome == SecurityAuditOutcome.Succeeded);
         f.TextToSpeech.SpeakGate!.TrySetResult();
         await read;
     }

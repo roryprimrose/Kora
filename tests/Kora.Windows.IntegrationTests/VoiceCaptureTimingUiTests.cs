@@ -1,6 +1,7 @@
 using System.Reflection;
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AwesomeAssertions;
@@ -65,7 +66,18 @@ public sealed class VoiceCaptureTimingUiTests
                 fixture.Main.ResponseTitle.Should().Be("Capture timing saved.", fixture.Main.ResponseBody);
                 preferences.Load().Should().Be(new VoiceCaptureTiming(5, 15, 1, 40));
                 new LocalVoiceCaptureTimingPreferences(fixture).Load().Should().Be(preferences.Load());
-                await ((AsyncCommand)Find("Review reset capture timing").Command!).ExecuteAsync();
+                var actions = descendants.OfType<Kora.Controls.SettingActionsButton>().Single(button =>
+                    string.Equals(button.SettingName, "Speech capture timing", StringComparison.Ordinal));
+                actions.Focus().Should().BeTrue();
+                window.KeyPress(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.None,
+                    Avalonia.Input.PhysicalKey.Enter, "\r");
+                var resetMenu = (MenuFlyout)actions.Flyout!;
+                resetMenu.IsOpen.Should().BeTrue();
+                var reset = resetMenu.Items.OfType<MenuItem>().Single();
+                reset.Header.Should().Be("Review reset capture timing");
+                var resetCommand = reset.Command.Should().BeOfType<AsyncCommand>().Which;
+                resetMenu.Hide();
+                await resetCommand.ExecuteAsync();
                 preferences.Load().Should().Be(new VoiceCaptureTiming(5, 15, 1, 40));
                 fixture.Main.VoiceTimingReviewStatus.Should().Contain("maximum capture 60 s");
                 await ((AsyncCommand)Find("Confirm capture timing").Command!).ExecuteAsync();

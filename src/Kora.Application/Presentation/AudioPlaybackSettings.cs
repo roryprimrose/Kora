@@ -3,6 +3,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Conversation;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
@@ -86,13 +87,13 @@ public sealed class AudioPlaybackSettings : IDisposable
 
     public Task<PlaybackVolumeSuggestionReview> ReviewVolumeSuggestionAsync(CallCommunicationPolicy policy,
         TimeProvider time, ConversationMessage message, Func<bool> eligible,
-        Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<CancellationToken, Task> validateSource, CancellationToken token, RegisteredSetting? selectedSetting = null)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         if (volume is null || IsVolumeControlActive)
         { throw new InvalidOperationException("Playback volume settings are unavailable or busy."); }
         return PlaybackVolumeSuggestionReview.ReviewAsync(volume, policy, time, message,
-            () => !disposed && eligible(), validateSource, token);
+            () => !disposed && eligible(), validateSource, token, selectedSetting);
     }
 
     public async Task<bool> ConfirmVolumeSuggestionAsync(PlaybackVolumeSuggestionReview review,
@@ -112,13 +113,13 @@ public sealed class AudioPlaybackSettings : IDisposable
 
     public Task<WindowsSpeechRateSuggestionReview> ReviewRateSuggestionAsync(CallCommunicationPolicy policy,
         TimeProvider time, ConversationMessage message, Func<bool> eligible,
-        Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<CancellationToken, Task> validateSource, CancellationToken token, RegisteredSetting? selectedSetting = null)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         if (rate is null || IsRateControlActive)
         { throw new InvalidOperationException("Windows rate settings are unavailable or busy."); }
         return WindowsSpeechRateSuggestionReview.ReviewAsync(rate, policy, time, message,
-            () => !disposed && eligible(), validateSource, token);
+            () => !disposed && eligible(), validateSource, token, selectedSetting);
     }
 
     public async Task<bool> ConfirmRateSuggestionAsync(WindowsSpeechRateSuggestionReview review,

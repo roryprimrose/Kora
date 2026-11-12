@@ -52,6 +52,8 @@ collapsing restores the shared compact frame without moving or submitting input.
 
 - Expand, Dismiss, Send and the available microphone remain direct actions; Cancel task and Stop speaking appear only when relevant.
 - The More response actions menu contains response details, read-aloud, call-speech review and reviewed voice capture.
+- The compact header groups More response actions, Expand and Dismiss at the upper right, in that order. Selected-conversation mode keeps Expand beside its existing Hide action.
+- The typed input fills the remaining row width, reserving space for Submit and the microphone when available. On an undersized display, its width stays within the visible scrolling viewport.
 - Submitted-work reports and management controls remain in the expanded workbench.
 - Blank compact-window areas use the move cursor and support mouse dragging; text, input and interactive controls retain their normal behavior.
 - Question choices and approval decisions retain readable text.

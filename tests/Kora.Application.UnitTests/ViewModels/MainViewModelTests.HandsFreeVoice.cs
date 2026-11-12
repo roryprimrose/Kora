@@ -248,7 +248,9 @@ public sealed partial class MainViewModelTests
         await using var lifetime = voice;
         await fixture.ViewModel.InitializeAsync();
         var first = await stage.NextAsync();
-        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+        fixture.ViewModel.IsPushToTalkVisible.Should().BeTrue();
+        fixture.ViewModel.CanPushToTalk.Should().BeFalse("the wake listener already owns automatic input");
+        fixture.ViewModel.BeginPushToTalkCommand.CanExecute(null).Should().BeFalse();
         first.Binding.AssistantName.Should().Be("Kora");
         fixture.ViewModel.ListeningStatus.Should().Be("Wake listening - local name detection only");
         fixture.ViewModel.TrayInputStatus.Should().Be("Wake listening - local name detection only");
@@ -538,6 +540,10 @@ public sealed partial class MainViewModelTests
 
     private sealed class HandsFreeStage : IHandsFreeAudioStage
     {
+        public bool InterruptionAvailable { get; set; }
+        public bool SupportsSpeechInterruption(string assistantName, SpeechInputSelection selection) => InterruptionAvailable;
+        public Task<IHandsFreeAudioSession> OpenSpeechInterruptionAsync(HandsFreeAudioBinding binding, CancellationToken cancellationToken) =>
+            OpenAsync(binding, cancellationToken);
         public IReadOnlyList<string> SupportedNames { get; init; } = [];
         public bool SupportsProfile(string assistantName, SpeechInputSelection selection) =>
             SupportedNames.Contains(assistantName, StringComparer.Ordinal) && selection == SpeechInputProfileCatalogue.NativeWakeSelection;

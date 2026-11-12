@@ -17,7 +17,8 @@ internal sealed partial class SessionsViewModel
             + (item.RequiresNativeReview ? " (native review only)" : string.Empty)))
         + ". Set supplies one value; Reset supplies only the exact ID and uses the owner's default. "
         + "Installed voice supports only Set with an exact installed provider and voice pair, not Reset. "
-        + "All are shared device-local preferences. Review changes nothing.";
+        + "All are shared device-local preferences. An answer may contain up to eight unique suggestions. "
+        + "Inspect the whole answer, choose one member, review it and separately confirm. No approval applies to all. Review changes nothing.";
 
     public bool CanReviewRegisteredSettingSuggestion => CanReviewAppearanceSuggestion
         || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion
@@ -28,7 +29,7 @@ internal sealed partial class SessionsViewModel
         || CanConfirmQuietHoursSuggestion || CanConfirmInstalledSpeechVoiceSuggestion || CanConfirmCaptureTimingSuggestion || CanConfirmDetailPresentationSuggestion
         || CanConfirmOrdinaryDeadlineSuggestion;
     public bool CanCancelRegisteredSettingSuggestion => !closed && access.CanInspect && access.CanControl
-        && selected?.Authority.IsActive == true && registeredSettingReviewIdentity is not null;
+        && selected?.Authority.IsActive == true && (registeredSettingReviewIdentity is not null || HasRegisteredSettingCollection);
     public string RegisteredSettingSuggestionDescription => AppearanceSuggestionDescription
         + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription
         + QuietHoursSuggestionDescription + InstalledSpeechVoiceSuggestionDescription + CaptureTimingSuggestionDescription + DetailPresentationSuggestionDescription
@@ -37,7 +38,8 @@ internal sealed partial class SessionsViewModel
     public Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message) =>
         ReviewRegisteredSettingSuggestionAsync(message, null);
 
-    private Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message, SettingReviewFamily? expected)
+    private Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message, SettingReviewFamily? expected,
+        RegisteredSetting? selectedSetting = null)
     {
         var originalInput = HostActivity.Current;
         return RunConversationAsync(async (target, live) =>
@@ -48,8 +50,29 @@ internal sealed partial class SessionsViewModel
             if (!access.CanControl || !target.Authority.IsActive || message.Generation != target.Authority.Generation
                 || !ObservedConversationMessages.Any(row => ReferenceEquals(row, message)))
             { throw new InvalidOperationException("Select an exact admitted answer from this Active conversation's current page for setting review."); }
-            var proposal = RegisteredSettingSuggestions.Parse(message.AssistantResponse?.Body
-                ?? throw new InvalidDataException("The selected message has no setting suggestion."));
+            var answer = message.AssistantResponse?.Body
+                ?? throw new InvalidDataException("The selected message has no setting suggestion.");
+            if (expected is null && selectedSetting is null)
+            {
+                var collection = RegisteredSettingSuggestionCollection.Parse(answer);
+                if (collection.Members.Count > 1)
+                {
+                    var sourcePage = conversationPage;
+                    var sourceCompletion = completedConversationMessage;
+                    bool CollectionCurrent() => live() && access.CanControl && !conversationSourceHeld
+                        && ReferenceEquals(sourcePage, conversationPage) && ReferenceEquals(sourceCompletion, completedConversationMessage);
+                    _ = await conversation!.ReadSettingSuggestionAsync(target, message, CollectionCurrent, lifetime.Token);
+                    message.Validate();
+                    if (!CollectionCurrent() || message.Outcome != Kora.Core.Dependencies.ModelTurnOutcome.Succeeded)
+                    { throw new InvalidOperationException("Inspect only an exact successful current original answer."); }
+                    settingCollectionSource = message;
+                    settingCollectionMembers = collection.Members;
+                    settingCollectionCurrent = CollectionCurrent;
+                    conversationStatus = "No admitted setting suggestion is selected. Complete original answer inspected. Deliberately choose one member, then review its current/proposed values. Nothing changed; no member is selected automatically.";
+                    return;
+                }
+            }
+            var proposal = RegisteredSettingSuggestionCollection.ParseSelected(answer, selectedSetting);
             var family = proposal switch
             {
                 RegisteredSettingProposal.Appearance => SettingReviewFamily.Appearance,
@@ -98,13 +121,18 @@ internal sealed partial class SessionsViewModel
             {
                 _ = await conversation!.ReadSettingSuggestionAsync(target, message, Current, token).ConfigureAwait(false);
             }
+            Task<T> Review<T>(
+                Func<ConversationMessage, Func<bool>, Func<CancellationToken, Task>, CancellationToken, Task<T>>? single,
+                Func<ConversationMessage, Func<bool>, Func<CancellationToken, Task>, RegisteredSetting?, CancellationToken, Task<T>>? collection) =>
+                selectedSetting is null
+                    ? (single ?? throw new InvalidOperationException("This setting review is unavailable."))(message, Current, Validate, lifetime.Token)
+                    : (collection ?? throw new InvalidOperationException("This selected setting review is unavailable."))(message, Current, Validate, selectedSetting, lifetime.Token);
             NotifyRegisteredSettings();
             switch (family)
             {
                 case SettingReviewFamily.OrdinaryDeadline:
                     RequireOrdinaryDeadlineNativeInput(originalInput);
-                    var deadlineReview = await (reviewOrdinaryDeadlineSuggestion
-                        ?? throw new InvalidOperationException("Native deadline review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    var deadlineReview = await Review(reviewOrdinaryDeadlineSuggestion, ReviewCollectionOrdinaryDeadline);
                     if (!Current())
                     {
                         deadlineReview.Dispose();
@@ -114,8 +142,7 @@ internal sealed partial class SessionsViewModel
                     break;
                 case SettingReviewFamily.DetailPresentation:
                     RequireDetailPresentationNativeInput(originalInput);
-                    var detailReview = await (reviewDetailPresentationSuggestion
-                        ?? throw new InvalidOperationException("Native Details review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    var detailReview = await Review(reviewDetailPresentationSuggestion, ReviewCollectionDetailPresentation);
                     if (!Current())
                     {
                         detailReview.Dispose();
@@ -125,8 +152,7 @@ internal sealed partial class SessionsViewModel
                     break;
                 case SettingReviewFamily.QuietHours:
                     RequireQuietHoursNativeInput(originalInput);
-                    var quietReview = await (reviewQuietHoursSuggestion
-                        ?? throw new InvalidOperationException("Native quiet-hours review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    var quietReview = await Review(reviewQuietHoursSuggestion, ReviewCollectionQuietHours);
                     if (!Current())
                     {
                         quietReview.Dispose();
@@ -139,8 +165,7 @@ internal sealed partial class SessionsViewModel
                         || originalInput.Request.InvocationId is not null || originalInput.Activity!.IsStopped
                         || originalInput.Outcome != HostOperationOutcome.Unknown))
                     { throw new InvalidOperationException("Capture timing review requires original native input, not a relabelled model or voice request."); }
-                    var timingReview = await (reviewCaptureTimingSuggestion
-                        ?? throw new InvalidOperationException("Native capture timing review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    var timingReview = await Review(reviewCaptureTimingSuggestion, ReviewCollectionCaptureTiming);
                     if (!Current())
                     {
                         timingReview.Dispose();
@@ -149,28 +174,22 @@ internal sealed partial class SessionsViewModel
                     captureTimingSuggestionReview = timingReview;
                     break;
                 case SettingReviewFamily.Appearance:
-                    appearanceReview = await (reviewAppearanceSuggestion
-                        ?? throw new InvalidOperationException("Native appearance review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    appearanceReview = await Review(reviewAppearanceSuggestion, ReviewCollectionAppearance);
                     break;
                 case SettingReviewFamily.Summary:
-                    speechSummaryReview = await (reviewSpeechSummarySuggestion
-                        ?? throw new InvalidOperationException("Speech limit review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    speechSummaryReview = await Review(reviewSpeechSummarySuggestion, ReviewCollectionSummary);
                     break;
                 case SettingReviewFamily.Volume:
-                    playbackVolumeReview = await (reviewPlaybackVolumeSuggestion
-                        ?? throw new InvalidOperationException("Kora volume review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    playbackVolumeReview = await Review(reviewPlaybackVolumeSuggestion, ReviewCollectionVolume);
                     break;
                 case SettingReviewFamily.ResponseMode:
-                    responseModeReview = await (reviewResponseModeSuggestion
-                        ?? throw new InvalidOperationException("Response-mode review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    responseModeReview = await Review(reviewResponseModeSuggestion, ReviewCollectionResponseMode);
                     break;
                 case SettingReviewFamily.WindowsRate:
-                    windowsSpeechRateReview = await (reviewWindowsSpeechRateSuggestion
-                        ?? throw new InvalidOperationException("Windows rate review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    windowsSpeechRateReview = await Review(reviewWindowsSpeechRateSuggestion, ReviewCollectionWindowsRate);
                     break;
                 case SettingReviewFamily.InstalledVoice:
-                    installedVoiceReview = await (reviewInstalledVoiceSuggestion
-                        ?? throw new InvalidOperationException("Installed voice review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    installedVoiceReview = await Review(reviewInstalledVoiceSuggestion, ReviewCollectionInstalledVoice);
                     break;
             }
             if (!Current())
@@ -195,6 +214,7 @@ internal sealed partial class SessionsViewModel
 
     public void CancelRegisteredSettingSuggestion(bool reportCancellation = true)
     {
+        ClearSettingSuggestionCollection();
         registeredSettingReviewIdentity = null;
         CancelOrdinaryDeadlineSuggestion();
         CancelDetailPresentationSuggestion();
@@ -216,6 +236,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyRegisteredSettings()
     {
+        NotifySettingSuggestionCollection();
         if (responseModeReview is { Available: false }) { CancelResponseModeSuggestion(); }
         if (windowsSpeechRateReview is { Available: false }) { CancelWindowsSpeechRateSuggestion(); }
         if (quietHoursSuggestionReview is { Available: false }) { CancelQuietHoursSuggestion(); }

@@ -296,8 +296,8 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
 
     private DiskState Capture(Target target, CancellationToken token)
     {
-        if (target.Source.Scope == CustomizationScope.Kora && target.Source.Kind == CustomizationKind.Instruction)
-        { WindowsOwnedDefinitionFileAccess.RequireNoInstructionRename(paths, ArtifactKind.Instruction, token); }
+        if (target.Source.Scope == CustomizationScope.Kora && target.Source.Kind is CustomizationKind.Instruction or CustomizationKind.Prompt)
+        { WindowsOwnedDefinitionFileAccess.RequireNoInstructionRename(paths, CustomizationLayout.ArtifactKind(target.Source.Kind), token); }
         using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(target.Directory, false, token);
         var files = new List<DiskFile>();
         if (target.Source.Kind == CustomizationKind.Skill)

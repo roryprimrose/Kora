@@ -1,5 +1,6 @@
 using Kora.Application.Configuration;
 using Kora.Core.Conversation;
+using Kora.Core.Configuration.RegisteredSettings;
 
 namespace Kora.Application.ViewModels;
 
@@ -7,8 +8,12 @@ public sealed partial class MainViewModel
 {
     private Task ordinaryDeadlineSuggestionWork = Task.CompletedTask;
 
+    public Task<OrdinaryTurnDeadlineSuggestionReview> ReviewOrdinaryTurnDeadlineSuggestionAsync(ConversationMessage message,
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token) =>
+        ReviewOrdinaryTurnDeadlineSuggestionAsync(message, sourceCurrent, validateSource, null, token);
+
     public async Task<OrdinaryTurnDeadlineSuggestionReview> ReviewOrdinaryTurnDeadlineSuggestionAsync(ConversationMessage message,
-        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, RegisteredSetting? selectedSetting, CancellationToken token)
     {
         var service = ordinaryDeadlineConfiguration ?? throw new InvalidOperationException("Future task deadline configuration is unavailable.");
         if (disposed || ordinaryDeadlineControlActive || !ordinaryDeadlineSuggestionWork.IsCompleted)
@@ -29,7 +34,7 @@ public sealed partial class MainViewModel
             && Volatile.Read(ref voiceRecoveryRevision) == recovery && HasVoiceConsent == consent
             && string.Equals(AssistantName, name, StringComparison.Ordinal) && sourceCurrent();
         var work = OrdinaryTurnDeadlineSuggestionReview.ReviewAsync(service, communicationPolicy, TimeProvider.System,
-            message, Eligible, validateSource, token);
+            message, Eligible, validateSource, token, selectedSetting);
         ordinaryDeadlineSuggestionWork = work;
         try { return await work.ConfigureAwait(false); }
         finally { ordinaryDeadlineSuggestionWork = Task.CompletedTask; }

@@ -30,6 +30,21 @@ function manifestFor(active) {
     prefixes: active.prefixes, combined: active.head };
 }
 
+function completedBatchTip(active, source, tree, run, independent) {
+  invariant(tree === active.prefixes.at(-1).tree, 'Completed main differs from combined candidate tree.');
+  const tip = { sha: source, tree, ticket: active.ticket, combined: active.head, manifest: active.digest,
+    members: active.members.map(item => ({ number: item.number, source: item.head,
+      admittedHead: item.mergeIntent.head, merged: item.merged })) };
+  if (independent) {
+    invariant(['windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1'].includes(active.inventory.schema),
+      'Independent delivery requires the reviewed delivery workflow.');
+    Object.assign(tip, { delivery: 'independent-v1', base: active.base, admission: manifestFor(active),
+      validation: { run: run.id, attempt: 1, source: active.head, workflow: active.base,
+        inventory: active.inventory.blob, schema: active.inventory.schema } });
+  }
+  return tip;
+}
+
 function validateBatchState(state) {
   require('./main-scheduling.cjs').validateHourlyState(state);
   invariant(state.deliveryProfile === undefined || state.deliveryProfile === 'independent-v1',
@@ -178,4 +193,4 @@ function gateMessage(active, index, run) {
 }
 
 module.exports = { PROFILE, SCHEMA, MAX_MEMBERS, CONTROL_PATH, PHASES, digest, profile, timestamp, BatchUpdateError,
-  validateBatchState, manifestFor, liveMember, ordered, gateMessage, GATE };
+  validateBatchState, manifestFor, completedBatchTip, liveMember, ordered, gateMessage, GATE };

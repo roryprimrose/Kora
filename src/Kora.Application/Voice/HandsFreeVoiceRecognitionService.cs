@@ -40,7 +40,8 @@ public sealed partial class HandsFreeVoiceRecognitionService(
     {
         get
         {
-            lock (gate) { return !comparisonActive && captureClosed.Task.IsCompletedSuccessfully && activated.IsCaptureQuiescent; }
+            lock (gate) { return !comparisonActive && speechInterruption?.IsQuiescent != false
+                && captureClosed.Task.IsCompletedSuccessfully && activated.IsCaptureQuiescent; }
         }
     }
     public long Generation
@@ -52,7 +53,17 @@ public sealed partial class HandsFreeVoiceRecognitionService(
         }
     }
     public long CaptureGeneration => Generation;
-    public bool IsListening => State is HandsFreeVoiceState.WakeListening or HandsFreeVoiceState.CapturingCommand || activated.IsListening;
+    public bool IsListening
+    {
+        get
+        {
+            lock (gate)
+            {
+                return speechInterruption is { IsQuiescent: false }
+                    || state is HandsFreeVoiceState.WakeListening or HandsFreeVoiceState.CapturingCommand || activated.IsListening;
+            }
+        }
+    }
 
     public void Bind(Func<HandsFreeVoiceAdmission?> observation,
         Func<VoiceTranscriptEventArgs, HostRequest, Task> governedDispatch, Func<bool> canOpenCapture,
@@ -88,7 +99,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (comparisonActive || profileSwitchActive || profileRetirementFailed || directRoutingCapture is not null) { throw new InvalidOperationException("Speech-input comparison, switching, routing or unconfirmed retirement owns the capture/runtime lifecycle."); }
+            if (speechInterruption is not null || comparisonActive || profileSwitchActive || profileRetirementFailed || directRoutingCapture is not null) { throw new InvalidOperationException("Speech-input comparison, switching, routing or unconfirmed retirement owns the capture/runtime lifecycle."); }
             if (!audio.IsAvailable) { return; }
             if (observe is null) { throw new InvalidOperationException("The hands-free host is not bound."); }
             if (!run.IsCompleted || !captureClosed.Task.IsCompletedSuccessfully || !activated.IsCaptureQuiescent)
@@ -113,6 +124,9 @@ public sealed partial class HandsFreeVoiceRecognitionService(
 
     public void Revalidate()
     {
+        WakeSpeechInterruptionCapture? interruption;
+        lock (gate) { interruption = speechInterruption; }
+        interruption?.Revalidate();
         var observation = ObserveAdmission();
         MutateRoutingCapture(() =>
         {
@@ -131,6 +145,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
 
     public void InvalidateCapture()
     {
+        InvalidateSpeechInterruptionCapture();
         MutateRoutingCapture(() =>
         {
             lock (gate) { InvalidateCaptureCore(); }
@@ -158,6 +173,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
         bool joinWorker;
         void Invalidate()
         {
+            InvalidateSpeechInterruptionCapture();
             lock (gate) { InvalidateCaptureCore(); }
             activated.InvalidateCapture();
         }
@@ -169,10 +185,15 @@ public sealed partial class HandsFreeVoiceRecognitionService(
         if (captureOwner is not null && !ReferenceEquals(captureOwner.Capture, this)) { captureOwner.Invalidate(Invalidate); }
         else { Invalidate(); }
         Task closure;
-        lock (gate) { closure = captureClosed.Task; }
+        Task interruptionClosure;
+        lock (gate)
+        {
+            closure = captureClosed.Task;
+            interruptionClosure = speechInterruption?.CaptureClosed ?? Task.CompletedTask;
+        }
         // Dispatch can itself execute Disable listening. Join capture, not the operation awaiting dispatch.
 #pragma warning disable VSTHRD003 // Owned capture release is independent of the governed operation and dispatcher.
-        await Task.WhenAll(closure, sharedCapture is not null
+        await Task.WhenAll(closure, interruptionClosure, sharedCapture is not null
             ? sharedCapture.JoinRetiredAsync() : activated.StopAsync(cancellationToken));
         if (joinWorker) { await worker; }
 #pragma warning restore VSTHRD003
@@ -496,7 +517,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
     {
         lock (gate)
         {
-            if (!audio.IsAvailable || disposed || comparisonActive || profileSwitchActive || profileRetirementFailed || !run.IsCompleted
+            if (!audio.IsAvailable || disposed || speechInterruption is not null || comparisonActive || profileSwitchActive || profileRetirementFailed || !run.IsCompleted
                 || state == HandsFreeVoiceState.RecoveryRequired || !captureClosed.Task.IsCompletedSuccessfully) { return; }
         }
         if (observe?.Invoke() is null || !canOpen() || !activated.IsCaptureQuiescent) { return; }

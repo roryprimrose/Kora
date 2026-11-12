@@ -1,11 +1,24 @@
 ﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Presentation;
+using Kora.Core.Commands;
 
 namespace Kora.Application.UnitTests.Configuration;
 
 public sealed class SettingsSectionCommandTests
 {
+    [Theory]
+    [InlineData("show me the settings for the Kora presence", WorkspaceSurfaceTarget.PresenceSettings)]
+    [InlineData("Nova Prime, SHOW ME THE SETTINGS FOR THE KORA PRESENCE", WorkspaceSurfaceTarget.PresenceSettings)]
+    [InlineData("show presence settings", WorkspaceSurfaceTarget.PresenceSettings)]
+    [InlineData("show me the settings for the Kora presence now", WorkspaceSurfaceTarget.Invalid)]
+    [InlineData("show me the settings for the Kora presence\n", WorkspaceSurfaceTarget.Invalid)]
+    public void ExistingWorkspaceNavigationKeepsItsAuthoritativeRoute(string phrase, WorkspaceSurfaceTarget target)
+    {
+        SettingsSectionCommand.Parse(phrase, "Nova Prime").Should().BeNull();
+        WorkspaceSurfaceCommand.Parse(phrase, "Nova Prime")!.Target.Should().Be(target);
+    }
+
     [Theory]
     [InlineData("show setting speech.windows-rate", "speech.windows-rate")]
     [InlineData("view setting voice speed", "voice speed")]

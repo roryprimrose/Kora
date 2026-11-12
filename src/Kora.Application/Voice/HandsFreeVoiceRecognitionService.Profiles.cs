@@ -38,7 +38,7 @@ public sealed partial class HandsFreeVoiceRecognitionService
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (comparisonActive || profileSwitchActive || !IsCaptureQuiescent) { throw new InvalidOperationException("Profile initialization requires unowned quiescent input."); }
+            if (speechInterruption is not null || comparisonActive || profileSwitchActive || !IsCaptureQuiescent) { throw new InvalidOperationException("Profile initialization requires unowned quiescent input."); }
             ProfileRuntime.InitializeProfile(ActivatedSelection(selection));
             if (selection is not null) { selectedProfile = new(ProfileRuntime.ProfileGeneration.Number, selection); }
         }

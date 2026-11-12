@@ -14,6 +14,10 @@ public sealed class SpeechInputSelectionTests
         SpeechInputProfileCatalogue.UnavailableReason(selection).Should().Contain("unavailable");
         IHandsFreeAudioStage stage = new UnavailableStage();
         stage.SupportsProfile("Nova", selection).Should().BeFalse();
+        stage.SupportsSpeechInterruption("Nova", selection).Should().BeFalse();
+        var binding = new HandsFreeAudioBinding(1, new("mic", "Microphone"), "Nova", new(1, selection));
+        await FluentActions.Awaiting(() => stage.OpenSpeechInterruptionAsync(binding, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
         await FluentActions.Awaiting(() => stage.PrepareProfileAsync("Nova", selection, TestContext.Current.CancellationToken))
             .Should().ThrowAsync<InvalidOperationException>();
     }

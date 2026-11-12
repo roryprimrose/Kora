@@ -1784,7 +1784,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         !conversationSearchPresentation
         && IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked
-        && !voiceRecognition.IsListening
+        && (!voiceRecognition.IsListening || IsExactRetainedPlaybackWakeCapture)
         && IsSpeechOutputAvailable;
 
     public CallState CurrentCallState
@@ -4130,7 +4130,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     {
         if (retainedAnswerSpeech is not null && IsSpeechInterruptionCommand(CommandText))
         {
-            await InterruptSessionSpeechAsync(CaptureSpeechInterruptionInput(), voice: false);
+            await InterruptSessionSpeechAsync(CaptureSpeechInterruptionInput(), SpeechInterruptionChannel.Typed);
             return;
         }
         await HandleTranscriptAsync(
@@ -4290,7 +4290,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (IsSpeechInterruptionCommand(eventArgs.Transcript)
             && (speechInput?.Playback is not null || retainedAnswerSpeech is not null))
         {
-            await InterruptSessionSpeechAsync(speechInput, voice: true);
+            await InterruptSessionSpeechAsync(speechInput, SpeechInterruptionChannel.PushToTalk);
             return;
         }
         if (speechInput?.Playback is not null || retainedAnswerSpeech is not null)

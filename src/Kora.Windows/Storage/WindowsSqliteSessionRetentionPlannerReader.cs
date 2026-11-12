@@ -9,22 +9,27 @@ using Kora.Core.Hosting;
 using Kora.Core.Storage;
 
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.Storage;
 
-public sealed class WindowsSqliteSessionRetentionPlannerReader : ISessionRetentionPlannerReader, IDisposable
+public sealed partial class WindowsSqliteSessionRetentionPlannerReader : ISessionRetentionPlannerReader, IDisposable
 {
     private readonly WindowsSqliteHostInteractionStore store;
     private readonly FileSystemWatcher watcher;
     private readonly string authorityDirectory;
     private readonly string preferenceDirectory;
+    private readonly ILogger<WindowsSqliteSessionRetentionPlannerReader> logger;
     private long revision;
     private int disposed;
     private int sourceLost;
 
-    public WindowsSqliteSessionRetentionPlannerReader(WindowsSqliteHostInteractionStore store, IApplicationDataPaths paths)
+    public WindowsSqliteSessionRetentionPlannerReader(WindowsSqliteHostInteractionStore store, IApplicationDataPaths paths,
+        ILogger<WindowsSqliteSessionRetentionPlannerReader>? logger = null)
     {
         this.store = store;
+        this.logger = logger ?? NullLogger<WindowsSqliteSessionRetentionPlannerReader>.Instance;
         authorityDirectory = Path.Combine(paths.LocalRoot, HostInteractionSchema.Partition);
         preferenceDirectory = Path.Combine(paths.LocalRoot, "Preferences");
         watcher = new(paths.LocalRoot)
@@ -120,14 +125,19 @@ public sealed class WindowsSqliteSessionRetentionPlannerReader : ISessionRetenti
             using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
             var token = cancellation.Token;
             var observedRevision = Interlocked.Read(ref revision);
+            var stage = "initial-stamp";
             try
             {
                 try
                 {
                     var initial = Stamp(store.RetentionPlannerStamp(token), observedRevision);
+                    stage = "metadata-scan";
                     var result = store.ReadRetentionPlan(proposed, cutoff, token);
+                    stage = "scan-stamp";
                     var stamp = Stamp(result.Snapshot!, observedRevision);
+                    stage = "final-stamp";
                     var current = Stamp(store.RetentionPlannerStamp(token), observedRevision);
+                    stage = "stamp-comparison";
                     if (!string.Equals(initial, stamp, StringComparison.Ordinal)
                         || !string.Equals(stamp, current, StringComparison.Ordinal))
                     {
@@ -140,6 +150,8 @@ public sealed class WindowsSqliteSessionRetentionPlannerReader : ISessionRetenti
                     or InvalidDataException or SqliteException or JsonException or ArgumentException or OverflowException or FormatException)
                 {
                     token.ThrowIfCancellationRequested();
+                    ObservationRejected(logger, stage, exception.GetType().Name, observedRevision,
+                        Interlocked.Read(ref revision), Volatile.Read(ref disposed) != 0, Volatile.Read(ref sourceLost) != 0);
                     return new SessionRetentionPlanResult(SessionRetentionPlanStatus.Unavailable, null, null);
                 }
             }

@@ -43,6 +43,24 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 [Internal Model Tools](Internal_Model_Tools.md), and
 [Implementation Roadmap](Implementation_Roadmap.md#optional-and-deferred-work).
 
+## Reviewed documentation revision associated with one conversation
+
+The selected-conversation native action completes one host-bound association to one already registered enabled exact revision. It is not capture/import, another file attachment, another source slot, model-selected binding or automatic recall.
+Binding review shows the source/root/membership, original conversation, privacy and independent retention disclosure; a separate original-user request confirms metadata only ([native owner](../src/Kora/KnowledgeSources/SessionKnowledgeSourceController.cs)).
+
+Private interaction schema 17 stores the profile/session/generation, exact source/revision, source version and increasing association revision. Bind and detach use existing host control admission, atomic authoritative audit and exact durable readback.
+Restart reopens metadata only; missing or contradictory audit/projection, malformed state, stale generations and downgrade reconstruction fail closed ([storage](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.KnowledgeSourceBindings.cs)).
+
+Explicit source open independently checks the enabled exact revision, current original access and retained integrity. Refresh, withdrawal, deletion or a different revision cannot silently replace the binding. Every new question has its own unchanged-question, exact excerpt and original-target review, followed by separate one-shot LocalOnly/toolsNONE confirmation ([workflow](../src/Kora.Application/KnowledgeSources/SessionKnowledgeSourceWorkflow.cs)).
+
+The existing canonical conversation service retains the unchanged question and genuinely validated cited response in that same original conversation, not a fresh **Local context** conversation. Ordinary unassociated named-source answers retain their existing fresh-conversation behavior.
+Invalid, denied, unavailable or retired use cannot fabricate a supported retained answer ([shared answer owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
+
+Detach removes only the audited association. Session deletion inventories and invalidates that metadata without removing the independent registered source; association controls do not renew session/source retention or confer future read/model authority ([storage regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/SessionKnowledgeSourceBindingTests.cs)).
+Privacy withdrawal and closure revoke pending use and join cancellation-ignoring model work before releasing source ownership ([native regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/SessionKnowledgeSourceAnswerTests.cs)).
+
+This is bounded implementation, not provider/device enablement or qualification. Source/attachment limits, stored source bytes/indexes, global retention domains, model qualification, hosted-grounding prohibitions and explicit per-question consent are unchanged. See [the complete user operation](../docs/knowledge-sources.md#keep-one-documentation-revision-with-a-conversation).
+
 ## Explicit volatile folder-grounded local answer implementation
 
 The [folder answer guide](../docs/folder-answers.md) describes the separate question,

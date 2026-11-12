@@ -100,14 +100,17 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         (await retained.Workflow.AnswerAsync(review, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
     }
 
-    private sealed class RetainedFixture : IAsyncDisposable, ISessionWorkspaceStore, ISessionConversationStore,
-        IHostTaskStore, ISessionWorkspaceAccess, ICapabilityHostAccess
+    internal sealed class RetainedFixture : IAsyncDisposable, ISessionWorkspaceStore, ISessionConversationStore,
+        IHostTaskStore, ISessionWorkspaceAccess, ICapabilityHostAccess, ISessionKnowledgeSourceBindingStore
     {
         internal KnowledgeSourceAnswerWorkflow Workflow { get; }
         internal ModelTurnHost Models { get; }
         internal RetainedAdapter Adapter { get; }
         internal ConversationMessage? Message;
         internal SessionWorkspaceEntry? Target;
+        internal SessionWorkspaceService Workspace { get; }
+        internal SessionKnowledgeSourceBinding? Binding;
+        internal int CreatedSessions;
         internal Action? AfterTerminalMetadata;
         private readonly SessionConversationService conversation;
         private readonly DependencyBootstrapper dependencies;
@@ -136,6 +139,7 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
                     : ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
                     source.Clock.Now.AddMinutes(5), Adapter)], policy);
             var workspace = new SessionWorkspaceService(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance);
+            Workspace = workspace;
             conversation = new(this, this, workspace, this, Models, source.Clock,
                 NullLogger<SessionConversationService>.Instance, execution: Models);
             Workflow = new(source.Manager, new LocalFileLexicalRetrieval(), LocalSourceUsePolicy.Instance, source, source,
@@ -155,8 +159,26 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
             Func<bool> admitted, CancellationToken token)
         {
             if (!admitted()) { throw new InvalidOperationException("Synthetic creation denied"); }
+            CreatedSessions++;
             Target = new(new(request.SessionId, new(1), true), new(request.SessionId, new(1), name));
             return ValueTask.FromResult(Target);
+        }
+        public ValueTask<SessionKnowledgeSourceBinding?> ReadBinding(HostId<SessionIdentity> session, CancellationToken token) =>
+            ValueTask.FromResult(Binding);
+        public ValueTask<SessionKnowledgeSourceBinding> Bind(HostRequest request, HostRevision generation,
+            KnowledgeSourceReference reference, long version, Func<bool> admitted, CancellationToken token)
+        {
+            if (!admitted() || Binding is not null) { throw new InvalidOperationException("Synthetic binding denied"); }
+            Binding = new(Guid.NewGuid(), Guid.NewGuid(), request.SessionId, generation, new(1), reference, version);
+            records[request.TaskId] = records[request.TaskId].Next(HostTaskState.Succeeded);
+            return ValueTask.FromResult(Binding);
+        }
+        public ValueTask Detach(HostRequest request, SessionKnowledgeSourceBinding exact, Func<bool> admitted, CancellationToken token)
+        {
+            if (!admitted() || Binding != exact) { throw new InvalidOperationException("Synthetic detach denied"); }
+            Binding = null;
+            records[request.TaskId] = records[request.TaskId].Next(HostTaskState.Succeeded);
+            return ValueTask.CompletedTask;
         }
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token)
         {
@@ -244,13 +266,15 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         public void ConfirmWrite() => throw new NotSupportedException();
     }
 
-    private sealed class RetainedAdapter(string fault) : IModelTurnAdapter
+    internal sealed class RetainedAdapter(string fault) : IModelTurnAdapter
     {
         internal int Calls;
-        public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, Kora.Core.Providers.ProviderProfileTuple? profile,
+        internal Func<CancellationToken, Task>? BeforeReply;
+        public async Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, Kora.Core.Providers.ProviderProfileTuple? profile,
             ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool, CancellationToken token)
         {
             Calls++;
+            if (BeforeReply is not null) { await BeforeReply(token); }
             using var wire = JsonDocument.Parse(context);
             var ids = wire.RootElement.GetProperty("Evidence").EnumerateArray()
                 .Select(item => item.GetProperty("Id").GetProperty("Value").GetGuid()).ToArray();
@@ -258,8 +282,8 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
                 "unavailable" => ModelTurnOutcome.Unavailable, _ => ModelTurnOutcome.Succeeded };
             var answer = fault is "invalid" ? "not JSON" : fault is "unsupported" ? "{\"unsupported\":true,\"claims\":[]}"
                 : JsonSerializer.Serialize(new { unsupported = false, claims = new[] { new { text = "alpha retained claim", evidenceIds = ids } } });
-            return Task.FromResult(new ModelProviderReply(outcome, provenance.Selection,
-                outcome == ModelTurnOutcome.Succeeded ? new(answer, null) : null));
+            return new ModelProviderReply(outcome, provenance.Selection,
+                outcome == ModelTurnOutcome.Succeeded ? new(answer, null) : null);
         }
     }
 
@@ -1065,7 +1089,7 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         }
     }
 
-    private sealed class Clock : TimeProvider
+    internal sealed class Clock : TimeProvider
     {
         internal DateTimeOffset Now = new(2026, 11, 4, 0, 0, 0, TimeSpan.Zero);
         internal DateTimeOffset? AfterNextRead;
@@ -1100,7 +1124,7 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         }
     }
 
-    private sealed class Fixture : IKnowledgeSourceInspector, IKnowledgeSourceStore, ILocalFileModelUsePolicy,
+    internal sealed class Fixture : IKnowledgeSourceInspector, IKnowledgeSourceStore, ILocalFileModelUsePolicy,
         IModelContextRunner, ISecurityAuditLog, IDisposable
     {
         internal readonly Clock Clock = new();
@@ -1124,6 +1148,8 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         internal bool InvalidAccess;
         internal bool WrongMembership;
         internal bool ChangedRevision;
+        internal KnowledgeSourceRevision? FixedRevision;
+        internal IReadOnlyList<KnowledgeSource>? Inventory;
         internal bool DelayModel;
         internal bool DelayDisposal;
         internal string? FailureStage;
@@ -1207,7 +1233,7 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
             public void Dispose() => owner.DisposedSelections++;
         }
         public Task<IReadOnlyList<KnowledgeSource>> ListAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<KnowledgeSource>>([Source, Other]);
+            Task.FromResult(Inventory ?? [Source, Other]);
         public async Task<KnowledgeSourceRevision> ReadAsync(KnowledgeSource exact, CancellationToken cancellationToken)
         {
             Requests.Add(exact);
@@ -1220,7 +1246,7 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
             }
             if (!Enabled || exact != Source || FailureStage is "read") { throw new InvalidOperationException("Unavailable exact source"); }
             return ChangedRevision
-                ? new KnowledgeSourceRevision(Revision.Review, Revision.Files, new(Source.Id, Guid.NewGuid())) : Revision;
+                ? new KnowledgeSourceRevision(Revision.Review, Revision.Files, new(Source.Id, Guid.NewGuid())) : FixedRevision ?? Revision;
         }
         public Task<KnowledgeSource> BeginRefreshAsync(KnowledgeSource exact, CancellationToken cancellationToken)
         { Mutations++; Enabled = false; return Task.FromResult(exact with { Version = exact.Version + 1, State = KnowledgeSourceState.Unavailable }); }

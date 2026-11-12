@@ -10,6 +10,48 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class AdaptiveInteractionTests
 {
+    [Theory]
+    [InlineData("show setting speech.windows-rate", "speech.windows-rate", "speech.windows-rate")]
+    [InlineData("show appearance.presence.show", "appearance.presence.show", "appearance.presence.show")]
+    [InlineData("show settings for Reduced motion", "Reduced motion", "appearance.reduced-motion")]
+    public async Task OriginalSettingRequestPrefillsTheSharedPaneWithoutRetargetingOrSubmittingConversationText(
+        string command, string filter, string id)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Initialize();
+            await f.Run("show sessions");
+            await f.Run("select the first session");
+            var window = f.Window!;
+            var selected = f.Model.SelectedSessionRecord;
+            f.Model.ComposerBody = "keep this unsent";
+            using var settings = new SettingsWindowController(f.Native.Main, NullLogger<SettingsWindowController>.Instance);
+            settings.BindWorkbench(() => window, view => window.ShowHostedView(WorkbenchActivity.Settings, view));
+            await f.Run(command);
+            window.ActiveActivity.Should().Be(WorkbenchActivity.Settings);
+            var view = (SettingsView)window.FindControl<ContentControl>("HostedViewContent")!.Content!;
+            var browser = view.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!;
+            browser.Filter.Should().Be(filter);
+            browser.SelectedItem.Should().BeNull();
+            browser.IsSettingVisible(id).Should().BeTrue();
+            browser.MatchCount.Should().Be(1);
+            f.Model.SelectedSessionRecord.Should().Be(selected);
+            f.Model.ComposerBody.Should().Be("keep this unsent");
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(Kora.Core.Hosting.RequestOrigin.LocalUi,
+                () => f.Native.Main.ShowSettingFilterAsync("appearance.presence.show", static () => true, CancellationToken.None));
+            browser.Filter.Should().Be("appearance.presence.show");
+            browser.MatchCount.Should().Be(1);
+            browser.IsSettingVisible("appearance.presence.show").Should().BeTrue();
+            f.Admission.Calls.Should().Be(0);
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(Kora.Core.Hosting.RequestOrigin.LocalUi,
+                () => f.Native.Main.ShowSettingFilterAsync("voice speed", static () => true, CancellationToken.None));
+            browser.Filter.Should().Be("voice speed");
+            browser.IsSettingVisible("speech.windows-rate").Should().BeTrue();
+            f.Model.ComposerBody.Should().Be("keep this unsent");
+        });
+    }
+
     [Fact]
     public void Settings_view_cannot_be_created_without_an_explicit_owner() =>
         FluentActions.Invoking(() => new SettingsView()).Should().Throw<InvalidOperationException>();

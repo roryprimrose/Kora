@@ -6,7 +6,7 @@
   <StackPanel Spacing="4">
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
       <TextBlock Text="Caption screen — until Kora restarts" TextWrapping="Wrap" />
-      <controls:SettingActionsButton Grid.Column="1" SettingName="Caption screen"
+      <controls:SettingActionsButton Grid.Column="1" SettingName="Caption screen" SettingIds="display.speech-text-screen"
                                      IsEnabled="{Binding CanSelect}">
         <controls:SettingActionsButton.Flyout>
           <MenuFlyout>

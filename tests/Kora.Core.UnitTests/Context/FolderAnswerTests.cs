@@ -267,6 +267,7 @@ public sealed class FolderAnswerTests
     [InlineData("no-provenance")]
     [InlineData("grant")]
     [InlineData("question")]
+    [InlineData("settings")]
     [InlineData("no-answer")]
     public void InvalidProviderPayloadIsNotCitationOrExecutionAuthority(string defect)
     {
@@ -294,10 +295,13 @@ public sealed class FolderAnswerTests
             "no-provenance" => reply with { Provenance = null },
             "grant" => reply with { Response = new(json, null, new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Once)) },
             "question" => reply with { Response = new(json, null, Question: new("choice", ["one", "two"])) },
+            "settings" => reply with { Response = new(json, null, SettingsFilter: "speech.windows-rate") },
             "no-answer" => reply with { Response = new(null, null) },
             _ => reply,
         };
-        context.Resolve(reply).Outcome.Should().Be(LocalFileAnswerOutcome.InvalidResponse);
+        var result = context.Resolve(reply);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.InvalidResponse);
+        result.Claims.Should().BeEmpty();
     }
 
     [Theory]

@@ -58,6 +58,7 @@ public sealed class CallVoiceActivationNativeTests
     [InlineData("deactivate")]
     [InlineData("tab")]
     [InlineData("close")]
+    [InlineData("filter")]
     public async Task Native_lifetime_changes_cannot_revive_a_review(string change)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -66,7 +67,6 @@ public sealed class CallVoiceActivationNativeTests
             await f.InitializeAsync();
             await f.Main.SetAllowVoiceActivationDuringCallsAsync(false);
             var window = new SettingsWindow(f.Main);
-            var other = new Window();
             window.Show();
             window.ShowSection(SettingsSection.Calls);
             window.Activate();
@@ -77,22 +77,24 @@ public sealed class CallVoiceActivationNativeTests
                 switch (change)
                 {
                     case "hide": window.Hide(); window.Show(); break;
-                    case "deactivate":
-                        other.Show();
-                        other.Activate();
-                        HeadlessSession.SetActivation(window, false);
-                        break;
+                    case "deactivate": HeadlessSession.SetActivation(window, false); break;
                     case "tab": window.ShowSection(SettingsSection.Appearance); window.ShowSection(SettingsSection.Calls); break;
                     case "close": window.Close(); break;
+                    case "filter":
+                        var browser = window.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!;
+                        browser.ShowFilter("appearance.theme");
+                        browser.ShowFilter("calls.voice-activation");
+                        break;
                 }
-                if (!string.Equals(change, "close", StringComparison.Ordinal)) { window.Activate(); Dispatcher.UIThread.RunJobs(); }
+                if (!string.Equals(change, "close", StringComparison.Ordinal))
+                { HeadlessSession.SetActivation(window, true); Dispatcher.UIThread.RunJobs(); }
                 await FluentActions.Awaiting(() => f.Main.ConfirmCallVoiceActivationCommand.ExecuteAsync())
                     .Should().ThrowAsync<InvalidOperationException>();
                 new LocalCallAwarePreferences(f, NullLogger<LocalCallAwarePreferences>.Instance).Load()
                     .Should().Be(new CallAwareSettings(true, false));
                 f.Main.IsVoiceEnabled.Should().BeFalse();
             }
-            finally { other.Close(); window.Close(); }
+            finally { window.Close(); }
         });
     }
 }

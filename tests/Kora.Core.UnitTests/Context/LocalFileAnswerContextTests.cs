@@ -75,6 +75,7 @@ public sealed class LocalFileAnswerContextTests
     [InlineData("no-provenance")]
     [InlineData("grant")]
     [InlineData("question")]
+    [InlineData("settings")]
     [InlineData("no-answer")]
     public void InvalidProviderPayloadCannotBecomeAnswerAuthority(string defect)
     {
@@ -103,10 +104,13 @@ public sealed class LocalFileAnswerContextTests
                 new(Kora.Core.Commands.GrantChangeOperation.Add, Kora.Core.Commands.BuiltInAction.LockMachine,
                     Kora.Core.Commands.ModelApprovalScope.Once)) },
             "question" => reply with { Response = new(json, null, Question: new("choice", ["one", "two"])) },
+            "settings" => reply with { Response = new(json, null, SettingsFilter: "speech.windows-rate") },
             "no-answer" => reply with { Response = new(null, null) },
             _ => reply,
         };
-        context.Resolve(reply, search).Outcome.Should().Be(LocalFileAnswerOutcome.InvalidResponse);
+        var result = context.Resolve(reply, search);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.InvalidResponse);
+        result.Claims.Should().BeEmpty();
     }
 
     [Fact]

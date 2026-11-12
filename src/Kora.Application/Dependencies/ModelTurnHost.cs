@@ -396,6 +396,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         var useRevision = capabilities?.Revision;
         turn.PublishExecutionStep?.Invoke(Kora.Core.Conversation.ConversationExecutionStep.ReadingObservation);
         async ValueTask<CapabilityReply> Invoke(CancellationToken toolToken) =>
+            string.Equals(id, SettingsNavigationTool.Id, StringComparison.Ordinal)
+            ? await ShowSettingAsync(turn, input, toolToken).ConfigureAwait(false)
+            :
             MaintenanceTools.FindExact(id) is not null
             ? turn.Context.ToolMode == ModelToolMode.ApplicationMaintenance && maintenance is not null
                 ? await maintenance.InvokeAsync(id, input,
@@ -439,7 +442,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-admission-changed");
         }
-        if (turn.RetainsLocalObservations)
+        if (turn.RetainsLocalObservations && !string.Equals(id, SettingsNavigationTool.Id, StringComparison.Ordinal))
         {
             try { turn.CaptureObservation(id, input, reply, time.GetUtcNow()); }
             catch (Exception exception) when (exception is InvalidDataException
@@ -537,7 +540,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ? ModelTurnReason.ContextExpired : ModelTurnReason.None;
 
     private static bool ValidResponse(LocalModelResponse? response) =>
-        response is { Answer: not null, Action: null, GrantChange: null, Question: null }
+        response is { Answer: not null, Action: null, GrantChange: null, Question: null, SettingsFilter: null }
         && !string.IsNullOrWhiteSpace(response.Answer)
         && JsonSerializer.SerializeToUtf8Bytes(response).Length <= ModelContextEnvelope.MaximumOutputUtf8Bytes;
 

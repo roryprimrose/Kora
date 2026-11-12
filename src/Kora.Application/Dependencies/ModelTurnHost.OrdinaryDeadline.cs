@@ -18,7 +18,8 @@ public sealed partial class ModelTurnHost
     internal void CaptureOrdinaryActiveBudget(ModelTurn turn, OrdinaryTurnDeadline preference)
     {
         if (turn.Owner != owner || turn.ConversationTarget is null || turn.OrdinaryActiveBudget is not null
-            || turn.QuestionContinuation is not null || turn.Context.ToolMode is not (ModelToolMode.None or ModelToolMode.ReadOnly))
+            || turn.QuestionContinuation is not null
+            || turn.Context.ToolMode is not (ModelToolMode.None or ModelToolMode.ReadOnly or ModelToolMode.InteractiveConversation))
         { throw new InvalidOperationException("Only a newly dispatched ordinary turn without user waits may capture this budget."); }
         var contextRemaining = turn.Context.ExpiresAt - time.GetUtcNow();
         var maximum = RuntimeDeadline(turn);

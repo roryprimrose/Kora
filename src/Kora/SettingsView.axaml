@@ -1,4 +1,4 @@
-<UserControl
+﻿<UserControl
     x:Class="Kora.SettingsView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -60,14 +60,12 @@
                 IsEnabled="{Binding CanConfirmSettingsUndo}" />
       </StackPanel>
     </StackPanel>
-    <controls:NavigableTabControl
+    <controls:SettingsBrowser
         x:Name="SettingsTabs"
         Grid.Row="2"
-        TabStripPlacement="Left"
         Margin="22"
         Background="Transparent">
-      <TabItem x:Name="AppearanceTab" Header="Appearance">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <controls:SettingsPage x:Name="AppearanceTab" Header="Appearance">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <TextBlock Text="Appearance" FontSize="28" FontWeight="SemiBold" />
@@ -79,8 +77,8 @@
             </StackPanel>
 
             <TextBlock Text="{Binding AppearanceSettingStatus}" Classes="muted" TextWrapping="Wrap" />
-            <inspection:SettingInspectionControl x:Name="SettingInspection" />
-            <Border Classes="settings-card">
+            <inspection:SettingInspectionControl controls:SettingsSearch.Id="settings.inspect" x:Name="SettingInspection" />
+            <Border Classes="settings-card" controls:SettingsSearch.Id="startup.logon" controls:SettingsSearch.Group="Startup" controls:SettingsSearch.Value="{Binding LogonStartupStatus}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="8">
                   <TextBlock Text="Start Kora at Windows user logon" Classes="settings-title" />
@@ -105,7 +103,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="startup.presentation" controls:SettingsSearch.Group="Startup" controls:SettingsSearch.Value="{Binding StartupPresentationStatus}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="8">
                   <TextBlock Text="Normal manual startup presentation" Classes="settings-title" />
@@ -130,7 +128,7 @@
               </Grid>
             </Border>
 
-            <StackPanel Spacing="5" Margin="0,8,0,0">
+            <StackPanel controls:SettingsSearch.Group="Theme and reading" Spacing="5" Margin="0,8,0,0">
               <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold" />
               <TextBlock
                   Text="Choose the theme, reading text size and response window behavior."
@@ -139,7 +137,7 @@
                   TextWrapping="Wrap" />
             </StackPanel>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.theme" controls:SettingsSearch.Group="Theme and reading" controls:SettingsSearch.Value="{Binding ThemeMode}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Application theme" Classes="settings-title" />
@@ -159,7 +157,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.reader-text-scale" controls:SettingsSearch.Group="Theme and reading" controls:SettingsSearch.Value="{Binding ReaderTextScalePercent}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="8">
                   <TextBlock Text="Reading text size" Classes="settings-title" />
@@ -174,7 +172,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.reduced-motion" controls:SettingsSearch.Group="Theme and reading" controls:SettingsSearch.Value="{Binding IsReducedMotionEnabled}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Reduced motion" Classes="settings-title" />
@@ -188,7 +186,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="response-window.always-show" controls:SettingsSearch.Aliases="responses.always-visible" controls:SettingsSearch.Group="Response window" controls:SettingsSearch.Value="{Binding IsResponseAlwaysVisible}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Always show responses" Classes="settings-title" />
@@ -207,7 +205,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="response-window.topmost" controls:SettingsSearch.Aliases="responses.topmost" controls:SettingsSearch.Group="Response window" controls:SettingsSearch.Value="{Binding IsResponseWindowTopmost}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Keep responses on top" Classes="settings-title" />
@@ -226,7 +224,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.response-timeout" controls:SettingsSearch.Group="Response window" controls:SettingsSearch.Value="{Binding ResponseTimeoutSeconds}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Response timeout" Classes="settings-title" />
@@ -249,8 +247,8 @@
               </Grid>
             </Border>
 
-            <StackPanel Spacing="5" Margin="0,8,0,0">
-              <TextBlock x:Name="PresenceHeading" Text="Presence" FontSize="18" FontWeight="SemiBold" Focusable="True"
+            <StackPanel controls:SettingsSearch.Group="Presence" Spacing="5" Margin="0,8,0,0">
+              <TextBlock x:Name="PresenceHeading" Text="Presence" FontSize="18" FontWeight="SemiBold" Focusable="True" IsTabStop="False"
                   AutomationProperties.Name="Presence settings section" />
               <TextBlock
                   Text="Animated dots that communicate the assistant's current state."
@@ -259,7 +257,7 @@
                   TextWrapping="Wrap" />
             </StackPanel>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.presence.show" controls:SettingsSearch.Aliases="appearance.presence-display" controls:SettingsSearch.Group="Presence" controls:SettingsSearch.Value="{Binding IsPresenceDisplayEnabled}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Show presence" Classes="settings-title" />
@@ -279,7 +277,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.native-presence-renderer" controls:SettingsSearch.Group="Presence" controls:SettingsSearch.Value="{Binding SelectedPresenceRenderer.Name}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Animation mode" Classes="settings-title" />
@@ -306,7 +304,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.presence-timeout" controls:SettingsSearch.Group="Presence" controls:SettingsSearch.Value="{Binding PresenceTimeoutSeconds}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Presence timeout" Classes="settings-title" />
@@ -329,7 +327,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.presence-size" controls:SettingsSearch.Group="Presence" controls:SettingsSearch.Value="{Binding PresenceSizePixels}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Presence size" Classes="settings-title" />
@@ -352,7 +350,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.dot-size" controls:SettingsSearch.Group="Presence" controls:SettingsSearch.Value="{Binding PresenceDotSizePercent}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Dot size" Classes="settings-title" />
@@ -375,7 +373,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.dot-density" controls:SettingsSearch.Group="Presence" controls:SettingsSearch.Value="{Binding PresenceDotDensityPercent}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Dot density" Classes="settings-title" />
@@ -398,7 +396,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.movement-speed" controls:SettingsSearch.Group="Presence" controls:SettingsSearch.Value="{Binding PresenceMovementSpeedPercent}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Movement speed" Classes="settings-title" />
@@ -421,7 +419,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.speech-scaling" controls:SettingsSearch.Group="Presence" controls:SettingsSearch.Value="{Binding IsPresenceSpeechScalingEnabled}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech sizing" Classes="settings-title" />
@@ -441,7 +439,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.speech-scale-amount" controls:SettingsSearch.Group="Presence" controls:SettingsSearch.Value="{Binding PresenceSpeechScaleAmountPercent}">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech scale amount" Classes="settings-title" />
@@ -465,11 +463,9 @@
               </Grid>
             </Border>
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
+      </controls:SettingsPage>
 
-      <TabItem x:Name="SpeechAudioTab" Header="Speech &amp; audio">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <controls:SettingsPage x:Name="SpeechAudioTab" Header="Speech &amp; audio">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
@@ -488,9 +484,9 @@
                   FontSize="13" />
             </StackPanel>
 
-            <StackPanel x:Name="SpeechComponentsPanel" Spacing="8" />
+            <StackPanel controls:SettingsSearch.Id="speech.components" controls:SettingsSearch.Group="Setup" x:Name="SpeechComponentsPanel" Spacing="8" />
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="assistant.name" controls:SettingsSearch.Group="Input" controls:SettingsSearch.Value="{Binding AssistantNameInput}">
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Assistant name" Classes="settings-title" />
@@ -525,7 +521,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.input-device" controls:SettingsSearch.Aliases="audio.input-device" controls:SettingsSearch.Group="Input" controls:SettingsSearch.Value="{Binding MicrophoneAvailabilityMessage}">
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Microphone" Classes="settings-title" />
@@ -558,7 +554,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.listening-permission" controls:SettingsSearch.Group="Input" controls:SettingsSearch.Value="{Binding ListeningStatus}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Listening permission" Classes="settings-title" />
@@ -574,7 +570,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.foreground-ptt" controls:SettingsSearch.Group="Input" controls:SettingsSearch.Value="{Binding SelectedForegroundPttShortcut.Label}">
               <StackPanel Spacing="8">
                 <TextBlock Text="Foreground push-to-talk shortcut" Classes="settings-title" />
                 <TextBlock Text="{Binding ForegroundPttStatus}" Classes="settings-description" TextWrapping="Wrap" />
@@ -590,7 +586,7 @@
               </StackPanel>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.conversational-replies" controls:SettingsSearch.Group="Input" controls:SettingsSearch.Value="{Binding ConversationalReplyStatus}">
               <StackPanel Spacing="8">
                 <TextBlock Text="Conversational voice replies (off by default)" Classes="settings-title" />
                 <TextBlock Text="{Binding ConversationalReplyStatus}" Classes="settings-description" TextWrapping="Wrap"
@@ -606,7 +602,14 @@
               </StackPanel>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="voice.command-start-wait voice.reply-start-wait voice.trailing-silence voice.maximum-capture" controls:SettingsSearch.Group="Input">
+              <controls:SettingsSearch.Value>
+                <MultiBinding StringFormat="{}{0} {1} {2}">
+                  <Binding Path="VoiceTimingStatus" />
+                  <Binding Path="SelectedVoiceTimingOption" />
+                  <Binding Path="VoiceTimingSeconds" />
+                </MultiBinding>
+              </controls:SettingsSearch.Value>
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto">
                   <TextBlock Text="Speech capture timing" Classes="settings-title" />
@@ -634,7 +637,15 @@
               </StackPanel>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.input speech.input.profile speech.input.resource speech.input.residency" controls:SettingsSearch.Aliases="speech.input-profile" controls:SettingsSearch.Group="Input">
+              <controls:SettingsSearch.Value>
+                <MultiBinding StringFormat="{}{0} {1} {2} {3}">
+                  <Binding Path="SpeechInputStatus" />
+                  <Binding Path="SelectedSpeechInputProfile.Name" />
+                  <Binding Path="SelectedSpeechInputResource" />
+                  <Binding Path="SelectedSpeechInputResidency" />
+                </MultiBinding>
+              </controls:SettingsSearch.Value>
               <StackPanel Spacing="8">
                 <TextBlock Text="Speech input profile" Classes="settings-title" />
                 <TextBlock Text="{Binding SpeechInputStatus}" Classes="settings-description" TextWrapping="Wrap" />
@@ -659,7 +670,16 @@
               </StackPanel>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="notices.quiet-hours" controls:SettingsSearch.Group="Quiet hours">
+              <controls:SettingsSearch.Value>
+                <MultiBinding StringFormat="{}{0} {1} {2} {3} {4}">
+                  <Binding Path="QuietHoursStatus" />
+                  <Binding Path="QuietHoursDays" />
+                  <Binding Path="QuietHoursStart" />
+                  <Binding Path="QuietHoursEnd" />
+                  <Binding Path="QuietHoursZone" />
+                </MultiBinding>
+              </controls:SettingsSearch.Value>
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="8">
                 <TextBlock Text="Scheduled proactive speech quiet hours" Classes="settings-title" />
@@ -691,7 +711,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.setup-comparison" controls:SettingsSearch.Group="Setup">
               <StackPanel Spacing="8">
                 <TextBlock Text="Local speech setup comparison" Classes="settings-title" />
                 <TextBlock Text="{Binding SpeechComparisonDisclosure}" Classes="settings-description" TextWrapping="Wrap" />
@@ -710,7 +730,7 @@
               </StackPanel>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.provider" controls:SettingsSearch.Group="Setup" controls:SettingsSearch.Value="{Binding SelectedSpeechProvider.Name}">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech downloads" Classes="settings-title" />
@@ -750,7 +770,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.voice" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding SelectedVoice.Name}">
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech voice" Classes="settings-title" />
@@ -791,7 +811,14 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.summary-sentences speech.summary-words" controls:SettingsSearch.Group="Output">
+              <controls:SettingsSearch.Value>
+                <MultiBinding StringFormat="{}{0} {1} {2}">
+                  <Binding Path="SpeechSettingStatus" />
+                  <Binding Path="SelectedSummarySentences" />
+                  <Binding Path="SelectedSummaryWords" />
+                </MultiBinding>
+              </controls:SettingsSearch.Value>
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Spoken summary limits" Classes="settings-title" />
@@ -816,7 +843,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.output-device" controls:SettingsSearch.Aliases="audio.output-device" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding SelectedOutputChoice.Label}">
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Audio output" Classes="settings-title" />
@@ -850,7 +877,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.playback-volume" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding SelectedPlaybackVolume}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Kora playback volume (0-100%)" Classes="settings-title" />
@@ -874,7 +901,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.windows-rate" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding SelectedWindowsSpeechRate}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Windows voice speed (-10 to 10)" Classes="settings-title" />
@@ -899,11 +926,9 @@
             </Border>
 
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
+      </controls:SettingsPage>
 
-      <TabItem x:Name="ResponsesTab" Header="Responses">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <controls:SettingsPage x:Name="ResponsesTab" Header="Responses">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <TextBlock Text="Responses" FontSize="28" FontWeight="SemiBold" />
@@ -913,7 +938,7 @@
                   FontSize="13" />
             </StackPanel>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="responses.detail-presentation" controls:SettingsSearch.Group="Presentation" controls:SettingsSearch.Value="{Binding DetailPresentationStatus}">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto">
                   <TextBlock Text="Detailed result offers" Classes="settings-title" />
@@ -950,7 +975,7 @@
               </StackPanel>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="responses.markdown-display" controls:SettingsSearch.Group="Presentation" controls:SettingsSearch.Value="{Binding MarkdownDisplayStatus}">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto">
                   <TextBlock Text="Future final-answer Markdown Details" Classes="settings-title" />
@@ -978,7 +1003,7 @@
               </StackPanel>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="responses.default-mode" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding SelectedResponseModeChoice.Label}">
               <Grid ColumnDefinitions="*,260,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Device default" Classes="settings-title" />
@@ -1009,7 +1034,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="conversations.execution-maximum" controls:SettingsSearch.Aliases="sessions.execution-maximum" controls:SettingsSearch.Group="Execution" controls:SettingsSearch.Value="{Binding SelectedConversationExecutionLimit.Value}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="8">
                   <TextBlock Text="Independent ordinary conversations" Classes="settings-title" />
@@ -1036,7 +1061,15 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="display.speech-text display.speech-text-placement display.speech-text-dismissal-delay display.speech-text-word-emphasis display.speech-text-pin display.speech-text-screen" controls:SettingsSearch.Aliases="speech.captions" controls:SettingsSearch.Group="Presentation">
+              <controls:SettingsSearch.Value>
+                <MultiBinding StringFormat="{}{0} {1} {2} {3}">
+                  <Binding Path="SpeechTextConfigurationStatus" />
+                  <Binding Path="SelectedSpeechTextChoice.Label" />
+                  <Binding Path="SelectedSpeechCaptionOptionChoice.Label" />
+                  <Binding Path="SelectedSpeechCaptionChoice.Label" />
+                </MultiBinding>
+              </controls:SettingsSearch.Value>
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech captions (off by default)" Classes="settings-title" />
@@ -1077,7 +1110,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="responses.queue-mode" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding QueueResponseModeOption.Label}">
               <Grid ColumnDefinitions="*,260" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Current queue" Classes="settings-title" />
@@ -1095,7 +1128,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="responses.task-mode" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding TaskResponseModeOption.Label}">
               <Grid ColumnDefinitions="*,260" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Current task" Classes="settings-title" />
@@ -1113,7 +1146,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="responses.muted-output-fallback" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding FallbackToVisualWhenOutputMuted}">
               <Grid ColumnDefinitions="*,260" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Earlier muted-speaker preference" Classes="settings-title" />
@@ -1130,7 +1163,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card" Background="{DynamicResource KoraSurfaceAltBrush}">
+            <Border Classes="settings-card" Background="{DynamicResource KoraSurfaceAltBrush}" controls:SettingsSearch.Id="responses.current-mode" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding ResponseOutputStatus}">
               <StackPanel Spacing="4">
                 <TextBlock Text="Current response mode" Classes="settings-title" />
                 <TextBlock
@@ -1140,14 +1173,12 @@
               </StackPanel>
             </Border>
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
+      </controls:SettingsPage>
 
-      <TabItem x:Name="SessionsTab" Header="Sessions">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <controls:SettingsPage x:Name="SessionsTab" Header="Sessions">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <TextBlock Text="Sessions" FontSize="28" FontWeight="SemiBold" />
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="work.active-deadline-minutes" controls:SettingsSearch.Group="Execution" controls:SettingsSearch.Value="{Binding SelectedOrdinaryDeadlineMinutes}">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                   <TextBlock Text="Future ordinary task deadline" Classes="settings-title" TextWrapping="Wrap" />
@@ -1182,7 +1213,14 @@
                 </Button>
               </StackPanel>
             </Border>
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="sessions.archive-after-days sessions.delete-after-days" controls:SettingsSearch.Aliases="sessions.retention" controls:SettingsSearch.Group="Retention">
+              <controls:SettingsSearch.Value>
+                <MultiBinding StringFormat="{}{0} {1} {2}">
+                  <Binding Path="SessionRetentionStatus" />
+                  <Binding Path="SelectedSessionArchiveDays" />
+                  <Binding Path="SelectedSessionDeleteDays" />
+                </MultiBinding>
+              </controls:SettingsSearch.Value>
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                   <TextBlock Text="Archive and delete inactive sessions" Classes="settings-title" TextWrapping="Wrap" />
@@ -1240,13 +1278,11 @@
               </StackPanel>
             </Border>
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
-      <TabItem Header="Logging">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+      </controls:SettingsPage>
+      <controls:SettingsPage Header="Logging">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <TextBlock Text="Log storage" FontSize="28" FontWeight="SemiBold" />
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="logging.sqlite-diagnostic-retention-days" controls:SettingsSearch.Aliases="logging.diagnostic-retention-days" controls:SettingsSearch.Group="Diagnostics" controls:SettingsSearch.Value="{Binding SelectedDiagnosticRetentionDays}">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                   <TextBlock Text="Keep diagnostic records (1-365 days; default 30)" Classes="settings-title" TextWrapping="Wrap" />
@@ -1285,7 +1321,7 @@
                            AutomationProperties.Name="Diagnostic storage preview result" />
               </StackPanel>
             </Border>
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="logging.audit-retention-days" controls:SettingsSearch.Group="Security audit" controls:SettingsSearch.Value="{Binding SelectedAuditRetentionDays}">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                   <TextBlock Text="Keep security records (30-365 days; default 90)" Classes="settings-title" TextWrapping="Wrap" />
@@ -1319,11 +1355,9 @@
               </StackPanel>
             </Border>
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
+      </controls:SettingsPage>
 
-      <TabItem x:Name="CallsTab" Header="Calls">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <controls:SettingsPage x:Name="CallsTab" Header="Calls">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <TextBlock Text="Calls" FontSize="28" FontWeight="SemiBold" />
@@ -1334,7 +1368,7 @@
                   TextWrapping="Wrap" />
             </StackPanel>
 
-            <Border Classes="settings-card" Background="{DynamicResource KoraSurfaceAltBrush}">
+            <Border Classes="settings-card" Background="{DynamicResource KoraSurfaceAltBrush}" controls:SettingsSearch.Id="calls.activity-source" controls:SettingsSearch.Aliases="calls.detection" controls:SettingsSearch.Group="Detection" controls:SettingsSearch.Value="{Binding CallStateStatus}">
               <StackPanel Spacing="4">
                 <TextBlock Text="Call detection" Classes="settings-title" />
                 <controls:NamedTextBlock
@@ -1361,7 +1395,7 @@
               </StackPanel>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="calls.manual-mode" controls:SettingsSearch.Group="Detection" controls:SettingsSearch.Value="{Binding CallManualStatus}">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                   <TextBlock Text="Manual call mode" Classes="settings-title" />
@@ -1385,7 +1419,7 @@
               </StackPanel>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="calls.quiet" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding CallVisualOverrideStatus}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Keep Kora quiet during calls" Classes="settings-title" />
@@ -1403,7 +1437,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="calls.feedback-mode" controls:SettingsSearch.Aliases="calls.feedback" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding SelectedInCallFeedbackChoice.Label}">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                   <TextBlock Text="Responses during calls" Classes="settings-title" />
@@ -1434,7 +1468,7 @@
               </StackPanel>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="calls.voice-activation" controls:SettingsSearch.Group="Input" controls:SettingsSearch.Value="{Binding CallVoiceActivationStatus}">
               <StackPanel Spacing="6">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
@@ -1467,7 +1501,7 @@
               </WrapPanel>
               </StackPanel>
             </Border>
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="calls.spoken-approvals" controls:SettingsSearch.Group="Input" controls:SettingsSearch.Value="{Binding SpokenApprovalsStatus}">
               <StackPanel Spacing="6">
                 <TextBlock Text="Allow spoken approvals during calls" Classes="settings-title" />
                 <TextBlock Text="{Binding SpokenApprovalsStatus}" TextWrapping="Wrap" Classes="settings-description"
@@ -1480,11 +1514,9 @@
               </StackPanel>
             </Border>
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
+      </controls:SettingsPage>
 
-      <TabItem Header="Models">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <controls:SettingsPage Header="Models">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <TextBlock Text="AI models" FontSize="28" FontWeight="SemiBold" />
@@ -1495,7 +1527,7 @@
                   TextWrapping="Wrap" />
             </StackPanel>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="models.local-enabled" controls:SettingsSearch.Value="{Binding LocalModelsEnabled}">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="On-device models" Classes="settings-title" />
@@ -1512,7 +1544,7 @@
               </Grid>
             </Border>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Id="models.hosted-enabled" controls:SettingsSearch.Value="{Binding HostedModelsEnabled}">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Online models" Classes="settings-title" />
@@ -1533,12 +1565,10 @@
               </Grid>
             </Border>
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
+      </controls:SettingsPage>
 
-      <TabItem Header="Network">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+      <controls:SettingsPage Header="Network">
+          <StackPanel controls:SettingsSearch.Id="network.uri-rules" Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <TextBlock Text="Permission grants" FontSize="28" FontWeight="SemiBold" />
               <TextBlock
@@ -1551,21 +1581,26 @@
             <Button x:Name="InspectNetworkPermissionGrants" Content="Permission grants..." IsEnabled="False"
                     AutomationProperties.Name="Open shared permission grants to inspect and manage URI rules and exact operation grants" />
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
+      </controls:SettingsPage>
 
-      <TabItem Header="Knowledge">
-        <StackPanel Margin="30" Spacing="12">
+      <controls:SettingsPage Header="Knowledge">
+        <StackPanel controls:SettingsSearch.Id="knowledge.sources" Margin="30" Spacing="12">
           <TextBlock Text="Named device-local knowledge folders" FontSize="24" />
           <TextBlock Text="Review exact bounded text/Markdown membership, retain private Kora copies, explicitly inspect or search, refresh, disable, or remove. Registration never grants model consent."
                      TextWrapping="Wrap" MaxWidth="700" />
           <Button x:Name="ManageKnowledgeSources" Content="Manage knowledge sources..."
                   AutomationProperties.Name="Manage named knowledge sources; opening does not read source content or grant model consent" />
         </StackPanel>
-      </TabItem>
-      <TabItem Header="Custom content">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+      </controls:SettingsPage>
+      <controls:SettingsPage Header="Custom content">
+          <StackPanel controls:SettingsSearch.Id="customizations.instructions.sources customizations.prompts.sources customizations.skills.sources customizations.agents.sources customizations.mcp.sources customizations.mcp.included-servers" controls:SettingsSearch.Aliases="customizations.sources" Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <controls:SettingsSearch.Value>
+              <MultiBinding StringFormat="{}{0} {1} {2}">
+                <Binding Path="ArtifactDirectoryStatus" />
+                <Binding Path="SelectedArtifactDirectoryKind" />
+                <Binding Path="ArtifactDirectoryInput" />
+              </MultiBinding>
+            </controls:SettingsSearch.Value>
             <WrapPanel ItemSpacing="8" LineSpacing="6">
               <Button x:Name="EditOwnedInstructions" Content="Owned instructions and prompts..." IsEnabled="False"
                       AutomationProperties.Name="Open the owned instruction and prompt editor; opening does not save or enable content" />
@@ -1592,7 +1627,7 @@
                   TextWrapping="Wrap" />
             </StackPanel>
 
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Value="{Binding ArtifactDirectoryStatus}">
               <StackPanel Spacing="10">
                 <TextBlock Text="Content type" Classes="settings-title" />
                 <ComboBox
@@ -1659,15 +1694,24 @@
               </StackPanel>
             </Border>
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
+      </controls:SettingsPage>
 
-      <TabItem Header="Providers">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+      <controls:SettingsPage Header="Providers">
+          <StackPanel controls:SettingsSearch.Id="providers.default-mode providers.app.default-service providers.app.profile providers.app.model providers.app.reasoning providers.app.context" controls:SettingsSearch.Aliases="providers.app.service providers.app.local-only" Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <controls:SettingsSearch.Value>
+              <MultiBinding StringFormat="{}{0} {1} {2} {3} {4} {5} {6}">
+                <Binding Path="ProviderProfileConfigurationStatus" />
+                <Binding Path="SelectedProviderServiceChoice.Label" />
+                <Binding Path="SelectedProviderProfileModel.Label" />
+                <Binding Path="SelectedProviderReasoning.Label" />
+                <Binding Path="SelectedProviderContext.Label" />
+                <Binding Path="SelectedProviderReasoningField.Label" />
+                <Binding Path="SelectedProviderContextField.Label" />
+              </MultiBinding>
+            </controls:SettingsSearch.Value>
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
               <TextBlock Text="AI service preferences" FontSize="28" FontWeight="SemiBold" />
-              <controls:SettingActionsButton Grid.Column="1" SettingName="AI service preferences"
+              <controls:SettingActionsButton Grid.Column="1" SettingName="AI service preferences" SettingIds="providers.default-mode"
                                              IsEnabled="{Binding CanChangeProviderMode}">
                 <controls:SettingActionsButton.Flyout>
                   <MenuFlyout>
@@ -1689,7 +1733,7 @@
             <TextBlock Text="{Binding ProviderModeConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
               <TextBlock Text="Default service and model" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap" />
-              <controls:SettingActionsButton Grid.Column="1" SettingName="Default service and model"
+              <controls:SettingActionsButton Grid.Column="1" SettingName="Default service and model" SettingIds="providers.app.default-service providers.app.profile providers.app.model providers.app.reasoning providers.app.context"
                                              IsEnabled="{Binding CanChangeProviderProfile}">
                 <controls:SettingActionsButton.Flyout>
                   <MenuFlyout>
@@ -1761,16 +1805,14 @@
             <TextBlock Text="Available only when Kora has a service change ready for your review. Opening the review does not send data or run a request."
                        Classes="settings-description" TextWrapping="Wrap" />
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
+      </controls:SettingsPage>
 
-      <TabItem x:Name="ReadinessTab" Header="Readiness">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+      <controls:SettingsPage x:Name="ReadinessTab" Header="Readiness">
+          <StackPanel controls:SettingsSearch.Id="setup.readiness" Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <TextBlock Text="Readiness" FontSize="28" FontWeight="SemiBold" />
-                <controls:SettingActionsButton Grid.Column="1" SettingName="Readiness">
+                <controls:SettingActionsButton Grid.Column="1" SettingName="Readiness" CanCopySettingId="False">
                   <controls:SettingActionsButton.Flyout>
                     <MenuFlyout>
                       <MenuItem Header="Refresh" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh readiness" />
@@ -1863,11 +1905,9 @@
               </StackPanel>
             </Expander>
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
-      <TabItem Header="Approvals">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+      </controls:SettingsPage>
+      <controls:SettingsPage Header="Approvals">
+          <StackPanel controls:SettingsSearch.Id="approvals.require-assistant-name approvals.session-actions approvals.always-actions" controls:SettingsSearch.Aliases="approvals" controls:SettingsSearch.Value="{Binding RequireAssistantNameForVoiceApproval}" Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <Button x:Name="InspectExactGrants" Content="Permission grants..." IsEnabled="False"
                     HorizontalAlignment="Left"
                     AutomationProperties.Name="Open the separate retained exact-operation grant inventory, not the legacy named-action approval lists" />
@@ -1875,7 +1915,7 @@
             <TextBlock
                 Text="AI models can suggest Kora actions for you to approve. Once allows only that request. Session lasts until Kora exits, restarts or locks Windows through Kora. Always stays approved until you remove it. Approval prompts always appear on screen, even in speech-only mode."
                 TextWrapping="Wrap" Classes="muted" />
-            <Border Classes="settings-card">
+            <Border Classes="settings-card" controls:SettingsSearch.Value="{Binding RequireAssistantNameForVoiceApproval}">
               <StackPanel Spacing="5">
                 <TextBlock Text="Spoken approval" Classes="settings-title" />
                 <CheckBox
@@ -1911,16 +1951,15 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
-        </ScrollViewer>
-      </TabItem>
-      <TabItem Header="Maintenance">
-        <StackPanel Margin="30" Spacing="16" MaxWidth="700">
+      </controls:SettingsPage>
+      <controls:SettingsPage Header="Maintenance">
+        <StackPanel controls:SettingsSearch.Id="application.maintenance" Margin="30" Spacing="16" MaxWidth="700">
           <TextBlock Text="App updates" FontSize="24" FontWeight="SemiBold" />
           <TextBlock Text="{Binding MaintenanceStatus}" TextWrapping="Wrap" />
           <TextBlock Text="Check Kora's official GitHub releases after allowing network access for this run. Updates must be installed manually and are not digitally signed. Kora does not install updates automatically." TextWrapping="Wrap" />
           <Button Content="Review update options" Click="OnMaintenanceClicked" HorizontalAlignment="Left" />
         </StackPanel>
-      </TabItem>
-    </controls:NavigableTabControl>
+      </controls:SettingsPage>
+    </controls:SettingsBrowser>
   </Grid>
 </UserControl>

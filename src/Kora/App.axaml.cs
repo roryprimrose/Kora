@@ -135,6 +135,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Configuration.IWorkbenchPlacementPreferences>());
             settingsWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
                 view => responseWindow.ShowHostedView(WorkbenchActivity.Settings, view));
+            Services.GetRequiredService<Kora.Application.Dependencies.ModelTurnHost>()
+                .BindSettingsNavigation(viewModel.ShowSettingFilterAsync);
             documentationWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
                 view => responseWindow.ShowHostedView(WorkbenchActivity.Help, view));
             grantListWindow = new GrantListWindowController(viewModel);

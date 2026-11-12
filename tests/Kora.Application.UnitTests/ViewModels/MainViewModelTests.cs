@@ -7605,6 +7605,8 @@ public sealed partial class MainViewModelTests : IDisposable
         new LocalModelResponse(null, null),
         new LocalModelResponse("answer", BuiltInAction.LockMachine),
         new LocalModelResponse(" ", null),
+        new LocalModelResponse(null, null, SettingsFilter: ""),
+        new LocalModelResponse("answer", null, SettingsFilter: "theme"),
         new LocalModelResponse(null, (BuiltInAction)9999),
         new LocalModelResponse(null, null,
             new GrantChange(GrantChangeOperation.Add, (BuiltInAction)9999, ModelApprovalScope.Session)),

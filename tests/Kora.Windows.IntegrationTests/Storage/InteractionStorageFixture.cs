@@ -201,7 +201,9 @@ internal sealed class InteractionStorageFixture : IDisposable
     {
         if (Count("session_model_usage") != 0)
         { throw new InvalidOperationException("A legacy fixture must not discard retained model usage."); }
-        Mutate("DROP TABLE session_model_usage;");
+        if (Count("session_knowledge_source") != 0)
+        { throw new InvalidOperationException("A legacy fixture must not discard source association authority."); }
+        Mutate("DROP TABLE session_knowledge_source; DROP TABLE session_model_usage;");
     }
 
     internal void DropEmptyAuditAnchorForLegacy()

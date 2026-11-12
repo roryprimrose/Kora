@@ -6,6 +6,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.KnowledgeSources;
+using Kora.Core.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.KnowledgeSources;
@@ -16,6 +17,8 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
     SessionWorkspaceService? sessions = null, SessionConversationService? conversations = null)
 {
     private KnowledgeSourceAnswerUse? use;
+    private SessionWorkspaceEntry? retainedTarget;
+    private Func<CancellationToken, Task>? retainedValidation;
 
     public bool RetainsConversation => sessions is not null || conversations is not null;
 
@@ -24,7 +27,24 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
         await PrepareAsync([exact], question, eligible, token).ConfigureAwait(false);
 
     public async Task<KnowledgeSourceAnswerPreparation> PrepareAsync(IReadOnlyList<KnowledgeSource> sources, string question,
-        Func<bool> eligible, CancellationToken token)
+        Func<bool> eligible, CancellationToken token) =>
+        await PrepareCoreAsync(sources, question, eligible, token).ConfigureAwait(false);
+
+    public Task<KnowledgeSourceAnswerPreparation> PrepareForSessionAsync(KnowledgeSource source,
+        KnowledgeSourceReference revision, SessionWorkspaceEntry target, string question, Func<bool> eligible,
+        Func<CancellationToken, Task> validateBinding, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(revision);
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(validateBinding);
+        if (!target.Authority.IsActive || sessions is null || conversations is null)
+        { throw new InvalidOperationException("Bound answering requires the exact active canonical conversation."); }
+        return PrepareCoreAsync([source], question, eligible, token, target, revision, validateBinding);
+    }
+
+    private async Task<KnowledgeSourceAnswerPreparation> PrepareCoreAsync(IReadOnlyList<KnowledgeSource> sources,
+        string question, Func<bool> eligible, CancellationToken token, SessionWorkspaceEntry? target = null,
+        KnowledgeSourceReference? expectedRevision = null, Func<CancellationToken, Task>? validateBinding = null)
     {
         var host = HostActivity.RequireCurrent();
         if (host.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
@@ -38,6 +58,9 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
             selectedUse = await manager.OpenAnswerUseAsync(sources, eligible, token).ConfigureAwait(false);
             return await selectedUse.RunAsync(async cancellation =>
             {
+                if (expectedRevision is not null && selectedUse.Sources[0].Revision.Reference != expectedRevision)
+                { throw new InvalidDataException("The associated revision changed; no newer revision was selected."); }
+                if (validateBinding is not null) { await validateBinding(cancellation).ConfigureAwait(false); }
                 var snapshots = selectedUse.Sources.Select(item => item.Revision).ToArray();
                 var found = await Task.Run(() => snapshots.Length == 1
                     ? retrieval.Search(snapshots[0], snapshots[0].Reference, question, time.GetUtcNow(), cancellation)
@@ -45,15 +68,23 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
                 await selectedUse.ValidateAsync(cancellation).ConfigureAwait(false);
                 if (found.Outcome == LocalFileSearchOutcome.NoMatch)
                 { return new KnowledgeSourceAnswerPreparation(LocalFileAnswerOutcome.NoEvidence); }
-                var target = LocalContextSessionTarget.ReviewedFresh(host.Request, HostRequest.Create(host.Request.Origin));
-                var review = new KnowledgeSourceAnswerReview(selectedUse.Sources, question, found, target);
+                var destination = target is null
+                    ? LocalContextSessionTarget.ReviewedFresh(host.Request, HostRequest.Create(host.Request.Origin))
+                    : LocalContextSessionTarget.Existing(host.Request, new(new(Guid.NewGuid()), target.Authority.SessionId,
+                        new(Guid.NewGuid()), host.Request.Origin), target.Authority.Generation);
+                var review = new KnowledgeSourceAnswerReview(selectedUse.Sources, question, found, destination);
                 selectedUse.Review = review;
                 return new KnowledgeSourceAnswerPreparation(LocalFileAnswerOutcome.Succeeded, review);
             }, token).ConfigureAwait(false);
         }, value => value.Outcome, () => new(LocalFileAnswerOutcome.Unavailable)).ConfigureAwait(false);
         if (result.Review is null && selectedUse is not null)
         { await manager.ReleaseAnswerUseAsync(selectedUse).ConfigureAwait(false); }
-        else if (result.Review is not null) { use = selectedUse; }
+        else if (result.Review is not null)
+        {
+            use = selectedUse;
+            retainedTarget = target;
+            retainedValidation = validateBinding;
+        }
         return result;
     }
 
@@ -67,6 +98,15 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
             || !review.IsCurrent(time.GetUtcNow()))
         { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied); }
         exact.Review = review;
+        var target = retainedTarget;
+        var bindingValidation = retainedValidation;
+        if (target is not null && input.Request.RequestId == review.Target.SourceRequest.RequestId)
+        { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied); }
+        async Task Validate(CancellationToken cancellation)
+        {
+            await exact.ValidateAsync(cancellation).ConfigureAwait(false);
+            if (bindingValidation is not null) { await bindingValidation(cancellation).ConfigureAwait(false); }
+        }
         if (!exact.IsCurrent || !review.TryConsume())
         { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied); }
         ActivityLink[] causes = [new(input.Activity!.Context), .. review.Sources
@@ -76,14 +116,14 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
             HostOperation.Request, causes);
         var result = await Audited("local", () => exact.RunAsync(async cancellation =>
         {
-            await exact.ValidateAsync(cancellation).ConfigureAwait(false);
+            await Validate(cancellation).ConfigureAwait(false);
             var remaining = review.ExpiresAt - time.GetUtcNow();
             if (remaining <= TimeSpan.Zero) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
             using var expiry = new CancellationTokenSource(remaining, time);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, expiry.Token);
             cancellation = linked.Token;
             bool Current() => eligible() && exact.IsCurrent;
-            await exact.ValidateAsync(cancellation).ConfigureAwait(false);
+            await Validate(cancellation).ConfigureAwait(false);
             if (review.Sources.Count > 1)
             {
                 var risk = LocalSourceRiskPolicy.Evaluate(review.Search.Citations.Select(review.DescribeCitation).ToArray(), cancellation);
@@ -102,7 +142,7 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
                     Citations = Array.AsReadOnly(citations), MatchingChunks = citations.Length, Truncated = false,
                 };
                 var decision = await sourceUse.AdmitAsync(file, review.Question, selected, cancellation).ConfigureAwait(false);
-                await exact.ValidateAsync(cancellation).ConfigureAwait(false);
+                await Validate(cancellation).ConfigureAwait(false);
                 if (decision != LocalFileModelUseDecision.Allowed)
                 {
                     return LocalFileAnswerResult.Empty(decision is LocalFileModelUseDecision.Unavailable
@@ -112,7 +152,7 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
             }
             if (RetainsConversation)
             {
-                return await AnswerRetainedAsync(review, exact, Current, cancellation).ConfigureAwait(false);
+                return await AnswerRetainedAsync(review, target, Validate, Current, cancellation).ConfigureAwait(false);
             }
             var admission = await model.AdmitAsync(review.Target, Current, cancellation, exact.ValidateAsync).ConfigureAwait(false);
             if (admission.Turn is not { } admitted)
@@ -134,13 +174,16 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
     }
 
     private async Task<LocalFileAnswerResult> AnswerRetainedAsync(KnowledgeSourceAnswerReview review,
-        KnowledgeSourceAnswerUse exact, Func<bool> current, CancellationToken token)
+        SessionWorkspaceEntry? reviewedTarget, Func<CancellationToken, Task> validate,
+        Func<bool> current, CancellationToken token)
     {
         var conversation = conversations
             ?? throw new InvalidOperationException("Canonical retained source answering is not composed.");
         var workspace = sessions
             ?? throw new InvalidOperationException("Canonical retained source session creation is not composed.");
-        var target = await workspace.CreateLocalContextSessionAsync(review.Target.SourceRequest, current, token).ConfigureAwait(false);
+        await validate(token).ConfigureAwait(false);
+        var target = reviewedTarget
+            ?? await workspace.CreateLocalContextSessionAsync(review.Target.SourceRequest, current, token).ConfigureAwait(false);
         var contexts = new Dictionary<HostRequest, KnowledgeSourceAnswerContext>(ReferenceEqualityComparer.Instance);
         var answer = LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.InvalidResponse);
         ModelContextEnvelope Create(HostRequest request, DateTimeOffset now)
@@ -158,9 +201,9 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
         }
         ActivityLink[] links = [new(HostActivity.RequireCurrent().Activity!.Context)];
         var retained = await conversation.SubmitReviewedContextAsync(target, review.Question, Create, current,
-            exact.ValidateAsync, links, review.Target.SourceRequest.Origin, token, resolveResponse: Resolve,
+            validate, links, review.Target.SourceRequest.Origin, token, resolveResponse: Resolve,
             joinCancelledResources: true).ConfigureAwait(false);
-        await exact.ValidateAsync(token).ConfigureAwait(false);
+        await validate(token).ConfigureAwait(false);
         if (!current()) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
         var outcome = retained.Message.Outcome;
         if (outcome == ModelTurnOutcome.Succeeded)

@@ -83,6 +83,7 @@
           <Button x:Name="NewConversationUpdates" Content="{Binding ConversationUpdatesLabel}" IsEnabled="{Binding CanPresentConversationReader}"
               AutomationProperties.Name="New updates: deliberately read the latest bounded page of this exact conversation; keep unsent input and keyboard focus" />
           <Button x:Name="AnswerAttachment" Content="Answer from this session's retained attachment" IsEnabled="{Binding CanCompose}" />
+          <Button x:Name="ConversationKnowledgeSource" Content="Review this conversation's documentation source" IsEnabled="{Binding CanCompose}" />
           <Button x:Name="ReviewHistoryContext" Content="Review earlier messages for a follow-up" IsEnabled="{Binding CanOpenHistoryContext}" />
           <Button x:Name="OpenMixedContext" Content="Review history, instruction and session memory together" IsEnabled="{Binding CanOpenMixedContext}" />
         </WrapPanel>

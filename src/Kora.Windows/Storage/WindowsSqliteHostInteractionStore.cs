@@ -87,8 +87,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 HostInteractionSchema.SessionPermissionTables, MigrateAnswerReviews),
             auditRetentionMigration: new(14, 15,
                 HostInteractionSchema.AnswerReviewTables, MigrateAuditRetention),
-            modelUsageMigration: new(15, HostInteractionSchema.Version,
-                HostInteractionSchema.AuditRetentionTables, MigrateModelUsage));
+            modelUsageMigration: new(15, 16,
+                HostInteractionSchema.AuditRetentionTables, MigrateModelUsage),
+            knowledgeSourceBindingMigration: new(16, HostInteractionSchema.Version,
+                HostInteractionSchema.ModelUsageTables, MigrateKnowledgeSourceBindings));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -568,6 +570,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         { ValidateAnswerReviews(connection); }
         if (Convert.ToInt32(version.ExecuteScalar(), CultureInfo.InvariantCulture) >= 16)
         { ValidateModelUsage(connection); }
+        if (Convert.ToInt32(version.ExecuteScalar(), CultureInfo.InvariantCulture) >= 17)
+        { ValidateKnowledgeSourceBindings(connection); }
     }
 
     private static void ValidateConsolidatedAuthority(SqliteConnection connection)
@@ -1223,7 +1227,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         change is not null && change.Digest is not null && IsHex(change.Digest, 64) && change.Revision > 0
         && change.Kind is ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait"
             or "queue" or "queue-order" or "retention" or "memory" or "session-file" or "session-provider-profile"
-            or "conversation-draft" or "conversation-message" or "session-permission" or "session-admission" or "answer-review")
+            or "conversation-draft" or "conversation-message" or "session-permission" or "session-admission" or "answer-review"
+            or "session-source")
         && Guid.TryParseExact(change.Id, "D", out var id) && id != Guid.Empty && Same(change.Id, id.ToString("D"));
 
     private static AuthorityChange Change(string kind, string id, long revision, string payload) =>

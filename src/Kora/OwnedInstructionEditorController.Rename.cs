@@ -9,19 +9,20 @@ internal sealed partial class OwnedInstructionEditorController
 
     private async Task RenameInstruction(OwnedInstructionEditorView opened, bool recover, Func<bool> eligible, CancellationToken token)
     {
-        if (kind != ArtifactKind.Instruction || profileOriginal is not null || Dirty)
-        { throw new InvalidOperationException("Rename/recovery requires a clean owned Instruction editor. Save or explicitly discard draft edits separately; prompts and profile originals cannot be renamed."); }
+        if (profileOriginal is not null || Dirty)
+        { throw new InvalidOperationException("Rename/recovery requires a clean owned Instruction or native v1/v2 Prompt editor. Save or explicitly discard draft edits separately; profile originals cannot be renamed."); }
         if (!recover && (baseline is null || newDraft || uncertain || Actions.IsSourceUnavailable || opened.Source.IsReadOnly
             || !string.Equals(selectedName, baseline.Name, StringComparison.Ordinal)
             || !string.Equals(opened.NameInput.Text, baseline.Name, StringComparison.Ordinal)
             || opened.Files.SelectedItem is OwnedDefinitionInventoryRow row && !string.Equals(row.Name, baseline.Name, StringComparison.Ordinal)))
-        { throw new InvalidOperationException("Inspect the exact clean supported canonical owned Instruction before renaming. Recovery-required sources need Recover rename."); }
+        { throw new InvalidOperationException("Inspect the exact clean supported canonical owned source before renaming. Recovery-required sources need Recover rename."); }
         var source = baseline;
+        var reviewedKind = kind;
         var sourceEpoch = Interlocked.Read(ref sourceRevision);
         var inputEpoch = Interlocked.Read(ref copyInputRevision);
         var channel = main.CaptureInstructionRefinementEligibility();
         var expires = DateTimeOffset.UtcNow.AddMinutes(2);
-        bool Current() => eligible() && channel() && kind == ArtifactKind.Instruction && ReferenceEquals(baseline, source)
+        bool Current() => eligible() && channel() && kind == reviewedKind && ReferenceEquals(baseline, source)
             && Interlocked.Read(ref sourceRevision) == sourceEpoch && Interlocked.Read(ref copyInputRevision) == inputEpoch
             && DateTimeOffset.UtcNow < expires;
         var review = recover ? await Actions.ReviewRenameRecovery(Current, token)
@@ -57,25 +58,27 @@ internal sealed partial class OwnedInstructionEditorController
         if (!current()) { return false; }
         var proposal = review.Proposal;
         var source = proposal.Source;
+        var sourceKind = source.Document.Definition.Kind;
         var dependencies = review.Dependents.Count == 0 ? "No observed catalogue agent declares the old exact ID."
             : "Observed dependent agents (unchanged source declarations):\n" + string.Join("\n", review.Dependents.Select(item =>
                 $"{item.Name}: {item.Id}; source digest {item.Digest}"));
-        var details = $"Kora-owned Instructions only; same owned root. Old file: {source.CanonicalFileName}; old ID: {source.Document.Definition.Id}.\n"
-            + $"New file: {proposal.DestinationName}.instructions.md; new ID: {proposal.Proposed.Definition.Id}.\n"
+        var details = $"Kora-owned {sourceKind} only; same owned root. Old file: {source.CanonicalFileName}; old ID: {source.Document.Definition.Id}.\n"
+            + $"New file: {proposal.DestinationName}{OwnedDefinitionKind.Extension(sourceKind)}; new ID: {proposal.Proposed.Definition.Id}.\n"
             + $"Original digest: {source.Document.Definition.Digest}; proposed digest: {proposal.Proposed.Definition.Digest}; BOM={source.Document.HasBom}.\n"
             + $"Exact changes: canonical filename and {(source.Document.Metadata.ContainsKey("name") ? "declared name scalar only" : "filename-derived name only; source bytes unchanged")}. "
             + "Complete original/proposed source is shown below. Metadata formatting, line endings, attribution and body bytes are not normalized.\n"
             + dependencies + "\nOld invocation/name choices and pending old-source reviews become unavailable. References stay bound to the old exact source, never the new name; "
             + "separate dependent source/digest review remains mandatory. Admitted immutable work is never retargeted; existing access, source-freshness and stricter agent-bundle revocation checks still apply.\n"
-            + "No grant, activation, policy or applicability transfers. New candidate stays disabled until fresh exact review.\n"
+            + "No grant, activation, policy, history or applicability transfers. New candidate stays disabled until fresh exact review.\n"
+            + (sourceKind == ArtifactKind.Prompt ? "Prompt version, literal input names/order and request body are unchanged. Reopen the new ID, independently review its literal inputs, source and target, then separately submit the expanded request; rename never invokes it.\n" : string.Empty)
             + (review.Recovery is null ? "This is a recoverable multi-step rename, NOT an atomic transaction: private intent, native original identity move to a recovery slot, no-replace destination publication, exact readback and cleanup. "
                 : $"Explicit recovery of the original exact proposal. Observed phase: {review.Recovery.Phase}. No rollback, overwrite or retargeting is authorized. ")
             + "Cancellation or uncertain publication can leave recovery-required state. Original bytes are retained until exact destination readback; external applications may observe intermediate absence. "
             + "Destination must remain absent; no conflict overwrite or automatic retry.";
-        if (await opened.Choose(review.Recovery is null ? "Review owned Instruction rename" : "Review unfinished Instruction rename",
+        if (await opened.Choose(review.Recovery is null ? $"Review owned {sourceKind} rename" : $"Review unfinished {sourceKind} rename",
             details, source.Document.Text, proposal.Proposed.Text, ["Reviewed exact rename", "Cancel"], token) != 0 || !current())
         { return false; }
-        return await opened.Choose("Separately confirm exact Instruction rename",
+        return await opened.Choose($"Separately confirm exact {sourceKind} rename",
             details + "\nConfirm only this exact reviewed identity/source/reference change now?",
             source.Document.Text, proposal.Proposed.Text, ["Confirm rename", "Cancel"], token) == 0 && current();
     }

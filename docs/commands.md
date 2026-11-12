@@ -9,6 +9,14 @@ Releasing before that completes cancels this gesture without opening the
 microphone later. Press again after cleanup to start a new command; listening
 permission and preferences are unchanged.
 
+**Push to talk** stays beside Submit. It is available when Kora is not
+automatically listening, including when voice is ready but wake listening is
+unavailable. During a detected call, a deliberate held press can capture one
+command even if call settings pause automatic input. Release closes the
+microphone; it does not enable automatic listening or change your call settings.
+Consent, Windows microphone access, device readiness and lock/privacy checks
+still apply.
+
 The global command box runs commands; a session's message composer submits
 conversation text. Words inside a message do not become commands.
 **AI answers are unavailable in this build**, even after model setup.

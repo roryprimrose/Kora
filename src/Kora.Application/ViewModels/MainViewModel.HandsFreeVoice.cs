@@ -30,7 +30,10 @@ public sealed partial class MainViewModel
     private bool CanRetireWakeForManualInput =>
         voiceRecognition is HandsFreeVoiceRecognitionService { State: HandsFreeVoiceState.WakeListening };
 
-    private string? ActiveHandsFreeVoiceStatus => voiceRecognition is HandsFreeVoiceRecognitionService { IsAmbientListeningAvailable: true } handsFree
+    private string? ActiveHandsFreeVoiceStatus => voiceRecognition is HandsFreeVoiceRecognitionService
+        { HasSpeechInterruptionCapture: true, IsListening: true }
+        ? "Voice interruption capture - original retained playback only"
+        : voiceRecognition is HandsFreeVoiceRecognitionService { IsAmbientListeningAvailable: true } handsFree
         ? handsFree.State switch
         {
             HandsFreeVoiceState.WakeListening => "Wake listening - local name detection only",
@@ -73,6 +76,8 @@ public sealed partial class MainViewModel
     private void OnHandsFreeVoiceStateChanged(object? sender, EventArgs args) => uiDispatcher.Post(() =>
     {
         if (disposed) { return; }
+        if (voiceRecognition is HandsFreeVoiceRecognitionService { HasSpeechInterruptionCapture: true } interruption)
+        { IsListening = interruption.IsListening; }
         NotifyVoiceEnablementChanged();
         if (voiceRecognition is HandsFreeVoiceRecognitionService { State: HandsFreeVoiceState.RecoveryRequired })
         {

@@ -26,9 +26,10 @@ internal sealed partial class NewRequestWindowController(
     private long openingEpoch;
     private bool disposed;
     private long windowEpoch;
-    internal Func<bool> CaptureShutdownEligibility()
+    internal Func<bool> CaptureShutdownEligibility(bool exitWithoutDisclosure = false)
     {
-        var admitted = !disposed && access.CanInspect && access.CanControl && window is null && composer is null;
+        var admitted = !disposed && (access.CanInspect && access.CanControl
+            || exitWithoutDisclosure && access.CanReviewApplicationExit) && window is null && composer is null;
         var epoch = windowEpoch;
         var revision = access.ControlRevision;
         return () => admitted && !disposed && access.ControlRevision == revision

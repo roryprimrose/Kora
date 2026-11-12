@@ -255,6 +255,7 @@ public sealed partial class SessionWorkspaceServiceTests
         internal Func<HostRequest, SessionName, Func<bool>, CancellationToken, ValueTask<SessionWorkspaceEntry>>? LocalContextCreation { get; set; }
         public bool CanInspect { get; set; } = true;
         public bool CanControl { get; set; } = true;
+        public bool CanReviewApplicationExit { get; set; }
         public long ControlRevision { get; private set; } = 1;
 
         public async ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken)

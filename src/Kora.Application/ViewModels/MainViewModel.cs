@@ -613,8 +613,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                   && (IsVoiceEnabled
                       || (HasVoiceConsent && EffectiveMicrophone is not null
                       && IsVoiceActivationAvailable && !IsMicrophoneAccessDenied)));
-        BeginPushToTalkCommand = CreateCommand(
-            BeginPushToTalkAsync,
+        // Call-time admission must retain an existing request's original invocation identity.
+        BeginPushToTalkCommand = new(
+            () => HostActivity.HasScope ? BeginPushToTalkAsync()
+                : Kora.Application.Hosting.HostRequestRunner.RunAsync(RequestOrigin.LocalUi, BeginPushToTalkAsync),
+            exception => Kora.Application.Hosting.HostRequestRunner.Run(
+                HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi, () => HandleCommandException(exception)),
             () => CanPushToTalk);
         EndPushToTalkCommand = CreateCommand(EndPushToTalkAsync);
         WithdrawVoiceConsentCommand = CreateCommand(() => SetVoiceConsentAsync(false));
@@ -1780,7 +1784,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         !conversationSearchPresentation
         && IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked
-        && !voiceRecognition.IsListening
+        && (!voiceRecognition.IsListening || IsExactRetainedPlaybackWakeCapture)
         && IsSpeechOutputAvailable;
 
     public CallState CurrentCallState
@@ -1859,7 +1863,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public string CallVoiceActivationStatus => AllowVoiceActivationDuringCalls
         ? $"On · {AssistantName} can continue listening during detected calls"
-        : "Off · listening closes and remains unavailable during detected calls";
+        : "Off · automatic listening and question replies pause during detected calls; deliberate held push-to-talk remains separately gated";
 
     public string CallStateStatus => (IsManualCallActive ? "Manual call mode is active. " : string.Empty) + (AutomaticCallState switch
     {
@@ -2092,12 +2096,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public bool IsVoiceEnabled => Volatile.Read(ref voiceEnabled) != 0;
 
-    public bool IsPushToTalkVisible => !IsVoiceEnabled;
+    public bool IsPushToTalkVisible => !disposed;
 
     public bool CanPushToTalk =>
         captureOpenCancellation is null
-        && IsReviewedVoiceCaptureReleased && Volatile.Read(ref listeningStopRequests) == 0 && (listeningStop.CanRecover || CanRetireWakeForManualInput)
-        && IsVoiceReadinessEligible(privacyObservation.Current)
+        && IsReviewedVoiceCaptureReleased && Volatile.Read(ref listeningStopRequests) == 0
+        && !CanRetireWakeForManualInput && listeningStop.CanRecover
+        && IsVoiceReadinessEligible(privacyObservation.Current, pushToTalk: true)
         && IsHostInputEligible
         && microphoneCatalogCurrent
         && !IsListening
@@ -2109,7 +2114,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         "Your listening permission is saved for your Windows account on this device. Voice commands are processed on this device. "
         + "Wake-word listening is not available: Kora does not record or transcribe background audio. "
         + "Use push-to-talk in the response window or Hold to speak in the foreground Customizations editor when offered; Settings only manages listening permission and readiness. "
-        + "Disable listening turns the microphone off until you enable it again. Remove listening permission also keeps it off after a restart. "
+        + "Disable listening turns automatic listening off; deliberate held push-to-talk still requires consent and all other microphone checks. Remove listening permission also keeps it off after a restart. "
         + "Unlocking can restore push-to-talk readiness after safety checks, but never starts recording. "
         + "After a disconnect, sleep or loss of microphone access, enable listening again.";
 
@@ -3082,6 +3087,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     {
         if (voluntaryShutdownRunning || hostExitRequested) { return; }
         voluntaryShutdownRunning = true;
+        quarantinedExitRequest = !fromModelActionDispatch && IsPrivacyPresentationHeld
+            && HostActivity.Current is { Request: { Origin: RequestOrigin.LocalUi, InvocationId: null } request }
+                ? request : null;
+        SetApplicationExitStatus("Exit requested - waiting for input, submitted-work and resource checks.");
         var closeDispatched = false;
         try
         {
@@ -3123,6 +3132,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         finally
         {
+            quarantinedExitRequest = null;
+            if (!closeDispatched)
+            {
+                SetApplicationExitStatus("Exit not completed - input, submitted work or required review remains unavailable.");
+                ApplicationLog.Information(logger, "Application exit did not complete; input or work admission remains unconfirmed");
+            }
             if (!closeDispatched) { hostExitRequested = false; lifecycleAdmissionClosed = false; }
             voluntaryShutdownRunning = false;
         }
@@ -4115,7 +4130,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     {
         if (retainedAnswerSpeech is not null && IsSpeechInterruptionCommand(CommandText))
         {
-            await InterruptSessionSpeechAsync(CaptureSpeechInterruptionInput(), voice: false);
+            await InterruptSessionSpeechAsync(CaptureSpeechInterruptionInput(), SpeechInterruptionChannel.Typed);
             return;
         }
         await HandleTranscriptAsync(
@@ -4133,10 +4148,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private async Task DispatchRecognizedVoiceTranscriptAsync(VoiceTranscriptEventArgs eventArgs, HostRequest? originalRequest = null,
         Func<bool>? reviewedEligibility = null)
     {
+        var callCapture = Volatile.Read(ref pushToTalkCall);
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
         using var activity = HostActivity.BeginRoot(originalRequest ?? HostRequest.Create(RequestOrigin.ActivatedVoice),
             HostActivityLayer.Application, HostOperation.Request, causes);
-        if (sessionRoutingVoiceReply is not null || reviewedEligibility?.Invoke() == false || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
+        if (sessionRoutingVoiceReply is not null || reviewedEligibility?.Invoke() == false
+            || !IsCurrentPushToTalkCall(callCapture) || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
             || eventArgs.Generation != voiceRecognition.Generation)
         {
             ApplicationLog.Debug(logger, "Discarded an unactivated or retired voice callback before UI dispatch");
@@ -4151,7 +4168,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 throw new InvalidOperationException("An audio provider cannot supply host wake activation.");
             }
-            var manualInput = CaptureManualCallInput(RequestOrigin.ActivatedVoice, CallPolicyRevision, eventArgs.Generation);
+            var manualInput = CaptureManualCallInput(RequestOrigin.ActivatedVoice, CallPolicyRevision, eventArgs.Generation)
+                with { PushToTalkCall = callCapture };
             if (AttachmentCataloguePreparationCommand.Parse(eventArgs.Transcript, AssistantName) is { } catalogue)
             {
                 manualInput = manualInput with
@@ -4239,7 +4257,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         PendingQuestionCapture questionTarget, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget,
         ForegroundConversationTarget? foregroundTarget, SpeechInterruptionInput? speechInput, Func<bool>? reviewedEligibility = null)
     {
-        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
+        if (reviewedEligibility?.Invoke() == false || !IsCurrentPushToTalkCall(manualInput.PushToTalkCall)
+            || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked()
             || manualInput.WakeActivationCurrent is { } wakeCurrent && !wakeCurrent())
         {
@@ -4265,12 +4284,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedDuplicate");
             return;
         }
+        Interlocked.CompareExchange(ref pushToTalkCall, null, manualInput.PushToTalkCall);
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
         if (IsSpeechInterruptionCommand(eventArgs.Transcript)
             && (speechInput?.Playback is not null || retainedAnswerSpeech is not null))
         {
-            await InterruptSessionSpeechAsync(speechInput, voice: true);
+            await InterruptSessionSpeechAsync(speechInput, SpeechInterruptionChannel.PushToTalk);
             return;
         }
         if (speechInput?.Playback is not null || retainedAnswerSpeech is not null)
@@ -4318,7 +4338,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
         }
 
-        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible
+        if (reviewedEligibility?.Invoke() == false || !IsCurrentPushToTalkCall(manualInput.PushToTalkCall)
+            || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible
             || manualInput.WakeActivationCurrent is { } currentWake && !currentWake())
         {
             ApplicationLog.Debug(logger, "Discarded voice input retired while waiting for output shutdown");

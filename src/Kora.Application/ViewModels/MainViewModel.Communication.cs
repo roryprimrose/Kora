@@ -36,6 +36,7 @@ public sealed partial class MainViewModel
         internal long AssistantNameRevision { get; init; }
         internal long OwnershipBindingRevision { get; init; }
         internal long InputRevision { get; init; }
+        internal CallPolicyObservation? PushToTalkCall { get; init; }
         internal AttachmentCataloguePreparationCommand? CataloguePreparation { get; init; }
         internal Func<bool> CatalogueEligible { get; init; } = static () => true;
         internal Kora.Application.Presentation.ModelActionReviewTarget? ModelActionReview { get; init; }
@@ -301,11 +302,15 @@ public sealed partial class MainViewModel
                 speechPreparation?.Request(null);
                 textToSpeech.InvalidateOutput();
             }
-            if (!observation.AllowActivation && IsVoiceEnabled)
+            var retirePushToTalk = Volatile.Read(ref pushToTalkCall) is { } capture
+                && capture.Revision != observation.Revision;
+            if (!observation.AllowActivation && IsVoiceEnabled || retirePushToTalk)
             {
-                HoldVoiceInput("Microphone closed · voice activation paused during detected call");
+                HoldVoiceInput(retirePushToTalk
+                    ? "Microphone closed · push-to-talk call policy changed; use a new deliberate hold"
+                    : "Microphone closed · voice activation paused during detected call");
             }
-            var transition = CompleteCallTransitionAsync(observation);
+            var transition = CompleteCallTransitionAsync(observation, retirePushToTalk);
             if (observation.Revision == CallPolicyRevision) { callClosureTask = transition; }
             await transition;
         }
@@ -323,12 +328,12 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task CompleteCallTransitionAsync(CallPolicyObservation observation)
+    private async Task CompleteCallTransitionAsync(CallPolicyObservation observation, bool retirePushToTalk = false)
     {
         var withhold = ShouldWithholdCallOutput(observation);
         var feedbackRevision = inCallFeedbackConfiguration?.Get().Revision;
         var output = withhold ? textToSpeech.StopAsync() : Task.CompletedTask;
-        var capture = !observation.AllowActivation ? StopOwnedVoiceCaptureAsync() : Task.CompletedTask;
+        var capture = !observation.AllowActivation || retirePushToTalk ? StopOwnedVoiceCaptureAsync() : Task.CompletedTask;
         await uiDispatcher.InvokeAsync(() =>
         {
             if (!disposed && observation.Revision == CallPolicyRevision)
@@ -361,6 +366,11 @@ public sealed partial class MainViewModel
             return Task.CompletedTask;
         });
         await Task.WhenAll(output, capture);
+        await uiDispatcher.InvokeAsync(() =>
+        {
+            if (!disposed && observation.Revision == CallPolicyRevision) { NotifyVoiceEnablementChanged(); }
+            return Task.CompletedTask;
+        });
     }
 
     private bool ShouldWithholdCallOutput(CallPolicyObservation observation) =>

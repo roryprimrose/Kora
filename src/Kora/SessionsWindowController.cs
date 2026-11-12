@@ -268,7 +268,7 @@ internal sealed partial class SessionsWindowController(
         if (instructionScopes is { } scopes) { await scopes.QuiesceAsync(); }
         return presentation is { } current ? await current.PrepareShutdown() : true;
     }
-    internal Func<bool> CaptureShutdownEligibility()
+    internal Func<bool> CaptureShutdownEligibility(bool exitWithoutDisclosure = false)
     {
         var state = model;
         var owner = presentation;
@@ -276,8 +276,9 @@ internal sealed partial class SessionsWindowController(
         var compactView = compact;
         var interactionView = interaction;
         var revision = access.ControlRevision;
-        var admitted = !disposed && access.CanInspect && access.CanControl;
-        var buffer = state?.CaptureUnsentShutdownEligibility() ?? (static () => true);
+        var admitted = !disposed && (access.CanInspect && access.CanControl
+            || exitWithoutDisclosure && access.CanReviewApplicationExit);
+        var buffer = state?.CaptureUnsentShutdownEligibility(exitWithoutDisclosure) ?? (static () => true);
         return () => admitted && !disposed && access.ControlRevision == revision
             && ReferenceEquals(model, state) && ReferenceEquals(presentation, owner)
             && ReferenceEquals(window, workspaceView) && ReferenceEquals(compact, compactView)

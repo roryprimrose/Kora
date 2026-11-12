@@ -1,5 +1,6 @@
 using System.Xml.Linq;
 using AwesomeAssertions;
+using Kora.Controls;
 
 namespace Kora.Windows.IntegrationTests;
 
@@ -15,7 +16,7 @@ public sealed class AppearanceUiContractTests
             string.Equals(element.Name.LocalName, "Grid", StringComparison.Ordinal));
         layout.Attribute("RowDefinitions")!.Value.Should().Be("72,Auto,*");
         layout.Elements().Select(element => element.Name.LocalName)
-            .Should().Equal("Border", "StackPanel", "NavigableTabControl");
+            .Should().Equal("Border", "StackPanel", nameof(SettingsBrowser));
         var undo = layout.Elements().Single(element =>
             string.Equals(element.Name.LocalName, "StackPanel", StringComparison.Ordinal));
         undo.Attribute("Grid.Row")!.Value.Should().Be("1");
@@ -25,7 +26,7 @@ public sealed class AppearanceUiContractTests
             .Select(element => element.Attribute("Content")!.Value)
             .Should().Equal("Undo the last settings change", "Confirm settings undo", "Cancel settings undo");
         layout.Elements().Single(element =>
-            string.Equals(element.Name.LocalName, "NavigableTabControl", StringComparison.Ordinal))
+            string.Equals(element.Name.LocalName, nameof(SettingsBrowser), StringComparison.Ordinal))
             .Attribute("Grid.Row")!.Value.Should().Be("2");
     }
 
@@ -60,7 +61,8 @@ public sealed class AppearanceUiContractTests
         var root = FindRepositoryRoot();
         var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml"));
         XNamespace avalonia = "https://github.com/avaloniaui";
-        var tab = document.Descendants(avalonia + "TabItem")
+        var tab = document.Descendants().Where(element =>
+            string.Equals(element.Name.LocalName, nameof(SettingsPage), StringComparison.Ordinal))
             .Single(element => string.Equals(element.Attribute("Header")?.Value, "Appearance", StringComparison.Ordinal));
 
         var headings = tab.Descendants(avalonia + "TextBlock")

@@ -33,6 +33,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'WindowsTestEvidence.ps1')
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $projectPath = Join-Path $repositoryRoot 'tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj'
@@ -226,6 +227,17 @@ if ($TestModuleDirectory) {
     if (@($receipt.Files | Where-Object Path -CEQ 'Kora.Windows.IntegrationTests.dll').Count -ne 1) {
         throw 'The Windows test artifact must identify exactly one test assembly.'
     }
+    if (@($receipt.Files | Where-Object Path -CEQ 'kora-test-catalog.json').Count -ne 1) {
+        throw 'The Windows test artifact must identify exactly one discovery catalog.'
+    }
+    $catalog = Get-Content -Raw -LiteralPath (Join-Path $moduleRoot 'kora-test-catalog.json') | ConvertFrom-Json
+    if ($catalog.Version -ne 2 -or $catalog.SourceRevision -cne $ExpectedSourceRevision) {
+        throw 'The Windows test catalog does not match the admitted source revision.'
+    }
+}
+else {
+    $localModules = Join-Path $repositoryRoot 'tests\Kora.Windows.IntegrationTests\bin\Release\net10.0-windows10.0.19041.0\win-x64'
+    $catalog = Get-WindowsTestCatalog $dotnetPath $localModules
 }
 $resultsRoot = Join-Path $resultsRoot ([guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $resultsRoot -Force | Out-Null
@@ -244,6 +256,8 @@ $runs = @(
             $arguments += @('--project', $using:projectPath, '--configuration', 'Release', '--runtime', 'win-x64', '--no-build')
         }
         $arguments += @(
+            '--explicit'
+            'off'
             '--filter'
             $_.Filter
             '--max-threads'
@@ -293,13 +307,7 @@ foreach ($definition in $partitions) {
             throw "Windows partition $($run.Name) must produce exactly one fresh TRX report."
         }
         [xml] $report = Get-Content -Raw -LiteralPath $reports[0].FullName
-        $results = @($report.TestRun.Results.UnitTestResult)
-        $counters = $report.TestRun.ResultSummary.Counters
-        if ($results.Count -eq 0 -or $results.Count -ne [int] $counters.total -or
-            [int] $counters.passed -ne $results.Count -or
-            @($results | Where-Object outcome -CNE 'Passed').Count -gt 0) {
-            throw "Windows partition $($run.Name) did not produce complete, nonempty passing test evidence."
-        }
+        Assert-WindowsTestReport $report $catalog
     }
 
     if ($run.ExitCode -ne 0) {

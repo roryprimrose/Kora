@@ -14,6 +14,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'WindowsTestEvidence.ps1')
 $runner = Join-Path $PSScriptRoot 'Run-WindowsIntegrationTests.ps1'
 $root = Split-Path -Parent $PSScriptRoot
 $workflow = Get-Content -Raw -LiteralPath (Join-Path $root '.github\workflows\ci.yml')
@@ -51,9 +52,9 @@ function Get-MatchingShard {
 function Assert-CatalogCoverage {
     param($Catalog, [string] $Revision, [int] $ReportCount, [int] $CaseCount, [hashtable] $Methods, [hashtable] $Tests)
 
-    Assert ($Catalog.Version -eq 1 -and $Revision -cmatch '^[0-9a-f]{40}$' -and
+    Assert ($Catalog.Version -in @(1, 2) -and $Revision -cmatch '^[0-9a-f]{40}$' -and
         $Catalog.SourceRevision -ceq $Revision) 'Expected catalog must belong to the admitted source.'
-    Assert ($ReportCount -eq 12 -and $Catalog.Total -gt 0 -and $Catalog.Total -eq $CaseCount) 'Every discovered source case must have a passing result in twelve reports.'
+    Assert ($ReportCount -eq 12 -and $Catalog.Total -gt 0 -and $Catalog.Total -eq $CaseCount) 'Every discovered source case must have exactly one classified result in twelve reports.'
     Assert ($Catalog.Methods.Count -eq $Methods.Count) 'Actual and discovered method identities must match.'
     Assert ($Catalog.Tests.Count -eq $Tests.Count) 'Actual and discovered theory case identities must match.'
     foreach ($method in $Catalog.Methods) {
@@ -467,6 +468,7 @@ Write-Host ("Run 41255145262: recorded-work projection {0:N1}s; partial evidence
 function Assert-RetainedResults {
     param([string] $RetainedResultsDirectory, [string] $ExpectedCatalogPath, [string] $ExpectedSourceRevision)
 
+    $catalog = if ($ExpectedCatalogPath) { Get-Content -Raw -LiteralPath $ExpectedCatalogPath | ConvertFrom-Json } else { $null }
     $reports = @(Get-ChildItem -LiteralPath $RetainedResultsDirectory -Filter '*.trx' -Recurse -File)
     Assert ($reports.Count -in @($expected.Count, $legacyPartitions.Count, $ninePartitions.Count, $expectedPartitions.Count)) 'Retained evidence must contain a complete five-, seven-, nine- or twelve-report set.'
     $reportNames = if ($reports.Count -eq $expected.Count) { $expected }
@@ -493,7 +495,7 @@ function Assert-RetainedResults {
         }
         $results = @($trx.TestRun.Results.UnitTestResult)
         Assert ($results.Count -gt 0 -and $results.Count -eq [int] $trx.TestRun.ResultSummary.Counters.total) "Incomplete or empty $name report."
-        Assert ([int] $trx.TestRun.ResultSummary.Counters.passed -eq $results.Count) "Retained $name evidence must be fully passing, not partial cancellation evidence."
+        Assert-WindowsTestReport $trx $catalog
         foreach ($result in $results) {
             Assert ($executions.Add($result.executionId)) 'Retained reports contain a duplicate test execution.'
             Assert ($definitions.ContainsKey($result.testId)) 'A retained result has no test definition.'
@@ -542,7 +544,6 @@ function Assert-RetainedResults {
         }
     }
     if ($ExpectedCatalogPath) {
-        $catalog = Get-Content -Raw -LiteralPath $ExpectedCatalogPath | ConvertFrom-Json
         Assert-CatalogCoverage $catalog $ExpectedSourceRevision $reports.Count $recordedCases $recordedMethods $recordedTests
     }
     Write-Host "Retained partition: $recordedCases cases across $($recordedClasses.Count) classes covered exactly once."
@@ -569,15 +570,23 @@ $fakePath = Join-Path $fakeDirectory 'dotnet.ps1'
 New-Item -ItemType Directory -Path $fakeDirectory -Force | Out-Null
 @'
 $arguments = @($args)
-if ($arguments -contains '--list-tests') {
-    Write-Output 'Discovered 1 tests in assembly'
-    Write-Output '  Kora.Windows.IntegrationTests.FuturePlatformTests.Test'
+if ($arguments -contains '-list') {
+    if ($env:KORA_WINDOWS_SCHEDULING_FIXTURE -ceq 'discovery-empty') { Write-Output '[]'; exit 0 }
+    if ($env:KORA_WINDOWS_SCHEDULING_FIXTURE -ceq 'discovery-invalid') {
+        Write-Output '[{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"Test","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.Test","Explicit":"false"}]'
+        exit 0
+    }
+    if ($env:KORA_WINDOWS_SCHEDULING_FIXTURE -ceq 'explicit') {
+        Write-Output '[{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"Test","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.Test","Explicit":false},{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"OptIn","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.OptIn(row: 1)","Explicit":true},{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"OptIn","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.OptIn(row: 2)","Explicit":true}]'
+        exit 0
+    }
+    Write-Output '[{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"Test","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.Test","Explicit":false}]'
     exit 0
 }
 $directory = $arguments[[Array]::IndexOf($arguments, '--results-directory') + 1]
 $name = Split-Path -Leaf $directory
 $arguments | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $directory 'command.json')
-$mode = if ($name -ceq 'ui-conversations') { $env:KORA_WINDOWS_SCHEDULING_FIXTURE } else { 'success' }
+$mode = if ($name -cin @('ui-conversations', 'ui-platform')) { $env:KORA_WINDOWS_SCHEDULING_FIXTURE } else { 'success' }
 Write-Output "Fixture execution: $name ($mode)"
 try {
     if ($mode -ceq 'exit') { exit 7 }
@@ -587,6 +596,9 @@ try {
     if ($mode -ceq 'incomplete') { $report = '<TestRun><Results><UnitTestResult outcome="Passed"/></Results><ResultSummary><Counters total="2" passed="2"/></ResultSummary></TestRun>' }
     if ($mode -ceq 'failed') { $report = '<TestRun><Results><UnitTestResult outcome="Failed"/></Results><ResultSummary><Counters total="1" passed="0"/></ResultSummary></TestRun>' }
     if ($mode -ceq 'skipped') { $report = '<TestRun><Results><UnitTestResult outcome="NotExecuted"/></Results><ResultSummary><Counters total="1" passed="0"/></ResultSummary></TestRun>' }
+    if ($mode -ceq 'explicit') {
+        $report = '<TestRun><Results><UnitTestResult testName="Kora.Windows.IntegrationTests.FuturePlatformTests.Test" outcome="Passed"/><UnitTestResult testName="Kora.Windows.IntegrationTests.FuturePlatformTests.OptIn(row: 1)" outcome="NotExecuted"/><UnitTestResult testName="Kora.Windows.IntegrationTests.FuturePlatformTests.OptIn(row: 2)" outcome="NotExecuted"/></Results><ResultSummary><Counters total="3" passed="1" notExecuted="2"/></ResultSummary></TestRun>'
+    }
     if ($mode -ceq 'malformed') { $report = '<TestRun>' }
     Set-Content -LiteralPath (Join-Path $directory 'results.trx') -Value $report
     if ($mode -ceq 'duplicate') { Set-Content -LiteralPath (Join-Path $directory 'duplicate.trx') -Value $report }
@@ -615,6 +627,7 @@ try {
         Assert ($arguments[0] -ceq 'test') 'Only the test operation may execute.'
         Assert ($arguments[[Array]::IndexOf($arguments, '--filter') + 1] -ceq $partition.Filter) 'The actual process must use its exact disjoint filter.'
         Assert ($arguments -ccontains '--no-build' -and $arguments -ccontains '--report-trx') 'Each process must use the same built source and retain test evidence.'
+        Assert ($arguments[[Array]::IndexOf($arguments, '--explicit') + 1] -ceq 'off') 'Deterministic partitions must never execute explicit qualification tests.'
         Assert ($arguments -ccontains '--diagnostic' -and $arguments -ccontains '--diagnostic-output-directory') 'Each process must retain started-test diagnostics for stalled execution.'
         Assert ($arguments[[Array]::IndexOf($arguments, '--max-threads') + 1] -eq 2) 'Partitioning must preserve the existing per-process thread limit.'
         Assert (Test-Path -LiteralPath (Join-Path $receipt[0].Directory.FullName 'console.log')) 'Each invocation must retain its own console output.'
@@ -661,6 +674,17 @@ try {
         Assert $failed "Invalid artifact $fault must fail before any test runs."
         Set-Content -LiteralPath $manifestPath -Value $savedManifest
     }
+    $env:KORA_WINDOWS_SCHEDULING_FIXTURE = 'explicit'
+    $discovered = Get-WindowsTestCatalog $fakePath $modules $revision
+    Assert ($discovered.Total -eq 3 -and @($discovered.Tests | Where-Object Explicit).Count -eq 2) 'Compiled discovery must retain explicit theory rows without executing them.'
+    & $runner -Partition 'ui-platform' -ResultsDirectory (Join-Path $fixtureRoot 'explicit-run')
+    foreach ($fault in @('discovery-empty', 'discovery-invalid')) {
+        $env:KORA_WINDOWS_SCHEDULING_FIXTURE = $fault
+        $failure = $null
+        try { Get-WindowsTestCatalog $fakePath $modules $revision | Out-Null } catch { $failure = $_ }
+        Assert ($null -ne $failure) "Compiled discovery must reject $fault metadata."
+    }
+    $env:KORA_WINDOWS_SCHEDULING_FIXTURE = 'success'
     $catalog = Get-Content -Raw -LiteralPath (Join-Path $modules 'kora-test-catalog.json') | ConvertFrom-Json
     $method = $catalog.Methods[0].Name
     $test = $catalog.Tests[0].Name
@@ -723,6 +747,61 @@ try {
         catch { $failure = $_ }
         Assert ($null -ne $failure) "The actual twelve-report join must reject $fault catalog evidence."
     }
+    $explicitReportPath = Join-Path $catalogRoot 'ui-platform\results.trx'
+    $ordinaryReport = Get-Content -Raw -LiteralPath $explicitReportPath
+    [xml] $explicitReport = $ordinaryReport
+    $explicitCatalog = $completeCatalog | ConvertTo-Json -Depth 4 | ConvertFrom-Json
+    $explicitCatalog.Version = 2
+    $explicitCatalog.Total += 2
+    foreach ($test in $explicitCatalog.Tests) { $test | Add-Member -NotePropertyName Explicit -NotePropertyValue $false }
+    $explicitMethod = 'Kora.Windows.IntegrationTests.FuturePlatformTests.OptIn'
+    $explicitCatalog.Methods += [pscustomobject]@{ Name = $explicitMethod; Cases = 2 }
+    foreach ($row in 1, 2) {
+        $id = [guid]::NewGuid().ToString()
+        $displayName = "$explicitMethod(row: $row)"
+        $explicitCatalog.Tests += [pscustomobject]@{ Name = $displayName; Cases = 1; Explicit = $true }
+        [xml] $definition = "<UnitTest id=`"$id`"><TestMethod className=`"Kora.Windows.IntegrationTests.FuturePlatformTests`" name=`"OptIn`"/></UnitTest>"
+        [xml] $explicitCaseResult = "<UnitTestResult testId=`"$id`" executionId=`"$id`" testName=`"$displayName`" outcome=`"NotExecuted`" duration=`"00:00:00`"/>"
+        $explicitReport.TestRun.TestDefinitions.AppendChild($explicitReport.ImportNode($definition.DocumentElement, $true)) | Out-Null
+        $explicitReport.TestRun.Results.AppendChild($explicitReport.ImportNode($explicitCaseResult.DocumentElement, $true)) | Out-Null
+    }
+    $explicitReport.TestRun.ResultSummary.Counters.total = '3'
+    $explicitReport.TestRun.ResultSummary.Counters.SetAttribute('notExecuted', '2')
+    $explicitReport.Save($explicitReportPath)
+    $explicitCatalog | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $catalogPath
+    Assert-RetainedResults $catalogRoot $catalogPath $revision
+    foreach ($fault in @('ordinary-skip', 'explicit-passed', 'explicit-failed', 'missing', 'duplicate',
+        'counter', 'classification', 'unclassified', 'wrong-source')) {
+        [xml] $invalidReport = $explicitReport.OuterXml
+        $invalidCatalog = $explicitCatalog | ConvertTo-Json -Depth 4 | ConvertFrom-Json
+        switch ($fault) {
+            'ordinary-skip' { $invalidReport.TestRun.Results.UnitTestResult[0].outcome = 'NotExecuted' }
+            'explicit-passed' { $invalidReport.TestRun.Results.UnitTestResult[1].outcome = 'Passed' }
+            'explicit-failed' { $invalidReport.TestRun.Results.UnitTestResult[1].outcome = 'Failed' }
+            'missing' {
+                $invalidReport.TestRun.Results.RemoveChild($invalidReport.TestRun.Results.UnitTestResult[1]) | Out-Null
+                $invalidReport.TestRun.ResultSummary.Counters.total = '2'
+                $invalidReport.TestRun.ResultSummary.Counters.notExecuted = '1'
+            }
+            'duplicate' {
+                $duplicate = $invalidReport.TestRun.Results.UnitTestResult[1].CloneNode($true)
+                $duplicate.executionId = [guid]::NewGuid().ToString()
+                $invalidReport.TestRun.Results.AppendChild($duplicate) | Out-Null
+                $invalidReport.TestRun.ResultSummary.Counters.total = '4'
+                $invalidReport.TestRun.ResultSummary.Counters.notExecuted = '3'
+            }
+            'counter' { $invalidReport.TestRun.ResultSummary.Counters.notExecuted = '1' }
+            'classification' { $invalidCatalog.Tests[-1].Explicit = 'true' }
+            'unclassified' { $invalidCatalog.Version = 1 }
+            'wrong-source' { $invalidCatalog.SourceRevision = 'b' * 40 }
+        }
+        $invalidReport.Save($explicitReportPath)
+        $invalidCatalog | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $catalogPath
+        $failure = $null
+        try { Assert-RetainedResults $catalogRoot $catalogPath $revision } catch { $failure = $_ }
+        Assert ($null -ne $failure) "Explicit qualification classification must reject $fault evidence."
+    }
+    Set-Content -LiteralPath $explicitReportPath -Value $ordinaryReport
     foreach ($reportCount in @(5, 7, 9)) {
         $legacyRoot = Join-Path $fixtureRoot "legacy-$reportCount"
         $legacyReports = @{}

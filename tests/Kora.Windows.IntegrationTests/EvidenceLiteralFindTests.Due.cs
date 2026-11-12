@@ -93,8 +93,13 @@ public sealed partial class EvidenceLiteralFindTests
                 reader.Queries.Should().HaveCount(2);
                 if (retirement is "clear" or "escape")
                 {
-                    from.Text.Should().BeEmpty();
-                    until.Text.Should().BeEmpty();
+                    from.Text.Should().BeNullOrEmpty();
+                    until.Text.Should().BeNullOrEmpty();
+                    if (retirement is "escape")
+                    {
+                        window.IsVisible.Should().BeFalse();
+                        window.View.DataContext.Should().BeNull();
+                    }
                 }
             }
             finally { window.Close(); }

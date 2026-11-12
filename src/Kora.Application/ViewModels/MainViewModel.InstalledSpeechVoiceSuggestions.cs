@@ -4,6 +4,7 @@ using Kora.Application.Diagnostics;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 
@@ -15,8 +16,12 @@ public sealed partial class MainViewModel
     private Task installedVoiceReviewWork = Task.CompletedTask;
     private Task installedVoicePersistence = Task.CompletedTask;
 
+    public Task<InstalledSpeechVoiceSuggestionReview> ReviewInstalledSpeechVoiceSuggestionAsync(ConversationMessage message,
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token) =>
+        ReviewInstalledSpeechVoiceSuggestionAsync(message, sourceCurrent, validateSource, null, token);
+
     public async Task<InstalledSpeechVoiceSuggestionReview> ReviewInstalledSpeechVoiceSuggestionAsync(ConversationMessage message,
-        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, RegisteredSetting? selectedSetting, CancellationToken token)
     {
         var sourceBinding = speechSuggestionBinding
             ?? throw new InvalidOperationException("The host retained-setting suggestion workflow is unavailable.");
@@ -38,7 +43,7 @@ public sealed partial class MainViewModel
             && (message.Request.Origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent)
             && sourceCurrent();
         var work = InstalledSpeechVoiceSuggestionReview.ReviewAsync(speechConfiguration, communicationPolicy, sourceBinding.Time,
-            message, Eligible, validateSource, token);
+            message, Eligible, validateSource, token, selectedSetting);
         installedVoiceReviewWork = work;
         try { return await work; }
         finally { installedVoiceReviewWork = Task.CompletedTask; }

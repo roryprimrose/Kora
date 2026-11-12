@@ -602,6 +602,7 @@ internal sealed partial class SessionsWindowController(
                 model, inventory, admitted, token);
         }
         BindAdditionalRegisteredSettingSuggestions(model, main);
+        BindSettingSuggestionCollection(model, main);
         model.RemainingWorkAnswer = main.AnswerRemainingWorkAsync;
         model.RemainingWorkAdmission = () => main.CanAnswerRemainingWork;
         presentation = new(model, main);

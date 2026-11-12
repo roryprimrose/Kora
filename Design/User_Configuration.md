@@ -18,6 +18,21 @@ the contracts below distinguish implemented controls from proposed scopes.
 
 Native single-setting review cancellation also retires pending source checks and confirmation eligibility, not just the visible readback. A late review cannot revive cancelled consent; recovery explicitly reviews the retained answer against current authoritative values before separate confirmation. In-flight persistence is not rolled back ([interaction and recovery](../docs/setting-proposals.md#review-confirm-or-cancel)).
 
+## Delivered bounded registered-setting suggestion collections
+
+One exact successful retained answer may contain 2-8 canonical Set/Reset commands on separate LF-delimited lines, at most 3072 complete-answer UTF-16 characters.
+The complete finite collection must validate before selection: unique known registered IDs, exact per-setting grammar, no blank/trailing lines, CRLF, wrappers or commentary. Single-command grammar remains compatible ([collection parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestionCollection.cs)).
+
+Both native conversation sizes first inspect the complete unchanged original source, with no selected member. The original user deliberately selects one member, reviews authoritative current/proposed/default values and scope, and separately confirms that one change.
+The existing per-setting owner retains validation, audit, atomic persistence and readback. Another member requires new inspection, selection, fresh review and independent confirmation ([desktop owner](../src/Kora/RegisteredSettings/SessionsViewModel.RegisteredSettings.cs), [native effects](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SettingSuggestionCollection.cs)).
+
+This is not batch application or a cross-store transaction: no approval for all, automatic selection/continuation, retry, rollback promise, new setting or model authority. Single-command typed/voice and Undo routes retain their existing restrictions; collection choice is native-only.
+Original voice provenance cannot be laundered into native-only source authority. Delayed review/effect checks retain exact source/session/generation, private control/host ownership, channel/policy, expiry and preference currentness
+([per-setting source binding](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineSuggestionReview.cs), [unit effects](../tests/Kora.Application.UnitTests/Configuration/RegisteredSettingSuggestionCollectionTests.cs)).
+
+Selection consumes the collection chooser. Cancellation and uncertain persistence retire confirmation and never automatically continue; earlier confirmed writes remain. Inspect Settings and audit receipts before a fresh deliberate review after an unconfirmed outcome.
+No provider trial or readiness/profile enablement is implied ([complete grammar, availability and recovery](../docs/setting-proposals.md#one-answer-independently-reviewed-members)).
+
 ## Fixed Reviewed Session Memory Management Boundary
 
 The [reviewed selected-subset memory workflow](Model_Providers_Memory_And_Knowledge.md#reviewed-selected-subset-session-memory-forget---2026-10-19)
@@ -68,7 +83,8 @@ The existing `responses.detail-presentation` preference accepts Offer (unsaved l
 Native Responses settings and exact original typed/current-name activated commands share inspect/review/confirm/cancel/reset. Set/reset require separate confirmation; reset explicitly saves Offer, not file deletion ([workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [native controls](../src/Kora/SettingsWindow.axaml)).
 
 The closed inert-suggestion registry also admits this one existing family with `RequiresNativeReview=true`.
-A genuine retained successful model answer may supply only exact `set responses.detail-presentation to Offer`, `LinkOnly` or `OpenAutomatically`, or exact `reset responses.detail-presentation`; there are no aliases, batches or model-supplied defaults ([metadata](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs), [typed parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+A genuine retained successful model answer may supply exact `set responses.detail-presentation to Offer`, `LinkOnly` or `OpenAutomatically`, or exact `reset responses.detail-presentation`, either alone or as an independently selected canonical collection member.
+There are no aliases, batch application or model-supplied defaults ([metadata](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs), [typed parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
 In the original Active conversation, explicit native Review shows the exact saved/default value, proposed choice and future-only shared scope without changing anything.
 Separate fresh native confirmation consumes the existing service's reviewed candidate and original LocalUser channel; it persists/audits/readbacks through that owner, never a model initiator or second policy/persistence owner ([adapter](../src/Kora.Application/Configuration/DetailPresentationSuggestionReview.cs)).
 The exact retained source/page, native lifetime, current setting revision, original session, privacy, ownership and call admission remain bound.
@@ -769,13 +785,13 @@ for unique speech/hardware/runtime/worker/storage experiments or historical rece
 #### Retained-model response-mode proposal
 
 The [closed registered-setting path](../docs/setting-proposals.md) also accepts
-one exact successful retained answer: `set responses.default-mode to Hybrid`,
+one exact successful retained answer or an independently selected collection member: `set responses.default-mode to Hybrid`,
 `set responses.default-mode to VoiceOnly`, or `set responses.default-mode to VisualOnly`.
 The model policy advertises those canonical enum values as inert data, never
-approval or write authority. Undefined/numeric enums, aliases, batches and
+approval or write authority. Undefined/numeric enums, aliases, batch application and
 commentary are rejected without a write.
 
-Both expanded and compact conversations reuse **Review setting suggestion...**,
+Both expanded and compact conversations reuse **Inspect setting suggestions...**,
 showing current saved/default provenance, desired/configured effective mode,
 the exact proposed mode, shared device-local future-output scope and mandatory
 visual/privacy/call exceptions. Exact typed/current-name activated **review
@@ -1190,7 +1206,7 @@ See the [complete user interaction and recovery](../docs/setting-proposals.md).
 
 The [retained-answer review](../src/Kora.Application/Configuration/SpeechSummarySuggestionReview.cs)
 completes the registered-setting model proposal route for these two caps only.
-The canonical request policy advertises one inert exact Set, using the existing
+The canonical request policy advertises an inert exact Set, alone or as an independently selected collection member, using the existing
 parser and domain bounds. Successful retained execution/source provenance is
 revalidated through the canonical host; model prose has no apply authority.
 Both native conversation sizes and exact typed/current-name activated-voice
@@ -1201,7 +1217,7 @@ timing. A distinct fresh original-user confirmation consumes a memory-only,
 atomic call-policy/write and typed audit path. Source or confirmation voice
 classification is preserved, including later native confirmation. Appearance
 uses the shared surface but remains original-local-UI/native-only except the bounded response-timeout slice below. Existing direct setters/resets
-are unchanged; no option, cap, batch, provider qualification or approval grant is
+are unchanged; no option, cap, batch application, provider qualification or approval grant is
 added. Uncertain writes require explicit Settings/audit inspection, not retry,
 rollback claims or fabricated success. The current answer is never shortened,
 regenerated, spoken or replayed by the operation.
@@ -2178,7 +2194,7 @@ Never treat undo as reinstating expired grants or microphone consent.
 ### Delivered single registered-preference Reset proposals
 
 A successful retained model answer may propose exactly `reset <registered ID>` for one member of the existing [registered subset](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs). It carries no value or write authority.
-The [shared parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs) preserves Set grammar and rejects defaults supplied by the model, batches and unrelated settings.
+The [shared single-command parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs) preserves Set grammar and rejects defaults supplied by the model, batches and unrelated settings. The [bounded collection grammar](#delivered-bounded-registered-setting-suggestion-collections) separately permits independent member selection, never batch application.
 
 The original user reviews current/default values, saved/default provenance, scope and companion effects, then separately confirms through the existing authoritative owner.
 Appearance remains original-local-UI/native-only except response timeout; response timeout, speech, volume, Windows rate and response mode retain their current typed/activated-voice review routes and channel restrictions ([user flow](../docs/setting-proposals.md#propose-one-reset)).

@@ -59,6 +59,7 @@ public sealed class ResponseModeSuggestionReview : IDisposable
     public string Description => Available
         ? $"Current saved: {current.Saved?.ToString() ?? "unsaved"} ({current.Source}); desired: {current.Desired}; "
             + $"configured effective: {current.Effective}. Proposed: {proposed}. Scope: shared device-local default. "
+            + $"Default: {ResponseModeConfigurationService.ResetMode}. "
             + (reset ? "Reset saves Hybrid as a saved preference, matching the native Reset; it does not remove the preference. " : string.Empty)
             + "Nothing has changed. Applies to NEXT eligible response only; no synthesis, capture, regeneration or replay of this answer. "
             + "Session/task/queue and in-call overrides remain unchanged. Mandatory full visual warnings, security, questions, approvals "
@@ -68,7 +69,7 @@ public sealed class ResponseModeSuggestionReview : IDisposable
 
     public static async Task<ResponseModeSuggestionReview> ReviewAsync(ResponseModeConfigurationService configuration,
         CallCommunicationPolicy policy, TimeProvider time, ConversationMessage message, Func<bool> eligible,
-        Func<CancellationToken, Task> validateSource, CancellationToken token)
+        Func<CancellationToken, Task> validateSource, CancellationToken token, RegisteredSetting? selectedSetting = null)
     {
         ArgumentNullException.ThrowIfNull(message);
         message.Validate();
@@ -76,7 +77,7 @@ public sealed class ResponseModeSuggestionReview : IDisposable
         var call = policy.Current.Revision;
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
-        var (value, reset) = RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body) switch
+        var (value, reset) = RegisteredSettingSuggestionCollection.ParseSelected(message.AssistantResponse!.Body, selectedSetting) switch
         {
             RegisteredSettingProposal.ResponseMode proposal => (proposal.Value, false),
             RegisteredSettingProposal.Reset { Setting: RegisteredSetting.ResponseMode } => (ResponseModeConfigurationService.ResetMode, true),

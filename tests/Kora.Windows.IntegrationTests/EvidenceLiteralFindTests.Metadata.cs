@@ -72,7 +72,13 @@ public sealed partial class EvidenceLiteralFindTests
                     window.UpdateLayout();
                     parent.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text).Should().Contain("Child");
                 }
-                if (retirement is "clear" or "escape") { parent.SelectedIndex.Should().Be(0); }
+                if (retirement is "clear") { parent.SelectedIndex.Should().Be(0); }
+                if (retirement is "escape")
+                {
+                    window.IsVisible.Should().BeFalse();
+                    window.View.DataContext.Should().BeNull();
+                    parent.SelectedIndex.Should().Be(-1);
+                }
                 reader.Queries.Should().HaveCount(2);
             }
             finally { window.Close(); }

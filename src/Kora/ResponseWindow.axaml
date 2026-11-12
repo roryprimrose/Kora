@@ -131,6 +131,7 @@
             <MenuItem x:Name="CurrentResponseDetails" Header="Current response details"
                 Click="OnCurrentResponseDetailsClicked" />
             <MenuItem Header="Read current response" Command="{Binding ReadCurrentResponseCommand}"
+                AutomationProperties.Name="Read this current ordinary response aloud once"
                 ToolTip.Tip="Read this response once using normal speech, privacy and output admission." />
             <Separator />
             <MenuItem Header="Review speak once during call" Command="{Binding ReviewCallSpeechCommand}" />

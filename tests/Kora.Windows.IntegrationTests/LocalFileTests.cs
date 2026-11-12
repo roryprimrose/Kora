@@ -189,7 +189,7 @@ public sealed partial class LocalFileTests : IDisposable
     public void Native_preview_is_inert_accessible_and_scrolls_complete_plain_text_without_clipboard_or_rendering()
     {
         var repository = Path.GetDirectoryName(root)!;
-        var source = File.ReadAllText(Path.Combine(repository, "src", "Kora", "LocalFilePreviewWindow.cs"));
+        var source = File.ReadAllText(Path.Combine(repository, "src", "Kora", "LocalFilePreviewView.cs"));
         source.Should().Contain("Confirm exact local file read")
             .And.Contain("Local file review identity and bounds")
             .And.Contain("Local file preview privacy and unavailable capabilities")

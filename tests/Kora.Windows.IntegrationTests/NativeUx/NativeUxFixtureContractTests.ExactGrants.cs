@@ -179,8 +179,10 @@ public sealed partial class NativeUxFixtureContractTests
         {
             var window = new ExactGrantsWindow();
             window.IsVisible.Should().BeFalse();
-            window.Content.Should().BeOfType<Grid>();
+            var view = window.Content.Should().BeOfType<ExactGrantsView>().Which;
+            view.Content.Should().BeOfType<ScrollViewer>().Which.Content.Should().BeOfType<Grid>();
             window.Title.Should().Be("Permission grants");
+            window.Close();
             return Task.CompletedTask;
         });
     }

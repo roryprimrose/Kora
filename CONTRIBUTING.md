@@ -402,8 +402,13 @@ of the shared build and twelve execution jobs. This preserves queue retirement
 of predecessor runs without adding required job names to queue policy.
 `windows-execution-results-<partition>` artifacts retain every TRX and console log.
 The unchanged required **Windows integration tests** check validates all twelve
-reports against the admitted-source catalog: every method and theory case must
-pass exactly once. Failure, cancellation, missing or skipped jobs cannot pass.
+reports against the admitted-source catalog: every mandatory method and theory case must
+pass exactly once. The [catalog producer and shared validator](eng/WindowsTestEvidence.ps1)
+use compiled xUnit discovery with pre-enumerated theory rows to retain each case's explicit classification.
+Already-explicit qualification cases must appear exactly once as `NotExecuted`, never as passing qualification.
+Partitions explicitly select `--explicit off`; unexpected skips, omitted or duplicate cases,
+executed explicit cases, failure, cancellation, missing or skipped jobs cannot pass.
+This does not authorize or qualify the separately gated [actual-native evaluation](tests/Kora.Windows.IntegrationTests/Audio/README.md#separately-authorized-actual-native-execution).
 Payload/bootstrap fixtures still run once in the build producer.
 This scheduling isolates competing test processes without removing tests or
 changing test/product or 30-minute Windows job timeouts. Run

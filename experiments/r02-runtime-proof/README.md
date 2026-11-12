@@ -78,6 +78,8 @@ transitive dependencies and optional platform packages. [candidate.ts](src/candi
 checks the SDK metadata and both Windows runtime byte hashes before starting.
 An ambient `copilot` installation or `COPILOT_CLI_PATH` is not selected.
 
+The [experiment-local override](package.json) replaces the SDK's transitive Zod 4.3.6 with 4.6.6, the first patched version for [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5). SDK and runtime pins are unchanged. Historical [proof receipts](evidence/results.json) predate this dependency change and do not qualify the updated graph; exact-candidate runtime validation remains outstanding.
+
 - Runtime launcher SHA-256:
   `7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a`
 - Runtime payload SHA-256:

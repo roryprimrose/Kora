@@ -215,15 +215,17 @@ public sealed class SessionComposerLifecycleTests
             if (privacyClosure)
             {
                 f.Native.Main.CloseForObservedPrivacyEvent("Synthetic composer privacy closure", hidePresentation: true);
-                await f.Native.Main.PrivacyClosureTask;
             }
             else { await f.Model.RefreshAsync(); }
+            await f.Native.Main.PrivacyClosureTask;
             f.Model.ComposerBody.Should().BeEmpty();
             f.Model.HasUnsentMessages.Should().BeFalse();
             f.Model.CanSubmitConversation.Should().BeFalse();
             f.Native.Access.SetOpen(true);
-            f.Controller.Open();
-            var fresh = (SessionsViewModel)f.Workspace.DataContext!;
+            f.Native.Main.ShowSessions();
+            await f.Controller.InteractionOperation;
+            var fresh = (SessionsViewModel)f.Interaction.SessionView.DataContext!;
+            fresh.Should().NotBeSameAs(f.Model);
             await fresh.RefreshAsync();
             await fresh.SelectAsync(fresh.Sessions.Single(row => row.Authority.SessionId == f.Other.Authority.SessionId));
             fresh.ComposerBody.Should().BeEmpty();

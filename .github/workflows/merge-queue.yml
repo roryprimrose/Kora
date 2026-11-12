@@ -15,7 +15,7 @@ on:
       operation:
         description: Controller operation; recovery requires separate administrator authorization
         type: choice
-        options: [reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch, repair-controller, hold-independent-delivery, prepare-independent-delivery, resume-independent-delivery, abort-independent-delivery, hold-main-builds, prepare-main-builds, resume-main-builds, abort-main-builds]
+        options: [reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch, repair-controller, repair-completed-tip, hold-independent-delivery, prepare-independent-delivery, resume-independent-delivery, abort-independent-delivery, hold-main-builds, prepare-main-builds, resume-main-builds, abort-main-builds]
         default: reconcile
       recovery_checkpoint:
         description: Exact automation/merge-queue-state commit reviewed for recovery

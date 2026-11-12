@@ -50,7 +50,7 @@ async function recover(api, { context, inputs, attempt, now = new Date() }) {
 
 async function changeBatchState(api, { context, inputs, attempt, now = new Date() }) {
   const operation = controllerOperation(inputs);
-  invariant(['migrate-batch-v1', 'rollback-batch-v1', 'repair-batch', 'resume-batch', 'repair-controller'].includes(operation)
+  invariant(['migrate-batch-v1', 'rollback-batch-v1', 'repair-batch', 'resume-batch', 'repair-controller', 'repair-completed-tip'].includes(operation)
     && context.eventName === 'workflow_dispatch' && context.ref === 'refs/heads/main' && attempt === 1
     && Number.isSafeInteger(context.runId) && context.runId > 0 && Number.isFinite(now.valueOf())
     && inputs.acknowledge_batch_change === true && SHA.test(inputs.recovery_checkpoint),
@@ -74,7 +74,23 @@ async function changeBatchState(api, { context, inputs, attempt, now = new Date(
   } else {
     await api.verifyProtection('batch-v1');
     invariant(state.version === 2, 'Batch recovery requires v2 state.');
-    if (operation === 'rollback-batch-v1') {
+    if (operation === 'repair-completed-tip') {
+      invariant(state.active === null && state.completedTip?.ticket === inputs.recovery_ticket
+        && state.completedTip.qualificationRequested === true && !state.completedTip.qualification
+        && inputs.main_build_profile === 'per-merge' && inputs.recovery_main === main
+        && SHA.test(main) && main !== state.completedTip.sha
+        && commit.parents.length === 1 && commit.parents[0] === state.completedTip.sha
+        && !api.independent && state.deliveryProfile !== 'independent-v1'
+        && (api.mainBuildProfile ?? 'per-merge') === 'per-merge'
+        && (state.mainBuildProfile ?? 'per-merge') === 'per-merge'
+        && !['draining', 'ready'].includes(state.deliveryTransition?.phase)
+        && !['draining', 'ready'].includes(state.mainSchedulingTransition?.phase),
+      'Completed-tip repair requires an idle unqualified serial tip and exactly one reviewed protected-main advance.');
+      next = { ...state, completedTip: { sha: main, tree: commit.tree, ticket: state.completedTip.ticket },
+        history: [...(state.history ?? []), { completedTip: state.completedTip, actor: context.actor,
+          run: context.runId, checkpoint: api.commit, actualMain: main,
+          repairedAt: now.toISOString(), operation }] };
+    } else if (operation === 'rollback-batch-v1') {
       invariant(state.active === null && state.completedTip?.sha === main && state.completedTip.qualification,
         'Rollback requires the idle, qualified completed main tip.');
       next = { version: 1, active: null, blocked: state.blocked, batchHistory: state };
@@ -172,7 +188,7 @@ async function changeBatchState(api, { context, inputs, attempt, now = new Date(
   const expected = api.commit;
   invariant(JSON.stringify(await api.load()) === JSON.stringify(next) && api.commit === expected
     && api.commit !== inputs.recovery_checkpoint, 'Batch state readback changed.');
-  if (['resume-batch', 'repair-batch', 'repair-controller'].includes(operation)) await api.wake();
+  if (['resume-batch', 'repair-batch', 'repair-controller', 'repair-completed-tip'].includes(operation)) await api.wake();
   return operation;
 }
 

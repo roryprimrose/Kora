@@ -73,6 +73,10 @@ public sealed class ResponsePositionRecoveryTests
                 input.Text.Should().Be("Unsent original input");
                 var recoveredPosition = window.Position;
                 var viewport = window.FindControl<ScrollViewer>("ResponseViewport")!;
+                viewport.MaxHeight = 200;
+                window.UpdateLayout();
+                viewport.Extent.Height.Should().BeGreaterThan(viewport.Viewport.Height,
+                    "the recovery regression must exercise an overflowing compact viewport");
                 viewport.Focus().Should().BeTrue();
                 var focusableCount = window.GetVisualDescendants().OfType<Control>()
                     .Count(control => control.Focusable);

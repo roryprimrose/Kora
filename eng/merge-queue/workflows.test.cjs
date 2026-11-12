@@ -519,7 +519,7 @@ test('controller workflow awaits its summary on success and preserves reconcilia
 });
 
 test('manual recovery uses the same trusted main checkout, App environment and serialized lane with explicit inputs', async () => {
-  assert.match(controller, /options: \[reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch, repair-controller, hold-independent-delivery, prepare-independent-delivery, resume-independent-delivery, abort-independent-delivery, hold-main-builds, prepare-main-builds, resume-main-builds, abort-main-builds\]/);
+  assert.match(controller, /options: \[reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch, repair-controller, repair-completed-tip, hold-independent-delivery, prepare-independent-delivery, resume-independent-delivery, abort-independent-delivery, hold-main-builds, prepare-main-builds, resume-main-builds, abort-main-builds\]/);
   assert.match(controller, /acknowledge_uncertain_dispatch:[\s\S]*?type: boolean\n        default: false/);
   assert.match(controller, /ref: refs\/heads\/main\n          persist-credentials: false/);
   assert.match(controller, /environment: merge-queue/);

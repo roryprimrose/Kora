@@ -34,7 +34,10 @@ existing reviewed/enabled uses fail closed at their next source revalidation.
 
 The existing supported-source watcher observes the nearest existing ancestor
 when a recognized root has not yet been created, including when several parent
-directories are absent. External creation then refreshes the same catalogue
+directories are absent. These fallback subscriptions are nonrecursive,
+directory-membership-only watches; each expected ancestor creation rearms them
+closer to the source rather than watching unrelated descendant traffic.
+External creation then refreshes the same catalogue
 without a restart or configuration toggle. Directory rename, move and deletion
 within discovery depth also refresh it, including dotted directory names.
 An already-existing registered directory also has a nonrecursive parent
@@ -54,6 +57,10 @@ truthful reload failures remain unchanged. Reload retires stale selected
 requests, questions and approvals through the existing consumers; owned
 revisions still require separate exact-use review and enablement. Disk events
 never invoke a definition or adopt an approval.
+After a successful reload, a still-current reload-failure notice becomes a
+visual recovery notice without reopening the window or starting speech. A
+newer response or retired presentation is not replaced, and recovery never
+restores an expired source review or permission.
 
 ## Selected metadata Find
 

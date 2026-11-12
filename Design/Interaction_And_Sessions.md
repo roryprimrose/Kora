@@ -162,6 +162,17 @@ the existing reviews and physical joins; no fallback renderer or forced exit is
 created. [Deterministic regressions](../tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/DesktopLifetimeControllerTests.cs)
 cover that recovery route and blocked or unfinished shutdown preparation.
 
+When failed audio cleanup keeps private presentation quarantined, an original
+native Exit can use a separate, attempt-owned empty-state check under current
+unlocked-session and instance ownership. Native controllers must prove input
+is already empty or retired, and both work owners must return empty submitted
+work receipts. No private review window opens, no input is discarded and no work
+is cancelled by this path. Its purpose-only access does not enable ordinary
+inspection/control, Restart, handoff, speech or microphone recovery. New input,
+changed ownership/revisions or any required review blocks Exit and leaves a
+generic status in the tray. Audio quarantine is not cleared; audio/service
+cleanup failures retain their existing unconfirmed/unclean shutdown reporting.
+
 Mandatory lock/privacy/ownership retirement and OS-required shutdown remain
 prompt-free. This does not add computer power actions, input autosave or provider
 qualification. [Host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ApplicationLifecycle.cs)

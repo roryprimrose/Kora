@@ -108,25 +108,20 @@
   <Grid x:Name="ResponseLayout" MinWidth="480" MinHeight="570">
   <Border x:Name="CompactFrame">
   <Grid RowDefinitions="Auto,Auto,*">
-    <WrapPanel Margin="12,8,12,0">
-      <Button x:Name="ExpandSessions" Classes="compact-action" Click="OnExpandSessionsClicked"
-          ToolTip.Tip="Expand to the full workbench"
-          AutomationProperties.Name="Expand to the full workbench"
-          AutomationProperties.HelpText="Switch this compact window to the expanded view without sending a message.">
-        <PathIcon Data="M 1,1 L 8,1 L 8,3 L 4,3 L 7,6 L 6,7 L 3,4 L 3,8 L 1,8 Z M 9,10 L 10,9 L 13,12 L 13,8 L 15,8 L 15,15 L 8,15 L 8,13 L 12,13 Z" />
-      </Button>
+    <Grid Margin="12,8,12,0" ColumnDefinitions="*,Auto">
+      <WrapPanel>
       <Button x:Name="ShowCurrentInteraction" Classes="compact-action" Click="OnCurrentInteractionClicked" IsVisible="False"
           ToolTip.Tip="Current interaction" AutomationProperties.Name="Current interaction">
         <PathIcon Data="M 2,2 L 14,2 L 14,11 L 7,11 L 3,15 L 3,11 L 2,11 Z" />
-      </Button>
-      <Button x:Name="HideInteraction" Classes="compact-action" Click="OnHideInteractionClicked" IsVisible="False"
-          ToolTip.Tip="Hide" AutomationProperties.Name="Hide">
-        <PathIcon Data="M 2,3 L 3,2 L 8,7 L 13,2 L 14,3 L 9,8 L 14,13 L 13,14 L 8,9 L 3,14 L 2,13 L 7,8 Z" />
       </Button>
       <local:SessionDictationButton x:Name="SessionDictation" Classes="compact-action" DataContext="{x:Null}"
           IsEnabled="{Binding CanCompose}" IsVisible="False" ToolTip.Tip="Dictate session message">
         <PathIcon Data="M 6,1 L 10,1 L 10,9 L 6,9 Z M 3,6 L 4,6 L 4,10 L 7,12 L 7,14 L 5,14 L 5,15 L 11,15 L 11,14 L 9,14 L 9,12 L 12,10 L 12,6 L 13,6 L 13,11 L 10,13 L 6,13 L 3,11 Z" />
       </local:SessionDictationButton>
+      <TextBlock x:Name="CompactLayoutStatus" TextWrapping="Wrap" MaxWidth="400"
+          AutomationProperties.Name="Response layout availability" />
+      </WrapPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
       <Button x:Name="ResponseMoreActions" Classes="compact-action"
           IsVisible="{Binding #CurrentInteractionContent.IsVisible}"
           ToolTip.Tip="More response actions" AutomationProperties.Name="More response actions">
@@ -150,9 +145,24 @@
           </MenuFlyout>
         </Button.Flyout>
       </Button>
-      <TextBlock x:Name="CompactLayoutStatus" TextWrapping="Wrap" MaxWidth="400"
-          AutomationProperties.Name="Response layout availability" />
-    </WrapPanel>
+      <Button x:Name="ExpandSessions" Classes="compact-action" Click="OnExpandSessionsClicked"
+          ToolTip.Tip="Expand to the full workbench"
+          AutomationProperties.Name="Expand to the full workbench"
+          AutomationProperties.HelpText="Switch this compact window to the expanded view without sending a message.">
+        <PathIcon Data="M 1,1 L 8,1 L 8,3 L 4,3 L 7,6 L 6,7 L 3,4 L 3,8 L 1,8 Z M 9,10 L 10,9 L 13,12 L 13,8 L 15,8 L 15,15 L 8,15 L 8,13 L 12,13 Z" />
+      </Button>
+      <Button x:Name="HideInteraction" Classes="compact-action" Click="OnHideInteractionClicked" IsVisible="False"
+          ToolTip.Tip="Hide" AutomationProperties.Name="Hide">
+        <PathIcon Data="M 2,3 L 3,2 L 8,7 L 13,2 L 14,3 L 9,8 L 14,13 L 13,14 L 8,9 L 3,14 L 2,13 L 7,8 Z" />
+      </Button>
+      <Button x:Name="DismissResponse" Classes="compact-action"
+          IsVisible="{Binding #CurrentInteractionContent.IsVisible}"
+          ToolTip.Tip="Dismiss" AutomationProperties.Name="Dismiss"
+          Click="OnDismissClicked">
+        <PathIcon Data="M 2,3 L 3,2 L 8,7 L 13,2 L 14,3 L 9,8 L 14,13 L 13,14 L 8,9 L 3,14 L 2,13 L 7,8 Z" />
+      </Button>
+      </StackPanel>
+    </Grid>
     <WrapPanel x:Name="ExpandedControls" Grid.Row="1" Margin="24,0" IsVisible="False">
       <TextBlock Text="{Binding AssistantName}" FontWeight="SemiBold" Margin="0,6,12,0" />
       <Button x:Name="CollapseSessions" Content="Collapse" Click="OnCollapseSessionsClicked" IsVisible="False" />
@@ -221,11 +231,6 @@
               IsVisible="{Binding IsSpeaking}" Command="{Binding StopSpeechCommand}"
               ToolTip.Tip="Stop speaking" AutomationProperties.Name="Stop speaking">
             <PathIcon Data="M 2,6 L 5,6 L 9,2 L 9,14 L 5,10 L 2,10 Z M 12,5 L 14,7 L 16,5 L 17,6 L 15,8 L 17,10 L 16,11 L 14,9 L 12,11 L 11,10 L 13,8 L 11,6 Z" />
-          </Button>
-          <Button x:Name="DismissResponse" Classes="compact-action"
-              ToolTip.Tip="Dismiss" AutomationProperties.Name="Dismiss"
-              Click="OnDismissClicked">
-            <PathIcon Data="M 2,3 L 3,2 L 8,7 L 13,2 L 14,3 L 9,8 L 14,13 L 13,14 L 8,9 L 3,14 L 2,13 L 7,8 Z" />
           </Button>
         </StackPanel>
       </Grid>
@@ -444,7 +449,7 @@
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="9">
         <TextBox
             x:Name="CommandInput"
-            MaxWidth="280"
+            MaxWidth="{Binding #ResponseViewport.Viewport.Width}"
             Text="{Binding CommandText}"
             AutomationProperties.Name="Typed command or artifact slash input"
             PlaceholderText="{Binding CommandInputPlaceholder}"
@@ -454,11 +459,11 @@
             Grid.Column="1"
             x:Name="PushToTalkButton"
             Classes="compact-action"
-            Content="🎙"
-            FontSize="18"
             IsVisible="{Binding IsPushToTalkVisible}"
             AutomationProperties.Name="Push to talk; hold while speaking"
-            ToolTip.Tip="Push to talk (hold)" />
+            ToolTip.Tip="Push to talk (hold)">
+          <PathIcon Data="M 6,1 L 10,1 L 10,9 L 6,9 Z M 3,6 L 4,6 L 4,10 L 7,12 L 7,14 L 5,14 L 5,15 L 11,15 L 11,14 L 9,14 L 9,12 L 12,10 L 12,6 L 13,6 L 13,11 L 10,13 L 6,13 L 3,11 Z" />
+        </Button>
         <Button
             Grid.Column="2"
             x:Name="SubmitResponseCommand" Classes="primary compact-action"

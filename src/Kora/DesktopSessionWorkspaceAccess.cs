@@ -56,6 +56,19 @@ internal sealed class DesktopSessionWorkspaceAccess : ISessionWorkspaceAccess, I
             }
         }
     }
+
+    public bool CanReviewApplicationExit
+    {
+        get
+        {
+            lock (gate)
+            {
+                return !disposed && main is not null && ownership.IsCapabilityAdmissionOpen
+                    && !ownership.IsHandoffRecoveryRequired && main.CanReviewApplicationExit;
+            }
+        }
+    }
+
     public long ControlRevision
     {
         get

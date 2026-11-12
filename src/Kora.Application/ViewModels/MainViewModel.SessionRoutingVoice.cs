@@ -16,6 +16,7 @@ public sealed partial class MainViewModel
 
     private void InvalidateOwnedVoiceCapture()
     {
+        Interlocked.Exchange(ref pushToTalkCall, null);
         if (sessionRoutingVoiceRequest is { } request) { request.InvalidateHostCapture(voiceRecognition); }
         else { voiceRecognition.InvalidateCapture(); }
     }

@@ -319,8 +319,16 @@ Call gating does not itself disable wake listening.
 The user can still say "Kora, ..." to request work or inspect preferences, but voice-initiated voice-setting and in-call-option changes are rejected while call protection applies.
 Voice activation during detected calls is an independent device-local setting
 and remains enabled by default. If the user disables it, an Active or Suspected
-observation closes active capture and blocks new activation until the call
+observation closes active capture and blocks automatic activation until the call
 clears; it never grants listening consent or silently reopens capture.
+An original native held **Push to talk** gesture can capture one command during
+an Active or Suspected call without changing this preference. Consent, Windows
+microphone access, endpoint readiness, private host ownership and unlocked-session
+checks remain mandatory. Unknown call or manual-control evidence cannot use this
+exception. Policy changes retire the held capture and its queued final; release
+closes capture without rearming automatic listening. Voice/model invocations
+cannot mint this native gesture, and speech, spoken approvals and other command
+authorization are unchanged.
 The same gate blocks Awaiting Conversational Reply and prefix-free answer
 capture. A visual question shown during that state cannot bypass disabled
 call-time activation merely because Kora asked it before the observation

@@ -21,8 +21,8 @@ public sealed partial class MainViewModel
         && !lifecycleAdmissionClosed && !hostExitRequested
         && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked && callOwnershipEligible()
-        && ReferenceEquals(HostActivity.Current?.Request, quarantinedExitRequest)
-        && quarantinedExitRequest is { Origin: RequestOrigin.LocalUi, InvocationId: null };
+        && HostActivity.Current?.Request is { Origin: RequestOrigin.LocalUi, InvocationId: null } request
+        && ReferenceEquals(request, quarantinedExitRequest);
 
     private void SetApplicationExitStatus(string? status)
     {

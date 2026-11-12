@@ -43,6 +43,50 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData("voice")]
+    [InlineData("model")]
+    [InlineData("different-request")]
+    public async Task QuarantinedExitReviewRejectsReplacementHostRequests(string boundary)
+    {
+        var f = await QuarantinedExitFixtureAsync();
+        var reviews = 0;
+        f.ViewModel.CanReviewApplicationExit.Should().BeFalse();
+        f.ViewModel.BindConversationShutdown(() => throw new InvalidOperationException("Private review must not open."),
+            () => true, () => () => true);
+        f.ViewModel.BindSubmittedWorkShutdown((_, _, current) =>
+        {
+            reviews++;
+            f.ViewModel.CanReviewApplicationExit.Should().BeTrue();
+            var origin = boundary is "voice" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi;
+            var replacement = HostRequest.Create(origin);
+            if (boundary is "model")
+            {
+                replacement = new(replacement.RequestId, replacement.SessionId, replacement.TaskId,
+                    origin, new(Guid.NewGuid()));
+            }
+            using (var activity = HostActivity.BeginRoot(replacement, HostActivityLayer.Application, HostOperation.Request))
+            {
+                f.ViewModel.CanReviewApplicationExit.Should().BeFalse();
+                f.WindowActions.Should().NotContain(WindowAction.Close);
+                f.ViewModel.CanRevealPrivatePresentation.Should().BeFalse();
+                f.Voice.StartCalls.Should().Be(0);
+            }
+            f.ViewModel.CanReviewApplicationExit.Should().BeTrue();
+            return Task.FromResult<ApplicationLifecycleShutdown?>(new(current, () => Task.CompletedTask, () => { }));
+        });
+        using (var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request))
+        {
+            await f.ViewModel.ExitAsync();
+        }
+
+        reviews.Should().Be(1);
+        f.WindowActions.Where(action => action is WindowAction.Close).Should().ContainSingle();
+        f.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        f.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData("missing-proof")]
     [InlineData("input-required")]
     [InlineData("stale-proof")]

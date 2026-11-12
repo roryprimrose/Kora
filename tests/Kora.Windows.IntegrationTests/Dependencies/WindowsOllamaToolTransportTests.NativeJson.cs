@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Core.Dependencies;
 using Kora.Core.Tools;
@@ -128,6 +129,60 @@ public sealed partial class WindowsOllamaToolTransportTests
         reply.Message.Should().BeNull();
         fixture.Bodies.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Current_catalogue_observations_preserve_the_host_owned_tool_set()
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        var catalogue = CatalogueWithObservations(
+            ""","context_length":262144,"embedding_length":2560,"runner":"ggml" """,
+            ""","capabilities":["completion","tools","thinking","remote-effects"]""");
+        fixture.Metadata = (message, _) => Task.FromResult(Json(message,
+            string.Equals(message.RequestUri!.AbsolutePath, "/api/version", StringComparison.Ordinal)
+                ? """{"version":"fake-runtime"}""" : catalogue));
+
+        var reply = await fixture.Transport.CompleteAsync(fixture.Request(), Token);
+
+        reply.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        reply.Message.Should().BeOfType<ModelFinalResponse>().Which.Answer.Should().Be("Genuine answer");
+        using var body = JsonDocument.Parse(fixture.Bodies.Should().ContainSingle().Subject);
+        body.RootElement.GetProperty("tools").EnumerateArray()
+            .Select(tool => tool.GetProperty("function").GetProperty("name").GetString())
+            .Should().BeEquivalentTo(ReadOnlyCapabilityCatalog.Descriptors.Select(tool => tool.Id));
+    }
+
+    [Theory]
+    [InlineData(""","context_length":"262144" """, "")]
+    [InlineData(""","context_length":0""", "")]
+    [InlineData(""","embedding_length":-1""", "")]
+    [InlineData(""","embedding_length":2147483648""", "")]
+    [InlineData(""","runner":true""", "")]
+    [InlineData(""","runner":"" """, "")]
+    [InlineData(""","authority":true""", "")]
+    [InlineData("", ""","capabilities":"tools" """)]
+    [InlineData("", ""","capabilities":["tools",true]""")]
+    [InlineData("", ""","capabilities":["tools","tools"]""")]
+    [InlineData("", ""","capabilities":[""]""")]
+    public async Task Invalid_optional_catalogue_observations_are_denied_before_private_chat(
+        string details, string capabilities)
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        var catalogue = CatalogueWithObservations(details, capabilities);
+        fixture.Metadata = (message, _) => Task.FromResult(Json(message,
+            string.Equals(message.RequestUri!.AbsolutePath, "/api/version", StringComparison.Ordinal)
+                ? """{"version":"fake-runtime"}""" : catalogue));
+
+        var reply = await fixture.Transport.CompleteAsync(fixture.Request(), Token);
+
+        reply.Outcome.Should().Be(ModelTurnOutcome.Denied);
+        reply.Message.Should().BeNull();
+        fixture.Bodies.Should().BeEmpty();
+    }
+
+    private static string CatalogueWithObservations(string details, string capabilities) =>
+        $$"""{"models":[{"name":"{{Model}}","digest":"{{Digest}}","details":{"parent_model":"","format":"gguf","family":"qwen3","families":["qwen3"],"parameter_size":"4.0B","quantization_level":"Q4_K_M"{{details}}}{{capabilities}}}]}""";
 
     [Theory]
     [InlineData(HttpStatusCode.BadRequest, ModelTurnOutcome.Unavailable)]

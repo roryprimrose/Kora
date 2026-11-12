@@ -126,9 +126,97 @@ public sealed class HandsFreeOfflineEvaluationTests
     {
         RequirePreviousNativeJoin();
         await using var fixture = await HandsFreeOfflineFixture.AdmitSelected(TestContext.Current.CancellationToken);
-        var configuration = await PocketSphinxKeywordConfiguration.CreateAsync(fixture.Profile, "Kora", TestContext.Current.CancellationToken);
+        await AssertNativeSilence(fixture.Profile);
+        WriteReceipt(fixture, "silence-smoke", 0, null, null, 0, 0, true);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AssetOnlySmokeRejectsMissingOrChangedAssetsBeforeNativeLoading(bool includeChangedAssets)
+    {
+        var root = HandsFreeOfflineFixture.CreateScratchDirectory();
+        var data = Directory.CreateDirectory(Path.Combine(root, "assets")).FullName;
+        var native = Path.Combine(Directory.CreateDirectory(Path.Combine(root, "native")).FullName,
+            HandsFreeSetupCatalogue.NativeFileName);
+        await File.WriteAllBytesAsync(native, [0], TestContext.Current.CancellationToken);
+        if (includeChangedAssets)
+        {
+            foreach (var asset in HandsFreeSetupCatalogue.Component.Assets)
+            { await File.WriteAllBytesAsync(Path.Combine(data, asset.Name), [0], TestContext.Current.CancellationToken); }
+        }
+        var admit = () => HandsFreeOfflineFixture.AdmitNativeAssets(data, native, TestContext.Current.CancellationToken);
+
+        await admit.Should().ThrowAsync<InvalidDataException>();
+
+        await using var reopened = new FileStream(native, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        reopened.Length.Should().Be(1);
+    }
+
+    [Fact(Explicit = true)]
+    public async Task ActualNativeAssetsOnlySilenceSmoke()
+    {
+        RequirePreviousNativeJoin();
+        await using var assets = await HandsFreeOfflineFixture.AdmitSelectedNativeAssets(TestContext.Current.CancellationToken);
+        await AssertNativeSilence(assets.Profile);
+        TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new
+        {
+            Format = "kora-native-silence-v1",
+            EvaluationOnly = true,
+            Assembly = typeof(HandsFreeOfflineEvaluationTests).Assembly.ManifestModule.ModuleVersionId,
+            NativeSha256 = HandsFreeSetupCatalogue.NativeSha256,
+            Assets = assets.Profile.Assets.Select(asset => new { Name = Path.GetFileName(asset.Path), asset.Length, asset.Sha256 }),
+            SampleRate = 16000,
+            FrameRate = 100,
+            Samples = 16000,
+            WakeObservations = 0,
+            CorpusRequired = false,
+            AcousticQualification = false,
+            ProductionEnabled = false,
+            Status = "passed",
+        }));
+    }
+
+    [Fact(Explicit = true)]
+    public async Task ActualNativeAssetsOnlySileroSilenceTimeout()
+    {
+        RequirePreviousNativeJoin();
+        await using var assets = await HandsFreeOfflineFixture.AdmitSelectedNativeAssets(TestContext.Current.CancellationToken);
+        var completedAt = 0;
+        using (var endpoint = new SileroCommandEndpoint(assets.Profile.VadPath, VoiceCaptureTiming.Default))
+        {
+            var silence = new short[512];
+            for (var samples = silence.Length; samples <= 96000; samples += silence.Length)
+            {
+                TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
+                if (!endpoint.Accept(silence)) { continue; }
+                completedAt = samples;
+                break;
+            }
+        }
+        completedAt.Should().BeInRange(80000, 80511);
+        TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new
+        {
+            Format = "kora-native-silero-silence-v1",
+            EvaluationOnly = true,
+            Assembly = typeof(HandsFreeOfflineEvaluationTests).Assembly.ManifestModule.ModuleVersionId,
+            VadSha256 = assets.Profile.Assets.Single(asset =>
+                string.Equals(asset.Path, assets.Profile.VadPath, StringComparison.Ordinal)).Sha256,
+            SampleRate = 16000,
+            CompletedAtSample = completedAt,
+            CommandStartSeconds = VoiceCaptureTiming.Default.CommandStartSeconds,
+            CorpusRequired = false,
+            AcousticQualification = false,
+            ProductionEnabled = false,
+            Status = "passed",
+        }));
+    }
+
+    private static async Task AssertNativeSilence(HandsFreeNativeProfile profile)
+    {
+        var configuration = await PocketSphinxKeywordConfiguration.CreateAsync(profile, "Kora", TestContext.Current.CancellationToken);
         configuration.Keyphrase.Should().Be("kora");
-        using (var detector = new PocketSphinxKeywordDetector(fixture.Profile, configuration))
+        using (var detector = new PocketSphinxKeywordDetector(profile, configuration))
         {
             for (var index = 0; index < 50; index++)
             {
@@ -136,7 +224,6 @@ public sealed class HandsFreeOfflineEvaluationTests
                 detector.Accept(new short[320]).Should().BeNull();
             }
         }
-        WriteReceipt(fixture, "silence-smoke", 0, null, null, 0, 0, true);
     }
 
     [Theory(Explicit = true)]

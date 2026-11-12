@@ -13,7 +13,15 @@ public static class CapabilityInputSchema
         writer.WriteString("type", "object");
         writer.WriteBoolean("additionalProperties", false);
         writer.WriteStartObject("properties");
-        if (descriptor.Input == CapabilityInputShape.ReleaseVersion)
+        if (descriptor.Input == CapabilityInputShape.SettingsQuery)
+        {
+            writer.WriteStartObject("query");
+            writer.WriteString("type", "string");
+            writer.WriteNumber("minLength", 1);
+            writer.WriteNumber("maxLength", SettingsNavigationTool.MaximumQueryLength);
+            writer.WriteEndObject();
+        }
+        else if (descriptor.Input == CapabilityInputShape.ReleaseVersion)
         {
             writer.WriteStartObject("version");
             writer.WriteString("type", "string");
@@ -109,6 +117,7 @@ public static class CapabilityInputSchema
             CapabilityInputShape.WebPageAddress => "address",
             CapabilityInputShape.MetadataReference => "ref",
             CapabilityInputShape.ProviderSettings => "service",
+            CapabilityInputShape.SettingsQuery => "query",
             _ => null,
         };
         if (required is not null || includeEmptyRequired)

@@ -11,6 +11,84 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class SettingsSectionNavigationTests
 {
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HostedSettingsRevalidatesVisibilityAfterAttachingInsideAHiddenContainer(bool reveal)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new NativeUxFixtureSession(Path.GetTempPath());
+            await f.InitializeAsync();
+            var container = new Border { IsVisible = false };
+            var owner = new Avalonia.Controls.Window { Content = container };
+            using var controller = new SettingsWindowController(f.Main, NullLogger<SettingsWindowController>.Instance);
+            SettingsView? shown = null;
+            owner.Show();
+            HeadlessSession.SetActivation(owner, true);
+            try
+            {
+                controller.BindWorkbench(() => owner, view =>
+                {
+                    shown = view;
+                    container.Child = view;
+                    owner.UpdateLayout();
+                    view.IsNativePresented.Should().BeFalse();
+                    container.IsVisible = reveal;
+                    owner.UpdateLayout();
+                });
+                Action navigate = () => controller.Navigate(SettingsSection.Appearance, static () => true);
+                if (reveal)
+                {
+                    navigate.Should().NotThrow();
+                    shown!.IsNativePresented.Should().BeTrue();
+                    var presented = shown.CapturePresentation();
+                    presented().Should().BeTrue();
+                    owner.Hide();
+                    presented().Should().BeFalse();
+                }
+                else
+                {
+                    navigate.Should().Throw<InvalidOperationException>();
+                    shown!.IsNativePresented.Should().BeFalse();
+                    owner.IsVisible.Should().BeFalse();
+                }
+                f.Main.IsVoiceEnabled.Should().BeFalse();
+            }
+            finally { owner.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData("settings")]
+    [InlineData("readiness")]
+    [InlineData("voice")]
+    public async Task NativeSettingsRequestReportsPresentationFailureInsteadOfTerminatingTheApp(string route)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new NativeUxFixtureSession(Path.GetTempPath());
+            await f.InitializeAsync();
+            var owner = new Avalonia.Controls.Window();
+            using var controller = new SettingsWindowController(f.Main, NullLogger<SettingsWindowController>.Instance);
+            controller.BindWorkbench(() => owner, _ => throw new InvalidOperationException("Native presenter unavailable."));
+            try
+            {
+                Action request = route switch
+                {
+                    "readiness" => f.Main.ShowReadiness,
+                    "voice" => f.Main.RequestVoiceRecovery,
+                    _ => f.Main.ShowSettings,
+                };
+                request.Should().NotThrow();
+                f.Main.ResponseBody.Should().Contain("Settings could not be opened");
+                owner.IsVisible.Should().BeFalse();
+                f.Main.IsVoiceEnabled.Should().BeFalse();
+            }
+            finally { owner.Close(); }
+        });
+    }
+
+    [Theory]
     [InlineData("open appearance settings", "AppearanceTab")]
     [InlineData("open speech settings", "SpeechAudioTab")]
     [InlineData("open audio settings", "SpeechAudioTab")]
@@ -32,8 +110,8 @@ public sealed class SettingsSectionNavigationTests
             f.Main.Transcript.Should().StartWith("Settings section opened.");
             var window = Window(controller);
             window.IsVisible.Should().BeTrue();
-            var tabs = window.FindControl<TabControl>("SettingsTabs")!;
-            tabs.SelectedItem.Should().BeSameAs(window.FindControl<TabItem>(anchor));
+            var tabs = window.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!;
+            tabs.SelectedItem.Should().BeSameAs(window.FindControl<Kora.Controls.SettingsPage>(anchor));
             f.Main.AssistantNameInput = "Unsaved section draft";
             await f.Main.RunTypedCommand.ExecuteAsync();
             Window(controller).Should().BeSameAs(window);
@@ -42,11 +120,11 @@ public sealed class SettingsSectionNavigationTests
             f.Main.IsVoiceEnabled.Should().BeFalse();
             choose.Should().Be(0);
             f.Main.ShowSettings();
-            tabs.SelectedItem.Should().BeSameAs(window.FindControl<TabItem>(anchor));
+            tabs.SelectedItem.Should().BeSameAs(window.FindControl<Kora.Controls.SettingsPage>(anchor));
             f.Main.ShowReadiness();
-            tabs.SelectedItem.Should().BeSameAs(window.FindControl<TabItem>("ReadinessTab"));
+            tabs.SelectedItem.Should().BeSameAs(window.FindControl<Kora.Controls.SettingsPage>("ReadinessTab"));
             f.Main.RequestVoiceRecovery();
-            tabs.SelectedItem.Should().BeSameAs(window.FindControl<TabItem>("SpeechAudioTab"));
+            tabs.SelectedItem.Should().BeSameAs(window.FindControl<Kora.Controls.SettingsPage>("SpeechAudioTab"));
         });
     }
 
@@ -61,7 +139,7 @@ public sealed class SettingsSectionNavigationTests
             f.Main.ShowSettings();
             var window = Window(controller);
             controller.Navigate(SettingsSection.Calls, static () => true);
-            var tabs = window.FindControl<TabControl>("SettingsTabs")!;
+            var tabs = window.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!;
             var selected = tabs.SelectedItem;
             var lifetime = controller.CaptureLifetime();
             window.Hide();

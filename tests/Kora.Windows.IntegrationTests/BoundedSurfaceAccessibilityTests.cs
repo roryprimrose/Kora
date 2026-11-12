@@ -1,4 +1,4 @@
-using Avalonia.Automation.Peers;
+﻿using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
@@ -103,16 +103,16 @@ public sealed class BoundedSurfaceAccessibilityTests
             {
                 window.Show();
                 window.UpdateLayout();
-                var tabs = window.FindControl<TabControl>("SettingsTabs")!;
-                var inactive = tabs.Items.OfType<TabItem>().First(tab => !tab.IsSelected);
-                var darkForeground = ((ISolidColorBrush)inactive.Foreground!).Color;
+                var tabs = window.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!;
+                var inactive = tabs.GetVisualDescendants().OfType<TreeViewItem>().First(item => !item.IsSelected);
                 var presentation = new Avalonia.Application();
                 NativeUxFixtureHost.LoadPresentation(presentation);
                 var resources = presentation.Resources;
                 presentation.Resources = new ResourceDictionary();
                 window.Resources.MergedDictionaries.Add(resources);
                 window.UpdateLayout();
-                ((ISolidColorBrush)inactive.Foreground!).Color.Should().Be(darkForeground);
+                window.TryGetResource("KoraMutedForegroundBrush", ThemeVariant.Dark, out var darkMuted).Should().BeTrue();
+                inactive.Foreground.Should().BeSameAs(darkMuted);
 
                 window.RequestedThemeVariant = ThemeVariant.Light;
                 window.UpdateLayout();
@@ -133,6 +133,7 @@ public sealed class BoundedSurfaceAccessibilityTests
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
             await fixture.InitializeAsync();
             var window = new SettingsWindow(fixture.Main);
+            window.ShowSection(Kora.Application.Presentation.SettingsSection.Appearance);
             try
             {
                 window.Show();
@@ -161,17 +162,18 @@ public sealed class BoundedSurfaceAccessibilityTests
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
             await fixture.InitializeAsync();
             var window = new SettingsWindow(fixture.Main);
+            window.ShowSection(Kora.Application.Presentation.SettingsSection.Appearance);
             try
             {
                 window.Show();
                 window.Activate();
                 window.UpdateLayout();
-                var tab = (TabItem)window.FindControl<TabControl>("SettingsTabs")!.SelectedItem!;
+                var tab = window.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!.SelectedItem!;
                 var first = ((Control)tab.Content!).GetVisualDescendants().OfType<ComboBox>().First();
                 var cycle = ReadCycle(window, first, reverse);
                 cycle.Select(control => ControlAutomationPeer.CreatePeerForElement(control)!.GetName())
                     .Should().BeEquivalentTo(
-                        "Appearance", "Presence", "Reading text size percentage", "Reduced motion", "Show animated presence", "Application theme",
+                        "Search settings", "Appearance", "Reading text size percentage", "Reduced motion", "Show animated presence", "Application theme",
                         "Always show", "Stay on top", "Response timeout in seconds", "Animation mode", "Presence timeout in seconds",
                         "Presence size in pixels", "Dot size percent", "Dot density percent", "Movement speed percent",
                         "Scale presence with speech playback", "Speech scale amount percent",
@@ -179,7 +181,7 @@ public sealed class BoundedSurfaceAccessibilityTests
                         "Keep responses on top actions", "Response timeout actions", "Show presence actions", "Animation mode actions",
                         "Presence timeout actions", "Presence size actions", "Dot size actions", "Dot density actions",
                         "Movement speed actions", "Speech sizing actions", "Speech scale amount actions");
-                cycle.Should().Contain(tab);
+                cycle.Should().ContainSingle(control => control is TreeViewItem);
                 ReadCycle(window, first, reverse).Should().Equal(cycle);
             }
             finally { window.Close(); }
@@ -196,12 +198,13 @@ public sealed class BoundedSurfaceAccessibilityTests
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
             await fixture.InitializeAsync();
             var window = new SettingsWindow(fixture.Main);
+            window.ShowSection(Kora.Application.Presentation.SettingsSection.Appearance);
             try
             {
                 window.Show();
                 window.Activate();
                 window.UpdateLayout();
-                var tab = (TabItem)window.FindControl<TabControl>("SettingsTabs")!.SelectedItem!;
+                var tab = window.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!.SelectedItem!;
                 var first = ((Control)tab.Content!).GetVisualDescendants().OfType<ComboBox>().First();
                 var baseline = ReadCycle(window, first, reverse);
                 var review = window.FindControl<Button>("ReviewSettingsUndo")!;
@@ -250,12 +253,14 @@ public sealed class BoundedSurfaceAccessibilityTests
             fixture.Main.PresenceSizePixels = 480;
             await fixture.Main.AppearanceUpdate;
             var window = new SettingsWindow(fixture.Main);
+            window.ShowSection(Kora.Application.Presentation.SettingsSection.Appearance);
             try
             {
                 window.Show();
                 window.Activate();
                 window.UpdateLayout();
-                var actions = window.GetVisualDescendants().OfType<SettingActionsButton>().ToArray();
+                var actions = window.GetVisualDescendants().OfType<SettingActionsButton>()
+                    .Where(action => action.IsEffectivelyVisible).ToArray();
                 actions.Should().HaveCount(17);
                 actions.Select(action => action.SettingName).Should().Equal(
                     "Start Kora at Windows user logon", "Normal manual startup presentation",
@@ -271,7 +276,7 @@ public sealed class BoundedSurfaceAccessibilityTests
                     action.Bounds.Right.Should().BeApproximately(((Grid)action.Parent!).Bounds.Width, 0.1);
                     action.ResetCommand.Should().NotBeNull();
                     var menu = (MenuFlyout)action.Flyout!;
-                    var item = menu.Items.OfType<MenuItem>().Single();
+                    var item = menu.Items.OfType<MenuItem>().Single(option => option.Header is "Reset setting");
                     item.Header.Should().Be("Reset setting");
                     item.Command.Should().BeSameAs(action.ResetCommand);
                     ControlAutomationPeer.CreatePeerForElement(action)!.GetName().Should().Be($"{action.SettingName} actions");
@@ -288,7 +293,7 @@ public sealed class BoundedSurfaceAccessibilityTests
                 fixture.Main.ThemeMode.Should().Be(ApplicationThemeMode.Dark);
                 fixture.Main.PresenceSizePixels.Should().Be(480);
                 flyout.Hide();
-                await ((AsyncCommand)flyout.Items.OfType<MenuItem>().Single().Command!).ExecuteAsync();
+                await ((AsyncCommand)flyout.Items.OfType<MenuItem>().Single(option => option.Header is "Reset setting").Command!).ExecuteAsync();
                 fixture.Main.ThemeMode.Should().Be(ApplicationThemeMode.System);
                 fixture.Main.PresenceSizePixels.Should().Be(480);
             }

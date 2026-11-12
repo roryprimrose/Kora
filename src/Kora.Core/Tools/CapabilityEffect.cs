@@ -5,4 +5,5 @@ public enum CapabilityEffect
     ReadOnlyObservation,
     BoundedNetworkRead,
     HostInstallerLaunch,
+    NativePresentation,
 }

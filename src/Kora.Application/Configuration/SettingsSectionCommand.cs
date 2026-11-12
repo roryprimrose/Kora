@@ -1,13 +1,14 @@
 ﻿using Kora.Application.Presentation;
 using Kora.Core.Artifacts;
+using Kora.Core.Tools;
 
 namespace Kora.Application.Configuration;
 
-public sealed record SettingsSectionCommand(SettingsSection? Section, string? Error = null)
+public sealed record SettingsSectionCommand(SettingsSection? Section, string? Error = null, string? Filter = null)
 {
     private static readonly string[] ReservedTargets =
         ["appearance", "speech", "audio", "microphone", "response", "session", "call"];
-    public const string Syntax = "Use open appearance settings, open speech settings, open audio settings, open microphone settings, open response settings, open session settings, or open call settings. Navigation only; no setting or permission changes.";
+    public const string Syntax = "Use show setting <ID or search words>, view setting <ID or search words>, open appearance settings, open speech settings, open audio settings, open microphone settings, open response settings, open session settings, or open call settings. Navigation only; no setting or permission changes.";
 
     public static IReadOnlyList<string> FixedPhrases { get; } = Array.AsReadOnly(new[]
     {
@@ -19,6 +20,25 @@ public sealed record SettingsSectionCommand(SettingsSection? Section, string? Er
     {
         if (string.IsNullOrWhiteSpace(transcript)) { return null; }
         var text = ArtifactCommandRouter.RemoveActivationPrefix(transcript.Trim(), assistantName);
+        foreach (var prefix in new[] { "show me the settings for", "show settings for", "show setting", "view setting", "open setting" })
+        {
+            if (!text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                || text.Length > prefix.Length && !char.IsWhiteSpace(text[prefix.Length]))
+            { continue; }
+            var query = text[prefix.Length..].Trim();
+            return SettingsNavigationTool.IsValidQuery(query) && !transcript.Any(char.IsControl)
+                ? new(null, Filter: query) : new(null, Syntax);
+        }
+        if (text.StartsWith("show ", StringComparison.OrdinalIgnoreCase))
+        {
+            var id = text[5..].Trim();
+            if (id.Contains('.', StringComparison.Ordinal)
+                && id.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-'))
+            {
+                return SettingsNavigationTool.IsValidQuery(id) && !transcript.Any(char.IsControl)
+                    ? new(null, Filter: id) : new(null, Syntax);
+            }
+        }
         if (string.Equals(text, "open settings", StringComparison.OrdinalIgnoreCase)) { return null; }
         if (!text.StartsWith("open", StringComparison.OrdinalIgnoreCase)
             || text.Length <= 4 || char.IsLetterOrDigit(text[4]))

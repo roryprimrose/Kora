@@ -34,4 +34,7 @@ public enum ModelToolMode
     ApplicationMaintenance,
 
     SessionMetadata,
+
+    /// <summary>Original interactive conversations may observe and request native settings navigation.</summary>
+    InteractiveConversation,
 }

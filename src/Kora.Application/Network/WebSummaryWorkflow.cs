@@ -1,4 +1,4 @@
-using Kora.Core.Auditing;
+﻿using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -78,7 +78,7 @@ public sealed partial class WebSummaryWorkflow(
                 }
                 // Source-derived output may not become a model action, approval, grant or interactive question.
                 else if (result.Outcome == ModelTurnOutcome.Succeeded
-                    && (result.Response is not { Answer: { } answer, Action: null, GrantChange: null, Question: null }
+                    && (result.Response is not { Answer: { } answer, Action: null, GrantChange: null, Question: null, SettingsFilter: null }
                         || string.IsNullOrWhiteSpace(answer)))
                 { result = new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
             }

@@ -1,4 +1,4 @@
-using Kora.Application.Dependencies;
+﻿using Kora.Application.Dependencies;
 using Kora.Application.Configuration.SettingInspection;
 using Kora.Application.Hosting;
 using Kora.Core.Configuration.SettingInspection;
@@ -48,7 +48,7 @@ internal sealed class SettingInspectionConversation(SessionWorkspaceService sess
         if (result.Outcome != ModelTurnOutcome.Succeeded) { return result; }
         if (request is null || result.Provenance is not { } provenance || !ReferenceEquals(provenance.Request, request)
             || provenance.Selection.Provider != ModelProviderIdentity.Ollama
-            || result.Response is not { Answer: { } answer, Action: null, GrantChange: null, Question: null }
+            || result.Response is not { Answer: { } answer, Action: null, GrantChange: null, Question: null, SettingsFilter: null }
             || string.IsNullOrWhiteSpace(answer))
         { return new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, result.Provenance); }
         return result;

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
@@ -34,7 +34,7 @@ public sealed record ConversationResponse(ModelTurnProvenance Provenance, string
     public static ConversationResponse FromResult(ModelTurnResult result, ModelTurnProvenance expected)
     {
         if (result.Outcome != ModelTurnOutcome.Succeeded || result.Provenance != expected
-            || result.Response is not { Answer: not null, Action: null, GrantChange: null, Question: null } response)
+            || result.Response is not { Answer: not null, Action: null, GrantChange: null, Question: null, SettingsFilter: null } response)
         { throw new InvalidDataException("Only an exact admitted successful answer-only turn may retain assistant content."); }
         var answer = new ConversationResponse(expected, response.Answer);
         answer.Validate();

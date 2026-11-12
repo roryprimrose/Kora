@@ -15,6 +15,101 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData("show setting speech.windows-rate")]
+    [InlineData("view setting speech.windows-rate")]
+    [InlineData("open setting speech.windows-rate")]
+    public async Task SettingsSearchCommandOpensTheFilterWithoutChangingSettings(string phrase)
+    {
+        var f = new Fixture();
+        var presenter = new SettingsNavigationFake();
+        f.ViewModel.BindSettingsSectionNavigation(presenter);
+        await f.RunAsync(phrase);
+        presenter.Filters.Should().Equal("speech.windows-rate");
+        presenter.Sections.Should().BeEmpty();
+        f.ViewModel.Transcript.Should().StartWith("Settings search opened.");
+        f.AppearancePreferences.SavedMode.Should().BeNull();
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ConversationalLocalReasonerUsesTheSameSettingsSearchPresenter()
+    {
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "fixture");
+        await f.ViewModel.InitializeAsync();
+        var presenter = new SettingsNavigationFake();
+        f.ViewModel.BindSettingsSectionNavigation(presenter);
+        f.Reasoner.Response = new(null, null, SettingsFilter: "speech.windows-rate");
+        await f.RunAsync("Where can I change how fast you speak?");
+        await f.ViewModel.ActiveReasoningTask!;
+        presenter.Filters.Should().Equal("speech.windows-rate");
+        f.AppearancePreferences.SavedMode.Should().BeNull();
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("source")]
+    [InlineData("token")]
+    [InlineData("lifetime")]
+    [InlineData("locked")]
+    [InlineData("owner")]
+    [InlineData("owner-revision")]
+    [InlineData("owner-binding")]
+    [InlineData("presenter")]
+    [InlineData("name")]
+    [InlineData("call")]
+    public async Task ConversationalSettingsSearchRevalidatesTheOriginalHostAcrossUiDispatch(string loss)
+    {
+        var f = new Fixture();
+        var presenter = new SettingsNavigationFake();
+        f.ViewModel.BindSettingsSectionNavigation(presenter);
+        long ownerRevision = 1;
+        f.ViewModel.BindCallOwnershipGate(static () => true, () => ownerRevision);
+        using var cancellation = new CancellationTokenSource();
+        var source = true;
+        f.Dispatcher.BeforeInvokeAsync = async () =>
+        {
+            switch (loss)
+            {
+                case "source": source = false; break;
+                case "token": cancellation.Cancel(); break;
+                case "lifetime": presenter.Live = false; break;
+                case "locked": f.Session.IsUnlocked = false; break;
+                case "owner": f.ViewModel.BindCallOwnershipGate(static () => false); break;
+                case "owner-revision": ownerRevision++; break;
+                case "owner-binding": f.ViewModel.BindCallOwnershipGate(static () => true, () => ownerRevision); break;
+                case "presenter": f.ViewModel.BindSettingsSectionNavigation(null); break;
+                case "name":
+                    f.ViewModel.AssistantNameInput = "Nova";
+                    await f.ViewModel.ApplyAssistantNameCommand.ExecuteAsync();
+                    break;
+                case "call":
+                    await f.ViewModel.SetManualCallAsync(true, RequestOrigin.LocalUi,
+                        f.ViewModel.CallPolicyRevision, TestContext.Current.CancellationToken);
+                    break;
+            }
+        };
+        await FluentActions.Awaiting(() => HostRequestRunner.RunAsync(RequestOrigin.LocalUi,
+            () => f.ViewModel.ShowSettingFilterAsync("voice speed", () => source, cancellation.Token)))
+            .Should().ThrowAsync<OperationCanceledException>();
+        presenter.Filters.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ConversationalSettingsSearchRejectsMissingPresenterAndInvalidFiltersBeforeDispatch()
+    {
+        var f = new Fixture();
+        await FluentActions.Awaiting(() => f.ViewModel.ShowSettingFilterAsync("voice", null!, CancellationToken.None))
+            .Should().ThrowAsync<ArgumentNullException>();
+        await FluentActions.Awaiting(() => f.ViewModel.ShowSettingFilterAsync("", static () => true, CancellationToken.None))
+            .Should().ThrowAsync<ArgumentException>();
+        await FluentActions.Awaiting(() => f.ViewModel.ShowSettingFilterAsync("voice", static () => true, CancellationToken.None))
+            .Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Theory]
     [InlineData("open appearance settings", SettingsSection.Appearance)]
     [InlineData("open speech settings", SettingsSection.SpeechAudio)]
     [InlineData("open audio settings", SettingsSection.SpeechAudio)]
@@ -258,6 +353,7 @@ public sealed partial class MainViewModelTests
         public InvalidOperationException? Failure { get; init; }
         public Action? AfterNavigate { get; init; }
         public List<SettingsSection> Sections { get; } = [];
+        public List<string> Filters { get; } = [];
         public List<RequestOrigin> Origins { get; } = [];
         public List<HostId<RequestIdentity>> Requests { get; } = [];
 
@@ -274,6 +370,15 @@ public sealed partial class MainViewModelTests
             Sections.Add(section);
             Origins.Add(HostActivity.Current!.Request.Origin);
             Requests.Add(HostActivity.Current.Request.RequestId);
+            AfterNavigate?.Invoke();
+        }
+
+        public void ShowFilter(string query, Func<bool> admitted)
+        {
+            admitted().Should().BeTrue();
+            if (Failure is not null) { throw Failure; }
+            Filters.Add(query);
+            Origins.Add(HostActivity.Current!.Request.Origin);
             AfterNavigate?.Invoke();
         }
     }

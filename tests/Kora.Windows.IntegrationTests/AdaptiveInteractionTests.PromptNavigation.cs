@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Threading;
 
 using AwesomeAssertions;
@@ -63,7 +63,7 @@ public sealed partial class AdaptiveInteractionTests
             window.UpdateLayout();
             Dispatcher.UIThread.RunJobs();
             var view = (SettingsView)window.FindControl<ContentControl>("HostedViewContent")!.Content!;
-            view.FindControl<TabControl>("SettingsTabs")!.SelectedItem.Should().Be(view.FindControl<TabItem>("AppearanceTab"));
+            view.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!.SelectedItem.Should().Be(view.FindControl<Kora.Controls.SettingsPage>("AppearanceTab"));
             view.FindControl<TextBlock>("PresenceHeading")!.IsFocused.Should().BeTrue();
             f.Native.Main.IsPresenceDisplayEnabled.Should().Be(display);
             f.Native.Main.PresenceTimeoutSeconds.Should().Be(timeout);

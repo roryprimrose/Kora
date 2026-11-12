@@ -7,6 +7,8 @@ using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
 
+using Kora.Application.Infrastructure;
+
 namespace Kora.Controls;
 
 public sealed class SettingActionsButton : Button
@@ -16,6 +18,10 @@ public sealed class SettingActionsButton : Button
 
     public static readonly StyledProperty<ICommand?> ResetCommandProperty =
         AvaloniaProperty.Register<SettingActionsButton, ICommand?>(nameof(ResetCommand));
+    public static readonly StyledProperty<string> SettingIdsProperty =
+        AvaloniaProperty.Register<SettingActionsButton, string>(nameof(SettingIds), string.Empty);
+    public static readonly StyledProperty<bool> CanCopySettingIdProperty =
+        AvaloniaProperty.Register<SettingActionsButton, bool>(nameof(CanCopySettingId), true);
 
     private static readonly Geometry CogGeometry = Geometry.Parse(
         "F0 M7.5,0 H10.5 L11,2 12,2.6 14,1.6 16.4,4 15.4,6 16,7 18,7.5 "
@@ -25,6 +31,8 @@ public sealed class SettingActionsButton : Button
         + "M9,5.5 A3.5,3.5 0 1 0 9,12.5 A3.5,3.5 0 1 0 9,5.5 Z");
 
     private readonly MenuItem resetItem;
+    private MenuItem? copyIdItem;
+    private Separator? copyIdSeparator;
 
     public SettingActionsButton()
     {
@@ -62,6 +70,45 @@ public sealed class SettingActionsButton : Button
     {
         get => GetValue(ResetCommandProperty);
         set => SetValue(ResetCommandProperty, value);
+    }
+
+    public string SettingIds
+    {
+        get => GetValue(SettingIdsProperty);
+        set => SetValue(SettingIdsProperty, value);
+    }
+
+    public bool CanCopySettingId
+    {
+        get => GetValue(CanCopySettingIdProperty);
+        set => SetValue(CanCopySettingIdProperty, value);
+    }
+
+    internal void BindSettingIdCopy(IReadOnlyList<string> ids, Func<string, Task> copy, Action<Exception> reportFailure)
+    {
+        if (Flyout is not MenuFlyout menu)
+        { throw new InvalidOperationException("Setting ID copy requires the existing settings action menu."); }
+        if (ids.Count == 0 || ids.Any(string.IsNullOrWhiteSpace))
+        { throw new ArgumentException("Setting ID copy requires exact individual IDs.", nameof(ids)); }
+        if (copyIdItem is not null) { menu.Items.Remove(copyIdItem); }
+        if (copyIdSeparator is not null) { menu.Items.Remove(copyIdSeparator); }
+        copyIdItem = new MenuItem { Header = "Copy Setting ID" };
+        AutomationProperties.SetName(copyIdItem, $"Copy Setting ID for {SettingName}");
+        if (ids.Count == 1) { copyIdItem.Command = CreateCopy(ids[0]); }
+        else
+        {
+            foreach (var id in ids)
+            {
+                var item = new MenuItem { Header = id, Command = CreateCopy(id) };
+                AutomationProperties.SetName(item, "Copy Setting ID " + id);
+                copyIdItem.Items.Add(item);
+            }
+        }
+        copyIdSeparator = new Separator();
+        menu.Items.Add(copyIdSeparator);
+        menu.Items.Add(copyIdItem);
+
+        AsyncCommand CreateCopy(string id) => new(() => copy(id), reportFailure);
     }
 
     protected override Type StyleKeyOverride => typeof(Button);

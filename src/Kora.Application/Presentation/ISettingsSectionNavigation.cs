@@ -11,4 +11,7 @@ public interface ISettingsSectionNavigation
     /// <param name="section">The closed typed destination.</param>
     /// <param name="admitted">The original request admission guard.</param>
     void Navigate(SettingsSection section, Func<bool> admitted);
+
+    /// <summary>Shows the existing Settings surface with a bounded search filter.</summary>
+    void ShowFilter(string query, Func<bool> admitted);
 }

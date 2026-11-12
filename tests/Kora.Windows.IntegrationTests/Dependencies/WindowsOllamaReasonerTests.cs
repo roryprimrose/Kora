@@ -20,6 +20,21 @@ public sealed class WindowsOllamaReasonerTests
         [new LocalModelTask("Setup", SetupTaskState.NeedsAction, null)]);
 
     [Fact]
+    public async Task SettingsNavigationIsASeparateBoundedDecisionNotAnAnswerOrSettingsWrite()
+    {
+        using var client = new HttpClient(new StubHandler((message, _) => Task.FromResult(
+            string.Equals(message.RequestUri!.AbsolutePath, "/api/tags", StringComparison.Ordinal)
+                ? Json($$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest}}"}]}""")
+                : Decision("""{"settingsFilter":" speech.windows-rate "}"""))));
+        var result = await new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
+            .ReasonAsync("Where can I change how fast you speak?", Context, null, TestContext.Current.CancellationToken);
+        result.SettingsFilter.Should().Be("speech.windows-rate");
+        result.Answer.Should().BeNull();
+        result.Action.Should().BeNull();
+        result.GrantChange.Should().BeNull();
+    }
+
+    [Fact]
     public async Task ReasonAsync_uses_only_the_request_on_the_pinned_loopback_model()
     {
         var calls = new List<string>();

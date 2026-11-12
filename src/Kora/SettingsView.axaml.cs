@@ -13,6 +13,9 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Auditing;
 using Kora.Application.Configuration.RegisteredSettings;
+using Kora.Controls;
+using Kora.Core.Voice;
+using Kora.Application.Configuration;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,13 +23,13 @@ namespace Kora;
 
 public sealed partial class SettingsView : UserControl, IDisposable
 {
-    private readonly TabControl settingsTabs;
-    private readonly TabItem readinessTab;
-    private readonly TabItem speechAudioTab;
-    private readonly TabItem appearanceTab;
-    private readonly TabItem responsesTab;
-    private readonly TabItem sessionsTab;
-    private readonly TabItem callsTab;
+    private readonly SettingsBrowser settingsTabs;
+    private readonly SettingsPage readinessTab;
+    private readonly SettingsPage speechAudioTab;
+    private readonly SettingsPage appearanceTab;
+    private readonly SettingsPage responsesTab;
+    private readonly SettingsPage sessionsTab;
+    private readonly SettingsPage callsTab;
     private bool isLocalModelReviewOpen;
     private bool isPowerShellReviewOpen;
     private readonly MainViewModel model;
@@ -36,6 +39,8 @@ public sealed partial class SettingsView : UserControl, IDisposable
     private readonly NativeViewLifetime nativeLifetime;
     private volatile bool disposed;
     private bool nativePresented;
+    private bool? callActivationAvailable;
+    private string? preparedSettingId;
     internal Window Owner => owner;
     internal bool IsNativePresented => nativePresented;
     private bool IsActive => nativeLifetime.IsActive;
@@ -52,19 +57,19 @@ public sealed partial class SettingsView : UserControl, IDisposable
         model = viewModel;
         this.owner = owner;
         AvaloniaXamlLoader.Load(this);
-        settingsTabs = this.FindControl<TabControl>("SettingsTabs")
+        settingsTabs = this.FindControl<SettingsBrowser>("SettingsTabs")
             ?? throw new InvalidOperationException("The settings tab control is unavailable.");
-        readinessTab = this.FindControl<TabItem>("ReadinessTab")
+        readinessTab = this.FindControl<SettingsPage>("ReadinessTab")
             ?? throw new InvalidOperationException("The readiness settings tab is unavailable.");
-        speechAudioTab = this.FindControl<TabItem>("SpeechAudioTab")
+        speechAudioTab = this.FindControl<SettingsPage>("SpeechAudioTab")
             ?? throw new InvalidOperationException("The speech and audio settings tab is unavailable.");
-        appearanceTab = this.FindControl<TabItem>("AppearanceTab")
+        appearanceTab = this.FindControl<SettingsPage>("AppearanceTab")
             ?? throw new InvalidOperationException("The appearance settings tab is unavailable.");
-        responsesTab = this.FindControl<TabItem>("ResponsesTab")
+        responsesTab = this.FindControl<SettingsPage>("ResponsesTab")
             ?? throw new InvalidOperationException("The response settings tab is unavailable.");
-        sessionsTab = this.FindControl<TabItem>("SessionsTab")
+        sessionsTab = this.FindControl<SettingsPage>("SessionsTab")
             ?? throw new InvalidOperationException("The session settings tab is unavailable.");
-        callsTab = this.FindControl<TabItem>("CallsTab")
+        callsTab = this.FindControl<SettingsPage>("CallsTab")
             ?? throw new InvalidOperationException("The call settings tab is unavailable.");
         DataContext = viewModel;
         nativeLifetime = new(this, owner, () => model.CanRevealPrivatePresentation);
@@ -73,9 +78,16 @@ public sealed partial class SettingsView : UserControl, IDisposable
         owner.Closing += OnHostClosing;
         owner.Closed += OnHostClosed;
         model.PrivacyClosureRequested += OnPrivacyClosed;
-        settingsTabs.SelectionChanged += (_, args) =>
+        settingsTabs.SelectionChanged += (_, _) => BindCallActivationReviewLifetime();
+        settingsTabs.ResultsChanged += (_, _) =>
         {
-            if (ReferenceEquals(args.Source, settingsTabs)) { BindCallActivationReviewLifetime(); }
+            var id = settingsTabs.ExactSettingId;
+            if (!string.Equals(preparedSettingId, id, StringComparison.Ordinal))
+            {
+                preparedSettingId = id;
+                PrepareIndividualSetting(id);
+            }
+            BindCallActivationReviewLifetime();
         };
         BindSpeechComponents(viewModel);
         if (captionDisplay is not null)
@@ -90,10 +102,29 @@ public sealed partial class SettingsView : UserControl, IDisposable
         BindUndo("ReviewSettingsUndo", RegisteredSettingSuggestionOperation.Review);
         BindUndo("ConfirmSettingsUndo", RegisteredSettingSuggestionOperation.Confirm);
         BindUndo("CancelSettingsUndo", RegisteredSettingSuggestionOperation.Cancel);
+        settingsTabs.Initialize();
+        settingsTabs.BindSettingIdCopy(id => HostRequestRunner.RunAsync(RequestOrigin.LocalUi,
+            () => CopySettingIdAsync(id)), exception => model.ReportHostInteractionFailure(
+                "Setting ID could not be copied. Clipboard contents are unconfirmed. Failure type: " + exception.GetType().Name));
     }
 
-    private void BindCallActivationReviewLifetime() =>
-        model.BindCallVoiceActivationNativeLifetime(IsNativePresented && IsActive && ReferenceEquals(settingsTabs.SelectedItem, callsTab));
+    private Task CopySettingIdAsync(string id)
+    {
+        nativeLifetime.Refresh();
+        if (disposed || !IsNativePresented || !model.CanRevealPrivatePresentation
+            || !settingsTabs.IsSettingVisible(id) || !ReferenceEquals(TopLevel.GetTopLevel(this), owner))
+        { throw new InvalidOperationException("Copy Setting ID requires the original visible private settings host."); }
+        var clipboard = owner.Clipboard ?? throw new InvalidOperationException("The native clipboard is unavailable.");
+        return NativeDetailClipboard.WriteDataAsync(clipboard.SetDataAsync, id, null);
+    }
+
+    private void BindCallActivationReviewLifetime()
+    {
+        var available = IsNativePresented && IsActive && settingsTabs.IsSettingVisible("calls.voice-activation");
+        if (callActivationAvailable == available) { return; }
+        callActivationAvailable = available;
+        model.BindCallVoiceActivationNativeLifetime(available);
+    }
 
     private void OnNativePresentationChanged(object? sender, EventArgs args) => RefreshPresentation();
     private void OnNativeActivationChanged(object? sender, EventArgs args) => BindCallActivationReviewLifetime();
@@ -129,6 +160,8 @@ public sealed partial class SettingsView : UserControl, IDisposable
 
     internal Func<bool> CapturePresentation() => nativeLifetime.Capture();
 
+    internal void RefreshNativePresentation() => nativeLifetime.Refresh();
+
     internal bool PrepareClose()
     {
         knowledgeSources?.Close();
@@ -142,6 +175,7 @@ public sealed partial class SettingsView : UserControl, IDisposable
         nativeLifetime.PresentationChanged -= OnNativePresentationChanged;
         nativeLifetime.ActivationChanged -= OnNativeActivationChanged;
         nativeLifetime.Dispose();
+        settingsTabs.Dispose();
         owner.Closing -= OnHostClosing;
         owner.Closed -= OnHostClosed;
         model.PrivacyClosureRequested -= OnPrivacyClosed;
@@ -163,9 +197,37 @@ public sealed partial class SettingsView : UserControl, IDisposable
         }, exception => model.ReportHostInteractionFailure("Settings undo failed. No completion claimed. Failure type: " + exception.GetType().Name));
     }
 
-    public void ShowReadiness() => settingsTabs.SelectedItem = readinessTab;
+    public void ShowReadiness() => SelectPage(readinessTab);
 
-    public void ShowVoiceRecovery() => settingsTabs.SelectedItem = speechAudioTab;
+    public void ShowVoiceRecovery() => SelectPage(speechAudioTab);
+
+    public void ShowFilter(string query)
+    {
+        settingsTabs.ShowFilter(query);
+        PrepareIndividualSetting(settingsTabs.ExactSettingId);
+    }
+
+    private void PrepareIndividualSetting(string? id)
+    {
+        if (id is null) { return; }
+        if (VoiceCaptureTimingCommand.OptionIds.Contains(id, StringComparer.Ordinal))
+        { model.SelectedVoiceTimingOption = id; }
+        else if (id is SpeechTextCommand.PlacementId or SpeechTextCommand.DelayId or SpeechTextCommand.WordEmphasisId)
+        {
+            model.SelectedSpeechCaptionOption = id switch
+            {
+                SpeechTextCommand.PlacementId => SpeechCaptionOption.Placement,
+                SpeechTextCommand.DelayId => SpeechCaptionOption.DismissalDelay,
+                _ => SpeechCaptionOption.WordEmphasis,
+            };
+        }
+    }
+
+    private void SelectPage(SettingsPage page)
+    {
+        settingsTabs.Filter = string.Empty;
+        settingsTabs.SelectedItem = page;
+    }
 
     internal void BindNavigation(Action? editOwnedInstructions, Action? inspectSkillPackages,
         Action? inspectExactGrants, Func<Task>? reviewLocalVersion, Func<Task>? returnToVersionQuestion)
@@ -207,7 +269,7 @@ public sealed partial class SettingsView : UserControl, IDisposable
             SettingsSection.Calls => callsTab,
             _ => throw new ArgumentOutOfRangeException(nameof(section), section, "Unknown Settings section."),
         };
-        settingsTabs.SelectedItem = tab;
+        SelectPage(tab);
         if (!ReferenceEquals(settingsTabs.SelectedItem, tab))
         { throw new InvalidOperationException("The native Settings section was not selected."); }
     }
@@ -215,6 +277,7 @@ public sealed partial class SettingsView : UserControl, IDisposable
     internal void ShowPresence(Func<bool> admitted)
     {
         ShowSection(SettingsSection.Appearance);
+        settingsTabs.ShowGroup(appearanceTab, "Presence");
         UpdateLayout();
         var heading = this.FindControl<TextBlock>("PresenceHeading")
             ?? throw new InvalidOperationException("The Presence settings heading is unavailable.");

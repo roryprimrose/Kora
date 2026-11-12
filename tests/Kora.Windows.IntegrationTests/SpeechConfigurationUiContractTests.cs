@@ -1,5 +1,6 @@
 using System.Xml.Linq;
 using AwesomeAssertions;
+using Kora.Controls;
 
 namespace Kora.Windows.IntegrationTests;
 
@@ -46,7 +47,7 @@ public sealed class SpeechConfigurationUiContractTests
             var choice = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value,
                 "{Binding " + pair.Item1 + "}", StringComparison.Ordinal));
             choice.Attribute("ItemsSource")!.Value.Should().Be("{Binding " + pair.Item2 + "}");
-            choice.Ancestors().Single(control => string.Equals(control.Name.LocalName, "TabItem", StringComparison.Ordinal))
+            choice.Ancestors().Single(control => string.Equals(control.Name.LocalName, nameof(SettingsPage), StringComparison.Ordinal))
                 .Attribute("Header")!.Value.Should().Be("Speech & audio");
         }
         controls.Any(control => string.Equals(control.Attribute("Text")?.Value,

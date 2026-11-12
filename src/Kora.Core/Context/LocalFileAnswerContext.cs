@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
 using Kora.Core.Dependencies;
@@ -73,7 +73,7 @@ public sealed class LocalFileAnswerContext
         }
         if (result.Provenance is not { } provenance || !ReferenceEquals(provenance.Request, Envelope.Request)
             || provenance.Selection.Provider != ModelProviderIdentity.Ollama
-            || result.Response is not { Action: null, GrantChange: null, Question: null, Answer: { } answer })
+            || result.Response is not { Action: null, GrantChange: null, Question: null, SettingsFilter: null, Answer: { } answer })
         {
             return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.InvalidResponse);
         }

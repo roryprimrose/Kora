@@ -102,7 +102,25 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
             return;
         }
 
-        OpenWindow(() => !disposed && viewModel.CanRevealPrivatePresentation);
+        PresentRequestedSettings();
+    }
+
+    private void PresentRequestedSettings(Action<SettingsView>? select = null)
+    {
+        try
+        {
+            var target = OpenWindow(() => !disposed && viewModel.CanRevealPrivatePresentation);
+            select?.Invoke(target);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or OperationCanceledException
+            or IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            if (view is { } target) { HideSettings(target); }
+            DesktopLog.Error(logger, exception, "Opening the native Settings view");
+            viewModel.ReportHostInteractionFailure(
+                "Settings could not be opened. No setting or permission was changed. Retry from the owning unlocked host. Failure type: "
+                + exception.GetType().Name);
+        }
     }
 
     private Task OnKnowledgeSourceAnswer(Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand command,
@@ -133,6 +151,25 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         {
             HideSettings(target);
             throw new InvalidOperationException("Settings navigation was revoked during tab selection.");
+        }
+    }
+
+    public void ShowFilter(string query, Func<bool> admitted)
+    {
+        ArgumentNullException.ThrowIfNull(admitted);
+        if (!Kora.Core.Tools.SettingsNavigationTool.IsValidQuery(query))
+        { throw new ArgumentException("Invalid settings search filter.", nameof(query)); }
+        var target = OpenWindow(admitted);
+        if (!admitted())
+        {
+            HideSettings(target);
+            throw new InvalidOperationException("Settings search was revoked before filtering.");
+        }
+        target.ShowFilter(query);
+        if (!admitted())
+        {
+            HideSettings(target);
+            throw new InvalidOperationException("Settings search was revoked during filtering.");
         }
     }
 
@@ -174,6 +211,7 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
             native.Activate();
             native.UpdateLayout();
         }
+        target.RefreshNativePresentation();
         if (disposed || !ReferenceEquals(view, target) || !target.IsNativePresented || !admitted())
         {
             HideSettings(target);
@@ -186,13 +224,13 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
     private void OnReadinessRequested(object? sender, EventArgs eventArgs)
     {
         if (!disposed && viewModel.CanRevealPrivatePresentation)
-        { OpenWindow(() => !disposed && viewModel.CanRevealPrivatePresentation).ShowReadiness(); }
+        { PresentRequestedSettings(static target => target.ShowReadiness()); }
     }
 
     private void OnVoiceRecoveryRequested(object? sender, EventArgs eventArgs)
     {
         if (!disposed && viewModel.CanRevealPrivatePresentation)
-        { OpenWindow(() => !disposed && viewModel.CanRevealPrivatePresentation).ShowVoiceRecovery(); }
+        { PresentRequestedSettings(static target => target.ShowVoiceRecovery()); }
     }
 
     private SettingsWindow CreateWindow()

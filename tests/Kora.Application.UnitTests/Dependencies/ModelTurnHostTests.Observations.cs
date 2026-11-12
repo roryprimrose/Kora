@@ -97,8 +97,9 @@ public sealed partial class ModelTurnHostTests
             };
         };
         if (fault is "readback") { f.TerminalReceiptFault = "observations"; }
+        // Keep the request within the context budget; assert the unchanged retained-cell byte boundary below.
         var submit = () => service.SubmitAsync(new(f.Session, null),
-            fault is "cell-bound" ? new string('\u0800', 3500) : "original", static () => true, Token);
+            fault is "cell-bound" ? new string('\u0800', 3400) : "original", static () => true, Token);
         if (fault is "readback")
         {
             await submit.Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();

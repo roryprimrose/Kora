@@ -36,6 +36,11 @@ internal sealed partial class SessionsManagementView : UserControl, IDisposable
     internal event EventHandler? RetainedAttachmentsRequested;
     public SessionsManagementView() => throw new InvalidOperationException("Session management requires an explicit owning presentation.");
 
+    private void BindKnowledgeSources(SessionsViewModel model) =>
+        ConversationKnowledgeSource.Command = new Kora.Application.Infrastructure.AsyncCommand(
+            () => ConversationOperation = model.OpenKnowledgeSourceAsync(CapturePresentation()),
+            model.ReportComposerCloseFailure);
+
     internal SessionsManagementView(SessionsViewModel model, SessionsPresentationOwner owner, Window window)
     {
         this.owner = owner;
@@ -64,6 +69,7 @@ internal sealed partial class SessionsManagementView : UserControl, IDisposable
         BindListPageOrder(model);
         BindInstructionContext(model);
         BindSessionInstructionScopes(model);
+        BindKnowledgeSources(model);
         AttachedToVisualTree += (_, _) =>
         {
             draftWrapping?.Dispose();

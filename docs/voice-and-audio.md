@@ -64,6 +64,12 @@ Push-to-talk interruption of retained-answer playback is **unavailable in the
 shipped Windows profile**. It does not open capture or stop unrelated output.
 Use typed `stop speaking` or the displayed **Cancel reading** control instead.
 
+A source-only wake-interruption host path also exists for one exact retained
+answer. It requires a separate playback-discriminating native adapter that is
+not implemented in the shipped Windows profile. It does not enable wake
+listening, general commands during speech, or interruption of other output.
+See the [implementation boundary](../Design/Speech_Input.md#exact-retained-playback-wake-interruption-source-only).
+
 A future qualified profile must preserve the activation-time foreground
 conversation and exact playback. Focus changes, replacement output, retired
 generations or unconfirmed capture release refuse interruption without

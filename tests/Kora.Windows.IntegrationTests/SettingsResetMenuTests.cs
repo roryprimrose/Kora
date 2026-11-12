@@ -1,4 +1,4 @@
-using System.Xml.Linq;
+﻿using System.Xml.Linq;
 
 using Avalonia;
 using Avalonia.Automation;
@@ -255,8 +255,8 @@ public sealed class SettingsResetMenuTests
             try
             {
                 window.Show();
-                var tabs = window.FindControl<TabControl>("SettingsTabs")!;
-                tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(tab =>
+                var tabs = window.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!;
+                tabs.SelectedItem = tabs.Items.OfType<Kora.Controls.SettingsPage>().Single(tab =>
                     string.Equals(tab.Header as string, tabName, StringComparison.Ordinal));
                 window.UpdateLayout();
                 window.GetVisualDescendants().OfType<Button>()
@@ -264,7 +264,8 @@ public sealed class SettingsResetMenuTests
                     .Should().NotContain(button =>
                         IsResetLabel(button.Content as string)
                         || IsResetLabel(AutomationProperties.GetName(button)));
-                var cogs = window.GetVisualDescendants().OfType<SettingActionsButton>().ToArray();
+                var cogs = window.GetVisualDescendants().OfType<SettingActionsButton>()
+                    .Where(cog => cog.IsEffectivelyVisible).ToArray();
                 cogs.Should().HaveCount(expectedCogs);
                 var resets = 0;
                 var refreshes = 0;
@@ -287,6 +288,15 @@ public sealed class SettingsResetMenuTests
                         {
                             item.DataContext.Should().BeSameAs(cog.DataContext);
                             ControlAutomationPeer.CreatePeerForElement(item)!.GetName().Should().NotBeNullOrWhiteSpace();
+                            if (item.Header is "Copy Setting ID")
+                            {
+                                if (item.Command is null)
+                                {
+                                    item.Items.OfType<MenuItem>().Should().OnlyContain(option => option.Command is AsyncCommand);
+                                }
+                                else { item.Command.Should().BeOfType<AsyncCommand>(); }
+                                continue;
+                            }
                             if (cog.FindAncestorOfType<CaptionDisplaySelector>() is not null)
                             {
                                 item.Command.Should().BeNull();
@@ -337,7 +347,7 @@ public sealed class SettingsResetMenuTests
     public async Task Network_uses_shared_permission_grants_navigation_without_an_inline_uri_editor(bool destinationAvailable)
     {
         var network = LoadSettings().Descendants().Single(element =>
-            element.Name.LocalName is "TabItem" && element.Attribute("Header")?.Value is "Network");
+            element.Name.LocalName is "SettingsPage" && element.Attribute("Header")?.Value is "Network");
         network.Descendants().Where(element =>
             element.Name.LocalName is "TextBox" or "ListBox" or "ScrollableListBox").Should().BeEmpty();
         network.Descendants().SelectMany(element => element.Attributes()).Should().NotContain(attribute =>
@@ -361,8 +371,8 @@ public sealed class SettingsResetMenuTests
             fixture.Main.ShowSettings();
             opens.Should().Be(0);
             var settings = window ?? throw new InvalidOperationException("The Settings window did not open.");
-            var tabs = settings.FindControl<TabControl>("SettingsTabs")!;
-            tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(tab => tab.Header is "Network");
+            var tabs = settings.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!;
+            tabs.SelectedItem = tabs.Items.OfType<Kora.Controls.SettingsPage>().Single(tab => tab.Header is "Network");
             settings.UpdateLayout();
             var button = settings.FindControl<Button>("InspectNetworkPermissionGrants")!;
             button.IsEffectivelyVisible.Should().BeTrue();
@@ -415,7 +425,7 @@ public sealed class SettingsResetMenuTests
 
                 var flyout = (MenuFlyout)cog.Flyout!;
                 flyout.IsOpen.Should().BeTrue();
-                var item = flyout.Items.OfType<MenuItem>().Single();
+                var item = flyout.Items.OfType<MenuItem>().Single(option => option.Header is not "Copy Setting ID");
                 item.Header.Should().Be("Reset speech voice");
                 item.Command.Should().BeSameAs(fixture.Main.ResetSpeechVoiceCommand);
                 fixture.Main.SelectedVoice.Should().BeSameAs(voice);
@@ -454,8 +464,8 @@ public sealed class SettingsResetMenuTests
             try
             {
                 window.Show();
-                var tabs = window.FindControl<TabControl>("SettingsTabs")!;
-                tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(tab => tab.Header is "Providers");
+                var tabs = window.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!;
+                tabs.SelectedItem = tabs.Items.OfType<Kora.Controls.SettingsPage>().Single(tab => tab.Header is "Providers");
                 window.UpdateLayout();
                 var cog = window.GetVisualDescendants().OfType<SettingActionsButton>().Single(button =>
                     button.SettingName is "Default service and model");
@@ -474,7 +484,10 @@ public sealed class SettingsResetMenuTests
                 flyout.IsOpen.Should().BeTrue();
                 var items = flyout.Items.OfType<MenuItem>().ToArray();
                 items.Select(item => item.Header).Should().Equal(
-                    "Refresh", "Reset default service", "Clear model settings for this service");
+                    "Refresh", "Reset default service", "Clear model settings for this service", "Copy Setting ID");
+                items[^1].Items.OfType<MenuItem>().Select(item => item.Header).Should().Equal(
+                    "providers.app.default-service", "providers.app.profile", "providers.app.model",
+                    "providers.app.reasoning", "providers.app.context");
                 var refresh = items[0];
                 refresh.Command.Should().BeSameAs(fixture.Main.RefreshProviderProfileCommand);
                 ControlAutomationPeer.CreatePeerForElement(refresh)!.GetName().Should().Be("Refresh services and models");

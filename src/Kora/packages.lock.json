@@ -25,6 +25,15 @@
           "Avalonia": "12.1.3"
         }
       },
+      "Avalonia.Markup.Xaml.Loader": {
+        "type": "Direct",
+        "requested": "[12.1.3, )",
+        "resolved": "12.1.3",
+        "contentHash": "TCnstLavTAVmDqrRZkC2KJASmt19jp9lv1NqXt5q3o7DN3GdpgSJcjEn1TK9xv06OJyQuLInM130wuFSVT3ZvA==",
+        "dependencies": {
+          "Avalonia": "12.1.3"
+        }
+      },
       "Avalonia.Themes.Fluent": {
         "type": "Direct",
         "requested": "[12.1.3, )",
@@ -32,6 +41,18 @@
         "contentHash": "ens/GHfXXk0W1ZScHZ2XG6DFiVyUVKR+0O8QK6zkviMNAPQCNwkftXlRVSFSQGtBYxXoJHZMsKYvCLEtVyzkug==",
         "dependencies": {
           "Avalonia": "12.1.3"
+        }
+      },
+      "HotAvalonia": {
+        "type": "Direct",
+        "requested": "[3.1.5, )",
+        "resolved": "3.1.5",
+        "contentHash": "UGLwx15WGsPMjNXsPoJzN0+1m9lQ12+Vh4N3DIuJB4A0Fq0KTl+6yPjzU2OaAhYGfEc+TEuHPIuQ6Hd+ZxbLQQ==",
+        "dependencies": {
+          "Avalonia.Markup.Xaml.Loader": "11.0.0",
+          "HotAvalonia.Core": "3.1.5",
+          "HotAvalonia.Extensions": "3.1.5",
+          "HotAvalonia.Fody": "3.1.5"
         }
       },
       "Markdig": {
@@ -42,9 +63,9 @@
       },
       "Meziantou.Analyzer": {
         "type": "Direct",
-        "requested": "[3.0.317, )",
-        "resolved": "3.0.317",
-        "contentHash": "IC9fCjxniZol2dcdj+hiXjK01a8gBWQproGL/qWjBI7CgB5GeEOD5oGV0PwpQaSr7Aa/RPaM8Ddho3Y1OAZe1Q=="
+        "requested": "[3.0.320, )",
+        "resolved": "3.0.320",
+        "contentHash": "yKkD+uA684so6/ct3dcGm8H2esrLn/gAS9qYbAcis216gBx+o5LWm5ou/BZDIDg6TTzr5ayojv9cgpoHSasxOw=="
       },
       "Microsoft.Extensions.DependencyInjection": {
         "type": "Direct",
@@ -192,6 +213,11 @@
           "Avalonia.Skia": "12.1.3"
         }
       },
+      "Fody": {
+        "type": "Transitive",
+        "resolved": "6.9.2",
+        "contentHash": "YBHobPGogb0vYhGYIxn/ndWqTjNWZveDi5jdjrcshL2vjwU3gQGyDeI7vGgye+2rAM5fGRvlLgNWLW3DpviS/w=="
+      },
       "HarfBuzzSharp": {
         "type": "Transitive",
         "resolved": "8.3.1.3",
@@ -214,6 +240,24 @@
         "type": "Transitive",
         "resolved": "8.3.1.3",
         "contentHash": "bx8CE8Js+XGX8PUxAHCBDEORt5aaBYtMN4Hr9QFs57Xithh6yjUyYqksizH6eRDhJkwsGI+SXWmPmMm8lZC9Pw=="
+      },
+      "HotAvalonia.Core": {
+        "type": "Transitive",
+        "resolved": "3.1.5",
+        "contentHash": "AUpPx9CixH7iuqkZtNBAdtgXyXRozIe1SPSZtpZ6Q7uaTupW6PF88YolR4s+hlUQCUtWLxwIAuhMlonKNV0K3g=="
+      },
+      "HotAvalonia.Extensions": {
+        "type": "Transitive",
+        "resolved": "3.1.5",
+        "contentHash": "WRbykqoI3XUpZrhEtzxsbisex925BPYPxKHoO4PH9q9KdgqEwDHzeLMaqX2Xe90zmOf81k8osKwdgHjrQZreSw=="
+      },
+      "HotAvalonia.Fody": {
+        "type": "Transitive",
+        "resolved": "3.1.5",
+        "contentHash": "tJDz5jRgNE738BwyT2T0WhsORtouNF54bqw0GSnFby84b48VARipvscCGUVDJSqfX8Q5Wyhrb2IqQiw5Rb+g5A==",
+        "dependencies": {
+          "Fody": "6.9.2"
+        }
       },
       "MicroCom.Runtime": {
         "type": "Transitive",

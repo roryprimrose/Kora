@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 
 using AwesomeAssertions;
 
@@ -302,6 +303,46 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Missing_source_ancestors_are_nonrecursive_membership_watches_that_rearm_on_creation(bool fileTarget)
+    {
+        Directory.CreateDirectory(root);
+        var firstAncestor = Path.Combine(root, "incoming");
+        var source = Path.Combine(firstAncestor, "nested");
+        var file = Path.Combine(source, fileTarget ? "mcp.json" : "created.prompt.md");
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var preferences = new Preferences(new([], [], fileTarget ? [] : [source], [],
+            fileTarget ? [file] : [], [], false));
+        var profile = Path.Combine(root, "profile");
+        var mcp = new McpServerConfigurationService(paths, preferences, profile);
+        using var catalogue = EmbeddedArtifactCatalogue.Load();
+        using var reload = CreateReload(catalogue, paths, preferences, profile, mcp: mcp);
+        reload.Start();
+
+        // Native scope matters: filtering delivered events cannot prevent an ancestor buffer overflow.
+        AssertMembershipOnlyWatchers(reload, root);
+        await ObserveChange(catalogue,
+            () => WatchersAt(reload, firstAncestor).Length > 0,
+            () => Directory.CreateDirectory(firstAncestor), mcp);
+        AssertMembershipOnlyWatchers(reload, firstAncestor);
+
+        await ObserveChange(catalogue,
+            () => WatchersAt(reload, source).Length > 0
+                && (fileTarget || catalogue.Artifacts.Any(item =>
+                    string.Equals(item.CommandName, "created", StringComparison.Ordinal))),
+            () =>
+            {
+                Directory.CreateDirectory(source);
+                if (fileTarget) { File.WriteAllText(file, """{"servers":{}}"""); }
+                else { WritePrompt(file, "Created", "New supported source."); }
+            }, mcp);
+        WatchersAt(reload, source).Should().NotBeEmpty()
+            .And.OnlyContain(watcher => watcher.IncludeSubdirectories == !fileTarget);
+        catalogue.IsReloadUnavailable.Should().BeFalse();
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(2)]
     public async Task Populated_dotted_profile_subtree_move_rename_and_delete_refresh_the_catalogue(int depth)
@@ -442,6 +483,15 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
         new(catalogue, paths, preferences, new ArtifactDirectoryConfigurationService(preferences, new Audit()),
             mcp ?? new McpServerConfigurationService(paths, preferences, profile),
             logger ?? NullLogger<ArtifactCatalogueReloadService>.Instance, profileRoamingRoot: profile);
+
+    private static FileSystemWatcher[] WatchersAt(ArtifactCatalogueReloadService reload, string directory) =>
+        typeof(ArtifactCatalogueReloadService).GetField("watchers", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(reload).Should().BeAssignableTo<IReadOnlyList<FileSystemWatcher>>().Which
+            .Where(watcher => string.Equals(watcher.Path, directory, StringComparison.OrdinalIgnoreCase)).ToArray();
+
+    private static void AssertMembershipOnlyWatchers(ArtifactCatalogueReloadService reload, string directory) =>
+        WatchersAt(reload, directory).Should().NotBeEmpty()
+            .And.OnlyContain(watcher => !watcher.IncludeSubdirectories && watcher.NotifyFilter == NotifyFilters.DirectoryName);
 
     private static McpServerConfigurationService CreateIsolatedMcp(
         IApplicationDataPaths paths, Preferences preferences, string profile)

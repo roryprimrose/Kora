@@ -27,6 +27,13 @@ public static class CapabilityInputPolicy
             if (duplicates) { return new("duplicate-input-field"); }
             if (document.RootElement.ValueKind != JsonValueKind.Object) { return new("invalid-input"); }
             var fields = document.RootElement.EnumerateObject().ToArray();
+            if (descriptor.Input == CapabilityInputShape.SettingsQuery)
+            {
+                return fields.Length == 1 && string.Equals(fields[0].Name, "query", StringComparison.Ordinal)
+                    && fields[0].Value.ValueKind == JsonValueKind.String
+                    && SettingsNavigationTool.IsValidQuery(fields[0].Value.GetString())
+                    ? new(null, SettingsQuery: fields[0].Value.GetString()!.Trim()) : new("invalid-settings-query");
+            }
             if (descriptor.Input == CapabilityInputShape.SessionId)
             {
                 return fields.Length == 1 && string.Equals(fields[0].Name, "id", StringComparison.Ordinal)

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
@@ -29,7 +29,7 @@ public static class EvidenceAnswerResponse
         {
             if (result.Provenance is not { } provenance || !ReferenceEquals(provenance.Request, request)
                 || provenance.Selection.Provider != ModelProviderIdentity.Ollama
-                || result.Response is not { Answer: { } answer, Action: null, GrantChange: null, Question: null }
+                || result.Response is not { Answer: { } answer, Action: null, GrantChange: null, Question: null, SettingsFilter: null }
                 || new UTF8Encoding(false, true).GetByteCount(answer) > ModelContextEnvelope.MaximumOutputUtf8Bytes)
             { throw new InvalidDataException("Only the exact local answer-only result is admitted."); }
             using var document = JsonDocument.Parse(answer, new JsonDocumentOptions { MaxDepth = 5 });

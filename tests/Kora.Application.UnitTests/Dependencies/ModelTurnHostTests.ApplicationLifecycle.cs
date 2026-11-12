@@ -13,6 +13,56 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData(false, ApplicationLifecycleOperation.Exit)]
+    [InlineData(true, ApplicationLifecycleOperation.Exit)]
+    [InlineData(false, ApplicationLifecycleOperation.Restart)]
+    public async Task QuarantinedExitConversationReviewIsEmptyOnlyAndCannotAuthorizeRestart(
+        bool submitted, ApplicationLifecycleOperation operation)
+    {
+        using var f = new Fixture { TrackPendingRecords = true };
+        var host = ConfigureCancellation(f);
+        await using var service = f.ConversationService(host, execution: host);
+        var provider = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task? completion = null;
+        if (submitted)
+        {
+            f.Adapter.Pending = provider.Task;
+            var pending = await service.SubmitQueuedAsync(new(f.Session, null), "Private accepted original", () => true, Token);
+            completion = pending.Completion;
+        }
+        try
+        {
+            f.CanControl = false;
+            f.InspectOverride = false;
+            f.CanReviewApplicationExit = true;
+            if (submitted || operation != ApplicationLifecycleOperation.Exit)
+            {
+                await service.Invoking(value => value.ReviewApplicationLifecycleAsync(operation, RequestOrigin.LocalUi,
+                    () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+                completion?.IsCompleted.Should().BeFalse();
+            }
+            else
+            {
+                using var review = await service.ReviewApplicationLifecycleAsync(operation, RequestOrigin.LocalUi, () => true, Token);
+                review.Work.Should().BeEmpty();
+                await service.ConfirmApplicationLifecycleAsync(review, Token);
+                review.Joined.Should().BeTrue();
+            }
+            f.CanControl.Should().BeFalse();
+            f.CanInspect.Should().BeFalse();
+            f.CancelAudit.Events.Should().BeEmpty();
+        }
+        finally
+        {
+            f.CanControl = true;
+            f.InspectOverride = null;
+            f.Adapter.Pending = null;
+            provider.TrySetResult(LateAnswer());
+            if (completion is not null) { await completion; }
+        }
+    }
+
+    [Theory]
     [InlineData(false, "unchanged")]
     [InlineData(true, "unchanged")]
     [InlineData(true, "revision")]

@@ -135,6 +135,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Configuration.IWorkbenchPlacementPreferences>());
             settingsWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
                 view => responseWindow.ShowHostedView(WorkbenchActivity.Settings, view));
+            Services.GetRequiredService<Kora.Application.Dependencies.ModelTurnHost>()
+                .BindSettingsNavigation(viewModel.ShowSettingFilterAsync);
             documentationWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
                 view => responseWindow.ShowHostedView(WorkbenchActivity.Help, view));
             grantListWindow = new GrantListWindowController(viewModel);
@@ -337,7 +339,8 @@ public sealed partial class App : Avalonia.Application
                     Services.GetRequiredService<ILogger<Kora.Application.Presentation.ExactAnswerExportReview>>(),
                     ExactAnswerExportWindowController.SelectDestinationAsync),
                 Services.GetRequiredService<Kora.Application.Configuration.DetailPresentationConfigurationService>(),
-                Services.GetRequiredService<Kora.Application.Presentation.DetailsOfferService>());
+                Services.GetRequiredService<Kora.Application.Presentation.DetailsOfferService>(),
+                knowledgeSources: CreateSessionKnowledgeSources(viewModel));
             sessionsWindow.Bind();
             sessionsWindow.McpCapabilityObserved = inventory => customizations?.ObserveMcpCapabilities(inventory);
             sessionsWindow.CreateInteraction = (state, owner) =>

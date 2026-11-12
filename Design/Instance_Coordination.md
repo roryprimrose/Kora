@@ -78,6 +78,32 @@ An installer stop request uses separate authenticated user/session IPC, native s
 It grants no handoff ticket or installation authority; a lifecycle reservation blocks new ownership while setup mutates the package ([installer lifecycle](../src/Kora.Windows/Coordination/WindowsInstallerMaintenanceLease.cs), [host binding](../src/Kora/App.InstallerShutdown.cs)).
 The original installation is not uninstalled or replaced by the debug session.
 
+## Authenticated Local Exit Command
+
+The first-party `Kora.exe --exit` client requests graceful shutdown without
+starting desktop services or acquiring assistant ownership. Repository sessions
+use the [Kora exit skill](../.github/skills/kora-exit/SKILL.md), not installer
+impersonation, raw unverified pipe writes or tray automation.
+
+The existing per-user pipe authenticates both process tokens/lifetimes and pinned
+application images. Exit additionally requires the same build digest and canonical
+executable path, so another checkout/configuration cannot silently stop the owner.
+The message carries no launch, task, ticket or ownership-transfer authority.
+Concurrent handoff, installer stop, restart and exit attempts remain exclusive.
+
+An idle/empty state needs no extra generic confirmation; the existing unsent-input,
+editor and submitted-work reviews still apply whenever needed. The host uses normal
+Exit and never grants microphone consent, installer maintenance or forced process
+termination. Audio/private quarantine keeps its existing bounded empty-state Exit
+rules. InstallerStop retains its separate setup-host authentication and native
+confirmation.
+
+Only the retained authenticated process's actual exit permits an `EXITED` result.
+Pipe EOF and `StopRequested` do not establish exit or clean resource release.
+`NO_OWNER` reports only the observed ownership probe, not clean shutdown or absence
+of lifecycle supervisors. Failure exit codes and uncertain ownership remain explicit;
+clients do not delete recovery markers or automatically retry/force-kill.
+
 ## Return to the Original
 
 An out-of-band, host-owned lifecycle supervisor observes the candidate's actual process lifetime, not a model callback or PID alone.

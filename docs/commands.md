@@ -9,6 +9,14 @@ Releasing before that completes cancels this gesture without opening the
 microphone later. Press again after cleanup to start a new command; listening
 permission and preferences are unchanged.
 
+**Push to talk** stays beside Submit. It is available when Kora is not
+automatically listening, including when voice is ready but wake listening is
+unavailable. During a detected call, a deliberate held press can capture one
+command even if call settings pause automatic input. Release closes the
+microphone; it does not enable automatic listening or change your call settings.
+Consent, Windows microphone access, device readiness and lock/privacy checks
+still apply.
+
 The global command box runs commands; a session's message composer submits
 conversation text. Words inside a message do not become commands.
 **AI answers are unavailable in this build**, even after model setup.
@@ -22,6 +30,48 @@ model-dependent operation.
 [web pages](#retrieve-an-explicit-web-page), or [reusable guidance](#run-skills-and-artifacts).
 Full identifiers are needed only where the exact command syntax asks for them;
 use native lists or readable-name routes elsewhere.
+
+## Find a setting
+
+Open **Settings** in the expanded Kora window. Use **Search settings** to match
+setting IDs, titles, descriptions or displayed values. Search ignores case;
+multiple words must all match. Choose a page or subsection in the hierarchy to
+narrow the results, or **All settings** to search everywhere. Clearing the search
+restores settings in the selected section. Categories without search matches are
+hidden; **All settings** remains available when nothing matches. Clearing search
+restores the categories. Filtering preserves unsaved edits and
+does not apply settings or start any setup operation.
+
+Choose a setting's cog, then **Copy Setting ID**, to copy just its ID. If the
+cog covers several options, choose one ID from that submenu. A collection-valued
+setting has its own ID; you do not need to choose an item inside the collection.
+Category-only refresh menus have no individual setting ID.
+
+Paste a copied ID into **Search settings** to show just that setting result.
+Exact IDs ignore case and surrounding spaces, clear a conflicting category
+selection and do not match similarly named IDs or mentions in other descriptions.
+Related fields may share one review/save panel, but have distinct IDs; a specific
+capture-timing or caption option selects its existing editor without saving it.
+
+From the global command box, use:
+
+- `show setting speech.windows-rate`
+- `show appearance.presence.show`
+- `show settings for Reduced motion`
+- `view setting reading text size`
+- `open setting playback volume`
+
+For activated voice, use the same command after your current assistant name.
+These commands open the pane, choose All settings and prefill the search field.
+They do not require a model. Existing commands such as `open speech settings`
+instead select that page and clear any previous search.
+`appearance.presence.show` identifies **Show presence**; the older
+`appearance.presence-display` still resolves to that same setting.
+
+When a qualified conversational model with settings navigation is available,
+you can also ask "Where can I change how fast you speak?" Kora can open the same
+filtered pane. This does not enable unavailable AI answers, bypass model/privacy
+admission or give a model access to setting values or permission to change them.
 
 ## One source's next capture limits
 

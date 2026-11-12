@@ -51,6 +51,8 @@ public static partial class ModelToolProtocol
                 continue;
             }
             var descriptor = ReadOnlyCapabilityCatalog.FindExact(capabilityId)
+                ?? (string.Equals(capabilityId, SettingsNavigationTool.Id, StringComparison.Ordinal)
+                    ? SettingsNavigationTool.Descriptor : null)
                 ?? ProviderSettingsTools.FindExact(capabilityId)
                 ?? MaintenanceTools.FindExact(capabilityId)
                 ?? SettingsDiscoveryTools.FindExact(capabilityId)

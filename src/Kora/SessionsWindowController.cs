@@ -27,7 +27,8 @@ internal sealed partial class SessionsWindowController(
     ExactAnswerExportWindowController? answerExports = null,
     Kora.Application.Configuration.DetailPresentationConfigurationService? detailPresentation = null,
     Kora.Application.Presentation.DetailsOfferService? detailsOffers = null,
-    RemainingWorkManagement? workManagement = null) : IDisposable, ISessionDispositionReviewPresenter,
+    RemainingWorkManagement? workManagement = null,
+    Kora.KnowledgeSources.SessionKnowledgeSourceController? knowledgeSources = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
@@ -268,7 +269,7 @@ internal sealed partial class SessionsWindowController(
         if (instructionScopes is { } scopes) { await scopes.QuiesceAsync(); }
         return presentation is { } current ? await current.PrepareShutdown() : true;
     }
-    internal Func<bool> CaptureShutdownEligibility()
+    internal Func<bool> CaptureShutdownEligibility(bool exitWithoutDisclosure = false)
     {
         var state = model;
         var owner = presentation;
@@ -276,8 +277,9 @@ internal sealed partial class SessionsWindowController(
         var compactView = compact;
         var interactionView = interaction;
         var revision = access.ControlRevision;
-        var admitted = !disposed && access.CanInspect && access.CanControl;
-        var buffer = state?.CaptureUnsentShutdownEligibility() ?? (static () => true);
+        var admitted = !disposed && (access.CanInspect && access.CanControl
+            || exitWithoutDisclosure && access.CanReviewApplicationExit);
+        var buffer = state?.CaptureUnsentShutdownEligibility(exitWithoutDisclosure) ?? (static () => true);
         return () => admitted && !disposed && access.ControlRevision == revision
             && ReferenceEquals(model, state) && ReferenceEquals(presentation, owner)
             && ReferenceEquals(window, workspaceView) && ReferenceEquals(compact, compactView)
@@ -541,7 +543,8 @@ internal sealed partial class SessionsWindowController(
             answerReads: new SessionAnswerReadWorkflow(service, main),
             reviewPlaybackVolumeSuggestion: main.ReviewPlaybackVolumeSuggestionAsync,
             confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token),
-            localHandoff: localHandoff, retentionApply: retentionApply, workManagement: workManagement);
+            localHandoff: localHandoff, retentionApply: retentionApply, workManagement: workManagement,
+            knowledgeSources: knowledgeSources);
         if (detailPresentation is not null) { model.BindDetailPresentation(detailPresentation); }
         model.BindDictation(main.ComposerDictation);
         model.McpCapabilityObserved = inventory => McpCapabilityObserved?.Invoke(inventory);
@@ -722,6 +725,7 @@ internal sealed partial class SessionsWindowController(
     {
         if (disposed) { return; }
         disposed = true;
+        knowledgeSources?.Close();
         UnbindMetadataAnswer();
         RetireNamedConversation();
         instructionScopes?.Retire();

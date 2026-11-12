@@ -20,6 +20,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Avalonia.Markup.Xaml.Loader" PrivateAssets="all" Publish="true">
+      <ExcludeAssets Condition="'$(Configuration)' != 'Debug' Or '$(KoraHotReload)' != 'true'">all</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="HotAvalonia" PrivateAssets="all" Publish="true">
+      <ExcludeAssets Condition="'$(Configuration)' != 'Debug' Or '$(KoraHotReload)' != 'true'">all</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
     <AvaloniaResource Include="Assets\Kora.ico" />
   </ItemGroup>
 
@@ -49,6 +58,10 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <HotAvalonia>false</HotAvalonia>
+    <HotAvalonia Condition="'$(Configuration)' == 'Debug' And '$(KoraHotReload)' == 'true'">true</HotAvalonia>
+    <HotAvaloniaIncludeXamlLoader>$(HotAvalonia)</HotAvaloniaIncludeXamlLoader>
+    <HotAvaloniaRemote>false</HotAvaloniaRemote>
   </PropertyGroup>
 
 </Project>

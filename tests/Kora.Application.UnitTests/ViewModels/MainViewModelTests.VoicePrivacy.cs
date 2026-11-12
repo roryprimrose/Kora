@@ -1,5 +1,6 @@
 using System.Reflection;
 using AwesomeAssertions;
+using Kora.Application.Communication;
 using Kora.Application.ViewModels;
 
 using Kora.Core;
@@ -88,7 +89,7 @@ public sealed partial class MainViewModelTests
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
 
-        fixture.ViewModel.IsPushToTalkVisible.Should().BeFalse();
+        fixture.ViewModel.IsPushToTalkVisible.Should().BeTrue();
 
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
 
@@ -149,6 +150,163 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CanPushToTalk.Should().BeFalse();
         fixture.Voice.StartGate.SetResult();
         await capture;
+    }
+
+    [Theory]
+    [InlineData(CallState.Active)]
+    [InlineData(CallState.Suspected)]
+    public async Task CallPushToTalkCapturesOneCommandWithoutChangingAutomaticListeningOrCallPreferences(CallState state)
+    {
+        var fixture = await CreateCallPushToTalkFixtureAsync(state);
+        fixture.ViewModel.IsPushToTalkVisible.Should().BeTrue();
+        fixture.ViewModel.IsVoiceActivationAvailable.Should().BeFalse();
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsVoiceActivationAvailable.Should().BeFalse();
+        await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+        await fixture.Voice.RaiseTranscriptAsync("help", 1);
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
+        fixture.Voice.StartCalls.Should().Be(1);
+        fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+        fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeFalse();
+        fixture.CallPreferences.SaveCalls.Should().Be(0);
+        fixture.VoiceConsent.Consent.Should().BeTrue();
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(RequestOrigin.ActivatedVoice, false)]
+    [InlineData(RequestOrigin.HostSystem, false)]
+    [InlineData(RequestOrigin.LocalUi, true)]
+    public async Task CallPushToTalkExceptionRejectsVoiceHostAndModelInvocations(RequestOrigin origin, bool model)
+    {
+        var fixture = await CreateCallPushToTalkFixtureAsync();
+        var request = HostRequest.Create(origin);
+        if (model)
+        {
+            request = new(request.RequestId, request.SessionId, request.TaskId, origin, new(Guid.NewGuid()));
+        }
+        using (var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        }
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+        fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeFalse();
+        fixture.CallPreferences.SaveCalls.Should().Be(0);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("unknown-call")]
+    [InlineData("unknown-evidence")]
+    [InlineData("owner")]
+    public async Task CallPushToTalkExceptionFailsClosedWithoutKnownCallAndOwnership(string unavailable)
+    {
+        var fixture = await CreateCallPushToTalkFixtureAsync();
+        if (unavailable is "unknown-call") { fixture.CallState.SetState(CallState.Unknown); }
+        else if (unavailable is "unknown-evidence")
+        {
+            ((CallCommunicationPolicy)fixture.ViewModel.AuthorizationPolicyGate).HoldManualControlEvidenceUnavailable();
+        }
+        else { fixture.ViewModel.BindVoiceOwnershipGate(static () => false); }
+        await fixture.ViewModel.CallClosureTask;
+
+        fixture.ViewModel.IsPushToTalkVisible.Should().BeTrue();
+        fixture.ViewModel.CanPushToTalk.Should().BeFalse();
+        await fixture.ViewModel.BeginPushToTalkAsync();
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+        fixture.CallPreferences.SaveCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("opening")]
+    [InlineData("held")]
+    [InlineData("queued")]
+    public async Task CallPushToTalkPolicyChangeRetiresCaptureAndQueuedInputWithoutReplay(string phase)
+    {
+        var fixture = await CreateCallPushToTalkFixtureAsync();
+        if (phase is "opening") { fixture.Voice.StartGate = new(TaskCreationOptions.RunContinuationsAsynchronously); }
+        var opening = fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        var generation = fixture.Voice.Generation;
+        if (phase is "queued")
+        {
+            await opening;
+            await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+            fixture.Dispatcher.BeforeInvoke = () => fixture.CallState.SetState(CallState.Clear);
+            await fixture.Voice.RaiseTranscriptAsync("Kora, lock the machine", 1);
+        }
+        else
+        {
+            fixture.CallState.SetState(CallState.Clear);
+            fixture.Voice.StartGate?.TrySetResult();
+            await opening;
+            fixture.Voice.RaiseTranscriptForGeneration(generation);
+        }
+        await fixture.ViewModel.CallClosureTask;
+        fixture.Voice.StartCalls.Should().Be(1);
+        fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.CallPreferences.SaveCalls.Should().Be(0);
+
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+        await fixture.Voice.RaiseTranscriptAsync("help", 1);
+        fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
+        fixture.Voice.StartCalls.Should().Be(2);
+    }
+
+    private static async Task<Fixture> CreateCallPushToTalkFixtureAsync(CallState state = CallState.Active)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        fixture.CallPreferences.Settings = new(true, false);
+        await fixture.ViewModel.InitializeAsync();
+        fixture.CallState.SetState(state);
+        await fixture.ViewModel.CallClosureTask;
+        return fixture;
+    }
+
+    [Fact]
+    public async Task CallPushToTalkReadinessIsRepublishedAfterPhysicalRelease()
+    {
+        var fixture = await CreateCallPushToTalkFixtureAsync();
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        fixture.Voice.PreventQuiescence = true;
+        fixture.Voice.StopGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var readyNotifications = 0;
+        fixture.ViewModel.PropertyChanged += (_, args) =>
+        {
+            if (string.Equals(args.PropertyName, nameof(fixture.ViewModel.CanPushToTalk), StringComparison.Ordinal)
+                && fixture.ViewModel.CanPushToTalk)
+            {
+                readyNotifications++;
+            }
+        };
+        fixture.CallState.SetState(CallState.Clear);
+        fixture.ViewModel.CallClosureTask.IsCompleted.Should().BeFalse();
+        fixture.ViewModel.CanPushToTalk.Should().BeFalse();
+        readyNotifications.Should().Be(0);
+
+        fixture.Voice.PreventQuiescence = false;
+        fixture.Voice.StopGate.SetResult();
+        await fixture.ViewModel.CallClosureTask;
+
+        fixture.ViewModel.CanPushToTalk.Should().BeTrue();
+        readyNotifications.Should().BeGreaterThan(0);
+        fixture.Voice.StartCalls.Should().Be(1);
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
     }
 
     private static void PublishVoiceSession(Fixture fixture, WindowsSessionState state)

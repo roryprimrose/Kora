@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -222,7 +222,7 @@ public sealed class NativeReaderTextScaleTests
             await fixture.InitializeAsync();
             var window = new SettingsWindow(fixture.Main);
             window.Show();
-            window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex = 0;
+            window.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!.SelectedIndex = 0;
             window.UpdateLayout();
             try
             {

@@ -102,6 +102,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
     [InlineData("grant")]
     [InlineData("question")]
     [InlineData("combined")]
+    [InlineData("settings-filter")]
     [InlineData("overflow")]
     public async Task Untrusted_provider_fields_cannot_select_identity_authority_or_success(string failure)
     {
@@ -122,6 +123,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
                     Kora.Core.Commands.ModelApprovalScope.Session))),
             "question" => new(ModelTurnOutcome.Succeeded, selection, new("x", null, Question: new("choose", ["a", "b"]))),
             "combined" => new(ModelTurnOutcome.Succeeded, selection, new("x", Kora.Core.Commands.BuiltInAction.LockMachine)),
+            "settings-filter" => new(ModelTurnOutcome.Succeeded, selection, new("x", null, SettingsFilter: "theme")),
             _ => new(ModelTurnOutcome.Succeeded, selection, new(new string('x', 4096), null)),
         };
         var result = await fixture.Run();
@@ -526,6 +528,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal bool? InspectOverride { get; set; }
         public bool CanInspect => InspectOverride ?? (CanControl && Inspect);
         public bool CanControl { get; set; } = true;
+        public bool CanReviewApplicationExit { get; set; }
         public long ControlRevision { get; set; }
         internal string ObservedVersion { get; set; } = "1.0";
         public string Version { get { OnVersion?.Invoke(); return ObservedVersion; } }

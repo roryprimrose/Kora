@@ -1,4 +1,5 @@
 ﻿using Kora.Application.Diagnostics;
+using Kora.Application.Communication;
 using Kora.Core;
 using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
@@ -15,6 +16,7 @@ public sealed partial class MainViewModel
 {
     private CancellationTokenSource? captureOpenCancellation;
     private int pushToTalkHeld;
+    private CallPolicyObservation? pushToTalkCall;
     private long acceptedTranscriptGeneration = -1;
     private Task privacyClosureTask = Task.CompletedTask;
     private long observedTopologyRevision = -1;
@@ -38,7 +40,7 @@ public sealed partial class MainViewModel
     public MicrophoneDevice? SystemMicrophone => systemDefaultMicrophone;
     public bool CanUseTrayMicrophoneRecovery => IsCallMutationHostEligible;
 
-    public string TrayInputStatus => !IsCallMutationHostEligible
+    public string TrayInputStatus => applicationExitStatus ?? (!IsCallMutationHostEligible
         ? "Input unavailable - ownership or Windows privacy recovery required"
         : !microphoneCatalogCurrent
             ? "Input unavailable - refresh microphones"
@@ -54,7 +56,7 @@ public sealed partial class MainViewModel
             ? "Push-to-talk capture active"
         : IsVoiceEnabled
             ? "Push-to-talk ready - microphone closed - wake unavailable"
-            : "Microphone closed - listening disabled";
+            : "Microphone closed - listening disabled");
     private readonly Lock voiceReadinessGate = new();
     private long automaticUnlockRecoveryRevision = -1;
     private Task voiceUnlockRecoveryTask = Task.CompletedTask;
@@ -606,17 +608,31 @@ public sealed partial class MainViewModel
         });
     }
 
-    private bool RefreshVoiceReadiness()
+    private bool RefreshVoiceReadiness(bool pushToTalk = false)
     {
         var privacy = privacyObservation.Refresh();
         MicrophoneAccessStatus = microphoneAccessService.GetStatus();
-        return IsVoiceReadinessEligible(privacy) && sessionController.IsCurrentSessionUnlocked();
+        return IsVoiceReadinessEligible(privacy, pushToTalk) && sessionController.IsCurrentSessionUnlocked();
     }
 
-    private bool IsVoiceReadinessEligible(WindowsPrivacySnapshot privacy) =>
+    private bool IsPushToTalkActivationAvailable
+    {
+        get
+        {
+            var call = CallObservation;
+            return isAssistantNameAvailable && (call.AllowActivation
+                || call.AllowsPushToTalkCallException && IsCallMutationHostEligible && voiceOwnershipEligible());
+        }
+    }
+
+    private bool IsCurrentPushToTalkCall(CallPolicyObservation? capture) =>
+        capture is null || capture.Revision == CallPolicyRevision && IsPushToTalkActivationAvailable;
+
+    private bool IsVoiceReadinessEligible(WindowsPrivacySnapshot privacy, bool pushToTalk = false) =>
         HasVoiceConsent && EffectiveMicrophone is not null
             && MicrophoneAccessStatus.State == MicrophoneAccessState.Allowed
-            && IsVoiceActivationAvailable && !disposed && !lifecycleAdmissionClosed
+            && (pushToTalk ? IsPushToTalkActivationAvailable : IsVoiceActivationAvailable)
+            && !disposed && !lifecycleAdmissionClosed
             && SelectedMicrophone is { } microphone && privacy.CanCaptureFrom(microphone);
 
     private bool TryEnableVoiceReadiness(long revision, bool requireUnlockRecovery = false,
@@ -766,6 +782,16 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        var call = CallObservation;
+        var callCapture = call.AllowActivation ? null : call with { };
+        if (callCapture is not null && (!IsPushToTalkActivationAvailable
+            || HostActivity.Current is not { Request: { Origin: RequestOrigin.LocalUi, InvocationId: null } }))
+        {
+            ApplicationLog.Information(logger, "Denied call-time push-to-talk without an eligible original native hold");
+            ShowInformation("Push-to-talk is unavailable.",
+                "A deliberate native hold, current call observation, voice consent and eligible private ownership are required.");
+            return;
+        }
         if (sessionRoutingVoiceRequest is not null)
         {
             ReportHostInteractionFailure("The original destination review owns input. Use its exact native controls or explicit voice reply.");
@@ -792,6 +818,7 @@ public sealed partial class MainViewModel
         }
         Interlocked.Exchange(ref pushToTalkHeld, 1);
         Interlocked.Exchange(ref acceptedTranscriptGeneration, -1);
+        Volatile.Write(ref pushToTalkCall, callCapture);
         var revision = Interlocked.Read(ref voiceRecoveryRevision);
         var ownsBusyState = false;
         long generationToAccept = -1;
@@ -826,7 +853,8 @@ public sealed partial class MainViewModel
             }
             if (Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover
                 || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
-                || !IsHostInputEligible || !RefreshVoiceReadiness())
+                || !IsHostInputEligible || !RefreshVoiceReadiness(pushToTalk: true)
+                || !IsCurrentPushToTalkCall(callCapture))
             {
                 if (IsVoiceEnabled)
                 {
@@ -845,8 +873,7 @@ public sealed partial class MainViewModel
             opening.CancelAfter(TimeSpan.FromSeconds(5));
             MicrophoneAccessStatus = microphoneAccessService.GetStatus();
             var privacy = privacyObservation.Refresh();
-            if (EffectiveMicrophone is null || MicrophoneAccessStatus.State != MicrophoneAccessState.Allowed
-                || !IsVoiceActivationAvailable || !privacy.CanCaptureFrom(SelectedMicrophone!))
+            if (!IsVoiceReadinessEligible(privacy, pushToTalk: true) || !IsCurrentPushToTalkCall(callCapture))
             {
                 throw new InvalidOperationException("The selected microphone, permission or voice policy is unavailable.");
             }
@@ -862,7 +889,8 @@ public sealed partial class MainViewModel
             }
             await voiceRecognition.BeginPushToTalkAsync(SelectedMicrophone!, GetRecognitionPhrases(), AssistantName, opening.Token);
             if (revision != Interlocked.Read(ref voiceRecoveryRevision)
-                || !IsVoiceReadinessEligible(privacyObservation.Current)
+                || !IsVoiceReadinessEligible(privacyObservation.Current, pushToTalk: true)
+                || !IsCurrentPushToTalkCall(callCapture)
                 || Volatile.Read(ref pushToTalkHeld) == 0 || !sessionController.IsCurrentSessionUnlocked())
             {
                 InvalidateOwnedVoiceCapture();
@@ -934,7 +962,11 @@ public sealed partial class MainViewModel
         }
         finally
         {
-            if (generationToAccept < 0) { Interlocked.Exchange(ref pushToTalkHeld, 0); }
+            if (generationToAccept < 0)
+            {
+                Interlocked.Exchange(ref pushToTalkHeld, 0);
+                Interlocked.CompareExchange(ref pushToTalkCall, null, callCapture);
+            }
             Interlocked.Exchange(ref captureOpenCancellation, null);
             if (ownsBusyState)
             {

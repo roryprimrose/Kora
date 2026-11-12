@@ -1,4 +1,4 @@
-using System.Xml.Linq;
+﻿using System.Xml.Linq;
 
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
@@ -26,14 +26,14 @@ public sealed class ConversationExecutionUiContractTests
             try
             {
                 window.Show();
-                var tabs = window.FindControl<TabControl>("SettingsTabs")!;
-                tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(tab => tab.Header is "Responses");
+                var tabs = window.FindControl<Kora.Controls.SettingsBrowser>("SettingsTabs")!;
+                tabs.SelectedItem = tabs.Items.OfType<Kora.Controls.SettingsPage>().Single(tab => tab.Header is "Responses");
                 window.UpdateLayout();
                 var maximum = window.GetVisualDescendants().OfType<ComboBox>().Single(control =>
                     ReferenceEquals(control.ItemsSource, fixture.Main.ConversationExecutionLimits));
                 var cog = window.GetVisualDescendants().OfType<SettingActionsButton>().Single(control =>
                     control.SettingName is "Ordinary conversation execution maximum");
-                var refresh = ((MenuFlyout)cog.Flyout!).Items.OfType<MenuItem>().Single();
+                var refresh = ((MenuFlyout)cog.Flyout!).Items.OfType<MenuItem>().Single(option => option.Header is "Refresh");
                 var status = fixture.Main.ConversationExecutionStatus;
                 var demand = fixture.Main.SelectedConversationExecutionLimit;
                 ((MenuFlyout)cog.Flyout!).ShowAt(cog);

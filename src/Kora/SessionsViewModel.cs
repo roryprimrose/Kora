@@ -47,7 +47,8 @@ internal sealed partial class SessionsViewModel(
     Kora.Application.IUiDispatcher? conversationPresentationDispatcher = null,
     Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null,
     SessionRetentionApplyService? retentionApply = null,
-    RemainingWorkManagement? workManagement = null) : ObservableObject
+    RemainingWorkManagement? workManagement = null,
+    Kora.KnowledgeSources.SessionKnowledgeSourceController? knowledgeSources = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -787,6 +788,7 @@ internal sealed partial class SessionsViewModel(
         ClearConversation();
         ClearProviderReview();
         attachments?.Close();
+        knowledgeSources?.Close();
         if (selected is { } previous) { memories?.ClearSessionDrafts(previous.Authority.SessionId); }
         ClearMemories();
         ClearLocalEvents();

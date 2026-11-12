@@ -5441,9 +5441,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 await cancellation.CancelAsync();
                 cancellation.Token.ThrowIfCancellationRequested();
             }
-            if (new object?[] { decision.Answer, decision.Action, decision.GrantChange, decision.Question }
+            if (new object?[] { decision.Answer, decision.Action, decision.GrantChange, decision.Question, decision.SettingsFilter }
                     .Count(value => value is not null) != 1
                 || decision.Answer is not null && string.IsNullOrWhiteSpace(decision.Answer)
+                || decision.SettingsFilter is not null && !Kora.Core.Tools.SettingsNavigationTool.IsValidQuery(decision.SettingsFilter)
                 || decision.Action is { } unknown && !Enum.IsDefined(unknown)
                 || decision.GrantChange is { } grant
                     && (!Enum.IsDefined(grant.Action) || !Enum.IsDefined(grant.Operation))
@@ -5465,7 +5466,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     "Captured reasoning finished, but no new question or action choice was admitted. Start a fresh request after exact use review; nothing was dispatched or retargeted.");
                 return;
             }
-            if (decision.Question is { } clarification)
+            if (decision.SettingsFilter is { } filter)
+            {
+                if (artifact is not null || !LockSourceCurrent())
+                { throw new InvalidOperationException("Settings navigation requires the current original user request."); }
+                await ShowSettingFilterAsync(filter, LockSourceCurrent, cancellation.Token);
+            }
+            else if (decision.Question is { } clarification)
             {
                 if (questionDepth >= 3)
                 {

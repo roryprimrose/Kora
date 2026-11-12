@@ -7,6 +7,13 @@ public static partial class ModelToolProtocol
     private static void ValidateResult(ModelToolCall call, CapabilityReply reply, bool historical = false)
     {
         ValidateText(reply.Reason);
+        if (string.Equals(call.CapabilityId, SettingsNavigationTool.Id, StringComparison.Ordinal))
+        {
+            if (CapabilityInputPolicy.Read(SettingsNavigationTool.Descriptor, call.InputJson).DenialReason is not null
+                || !SettingsNavigationTool.Matches(reply))
+            { throw new InvalidDataException("Settings navigation requires its exact native presentation receipt."); }
+            return;
+        }
         if (string.Equals(call.CapabilityId, SessionMetadataTool.Id, StringComparison.Ordinal))
         {
             var parsed = CapabilityInputPolicy.Read(SessionMetadataTool.Descriptor, call.InputJson);

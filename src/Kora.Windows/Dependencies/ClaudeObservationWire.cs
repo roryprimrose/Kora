@@ -92,9 +92,10 @@ internal static class ClaudeObservationWire
             {
                 writer.WriteStartObject();
                 writer.WriteString("name", Name(descriptor.Id));
-                writer.WriteString("description", "Host-owned read-only observation: " + descriptor.Id);
+                writer.WriteString("description", descriptor.Effect == Kora.Core.Tools.CapabilityEffect.NativePresentation
+                    ? Kora.Core.Tools.SettingsNavigationTool.ModelPolicy : "Host-owned read-only observation: " + descriptor.Id);
                 writer.WritePropertyName("input_schema");
-                writer.WriteRawValue(ReadOnlyCapabilitySchema.Serialize(descriptor.Id));
+                Kora.Core.Tools.CapabilityInputSchema.Write(writer, descriptor, includeEmptyRequired: true, boundedOffset: true);
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();

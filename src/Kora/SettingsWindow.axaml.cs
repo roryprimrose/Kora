@@ -28,6 +28,7 @@ public sealed partial class SettingsWindow : Window
     public void ShowReadiness() => View.ShowReadiness();
     public void ShowVoiceRecovery() => View.ShowVoiceRecovery();
     public void ShowSection(SettingsSection section) => View.ShowSection(section);
+    public void ShowFilter(string query) => View.ShowFilter(query);
     internal void BindNavigation(Action? instructions, Action? skills, Action? grants,
         Func<Task>? reviewVersion, Func<Task>? returnVersion) =>
         View.BindNavigation(instructions, skills, grants, reviewVersion, returnVersion);

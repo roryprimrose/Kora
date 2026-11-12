@@ -66,6 +66,98 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ## Configuration Contract
 
+### Searchable settings in the expanded workbench
+
+Settings remains a hosted section of the expanded Kora window. The existing
+editors are retained in a single scrollable result area, alongside a keyboard-
+accessible hierarchy of pages and subsections. **All settings** is the initial
+scope. Selecting a page includes its subsections; selecting a subsection narrows
+that scope. Section selection and ordinary keyword search intersect.
+An exact individual setting ID (case-insensitive, with surrounding whitespace
+ignored) selects All settings and resolves only its one owning editor result;
+matching ID prefixes or mentions in another setting's description are excluded.
+A unique exact setting title also takes precedence over incidental text matches.
+
+Search is case-insensitive. Every whitespace-separated word must match somewhere
+in a setting's ID, title, description or explicitly bound displayed value.
+Related fields which share one review/save operation remain one result, searchable
+by their distinct individual IDs. Navigating to a specific capture-timing or
+caption option selects that existing option editor, without changing its value.
+Current editor values participate without
+saving them. Credentials and arbitrary editor text, such as a speech comparison
+phrase, are not indexed. Search and hierarchy state remain in memory; filtering
+does not recreate editors, change preferences, read new source content, run a
+model, start setup or change consent. The hierarchy hides pages and subsections
+without search matches, retaining matching ancestors and other matching sections
+regardless of the current section selection. **All settings** remains available
+even with no matches; clearing search restores the hierarchy and current scope.
+
+The indexed [native metadata](../src/Kora/SettingsView.axaml) defines unique
+individual IDs, including collection-valued settings such as URI rules,
+knowledge sources, each customization-source kind, included MCP servers and
+the session/always action-approval collections. IDs are checked for
+case-insensitive uniqueness when the browser is initialized; aliases cannot
+collide with canonical IDs or other aliases.
+Existing command-owned IDs are reused for captions, provider defaults, devices,
+diagnostic retention, call feedback and execution limits. Missing input-profile
+resource/residency and session archive/deletion options have distinct IDs.
+`appearance.presence.show` identifies the Show presence option; the previous
+`appearance.presence-display` remains a search alias. Other renamed initial
+presentation IDs remain aliases too. No preference file, persisted schema or
+existing mutation-command identifier is renamed.
+
+Each setting-specific cog appends **Copy Setting ID** to its existing menu.
+A single-option cog copies its canonical ID directly; grouped cogs expose a
+submenu containing one exact ID per option, never a whitespace-separated list.
+Collection IDs identify the collection, not an item selected inside it.
+Category-only refresh cogs do not invent individual setting IDs.
+The [copy binding](../src/Kora/Controls/SettingActionsButton.cs) preserves existing
+reset/refresh commands and their guards. The native Settings host revalidates
+private visibility and ownership before writing only the ID through the shared
+plain-text clipboard transfer. No value, credentials or descriptions are copied;
+unavailable clipboard writes are reported, with no reset or automatic retry.
+
+Original typed or current-name activated `show setting <ID or search words>`,
+`view setting <ID or search words>` and `open setting <ID or search words>` open
+the same pane, select All settings and populate its search field. Existing exact
+section commands clear a previous search before selecting their destination.
+`show <exact.setting.id>`, `show settings for <ID or title>` and
+`show me the settings for <ID or title>` use the same inert navigation route.
+Opening Settings ordinarily preserves its current filter and unsaved controls.
+After native hosting and layout, Settings refreshes its actual presentation
+lifetime before acknowledging navigation. Attaching inside an initially hidden
+container does not constitute visibility. A still-hidden or revoked view remains
+unavailable; native Settings/setup/recovery opening failures are reported through
+the existing diagnostics and recovery UI instead of escaping a click event and
+terminating the desktop. No visibility, ownership or privacy gate is bypassed.
+
+An already qualified, admitted conversational model may resolve an original
+request such as "Where can I change how fast you speak?" to the host-owned
+`settings.view` operation. Its only argument is a nonempty search query of at most
+256 characters, without control characters. The host revalidates the original
+interactive request, current ownership, private disclosure, presenter and
+cancellation across UI dispatch. It returns a content-free native-presentation
+receipt, not setting values. It cannot change settings, confer approval or
+enable unavailable models. Tool-free, reviewed source-only and independently
+invoked agent turns do not acquire navigation authority. The legacy local
+command reasoner uses the same presenter rather than a second UI path.
+
+Existing validators, save commands, review/confirmation and undo remain
+authoritative. In particular, hiding the call-activation editor through filtering
+retires its native review; clearing a filter does not revive that review.
+This is bounded usability within the approved shared-settings outcome, not a new
+settings scope, preference store, export feature or generic model UI controller.
+Replacing the original editors with a separate generated editor catalogue was
+rejected because it would duplicate their validation and review lifecycles.
+
+Deterministic coverage is owned by the
+[browser regressions](../tests/Kora.Windows.IntegrationTests/SettingsBrowserTests.cs),
+[copy and unique-ID regressions](../tests/Kora.Windows.IntegrationTests/SettingsCopyIdTests.cs),
+[native lifetime regressions](../tests/Kora.Windows.IntegrationTests/CallVoiceActivationNativeTests.cs),
+[tool contract](../tests/Kora.Core.UnitTests/Tools/SettingsNavigationToolTests.cs)
+and [conversational dispatch regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.SettingsNavigation.cs).
+These checks do not qualify a live provider or installed accessibility profile.
+
 ### Shared device-local preference availability
 
 The [shared preference store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs) resolves files beneath `IApplicationDataPaths.LocalRoot/Preferences`; domain adapters retain format and value validation.

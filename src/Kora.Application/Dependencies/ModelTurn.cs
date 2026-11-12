@@ -12,7 +12,8 @@ public sealed class ModelTurn
     private readonly List<Kora.Core.Conversation.RetainedLocalObservation> observations = [];
     internal bool RetainLocalObservations { get; set; }
     internal bool RetainsLocalObservations => RetainLocalObservations && ConversationTarget is not null
-        && Context.ToolMode == ModelToolMode.ReadOnly && Provenance.Selection.Provider == ModelProviderIdentity.Ollama
+        && Context.ToolMode is ModelToolMode.ReadOnly or ModelToolMode.InteractiveConversation
+        && Provenance.Selection.Provider == ModelProviderIdentity.Ollama
         && Provenance.Request.InvocationId is null;
 
     internal void CaptureObservation(string id, string input, Kora.Core.Tools.CapabilityReply reply, DateTimeOffset observedAt)

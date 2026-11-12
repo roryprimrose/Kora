@@ -1,4 +1,4 @@
-using Kora.Application.Hosting;
+﻿using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Authorization;
 using Kora.Core.Dependencies;
@@ -205,7 +205,7 @@ public sealed partial class LocalContextTurnWorkflow(
                 || result.Outcome == ModelTurnOutcome.Succeeded
                     && (model.Turn is null || !ReferenceEquals(model.Turn.TerminalResult, result)
                         || result.Provenance != model.Turn.Provenance
-                        || result.Response is not { Answer: not null, Action: null, GrantChange: null, Question: null }))
+                        || result.Response is not { Answer: not null, Action: null, GrantChange: null, Question: null, SettingsFilter: null }))
             {
                 result = new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse);
             }

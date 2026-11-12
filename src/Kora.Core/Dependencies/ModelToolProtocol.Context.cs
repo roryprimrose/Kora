@@ -7,6 +7,8 @@ namespace Kora.Core.Dependencies;
 
 public static partial class ModelToolProtocol
 {
+    private static readonly IReadOnlyList<CapabilityDescriptor> ConversationTools = Array.AsReadOnly(
+        ReadOnlyCapabilityCatalog.Descriptors.Append(SettingsNavigationTool.Descriptor).ToArray());
     private static readonly JsonSerializerOptions ContextOptions = new()
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
@@ -57,6 +59,7 @@ public static partial class ModelToolProtocol
     public static IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode) => mode switch
     {
         ModelToolMode.ReadOnly => ReadOnlyCapabilityCatalog.Descriptors,
+        ModelToolMode.InteractiveConversation => ConversationTools,
         ModelToolMode.ProviderSettings => ProviderSettingsTools.Descriptors,
         ModelToolMode.ApplicationMaintenance => MaintenanceTools.Descriptors,
         ModelToolMode.None or ModelToolMode.HostedClarification => [],

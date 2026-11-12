@@ -14,6 +14,7 @@ public sealed partial class WindowsOllamaToolTransportTests
     [InlineData(",\"prompt_eval_count\":25", 25L, null)]
     [InlineData(",\"eval_count\":5", null, 5L)]
     [InlineData(",\"prompt_eval_count\":25,\"eval_count\":5", 25L, 5L)]
+    [InlineData(",\"prompt_eval_count\":25,\"prompt_eval_cached_count\":20,\"eval_count\":5", 25L, 5L)]
     public async Task NativeCountsRemainOptionalAndAreNotInferredFromTransportBytes(string fields, long? input, long? output)
     {
         await using var fixture = new Fixture();
@@ -24,6 +25,24 @@ public sealed partial class WindowsOllamaToolTransportTests
         result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         result.TokenUsage.Should().Be(input is null && output is null ? null : new ModelTokenUsage(input, output, input));
         result.Usage!.InputUtf8Bytes.Should().BeGreaterThan(0);
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("\"20\"")]
+    [InlineData("9223372036854775808")]
+    public async Task InvalidCachedPromptObservationsNeverProduceAnAnswer(string count)
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        fixture.Chat = (message, _) => Task.FromResult(Json(message,
+            Final[..^1] + ",\"prompt_eval_cached_count\":" + count + "}"));
+
+        var result = await fixture.Transport.CompleteAsync(fixture.Request(), Token);
+
+        result.Outcome.Should().Be(ModelTurnOutcome.Denied);
+        result.Message.Should().BeNull();
+        fixture.Bodies.Should().ContainSingle();
     }
 
     [Fact]
@@ -45,7 +64,8 @@ public sealed partial class WindowsOllamaToolTransportTests
     {
         await using var fixture = new Fixture();
         using var root = fixture.Root();
-        var wire = AnswerChunk("answer") + "\n" + AnswerTerminal[..^1] + ",\"prompt_eval_count\":25,\"eval_count\":5}";
+        var wire = AnswerChunk("answer") + "\n" + AnswerTerminal[..^1]
+            + ",\"prompt_eval_count\":25,\"prompt_eval_cached_count\":20,\"eval_count\":5}";
         var stream = new AnswerStream(Encoding.UTF8.GetBytes(wire), 1);
         fixture.Chat = (message, _) => Task.FromResult(AnswerStreaming(message, stream));
         var result = await fixture.Transport.CompleteWithAnswerAsync(fixture.Request(toolMode: ModelToolMode.None),

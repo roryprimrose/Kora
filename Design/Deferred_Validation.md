@@ -43,6 +43,32 @@ Current dispositions:
 - Native UX, speech, distribution and hardware observations are release/profile
   qualification. They do not block unrelated deterministic feature merges.
 
+### Operator sequencing - 2026-11-12
+
+The product owner deferred hands-on worker/tool, installer/lifecycle and
+accessibility evaluation until a more stable Kora build is available. The
+current acoustic and physical privacy matrix is also not a development-session
+checklist or a prerequisite for independent feature work. Long negative-audio
+trials belong to an approved profile-qualification run, not an instruction for
+an operator to remain at the keyboard for ten hours.
+
+| Outstanding evidence | Current disposition | Implementation consequence |
+| --- | --- | --- |
+| Local-model quality, bounds and cancellation | Agent-owned candidate evaluation; preserve actual failures and rejected candidates | Continue provider-neutral/UI/orchestration work with the unqualified profile unavailable; do not ask the operator to rerun deterministic failures |
+| Hosted deployment/account/terms/cost and physical-send trial | Await explicit selection/authority for that exact account/profile; live trials are optional outside its enabled scope | No credential, Claude API knowledge or paid call is required for unrelated feature implementation |
+| Speech recordings and acoustic/playback qualification | Preserve consented local recordings without diagnostic/transcript disclosure; review annotations independently before replay; defer broader physical matrix to the selected stable profile | Continue bounded speech/capture implementation and deterministic checks; recording completion alone enables no wake profile |
+| Worker W1-W4 and installed fixed-effect trial | Deferred until an exact stable build, installed runtime and approved isolated environment are selected | Continue typed worker/broker implementation; consequential execution remains unavailable until its applicable evidence passes |
+| Installer, accessibility and physical lifecycle/privacy matrix | Deferred to the selected stable build and capability-scoped E/Q run; automate mechanical checks separately | Do not hold independent feature PRs or normal protected merge admission for these observations; included release/profile claims still require their actual evidence |
+
+`Deferred` and `Not run` are not `Passed`, waivers or approval. No acceptance
+threshold, production qualification pin, unavailable provider/worker/wake
+source, branch protection or maintained deterministic check changes as a
+result of this sequencing. UI automation may establish mechanical behavior,
+not substitute for audible Narrator, physical acoustic or native resource
+observations required by the owning profile. Reassess the minimum consumed
+implementation contract and directly applicable checks for each new feature
+under [I/E/Q](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy).
+
 ## Profile Qualification Checklists
 
 | Area | Evidence retained for future included profiles | Preparation / procedure | Blocks |

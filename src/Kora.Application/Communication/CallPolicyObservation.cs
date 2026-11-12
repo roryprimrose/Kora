@@ -13,6 +13,8 @@ public sealed record CallPolicyObservation(
         || AutomaticState is not (CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected)
         || IsProtected && Settings.ShowVisualTextDuringCalls;
     public bool AllowActivation => !ManualControlEvidenceUnavailable && (!IsProtected || Settings.AllowVoiceActivationDuringCalls);
+    public bool AllowsPushToTalkCallException => !ManualControlEvidenceUnavailable
+        && EffectiveState is CallState.Active or CallState.Suspected;
     public HostAuthorizationPolicy Authorization(bool unlocked, bool mandatoryGatesSatisfied) =>
         new(unlocked && !ManualControlEvidenceUnavailable, mandatoryGatesSatisfied && !ManualControlEvidenceUnavailable,
             IsProtected, IgnoreReusableGrants: false,

@@ -21,6 +21,13 @@ internal static class ConversationShutdownGuard
             var evidenceCurrent = evidence?.CaptureShutdownEligibility() ?? (static () => true);
             current = () => routingCurrent() && requestCurrent() && sessionsCurrent() && evidenceCurrent();
             return current();
-        }, () => current?.Invoke() == true);
+        }, () => current?.Invoke() == true, () =>
+        {
+            var requestsCurrent = requests.CaptureShutdownEligibility(exitWithoutDisclosure: true);
+            var sessionsCurrent = sessions.CaptureShutdownEligibility(exitWithoutDisclosure: true);
+            var routingCurrent = routing?.CaptureShutdownEligibility() ?? (static () => true);
+            var evidenceCurrent = evidence?.CaptureShutdownEligibility() ?? (static () => true);
+            return () => requestsCurrent() && sessionsCurrent() && routingCurrent() && evidenceCurrent();
+        });
     }
 }

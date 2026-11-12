@@ -118,6 +118,16 @@ public sealed class CompactResponseWorkingAreaTests
                 window.FindControl<Button>("CancelResponseTask")!.IsEffectivelyVisible.Should().BeFalse();
                 window.FindControl<Button>("StopResponseSpeech")!.IsEffectivelyVisible.Should().BeFalse();
                 var more = window.FindControl<Button>("ResponseMoreActions")!;
+                var expand = window.FindControl<Button>("ExpandSessions")!;
+                var dismiss = window.FindControl<Button>("DismissResponse")!;
+                var morePosition = more.TranslatePoint(default, window)!.Value;
+                var expandPosition = expand.TranslatePoint(default, window)!.Value;
+                var dismissPosition = dismiss.TranslatePoint(default, window)!.Value;
+                morePosition.Y.Should().Be(dismissPosition.Y);
+                expandPosition.Y.Should().Be(dismissPosition.Y);
+                morePosition.X.Should().BeGreaterThan(window.ClientSize.Width / 2);
+                (morePosition.X + more.Bounds.Width).Should().BeLessThan(expandPosition.X);
+                (expandPosition.X + expand.Bounds.Width).Should().BeLessThan(dismissPosition.X);
                 more.BringIntoView();
                 window.UpdateLayout();
                 more.Focus().Should().BeTrue();
@@ -231,6 +241,15 @@ public sealed class CompactResponseWorkingAreaTests
                 var input = window.FindControl<TextBox>("CommandInput")!;
                 input.Text.Should().Be("Original unsent command");
                 AutomationProperties.GetName(input).Should().Be("Typed command or artifact slash input");
+                var inputRow = (Grid)input.Parent!;
+                var microphone = window.FindControl<Button>("PushToTalkButton")!;
+                var submit = window.FindControl<Button>("SubmitResponseCommand")!;
+                var reservedWidth = submit.Bounds.Width + (microphone.IsVisible ? microphone.Bounds.Width : 0)
+                    + (inputRow.ColumnSpacing * 2);
+                var viewport = window.FindControl<ScrollViewer>("ResponseViewport")!;
+                var availableWidth = Math.Min(inputRow.Bounds.Width - reservedWidth, viewport.Viewport.Width);
+                input.Bounds.Width.Should().BeApproximately(availableWidth, 0.01,
+                    "the input fills available row space without exceeding the visible narrow-screen viewport");
                 var reader = window.GetVisualDescendants().OfType<TextBlock>()
                     .Single(text => string.Equals(text.Text, body, StringComparison.Ordinal));
                 reader.Text.Should().Be(body);

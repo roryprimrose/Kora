@@ -1,6 +1,7 @@
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Core;
 using Kora.Core.Artifacts;
 using Kora.Core.Configuration;
 
@@ -17,6 +18,7 @@ public sealed partial class MainViewModel
     private McpServerConfigurationSummary? selectedMcpServer;
     private ArtifactSourceKind selectedArtifactDirectoryKind = ArtifactSourceKind.Skill;
     private bool artifactDirectoryControlActive;
+    private long? artifactReloadFailureResponseRevision;
     public Task ArtifactChangeUpdate { get; private set; } = Task.CompletedTask;
 
     private void OnArtifactCatalogueChanged(object? sender, EventArgs args) =>
@@ -26,16 +28,22 @@ public sealed partial class MainViewModel
     private void OnArtifactCatalogueReloadFailed(
         object? sender,
         ArtifactCatalogueReloadFailedEventArgs args) =>
-        uiDispatcher.Post(() => ShowFailure(
-            "Artifact changes could not be loaded.",
-            "File-backed definitions are withheld until a successful reload and any required exact revision review. "
-            + "Historical entries are not current sources; built-in definitions remain separate."));
+        uiDispatcher.Post(() =>
+        {
+            if (disposed || !artifactCatalogue.IsReloadUnavailable) { return; }
+            PresentResponse(AssistantState.Failure,
+                "Artifact changes could not be loaded.",
+                "File-backed definitions are withheld until a successful reload and any required exact revision review. "
+                + "Historical entries are not current sources; built-in definitions remain separate.",
+                sourceAssigned: () => artifactReloadFailureResponseRevision = Interlocked.Read(ref ordinaryResponseRevision));
+        });
 
     private void OnMcpServerConfigurationChanged(object? sender, EventArgs args) =>
         uiDispatcher.Post(() => RefreshArtifactDirectories(publishConfigurationChange: false));
 
     private async Task ApplyArtifactCatalogueChangeAsync()
     {
+        if (disposed) { return; }
         var cancellation = Task.CompletedTask;
         var retirement = Task.CompletedTask;
         RefreshArtifactCommandOptions();
@@ -65,6 +73,16 @@ public sealed partial class MainViewModel
                 "The previous request, question, or approval was retired. Start a new request to use the reloaded artifact revision.");
         }
         await Task.WhenAll(cancellation, retirement);
+        if (!artifactCatalogue.IsReloadUnavailable && artifactReloadFailureResponseRevision is { } revision)
+        {
+            artifactReloadFailureResponseRevision = null;
+            if (revision == Interlocked.Read(ref ordinaryResponseRevision))
+            {
+                PresentResponse(AssistantState.Information, "Artifact sources reloaded.",
+                    "The definition catalogue was reloaded. Any required exact revision review is still needed before use.",
+                    requestWindow: false, refreshOutput: false, sourceAssigned: () => forceVisualResponse = true);
+            }
+        }
     }
 
     public AsyncCommand RefreshArtifactDirectoriesCommand { get; }

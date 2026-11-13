@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
@@ -9,6 +10,49 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 
 public sealed partial class WindowsOllamaToolTransportTests
 {
+    [Theory]
+    [InlineData("truncate", false)]
+    [InlineData("truncate", true)]
+    [InlineData("shift", false)]
+    [InlineData("shift", true)]
+    public async Task Native_context_overflow_never_returns_an_answer_from_incomplete_context(
+        string option, bool streaming)
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        var evidence = new ModelContextEvidence(new(Guid.NewGuid()), fixture.RequestIdentity, new(1),
+            "The exact reviewed source must remain in context.", ModelEvidenceDisclosure.LocalOnly);
+        fixture.Chat = (message, _) =>
+        {
+            using var body = JsonDocument.Parse(fixture.Bodies.Single());
+            var refusesContextLoss = body.RootElement.TryGetProperty(option, out var value)
+                && value.ValueKind == JsonValueKind.False;
+            return Task.FromResult(refusesContextLoss
+                ? Json(message, """{"error":"context capacity exceeded"}""", HttpStatusCode.BadRequest)
+                : Json(message, streaming ? AnswerChunk("Answer from incomplete context") + "\n" + AnswerTerminal
+                    : Final));
+        };
+        var request = fixture.Request(evidence: [evidence], toolMode: ModelToolMode.None);
+        var updates = new List<ModelAnswerUpdate>();
+        var reply = streaming
+            ? await fixture.Transport.CompleteWithAnswerAsync(request, (update, _) =>
+            {
+                updates.Add(update);
+                return ValueTask.CompletedTask;
+            }, Token)
+            : await fixture.Transport.CompleteAsync(request, Token);
+
+        reply.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+        reply.Provenance.Should().BeSameAs(request.Provenance);
+        reply.Message.Should().BeNull();
+        reply.Usage.Should().BeNull();
+        updates.Should().BeEmpty();
+        fixture.Bodies.Should().ContainSingle();
+        Encoding.UTF8.GetString(fixture.Bodies[0]).Should().Contain(evidence.Content);
+        (await fixture.Transport.CompleteAsync(request, Token)).Outcome.Should().Be(ModelTurnOutcome.Denied);
+        fixture.Bodies.Should().ContainSingle();
+    }
+
     [Theory]
     [InlineData(ModelToolMode.ReadOnly, 0, ModelTurnOutcome.Succeeded)]
     [InlineData(ModelToolMode.ReadOnly, -1, ModelTurnOutcome.Denied)]

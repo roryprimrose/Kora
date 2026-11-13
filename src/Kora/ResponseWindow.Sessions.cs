@@ -98,7 +98,6 @@ public sealed partial class ResponseWindow
             {
                 WindowState = WindowState.Normal;
                 IsExpanded = expanded;
-                CanResize = expanded;
                 MinWidth = expanded ? 320 : 480;
                 MinHeight = expanded ? 300 : 570;
                 var size = expanded ? expandedSize : compactSize;
@@ -115,12 +114,11 @@ public sealed partial class ResponseWindow
         }
         ConfigureChrome(expanded);
         ExpandedControls.IsVisible = expanded;
-        ResponseLayout.Width = expanded ? double.NaN : Math.Max(480, Width);
         var conversation = expanded || SessionWorkspace.DataContext is SessionsViewModel { SelectedSessionRecord: not null };
         if (wasExpanded != expanded || SessionWorkspace.IsVisible != conversation) { sessionPresentationEpoch++; }
         if (!expanded) { SessionWorkspace.HideDetails(); }
         SessionWorkspace.SetCompactPresentation(!expanded);
-        SessionWorkspace.Height = expanded ? double.NaN : Math.Max(420, Height - 160);
+        UpdateCompactWorkspaceSize();
         if (!preservePresentation)
         {
             SessionWorkspace.IsVisible = conversation;
@@ -129,7 +127,6 @@ public sealed partial class ResponseWindow
         }
         CollapseSessions.IsVisible = expanded;
         ShowCurrentInteraction.IsVisible = conversation;
-        HideInteraction.IsVisible = conversation;
         ExpandSessions.IsVisible = !expanded;
         SessionWorkspace.UpdateResponsiveLayout();
         UpdateNativeReviewLayout();
@@ -154,17 +151,19 @@ public sealed partial class ResponseWindow
             Math.Max(area.Y, Math.Min(Position.Y, area.Bottom - height)));
     }
 
-    private void FitCompactWorkingArea()
+    private void UpdateCompactWorkspaceSize() =>
+        SessionWorkspace.Height = IsExpanded ? double.NaN : Math.Max(420, ResponseViewport.Bounds.Height - 160);
+
+    private void OnResponseScalingChanged(object? sender, EventArgs args)
     {
-        if (IsExpanded) { return; }
-        if (getWorkingArea() is { } area
-            && (Width * RenderScaling > area.Width || Height * RenderScaling > area.Height))
+        if (!positionInitialized || applyingPlacement || WindowState != WindowState.Normal) { return; }
+        applyingPlacement = true;
+        try
         {
-            positionInitialized = false;
             KeepOnScreen();
-            positionInitialized = true;
         }
-        ResponseLayout.Width = Math.Max(480, Width);
+        finally { applyingPlacement = false; }
+        CaptureNormalBounds();
     }
 
     private void OnExpandSessionsClicked(object? sender, RoutedEventArgs args) => viewModel.ShowSessions();
@@ -181,8 +180,6 @@ public sealed partial class ResponseWindow
         CurrentInteractionContent.IsVisible = true;
         ExpandSessions.IsVisible = true;
     }
-
-    private void OnHideInteractionClicked(object? sender, RoutedEventArgs args) => HideResponse();
 
     private void OnSessionPresentationChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
     {

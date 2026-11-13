@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 
@@ -37,7 +39,9 @@ public sealed partial class AdaptiveInteractionTests
             await f.Run("what power action is pending");
             inactivity.IsScheduled.Should().BeFalse();
             window.IsSessionListPresented.Should().BeTrue();
-            window.FindControl<Button>("HideInteraction")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.Activate();
+            window.Focus();
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             window.IsVisible.Should().BeFalse();
             f.Model.ComposerBody.Should().Be("kept while hidden");
             await f.Run("show sessions");
@@ -108,7 +112,7 @@ public sealed partial class AdaptiveInteractionTests
 
             window.FindControl<Button>("CollapseSessions")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             window.IsExpanded.Should().BeFalse();
-            window.CanResize.Should().BeFalse();
+            window.CanResize.Should().BeTrue();
             model.ComposerBody.Should().Be("first conversation unsent");
             f.Native.Main.ShowSessions();
             await f.Sessions.InteractionOperation;
@@ -157,7 +161,10 @@ public sealed partial class AdaptiveInteractionTests
                     await f.Run("show sessions");
                     break;
                 case "hide-return":
-                    f.Window!.FindControl<Button>("HideInteraction")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    var window = f.Window!;
+                    window.Activate();
+                    window.Focus();
+                    window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
                     await f.Run("show sessions");
                     break;
                 case "owner": f.Native.Access.SetOpen(false); f.Native.Access.SetOpen(true); break;

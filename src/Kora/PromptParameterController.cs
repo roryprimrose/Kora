@@ -357,12 +357,16 @@ internal sealed partial class PromptParameterController(
 
     internal async Task CloseAndWait()
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            await Dispatcher.UIThread.InvokeAsync(CloseAndWait);
+            return;
+        }
         closing = true;
         main.NotifyResponseReadDecisionAvailability();
         try
         {
-            if (Dispatcher.UIThread.CheckAccess()) { Close(); }
-            else { await Dispatcher.UIThread.InvokeAsync(Close); }
+            Close();
 #pragma warning disable VSTHRD003 // Join only this controller's cancelled callback; asynchronous awaiting leaves its Avalonia dispatcher free.
             await activeOperation;
             await voiceOperation;

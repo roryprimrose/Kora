@@ -7,6 +7,8 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -17,6 +19,8 @@ using Kora.Core.Voice;
 using Kora.NativeUxFixture;
 
 using Microsoft.Extensions.Logging.Abstractions;
+
+using SkiaSharp;
 
 namespace Kora.Windows.IntegrationTests;
 
@@ -30,7 +34,7 @@ public sealed class CompactResponseWorkingAreaTests
     [InlineData(640, 800, 2)]
     [InlineData(480, 570, 1)]
     [InlineData(1200, 900, 1)]
-    public async Task EveryCompactActionAndInputIsInsideOneRoundedFrame(int width, int height, double scale)
+    public async Task CompactContentActionsAndInputFillAnUnframedViewport(int width, int height, double scale)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -49,6 +53,53 @@ public sealed class CompactResponseWorkingAreaTests
                 window.ShowSessions(false, activate: false);
                 window.UpdateLayout();
                 AssertCompactFrameContainsControls(window);
+                fixture.Voice.StartCalls.Should().Be(0);
+                fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CompactBackgroundCoversEveryViewportCorner(bool dark)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(ScratchParent(), silentCaption: true);
+            await fixture.InitializeAsync();
+            var window = new ResponseWindow(fixture.Main);
+            var panelColor = dark ? Colors.DarkSlateGray : Colors.WhiteSmoke;
+            window.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+            window.Resources["KoraWindowBackgroundBrush"] = Brushes.Black;
+            window.Resources["KoraPresencePanelBrush"] = new SolidColorBrush(panelColor);
+            try
+            {
+                window.ShowResponse();
+                window.UpdateLayout();
+                using (window.CaptureRenderedFrame()) { }
+                using var frame = window.CaptureRenderedFrame();
+                frame.Should().NotBeNull();
+                using var stream = new MemoryStream();
+                frame!.Save(stream, PngBitmapEncoderOptions.Default);
+                stream.Position = 0;
+                using var pixels = SKBitmap.Decode(stream);
+                var viewport = window.FindControl<ScrollViewer>("ResponseViewport")!;
+                var bounds = new Rect(viewport.TranslatePoint(default, window)!.Value, viewport.Bounds.Size);
+                var expected = new SKColor(panelColor.R, panelColor.G, panelColor.B, panelColor.A);
+                Point[] corners =
+                [
+                    bounds.TopLeft + new Vector(1, 1),
+                    bounds.TopRight + new Vector(-2, 1),
+                    bounds.BottomLeft + new Vector(1, -2),
+                    bounds.BottomRight + new Vector(-2, -2),
+                ];
+                foreach (var corner in corners)
+                {
+                    pixels.GetPixel((int)(corner.X * window.RenderScaling), (int)(corner.Y * window.RenderScaling))
+                        .Should().Be(expected, "the chat background must reach the client edges without an inset frame");
+                }
                 fixture.Voice.StartCalls.Should().Be(0);
                 fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
             }
@@ -104,9 +155,11 @@ public sealed class CompactResponseWorkingAreaTests
                     .Where(button => button.IsEffectivelyVisible
                         && !button.GetVisualAncestors().OfType<Avalonia.Controls.Primitives.ScrollBar>().Any()).ToArray();
                 buttons.Select(button => button.Name).Should().BeEquivalentTo(
-                    ["ExpandSessions", "ResponseMoreActions", "DismissResponse", "PushToTalkButton", "SubmitResponseCommand"]);
+                    ["ExpandSessions", "MinimizeWorkbench", "MaximizeWorkbench", "CloseWorkbench",
+                        "ResponseMoreActions", "PushToTalkButton", "SubmitResponseCommand"]);
                 foreach (var button in buttons)
                 {
+                    if (button.Classes.Contains("caption")) { continue; }
                     if (!string.Equals(button.Name, "PushToTalkButton", StringComparison.Ordinal))
                     { button.Content.Should().BeOfType<PathIcon>(); }
                     ToolTip.GetTip(button).Should().NotBeNull();
@@ -118,16 +171,8 @@ public sealed class CompactResponseWorkingAreaTests
                 window.FindControl<Button>("CancelResponseTask")!.IsEffectivelyVisible.Should().BeFalse();
                 window.FindControl<Button>("StopResponseSpeech")!.IsEffectivelyVisible.Should().BeFalse();
                 var more = window.FindControl<Button>("ResponseMoreActions")!;
-                var expand = window.FindControl<Button>("ExpandSessions")!;
-                var dismiss = window.FindControl<Button>("DismissResponse")!;
                 var morePosition = more.TranslatePoint(default, window)!.Value;
-                var expandPosition = expand.TranslatePoint(default, window)!.Value;
-                var dismissPosition = dismiss.TranslatePoint(default, window)!.Value;
-                morePosition.Y.Should().Be(dismissPosition.Y);
-                expandPosition.Y.Should().Be(dismissPosition.Y);
                 morePosition.X.Should().BeGreaterThan(window.ClientSize.Width / 2);
-                (morePosition.X + more.Bounds.Width).Should().BeLessThan(expandPosition.X);
-                (expandPosition.X + expand.Bounds.Width).Should().BeLessThan(dismissPosition.X);
                 more.BringIntoView();
                 window.UpdateLayout();
                 more.Focus().Should().BeTrue();
@@ -137,6 +182,7 @@ public sealed class CompactResponseWorkingAreaTests
                 var menu = (MenuFlyout)more.Flyout!;
                 menu.IsOpen.Should().BeTrue();
                 menu.Items.OfType<MenuItem>().Select(item => item.Header).Should().Contain("Current response details");
+                menu.Items.OfType<MenuItem>().Select(item => item.Header).Should().Contain("Dismiss response");
                 menu.Hide();
                 fixture.Voice.StartCalls.Should().Be(0);
                 fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
@@ -148,11 +194,11 @@ public sealed class CompactResponseWorkingAreaTests
     }
 
     [Theory]
-    [InlineData(false, false, false, true)]
-    [InlineData(false, true, false, false)]
-    [InlineData(false, false, true, false)]
-    [InlineData(true, false, false, false)]
-    public async Task OnlyLeftMouseOnBlankCompactSurfaceStartsMove(bool expanded, bool text, bool rightButton, bool expectedMove)
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, false)]
+    public async Task ContentPointerPressesDoNotStartWindowMove(bool expanded, bool text, bool rightButton)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -173,9 +219,7 @@ public sealed class CompactResponseWorkingAreaTests
                     source = args.Source;
                 },
                     RoutingStrategies.Bubble, handledEventsToo: true);
-                var surface = window.FindControl<Grid>("WindowSurface")!;
-                surface.Cursor!.ToString().Should().Be(expanded ? "Arrow" : "SizeAll");
-                var point = new Point(2, expanded ? 34 : 2);
+                var point = new Point(2, window.FindControl<Border>("WorkbenchCaption")!.Bounds.Height + 2);
                 if (text)
                 {
                     var title = window.FindControl<TextBlock>("ResponseBodyText")!;
@@ -187,7 +231,7 @@ public sealed class CompactResponseWorkingAreaTests
                 var button = rightButton ? MouseButton.Right : MouseButton.Left;
                 window.MouseDown(point, button);
                 window.MouseUp(point, button);
-                handled.Should().Be(expectedMove, $"pointer source was {source?.GetType().Name}");
+                handled.Should().BeFalse($"pointer source was {source?.GetType().Name}");
                 fixture.Voice.StartCalls.Should().Be(0);
                 fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
             }
@@ -262,7 +306,7 @@ public sealed class CompactResponseWorkingAreaTests
                 input.Focus().Should().BeTrue();
                 input.Text = "Edited without submission";
                 fixture.Main.CommandText.Should().Be("Edited without submission");
-                var dismiss = window.FindControl<Button>("DismissResponse")!;
+                var dismiss = window.FindControl<Button>("CloseWorkbench")!;
                 dismiss.BringIntoView();
                 window.UpdateLayout();
                 AssertInside(window, dismiss);
@@ -459,9 +503,13 @@ public sealed class CompactResponseWorkingAreaTests
                 area = new(0, 0, 320, 400);
                 window.ShowSessions(false, activate: false);
                 window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
                 window.IsExpanded.Should().BeFalse();
                 window.Width.Should().Be(320);
                 window.Height.Should().Be(400);
+                window.ClientSize.Should().Be(new Size(320, 400));
+                window.Bounds.Size.Should().Be(new Size(320, 400));
                 viewport.VerticalScrollBarVisibility.Should().Be(Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
                 var input = window.FindControl<TextBox>("CommandInput")!;
                 input.BringIntoView();
@@ -476,19 +524,36 @@ public sealed class CompactResponseWorkingAreaTests
         File.ReadAllBytesAsync(Path.Combine(fixture.LocalRoot, "InteractionStorageV1", "interaction.db"),
             TestContext.Current.CancellationToken);
 
+    internal static void AssertCompactFrameFillsViewport(ResponseWindow window)
+    {
+        window.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        window.ClientSize.Should().Be(new Size(window.Width, window.Height));
+        var viewport = window.FindControl<ScrollViewer>("ResponseViewport")!;
+        var layout = window.FindControl<Grid>("ResponseLayout")!;
+        layout.Bounds.Width.Should().BeApproximately(Math.Max(480, viewport.Viewport.Width), 0.01);
+        var frame = window.FindControl<Border>("CompactFrame")!;
+        frame.Bounds.Size.Should().Be(layout.Bounds.Size);
+        AssertCompactFrameContainsControls(window);
+    }
+
     internal static void AssertCompactFrameContainsControls(ResponseWindow window)
     {
-        var frame = window.GetVisualDescendants().OfType<Border>().Single(border =>
-            border.IsEffectivelyVisible && border.CornerRadius == new CornerRadius(16)
-                && border.BorderThickness == new Thickness(1));
-        var interior = new Rect(new Point(1, 1), new Size(frame.Bounds.Width - 2, frame.Bounds.Height - 2));
+        var frame = window.FindControl<Border>("CompactFrame")!;
+        frame.IsEffectivelyVisible.Should().BeTrue();
+        frame.Margin.Should().Be(default(Thickness));
+        frame.BorderThickness.Should().Be(default(Thickness));
+        frame.CornerRadius.Should().Be(default(CornerRadius));
+        var interior = new Rect(frame.Bounds.Size);
         var controls = window.GetVisualDescendants().OfType<Control>()
             .Where(control => control.IsEffectivelyVisible && control is Button or TextBox
+                && !control.GetVisualAncestors().Contains(window.FindControl<Border>("WorkbenchCaption"))
                 && !control.GetVisualAncestors().OfType<Avalonia.Controls.Primitives.ScrollBar>().Any()).ToArray();
         controls.Should().NotBeEmpty();
         foreach (var control in controls)
         {
-            control.GetVisualAncestors().Should().Contain(frame, $"{control.Name} belongs inside the rounded frame");
+            control.GetVisualAncestors().Should().Contain(frame, $"{control.Name} belongs inside the chat content");
             var origin = control.TranslatePoint(default, frame)!.Value;
             var visible = new Rect(origin, control.Bounds.Size);
             foreach (var clip in control.GetVisualAncestors().TakeWhile(ancestor => ancestor != frame)

@@ -69,6 +69,7 @@ public sealed partial class WindowsOllamaToolTransportTests
 
     [Theory]
     [InlineData("truncated")]
+    [InlineData("context-overflow")]
     [InlineData("duplicate-terminal")]
     [InlineData("after-terminal")]
     [InlineData("missing-reason")]
@@ -96,6 +97,7 @@ public sealed partial class WindowsOllamaToolTransportTests
         var wire = fault switch
         {
             "truncated" => chunk + "\n",
+            "context-overflow" => chunk + "\n" + """{"error":"context capacity exceeded"}""",
             "duplicate-terminal" => chunk + "\n" + terminal + "\n" + terminal,
             "after-terminal" => terminal + "\n" + chunk,
             "missing-reason" => chunk + "\n" + AnswerChunk(string.Empty, true),

@@ -99,6 +99,27 @@ Native responses also accept the nonnegative `prompt_eval_cached_count`
 observation without changing canonical input/output usage semantics or
 inferring a billing, context-capacity or qualification claim.
 
+Every native chat request explicitly sends `truncate=false` and `shift=false`.
+The native API otherwise permits input truncation and rolling context by
+default, which can discard reviewed evidence even when the complete request
+fits Kora's byte budget. Context overflow must fail rather than produce an
+answer from silently reduced context. A native HTTP error remains Unavailable,
+without a final answer, automatic retry or hosted fallback; the same controls
+apply to normal completion, streaming and tool continuation. A context error
+after provisional stream text cannot become a successful final response.
+
+The [context-budget regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Budget.cs)
+simulate native input/rolling-context overflow on normal and streaming paths.
+They reject success and publication after an initial native rejection and
+verify that the failed conversation cannot dispatch another request. The
+[stream regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Streaming.cs)
+also reject a native context error after provisional text. These are
+deterministic transport checks, not proof of an installed runtime's effective
+token envelope.
+Exact-profile qualification must still verify that the runtime honors both
+controls. This repair neither explains the earlier small-fixture failures nor
+accepts any rejected candidate.
+
 Desktop composition now uses a [fresh runtime resolver](../src/Kora.Windows/Dependencies/WindowsOllamaRuntimeResolver.cs)
 for the local capability catalogue and exact-profile registration. It consumes
 an independently issued [qualification and process-use receipt](../src/Kora.Windows/Dependencies/WindowsOllamaQualification.cs),

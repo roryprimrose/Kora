@@ -22,6 +22,8 @@ internal static partial class OllamaToolWire
             writer.WriteString("model", model);
             writer.WriteBoolean("stream", streaming);
             writer.WriteBoolean("think", false);
+            writer.WriteBoolean("truncate", false);
+            writer.WriteBoolean("shift", false);
             writer.WriteStartArray("messages");
             WriteTextMessage(writer, "system", request.Context.SystemPolicy);
             if (request.Context.Constraints is { } constraints)

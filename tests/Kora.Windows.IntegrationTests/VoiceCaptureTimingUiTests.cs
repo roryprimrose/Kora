@@ -73,7 +73,8 @@ public sealed class VoiceCaptureTimingUiTests
                     Avalonia.Input.PhysicalKey.Enter, "\r");
                 var resetMenu = (MenuFlyout)actions.Flyout!;
                 resetMenu.IsOpen.Should().BeTrue();
-                var reset = resetMenu.Items.OfType<MenuItem>().Single();
+                var reset = resetMenu.Items.OfType<MenuItem>().Single(item =>
+                    ReferenceEquals(item.Command, fixture.Main.ResetVoiceTimingCommand));
                 reset.Header.Should().Be("Review reset capture timing");
                 var resetCommand = reset.Command.Should().BeOfType<AsyncCommand>().Which;
                 resetMenu.Hide();

@@ -69,7 +69,7 @@ public sealed class PocketSphinxKeywordDetectorTests
     [Theory]
     [InlineData("config", 0, 0)]
     [InlineData("set", 0, 1)]
-    [InlineData("set-float", 0, 1)]
+    [InlineData("set-sample-rate", 0, 1)]
     [InlineData("set-int", 0, 1)]
     [InlineData("decoder", 0, 1)]
     [InlineData("phrase", 1, 1)]
@@ -133,8 +133,8 @@ public sealed class PocketSphinxKeywordDetectorTests
             typeof(PocketSphinxKeywordDetector.UnaryPointer), typeof(PocketSphinxKeywordDetector.UnaryInt),
             typeof(PocketSphinxKeywordDetector.SetLog), typeof(PocketSphinxKeywordDetector.SegmentFree),
             typeof(PocketSphinxKeywordDetector.SegmentFrames), typeof(PocketSphinxKeywordDetector.ProcessRaw),
-            typeof(PocketSphinxKeywordDetector.SetString), typeof(PocketSphinxKeywordDetector.SetFloat),
-            typeof(PocketSphinxKeywordDetector.SetInt), typeof(PocketSphinxKeywordDetector.GetFloat),
+            typeof(PocketSphinxKeywordDetector.SetString),
+            typeof(PocketSphinxKeywordDetector.SetInt),
             typeof(PocketSphinxKeywordDetector.GetInt), typeof(PocketSphinxKeywordDetector.GetString) })
         {
             type.GetCustomAttribute<UnmanagedFunctionPointerAttribute>()!.CallingConvention.Should().Be(CallingConvention.Cdecl);
@@ -156,7 +156,7 @@ public sealed class PocketSphinxKeywordDetectorTests
         internal bool HasSegment { get; init; }
         internal int First { get; init; }
         internal int Last { get; init; }
-        internal double SampleRate { get; private set; }
+        internal int SampleRate { get; private set; }
         internal int FrameRate { get; private set; }
         internal short[] Pcm { get; private set; } = [];
 
@@ -174,14 +174,13 @@ public sealed class PocketSphinxKeywordDetectorTests
                     Strings.Add(key, value);
                     return Fault is "set" ? 0 : 1;
                 }),
-                "ps_config_set_float" => new PocketSphinxKeywordDetector.SetFloat((_, key, value) =>
-                {
-                    key.Should().Be("samprate");
-                    SampleRate = value;
-                    return Fault is "set-float" ? 0 : 1;
-                }),
                 "ps_config_set_int" => new PocketSphinxKeywordDetector.SetInt((_, key, value) =>
                 {
+                    if (string.Equals(key, "samprate", StringComparison.Ordinal))
+                    {
+                        SampleRate = value;
+                        return Fault is "set-sample-rate" ? 0 : 1;
+                    }
                     key.Should().Be("frate");
                     FrameRate = value;
                     return Fault is "set-int" ? 0 : 1;
@@ -189,8 +188,10 @@ public sealed class PocketSphinxKeywordDetectorTests
                 "ps_init" => new PocketSphinxKeywordDetector.UnaryPointer(_ => Acquire("decoder", 2)),
                 "ps_get_config" => new PocketSphinxKeywordDetector.UnaryPointer(_ => Acquire("effective", 1)),
                 "ps_config_str" => new PocketSphinxKeywordDetector.GetString((_, _) => Fault is "phrase" ? wrong : phrase),
-                "ps_config_float" => new PocketSphinxKeywordDetector.GetFloat((_, _) => Fault is "rate" ? 8000 : SampleRate),
-                "ps_config_int" => new PocketSphinxKeywordDetector.GetInt((_, _) => Fault is "frames" ? 50 : FrameRate),
+                "ps_config_int" => new PocketSphinxKeywordDetector.GetInt((_, key) =>
+                    string.Equals(key, "samprate", StringComparison.Ordinal)
+                        ? Fault is "rate" ? 8000 : SampleRate
+                        : Fault is "frames" ? 50 : FrameRate),
                 "ps_start_utt" => new PocketSphinxKeywordDetector.UnaryInt(_ => Status("start")),
                 "ps_end_utt" => new PocketSphinxKeywordDetector.UnaryInt(_ => Status("finish")),
                 "ps_process_raw" => new PocketSphinxKeywordDetector.ProcessRaw((_, samples, count, noSearch, full) =>

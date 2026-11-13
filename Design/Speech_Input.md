@@ -223,6 +223,10 @@ The [typed C-ABI detector](../src/Kora.Windows/Audio/PocketSphinxKeywordDetector
 disables the native default log sink, explicitly disables alternative searches
 and dump paths, checks the effective clock, and owns config/decoder/library
 lifetimes. Windows C `long` parameters are 32-bit. The
+[pinned configuration API](https://github.com/cmusphinx/pocketsphinx/blob/511126b492dcb267cf30d49d631946d7b61a9530/include/pocketsphinx.h)
+uses integer accessors for the 16000-Hz sample rate and 100-fps frame rate;
+the adapter verifies both exact values before starting an utterance. This
+native configuration check is not acoustic qualification. The
 [asset binder](../src/Kora.Windows/Audio/HandsFreeNativeProfile.cs)
 requires compiled host metadata, complete size/SHA-256 identities, exact
 supported English names, non-reparse paths and closed model/native inventories;

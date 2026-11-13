@@ -70,8 +70,11 @@ public sealed partial class ResponseWindow : Window
         };
         positionSaveTimer.Tick += OnPositionSaveTimer;
         Opened += OnOpened;
+        Closing += (_, _) => FlushPlacement();
         Closed += OnClosed;
         PositionChanged += OnPositionChanged;
+        ScalingChanged += OnResponseScalingChanged;
+        ResponseViewport.SizeChanged += (_, _) => UpdateCompactWorkspaceSize();
         PropertyChanged += OnSessionPresentationChanged;
         PropertyChanged += OnResponseEngagementChanged;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -324,36 +327,15 @@ public sealed partial class ResponseWindow : Window
         RestartResponseTimeout();
     }
 
-    private void OnSurfacePointerPressed(object? sender, PointerPressedEventArgs eventArgs)
-    {
-        if (IsExpanded || eventArgs.Handled || eventArgs.Pointer.Type != PointerType.Mouse
-            || !eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        { return; }
-
-        for (var visual = eventArgs.Source as Visual; visual is not null && visual != WindowSurface;
-            visual = visual.GetVisualParent())
-        {
-            if (visual is TextBlock or SelectableTextBlock
-                or Avalonia.Controls.Primitives.RangeBase or Avalonia.Controls.Primitives.Thumb
-                || visual is InputElement { Focusable: true } and not ScrollViewer)
-            { return; }
-        }
-
-        BeginMoveDrag(eventArgs);
-        eventArgs.Handled = true;
-    }
-
     private void OnOpened(object? sender, EventArgs eventArgs)
     {
         RestorePosition();
-        FitCompactWorkingArea();
         RestartResponseTimeout();
         BeginPlacementRestore();
     }
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
-        FlushPlacement();
         sessionWindowClosed = true;
         placementLifetime.Cancel();
         placementLifetime.Dispose();

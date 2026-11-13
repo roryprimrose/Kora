@@ -1,7 +1,6 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Input;
 using Avalonia.Media;
 
 namespace Kora;
@@ -11,14 +10,9 @@ public sealed partial class ResponseWindow
     private void ConfigureChrome(bool expanded)
     {
         Classes.Set("compact", !expanded);
-        WorkbenchCaption.IsVisible = expanded;
-        WindowSurface.Cursor = new Cursor(expanded ? StandardCursorType.Arrow : StandardCursorType.SizeAll);
-        ShowInTaskbar = expanded;
-        WindowDecorations = expanded ? WindowDecorations.BorderOnly : WindowDecorations.None;
-        ExtendClientAreaToDecorationsHint = expanded;
-        ExtendClientAreaTitleBarHeightHint = expanded ? 32 : 0;
+        CollapseWorkbench.IsVisible = expanded;
         CanMaximize = expanded;
-        CanMinimize = expanded;
+        MaximizeWorkbench.IsEnabled = expanded;
         UpdateActivityNavigation();
         UpdateCaptionState();
     }
@@ -35,8 +29,11 @@ public sealed partial class ResponseWindow
     }
 
     private void OnMinimizeWorkbench(object? sender, RoutedEventArgs args) => WindowState = WindowState.Minimized;
-    private void OnMaximizeWorkbench(object? sender, RoutedEventArgs args) =>
-        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    private void OnMaximizeWorkbench(object? sender, RoutedEventArgs args)
+    {
+        if (CanMaximize)
+        { WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; }
+    }
     private void OnCloseWorkbench(object? sender, RoutedEventArgs args) => Close();
 
     private void RetireMinimizedPresentation()

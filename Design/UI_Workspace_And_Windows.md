@@ -45,18 +45,25 @@ typed command and live interaction controls. The conversation view remains mount
 expansion/collapse does not recreate the session model, move input, save, submit or replay.
 The expanded window does not use the ordinary response inactivity timer.
 
-The [compact response](../src/Kora/ResponseWindow.axaml) uses an opaque background and glyph buttons with tooltips and accessible names.
-One rounded frame contains the compact toolbar, response or selected conversation,
-and input controls. Expanding restores the workbench's separate response frame;
-collapsing restores the shared compact frame without moving or submitting input.
+The [compact response](../src/Kora/ResponseWindow.axaml) uses an opaque, resizable
+normal window with the same caption row as the expanded workbench. The opaque chat
+background fills the client area below the caption without an inset border, rounded
+content frame or outer padding. Controls retain their internal reading and input spacing.
+Expanding restores the workbench's separate response frame; collapsing restores the
+edge-to-edge compact surface without moving or submitting input.
+The content follows the live client viewport, including asynchronous saved-placement
+restoration and resize, rather than a width captured at first opening. Screen origins
+and work areas remain physical pixels; client sizes remain device-independent units.
+Changing render scale revalidates the normal window against its current work area.
 
-- Expand, Dismiss, Send and the available microphone remain direct actions; Cancel task and Stop speaking appear only when relevant.
-- The More response actions menu contains response details, read-aloud, call-speech review and reviewed voice capture.
-- The compact header groups More response actions, Expand and Dismiss at the upper right, in that order. Selected-conversation mode keeps Expand beside its existing Hide action.
+- Expand, Minimize and Close are in the title bar; compact Maximize/Restore is visible but disabled. Send and the available microphone remain direct actions; Cancel task and Stop speaking appear only when relevant.
+- The More response actions menu contains response details, read-aloud, call-speech review, reviewed voice capture and Dismiss response.
+- Expand and Collapse use outward- and inward-pointing arrows respectively, retaining the same 12-unit size, medium 1.5-unit stroke and caption foreground colour. All caption buttons use equal 46-by-32 targets with centred glyphs and evenly spaced centres; the toggle has no narrower hover area or optical offset. Both modes use the title-bar Close button rather than a duplicate content Hide button; existing unsent-input protection remains authoritative.
 - The typed input fills the remaining row width, reserving space for Submit and the microphone when available. On an undersized display, its width stays within the visible scrolling viewport.
 - Submitted-work reports and management controls remain in the expanded workbench.
-- Blank compact-window areas use the move cursor and support mouse dragging; text, input and interactive controls retain their normal behavior.
+- Only the title bar supports window dragging; blank content, text, input and interactive controls do not move the window.
 - Question choices and approval decisions retain readable text.
+- Prompt privacy/shutdown closure keeps private-view teardown and availability notifications on the UI dispatcher and joins prompt/capture completion before presentation recovery. Failed cleanup remains held rather than reopening private UI.
 
 - The left pane defaults to Active on its first list load, with All/Done filters and
   explicit Refresh/Next. Ordinary conversation-name substring Search/Clear/Next
@@ -214,15 +221,17 @@ primary window, not another top-level window:
 
 ### Expanded captions and two-mode placement
 
-The existing response/session shell now exposes an expanded-only caption row:
-Collapse, Minimize, Maximize/Restore and Close. The standard three caption
+The response/session shell exposes a shared caption row:
+Expand or Collapse, Minimize, Maximize/Restore and Close. Maximize/Restore is
+disabled in compact mode and enabled in expanded mode. The standard three caption
 controls use Avalonia native decoration roles, including maximize hit testing,
 and owner-drawn flat glyphs. Collapse has a separate user-control role and uses
 the same compact transition as existing navigation. Native Snap menu behavior
 still requires installed Windows evidence; headless role assertions do not
 establish that the OS displayed the menu.
 
-Expanded mode participates in the taskbar. Minimize removes private presenter
+Both modes participate in the taskbar and support resizing, remembering separate
+normal rectangles through the existing placement store. Minimize removes private presenter
 eligibility and releases view-owned Details/capture/speech, not conversation
 work or unsent input. Explicit show restores the previous non-minimized state.
 Close retains the existing last-view unsent-input protection and tray lifetime.

@@ -5,6 +5,7 @@ using Avalonia.Controls.Chrome;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -43,7 +44,7 @@ public sealed partial class AdaptiveInteractionTests
             var expand = window.FindControl<Button>("ExpandSessions")!;
             window.IsExpanded.Should().BeFalse();
             expand.IsEffectivelyVisible.Should().BeTrue();
-            expand.Content.Should().BeOfType<PathIcon>();
+            expand.Content.Should().BeOfType<Avalonia.Controls.Shapes.Path>();
             ToolTip.GetTip(expand).Should().Be("Expand to the full workbench");
             AutomationProperties.GetName(expand).Should().Be("Expand to the full workbench");
             expand.BringIntoView();
@@ -72,6 +73,132 @@ public sealed partial class AdaptiveInteractionTests
     }
 
     [Fact]
+    public async Task Compact_caption_and_resizing_preserve_normal_bounds_across_minimize_mode_switch_and_reopen()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Initialize();
+            f.Native.Main.CommandText = "Unsent resized input";
+            var saved = new MemoryPlacement();
+            var area = new PixelRect(0, 0, 1920, 1080);
+            var window = new ResponseWindow(f.Native.Main, null, null, () => area, saved);
+            try
+            {
+                window.ShowResponse();
+                await window.PlacementOperation;
+                window.UpdateLayout();
+                window.CanResize.Should().BeTrue();
+                window.ShowInTaskbar.Should().BeTrue();
+                window.CanMinimize.Should().BeTrue();
+                window.CanMaximize.Should().BeFalse();
+                window.WindowDecorations.Should().Be(WindowDecorations.BorderOnly);
+                window.ExtendClientAreaToDecorationsHint.Should().BeTrue();
+                var caption = window.FindControl<Border>("WorkbenchCaption")!;
+                caption.IsEffectivelyVisible.Should().BeTrue();
+                WindowDecorationProperties.GetElementRole(caption).Should().Be(WindowDecorationsElementRole.TitleBar);
+                var expand = window.FindControl<Button>("ExpandSessions")!;
+                var minimize = window.FindControl<Button>("MinimizeWorkbench")!;
+                var maximize = window.FindControl<Button>("MaximizeWorkbench")!;
+                var close = window.FindControl<Button>("CloseWorkbench")!;
+                var expandGlyph = (Avalonia.Controls.Shapes.Path)expand.Content!;
+                var closeGlyph = (Avalonia.Controls.Shapes.Path)close.Content!;
+                expandGlyph.Bounds.Width.Should().BeGreaterThan(closeGlyph.Bounds.Width).And.BeLessThan(16);
+                expandGlyph.Bounds.Height.Should().Be(expandGlyph.Bounds.Width);
+                expandGlyph.StrokeThickness.Should().BeGreaterThan(closeGlyph.StrokeThickness).And.BeLessThan(2);
+                expandGlyph.Stroke.Should().Be(closeGlyph.Stroke);
+                AssertCaptionSpacing(expand);
+                ((StackPanel)expand.Parent!).Children.Where(control => control.IsVisible)
+                    .Should().Equal(expand, minimize, maximize, close);
+                WindowDecorationProperties.GetElementRole(expand).Should().Be(WindowDecorationsElementRole.User);
+                maximize.IsEnabled.Should().BeFalse();
+                maximize.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.WindowState.Should().Be(WindowState.Normal);
+
+                window.Width = 660;
+                window.Height = 640;
+                window.Position = new(100, 50);
+                CompactResponseWorkingAreaTests.AssertCompactFrameFillsViewport(window);
+                minimize.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.WindowState.Should().Be(WindowState.Minimized);
+                window.ShowResponse(restoreMinimized: true);
+                window.WindowState.Should().Be(WindowState.Normal);
+                window.ShowSessions(true, activate: false);
+                window.UpdateLayout();
+                var collapse = window.FindControl<Button>("CollapseWorkbench")!;
+                AssertCaptionSpacing(collapse);
+                var collapseGlyph = (Avalonia.Controls.Shapes.Path)collapse.Content!;
+                collapseGlyph.Bounds.Size.Should().Be(expandGlyph.Bounds.Size);
+                collapseGlyph.StrokeThickness.Should().Be(expandGlyph.StrokeThickness);
+                collapseGlyph.Stroke.Should().Be(closeGlyph.Stroke);
+                var pen = new Pen(Brushes.Black, collapseGlyph.StrokeThickness);
+                Point[] inwardHeads = [new(5, 1), new(11, 7)];
+                foreach (var point in inwardHeads)
+                {
+                    collapseGlyph.Data!.StrokeContains(pen, point).Should().BeTrue();
+                    expandGlyph.Data!.StrokeContains(pen, point).Should().BeFalse();
+                }
+                Point[] outwardHeads = [new(0, 4), new(8, 12)];
+                foreach (var point in outwardHeads)
+                {
+                    expandGlyph.Data!.StrokeContains(pen, point).Should().BeTrue();
+                    collapseGlyph.Data!.StrokeContains(pen, point).Should().BeFalse();
+                }
+                collapse.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.Width.Should().Be(660);
+                window.Height.Should().Be(640);
+                window.Position.Should().Be(new PixelPoint(100, 50));
+                window.HideResponse();
+                await window.PlacementOperation;
+
+                void AssertCaptionSpacing(Button toggle)
+                {
+                    Button[] buttons = [toggle, minimize, maximize, close];
+                    Point? previousCenter = null;
+                    foreach (var button in buttons)
+                    {
+                        button.Bounds.Size.Should().Be(new Size(46, 32));
+                        var center = button.TranslatePoint(new Point(23, 16), caption)!.Value;
+                        var glyph = (Avalonia.Controls.Shapes.Path)button.Content!;
+                        var glyphCenter = glyph.TranslatePoint(
+                            new Point(glyph.Bounds.Width / 2, glyph.Bounds.Height / 2), caption)!.Value;
+                        glyphCenter.Should().Be(center, "caption glyphs stay centred within their full hover targets");
+                        if (previousCenter is { } previous)
+                        {
+                            (center.X - previous.X).Should().BeApproximately(46, 0.01);
+                            center.Y.Should().Be(previous.Y);
+                        }
+                        previousCenter = center;
+                    }
+                }
+            }
+            finally
+            {
+                window.Close();
+                await window.PlacementOperation;
+            }
+
+            var restored = new ResponseWindow(f.Native.Main, null, null, () => area, saved);
+            try
+            {
+                restored.ShowResponse();
+                await restored.PlacementOperation;
+                restored.Width.Should().Be(660);
+                restored.Height.Should().Be(640);
+                restored.Position.Should().Be(new PixelPoint(100, 50));
+                CompactResponseWorkingAreaTests.AssertCompactFrameFillsViewport(restored);
+                f.Native.Main.CommandText.Should().Be("Unsent resized input");
+                f.Admission.Calls.Should().Be(0);
+            }
+            finally
+            {
+                restored.Close();
+                await restored.PlacementOperation;
+            }
+        });
+    }
+
+    [Fact]
     public async Task Caption_roles_are_native_and_collapse_keeps_one_window_and_unsent_input()
     {
         await HeadlessSession.RunAsync(async () =>
@@ -85,11 +212,13 @@ public sealed partial class AdaptiveInteractionTests
             window.ShowInTaskbar.Should().BeTrue();
             window.ExtendClientAreaToDecorationsHint.Should().BeTrue();
             window.CanMaximize.Should().BeTrue();
+            window.FindControl<Button>("HideInteraction").Should().BeNull(
+                "the title-bar Close button replaces the redundant content Hide button");
             var collapse = window.FindControl<Button>("CollapseWorkbench")!;
             var minimize = window.FindControl<Button>("MinimizeWorkbench")!;
             var maximize = window.FindControl<Button>("MaximizeWorkbench")!;
             var close = window.FindControl<Button>("CloseWorkbench")!;
-            var buttons = ((StackPanel)collapse.Parent!).Children;
+            var buttons = ((StackPanel)collapse.Parent!).Children.Where(control => control.IsVisible);
             buttons.Should().Equal(collapse, minimize, maximize, close);
             WindowDecorationProperties.GetElementRole(collapse).Should().Be(WindowDecorationsElementRole.User);
             WindowDecorationProperties.GetElementRole(minimize).Should().Be(WindowDecorationsElementRole.MinimizeButton);
@@ -103,6 +232,13 @@ public sealed partial class AdaptiveInteractionTests
             collapse.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             window.IsExpanded.Should().BeFalse();
             collapse.IsEffectivelyVisible.Should().BeFalse();
+            window.CanResize.Should().BeTrue();
+            window.ShowInTaskbar.Should().BeTrue();
+            window.CanMinimize.Should().BeTrue();
+            window.CanMaximize.Should().BeFalse();
+            maximize.IsEnabled.Should().BeFalse();
+            maximize.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.WindowState.Should().Be(WindowState.Normal);
             f.Model.ComposerBody.Should().Be("unchanged by caption actions");
             await f.Run("show sessions");
             f.Window.Should().BeSameAs(window);
@@ -203,6 +339,64 @@ public sealed partial class AdaptiveInteractionTests
                 saved.Value!.Expanded!.Width.Should().Be(1280);
                 saved.Value.ExpandedMaximized.Should().BeTrue();
                 saved.Value.Compact!.X.Should().Be(30);
+            }
+            finally
+            {
+                window.Close();
+                await window.PlacementOperation;
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(1.5)]
+    public async Task Compact_frame_tracks_restored_client_size_and_scaled_negative_screen_coordinates(double scale)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Initialize();
+            f.Native.Main.CommandText = "Unsent geometry regression input";
+            var area = new PixelRect(-1800, -200, 1600, 1200);
+            var saved = new MemoryPlacement
+            {
+                Value = new(new(-250, 800, 860, 720, scale), null, false),
+            };
+            var window = new ResponseWindow(f.Native.Main, null, null, () => area, saved);
+            try
+            {
+                window.SetRenderScaling(scale);
+                window.ShowResponse();
+                await window.PlacementOperation;
+                window.Width.Should().Be(860);
+                window.Height.Should().Be(720);
+                window.Position.Should().Be(new PixelPoint(area.Right - (int)Math.Ceiling(860 * scale),
+                    area.Bottom - (int)Math.Ceiling(720 * scale)));
+                AssertCompactGeometry();
+
+                window.Width = 740;
+                window.Height = 650;
+                AssertCompactGeometry();
+
+                window.SetRenderScaling(2);
+                window.Height.Should().Be(600);
+                window.Position.Should().Be(new PixelPoint(-1680, -200));
+                AssertCompactGeometry();
+
+                window.ShowSessions(true, activate: false);
+                window.ShowSessions(false, activate: false);
+                AssertCompactGeometry();
+                f.Native.Main.CommandText.Should().Be("Unsent geometry regression input");
+                f.Admission.Calls.Should().Be(0);
+
+                void AssertCompactGeometry()
+                {
+                    CompactResponseWorkingAreaTests.AssertCompactFrameFillsViewport(window);
+                    var size = new PixelSize((int)Math.Ceiling(window.Width * window.RenderScaling),
+                        (int)Math.Ceiling(window.Height * window.RenderScaling));
+                    area.Contains(new PixelRect(window.Position, size)).Should().BeTrue();
+                }
             }
             finally
             {

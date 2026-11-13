@@ -184,9 +184,10 @@ public sealed class CurrentResponseNativeTests
             f.Main.CommandText = "open current response details";
             await f.Main.RunTypedCommand.ExecuteAsync();
             f.Main.Transcript.Should().Be("Exact current response details opened.");
-            var dismiss = window.FindControl<Button>("DismissResponse")!;
+            var dismiss = menu.Items.OfType<MenuItem>().Single(item =>
+                string.Equals(item.Header as string, "Dismiss response", StringComparison.Ordinal));
             if (dispose) { controller.Dispose(); }
-            else { dismiss.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+            else { dismiss.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); }
             await views[^1].ClosedTask.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             window.IsVisible.Should().BeFalse();
             views.Should().OnlyContain(view => view.Cleared);

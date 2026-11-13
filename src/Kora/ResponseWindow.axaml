@@ -12,10 +12,13 @@
     MinWidth="480"
     MinHeight="570"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
-    CanResize="False"
+    CanResize="True"
+    CanMaximize="False"
     ShowActivated="False"
-    ShowInTaskbar="False"
-    WindowDecorations="None"
+    ShowInTaskbar="True"
+    WindowDecorations="BorderOnly"
+    ExtendClientAreaToDecorationsHint="True"
+    ExtendClientAreaTitleBarHeightHint="32"
     Topmost="{Binding IsResponseWindowTopmost}"
     KeyDown="OnCancelTaskKeyDown"
     WindowStartupLocation="Manual">
@@ -29,17 +32,22 @@
       <Setter Property="CornerRadius" Value="16" />
     </Style>
     <Style Selector="Window.compact Border#CompactFrame">
-      <Setter Property="Margin" Value="12" />
       <Setter Property="Background" Value="{DynamicResource KoraPresencePanelBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="16" />
+    </Style>
+    <Style Selector="Grid#WindowSurface">
+      <Setter Property="Background" Value="{DynamicResource KoraWindowBackgroundBrush}" />
+    </Style>
+    <Style Selector="Window.compact Grid#WindowSurface">
+      <Setter Property="Background" Value="{DynamicResource KoraPresencePanelBrush}" />
     </Style>
     <Style Selector="Window.compact Border#CurrentInteractionContent">
       <Setter Property="Margin" Value="0" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="Window.compact Grid#ResponseLayout">
+      <Setter Property="Width" Value="{Binding #ResponseViewport.Viewport.Width}" />
     </Style>
     <Style Selector="TextBlock">
       <Setter Property="Cursor" Value="Arrow" />
@@ -67,26 +75,33 @@
       <Setter Property="Foreground" Value="White" />
     </Style>
   </Window.Styles>
-  <Grid x:Name="WindowSurface" RowDefinitions="Auto,*" Background="{DynamicResource KoraWindowBackgroundBrush}"
-      PointerPressed="OnSurfacePointerPressed" Cursor="SizeAll">
-    <Border x:Name="WorkbenchCaption" IsVisible="False"
+  <Grid x:Name="WindowSurface" RowDefinitions="Auto,*">
+    <Border x:Name="WorkbenchCaption"
         Background="{DynamicResource KoraWindowBackgroundBrush}"
         chrome:WindowDecorationProperties.ElementRole="TitleBar">
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock Text="{Binding AssistantName}" Margin="12,0" VerticalAlignment="Center" />
         <StackPanel Grid.Column="1" Orientation="Horizontal">
-          <Button x:Name="CollapseWorkbench" Classes="caption" Click="OnCollapseSessionsClicked"
+          <Button x:Name="ExpandSessions" Classes="caption" Click="OnExpandSessionsClicked"
+              chrome:WindowDecorationProperties.ElementRole="User"
+              ToolTip.Tip="Expand to the full workbench"
+              AutomationProperties.Name="Expand to the full workbench"
+              AutomationProperties.HelpText="Switch this compact window to the expanded view without sending a message.">
+            <Path Data="M 0,5 L 0,0 L 5,0 M 0,0 L 5,5 M 7,7 L 12,12 M 7,12 L 12,12 L 12,7"
+                Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.5" Width="12" Height="12" />
+          </Button>
+          <Button x:Name="CollapseWorkbench" Classes="caption" Click="OnCollapseSessionsClicked" IsVisible="False"
               chrome:WindowDecorationProperties.ElementRole="User"
               ToolTip.Tip="Collapse to compact window" AutomationProperties.Name="Collapse to compact window">
-            <Path Data="M 0,0 L 10,0 L 10,10 L 0,10 Z M 4,4 L 4,8 L 8,8"
-                Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" Width="10" Height="10" />
+            <Path Data="M 0,0 L 5,5 M 0,5 L 5,5 L 5,0 M 7,7 L 12,12 M 7,12 L 7,7 L 12,7"
+                Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.5" Width="12" Height="12" />
           </Button>
           <Button x:Name="MinimizeWorkbench" Classes="caption" Click="OnMinimizeWorkbench"
               chrome:WindowDecorationProperties.ElementRole="MinimizeButton"
               ToolTip.Tip="Minimize" AutomationProperties.Name="Minimize">
             <Path Data="M 0,5 L 10,5" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" Width="10" Height="10" />
           </Button>
-          <Button x:Name="MaximizeWorkbench" Classes="caption" Click="OnMaximizeWorkbench"
+          <Button x:Name="MaximizeWorkbench" Classes="caption" Click="OnMaximizeWorkbench" IsEnabled="False"
               chrome:WindowDecorationProperties.ElementRole="MaximizeButton"
               ToolTip.Tip="Maximize" AutomationProperties.Name="Maximize">
             <Path x:Name="MaximizeGlyph" Data="M 0,0 L 10,0 L 10,10 L 0,10 Z"
@@ -142,24 +157,10 @@
             <Separator />
             <MenuItem x:Name="BeginReviewedVoiceCommand" Header="Review one spoken command" Click="OnBeginReviewedVoiceCommand"
                 IsEnabled="{Binding !IsReviewedVoiceCommandActive}" />
+            <Separator />
+            <MenuItem x:Name="DismissResponse" Header="Dismiss response" Click="OnDismissClicked" />
           </MenuFlyout>
         </Button.Flyout>
-      </Button>
-      <Button x:Name="ExpandSessions" Classes="compact-action" Click="OnExpandSessionsClicked"
-          ToolTip.Tip="Expand to the full workbench"
-          AutomationProperties.Name="Expand to the full workbench"
-          AutomationProperties.HelpText="Switch this compact window to the expanded view without sending a message.">
-        <PathIcon Data="M 1,1 L 8,1 L 8,3 L 4,3 L 7,6 L 6,7 L 3,4 L 3,8 L 1,8 Z M 9,10 L 10,9 L 13,12 L 13,8 L 15,8 L 15,15 L 8,15 L 8,13 L 12,13 Z" />
-      </Button>
-      <Button x:Name="HideInteraction" Classes="compact-action" Click="OnHideInteractionClicked" IsVisible="False"
-          ToolTip.Tip="Hide" AutomationProperties.Name="Hide">
-        <PathIcon Data="M 2,3 L 3,2 L 8,7 L 13,2 L 14,3 L 9,8 L 14,13 L 13,14 L 8,9 L 3,14 L 2,13 L 7,8 Z" />
-      </Button>
-      <Button x:Name="DismissResponse" Classes="compact-action"
-          IsVisible="{Binding #CurrentInteractionContent.IsVisible}"
-          ToolTip.Tip="Dismiss" AutomationProperties.Name="Dismiss"
-          Click="OnDismissClicked">
-        <PathIcon Data="M 2,3 L 3,2 L 8,7 L 13,2 L 14,3 L 9,8 L 14,13 L 13,14 L 8,9 L 3,14 L 2,13 L 7,8 Z" />
       </Button>
       </StackPanel>
     </Grid>

@@ -123,6 +123,7 @@ the same pane, select All settings and populate its search field. Existing exact
 section commands clear a previous search before selecting their destination.
 `show <exact.setting.id>`, `show settings for <ID or title>` and
 `show me the settings for <ID or title>` use the same inert navigation route.
+The [settings parser](../src/Kora.Application/Configuration/SettingsSectionCommand.cs) leaves existing [workspace commands](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs), including `show me the settings for the Kora presence`, to their original route. Valid presence requests still select and focus that subsection; malformed reserved workspace requests are not reinterpreted as search queries.
 Opening Settings ordinarily preserves its current filter and unsaved controls.
 After native hosting and layout, Settings refreshes its actual presentation
 lifetime before acknowledging navigation. Attaching inside an initially hidden

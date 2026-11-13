@@ -1,5 +1,7 @@
-﻿using Avalonia.Controls;
+﻿using System.ComponentModel;
+using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Definitions;
@@ -57,6 +59,7 @@ public sealed partial class PromptParameterWindowTests
     [InlineData("native-file")]
     [InlineData("retained-read")]
     [InlineData("retained-read-incremental")]
+    [InlineData("worker-shutdown")]
     public async Task ActualArtifactRouteSupportsPrivateNativeFieldsCompletePreviewSeparateAdmissionAndClosure(string closure)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -143,6 +146,13 @@ public sealed partial class PromptParameterWindowTests
                     f.Main.ReadCurrentResponseStatus.Should().Contain("original input belonged to a prompt review");
                     break;
                 case "privacy": f.Main.CloseForObservedPrivacyEvent("Synthetic closure", hidePresentation: true); break;
+                case "worker-shutdown":
+                    static void VerifyUiThread(object? sender, PropertyChangedEventArgs args) =>
+                        Dispatcher.UIThread.VerifyAccess();
+                    f.Main.PropertyChanged += VerifyUiThread;
+                    try { await Task.Run(controller.CloseAndWait, f.Token); }
+                    finally { f.Main.PropertyChanged -= VerifyUiThread; }
+                    break;
                 case "disable": revisions.DisableExact(saved, f.ArtifactCatalogue); break;
                 case "native-file":
                     // Exact same bytes with a different file identity must fail pre-use without a watcher.

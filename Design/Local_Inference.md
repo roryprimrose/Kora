@@ -1,9 +1,11 @@
 # Local Inference Disposition and Future Qualification
 
-Status: the evaluated Ollama 0.35.1/qwen3:1.7b profile is rejected. The
-Ollama 0.40.2 comparison is also rejected. Automated quality failures are
-terminal for those candidates; no human scoring, reference-floor run or
-offline lab can qualify them.
+Development status: **UNBLOCKED**. Ollama model-conformance failures are
+candidate qualification results, not Kora implementation defects or general
+feature-delivery blockers. Local-model qualification remains unresolved; no
+evaluated profile is accepted. The earlier Ollama 0.35.1/qwen3:1.7b and Ollama
+0.40.2 profiles remain rejected. No human scoring, reference-floor run or
+offline lab can qualify a candidate that failed its automated quality gates.
 
 Production remains fail closed: local inference is unavailable unless the
 pinned runtime/model identity is present and healthy, and there is no automatic
@@ -43,6 +45,20 @@ Production pins were not changed.
 Environment evidence never grants installation, process, network, clipboard,
 audio or tool authority. Each consequential trial retains its own approval and
 ownership boundary.
+
+### Implementation Is Not Model Qualification
+
+Do not require an Ollama candidate to pass live answer-quality tests before
+implementing, testing, publishing or merging Kora features. Validate host
+behavior through its maintained deterministic contracts and platform seams;
+investigate a genuine Kora request, authority or lifecycle defect separately
+from a model's failure to follow an instruction.
+
+A rejected or unqualified profile remains unavailable, with no automatic
+remote fallback. Enabling or advertising that exact profile still requires its
+applicable qualification evidence. An RC that excludes local inference is not
+blocked by that candidate's failures. This distinction neither waives maintained
+Kora checks nor converts a failed model test into a pass.
 
 ## Outcomes and Their Consequences
 

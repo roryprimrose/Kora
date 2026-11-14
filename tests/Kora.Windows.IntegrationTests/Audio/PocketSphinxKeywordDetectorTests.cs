@@ -18,7 +18,7 @@ public sealed class PocketSphinxKeywordDetectorTests
             metadata.VadPath, metadata.Assets, ["Kora"], "Synthetic tests only", new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["mdef"] = model,
-            });
+            }, keywordThreshold: 1e30);
         using var exports = new FakeLibrary();
         var detector = new PocketSphinxKeywordDetector(profile, new(profile, "Kora", "kora"), exports);
         exports.Calls[0].Should().Be("log:0");
@@ -32,6 +32,7 @@ public sealed class PocketSphinxKeywordDetectorTests
         }
         exports.SampleRate.Should().Be(16000);
         exports.FrameRate.Should().Be(100);
+        exports.KeywordThreshold.Should().Be(1e30);
         exports.Calls.Should().ContainInOrder("config", "decoder", "effective", "start");
         detector.Dispose();
         detector.Dispose();
@@ -71,10 +72,12 @@ public sealed class PocketSphinxKeywordDetectorTests
     [InlineData("set", 0, 1)]
     [InlineData("set-sample-rate", 0, 1)]
     [InlineData("set-int", 0, 1)]
+    [InlineData("set-threshold", 0, 1)]
     [InlineData("decoder", 0, 1)]
     [InlineData("phrase", 1, 1)]
     [InlineData("rate", 1, 1)]
     [InlineData("frames", 1, 1)]
+    [InlineData("threshold", 1, 1)]
     [InlineData("start", 1, 1)]
     [InlineData("missing-export", 0, 0)]
     public void InitializationFailureReleasesOnlyAcquiredOwners(string fault, int decoders, int configs)
@@ -126,6 +129,21 @@ public sealed class PocketSphinxKeywordDetectorTests
         exports.Calls.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void InvalidKeywordThresholdCannotBecomeProfileMetadata(double threshold)
+    {
+        var metadata = PocketSphinxKeywordConfigurationTests.SyntheticProfile();
+        var create = () => new HandsFreeNativeProfile(metadata.NativeLibraryPath, metadata.ModelDirectory,
+            metadata.DictionaryPath, metadata.VadPath, metadata.Assets, ["Kora"], "Synthetic tests only",
+            keywordThreshold: threshold);
+        create.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("keywordThreshold");
+    }
+
     [Fact]
     public void ExportDelegatesDeclareCdeclAndUtf8Strings()
     {
@@ -135,6 +153,7 @@ public sealed class PocketSphinxKeywordDetectorTests
             typeof(PocketSphinxKeywordDetector.SegmentFrames), typeof(PocketSphinxKeywordDetector.ProcessRaw),
             typeof(PocketSphinxKeywordDetector.SetString),
             typeof(PocketSphinxKeywordDetector.SetInt),
+            typeof(PocketSphinxKeywordDetector.SetFloat), typeof(PocketSphinxKeywordDetector.GetFloat),
             typeof(PocketSphinxKeywordDetector.GetInt), typeof(PocketSphinxKeywordDetector.GetString) })
         {
             type.GetCustomAttribute<UnmanagedFunctionPointerAttribute>()!.CallingConvention.Should().Be(CallingConvention.Cdecl);
@@ -158,6 +177,7 @@ public sealed class PocketSphinxKeywordDetectorTests
         internal int Last { get; init; }
         internal int SampleRate { get; private set; }
         internal int FrameRate { get; private set; }
+        internal double KeywordThreshold { get; private set; }
         internal short[] Pcm { get; private set; } = [];
 
         public T Export<T>(string symbol) where T : Delegate
@@ -184,6 +204,17 @@ public sealed class PocketSphinxKeywordDetectorTests
                     key.Should().Be("frate");
                     FrameRate = value;
                     return Fault is "set-int" ? 0 : 1;
+                }),
+                "ps_config_set_float" => new PocketSphinxKeywordDetector.SetFloat((_, key, value) =>
+                {
+                    key.Should().Be("kws_threshold");
+                    KeywordThreshold = value;
+                    return Fault is "set-threshold" ? 0 : 1;
+                }),
+                "ps_config_float" => new PocketSphinxKeywordDetector.GetFloat((_, key) =>
+                {
+                    key.Should().Be("kws_threshold");
+                    return Fault is "threshold" ? 0 : KeywordThreshold;
                 }),
                 "ps_init" => new PocketSphinxKeywordDetector.UnaryPointer(_ => Acquire("decoder", 2)),
                 "ps_get_config" => new PocketSphinxKeywordDetector.UnaryPointer(_ => Acquire("effective", 1)),

@@ -71,6 +71,14 @@ remains unavailable pending name/acoustic and conservative playback-exclusion
 qualification. No microphone consent, profile selection or capture readiness
 is inferred from preparation.
 
+The keyword likelihood-ratio cutoff is compiled per-profile host metadata.
+The [native adapter](../src/Kora.Windows/Audio/PocketSphinxKeywordDetector.cs)
+sets it explicitly and rejects an effective-value mismatch. It is finite and
+positive, not a probability capped at one. The default-name candidate and
+separately selected [offline evaluation](../tests/Kora.Windows.IntegrationTests/Audio/README.md)
+share `1e30`; source inclusion and a small generated corpus do not qualify
+physical recall, false-activation rate, playback safety or production capture.
+
 ### Admitted wake utterance routing (source-only)
 
 The [host lifecycle](../src/Kora.Application/Voice/HandsFreeVoiceRecognitionService.cs) mints ephemeral, single-utterance evidence only after valid wake/span capture and confirmed physical closure/join. The [event contract](../src/Kora.Core/Voice/VoiceTranscriptEventArgs.cs) carries it without serialization; implementing its portable interface or copying its values cannot grant activation.

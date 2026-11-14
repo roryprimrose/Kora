@@ -16,6 +16,32 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Explicit Copilot live evaluation - 2026-11-14
+
+The product owner explicitly authorized "Yes — implement opt-in live evaluation
+in Settings and chat" after distinguishing it from qualification-backed
+production admission. This admits Settings runtime review, independent private
+account verification, advertised-model selection and the existing explicit
+Copilot conversation route, not automatic hosted execution.
+
+The host captures and holds the exact local executable read-only, allocates
+private runtime paths, audits explicit native runtime/account-use approval and
+expires runtime admission after one hour. Tokens/catalogues remain volatile;
+every physical content-bearing request still requires its own existing final
+disclosure review and current account/profile/session/host authority.
+Evaluation registration is explicitly distinct from all-path lifecycle
+qualification. It cannot qualify another provider or create a hosted fallback.
+
+This is an explicit evaluation-only exception to the prerequisite for a
+production-qualified Copilot offering, not Gate 0 acceptance or permission to
+claim completed network/storage/lifecycle evidence. Runtime provenance,
+compatibility, terms, entitlement and possible charges require explicit user
+review; there is no enforced monetary cap or proven process containment.
+Normal releases remain unqualified, and evaluation stays unavailable until
+explicitly admitted in the current process. See the
+[complete user workflow](../docs/copilot-requests.md) and
+[admission source](../src/Kora.Windows/Dependencies/CopilotEvaluationDeploymentSource.cs).
+
 ## Exact opted-in Details presentation question - 2026-11-06
 
 The product/security decision explicitly approved P1 and end-to-end implementation and protected PR delivery: a separate durable, host-owned, non-executing presentation control for one newly finalized exact foreground result.

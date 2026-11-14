@@ -8,6 +8,29 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData("copilot", true)]
+    [InlineData("local", false)]
+    [InlineData("missing-final-gate", false)]
+    [InlineData("missing-account", false)]
+    [InlineData("missing-host", false)]
+    [InlineData("claims-production", false)]
+    [InlineData("revoked", false)]
+    public void Evaluation_is_Copilot_only_and_still_requires_final_request_account_and_host_admission(string state, bool admitted)
+    {
+        using var f = new Fixture();
+        var evidence = ModelQualificationGate.UserReviewedCopilotEvaluation | ModelQualificationGate.DotNetFinalRequest
+            | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost;
+        if (state is "missing-final-gate") { evidence &= ~ModelQualificationGate.DotNetFinalRequest; }
+        if (state is "missing-account") { evidence &= ~ModelQualificationGate.ExecutionAccount; }
+        if (state is "missing-host") { evidence &= ~ModelQualificationGate.IntegratedHost; }
+        if (state is "claims-production") { evidence |= ModelQualificationGate.AllPathLifecycle; }
+        var registration = new ModelProviderRegistration(
+            state is "local" ? ModelProviderSelection.OllamaCandidate : ModelProviderSelection.CopilotCandidate,
+            evidence, f.Time.Now.AddMinutes(1), f.Adapter, () => state is not "revoked");
+        registration.IsQualified(f.Time.Now).Should().Be(admitted);
+    }
+
+    [Theory]
     [InlineData("current", ModelTurnOutcome.Succeeded)]
     [InlineData("missing", ModelTurnOutcome.Unavailable)]
     [InlineData("foreign-selection", ModelTurnOutcome.Unavailable)]

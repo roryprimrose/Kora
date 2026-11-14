@@ -69,6 +69,27 @@ rejected hook-only witness, unique native procedures and live shared consumers
 until the [retirement conditions](Implementation_Roadmap.md#experiment-disposition-inventory)
 are met. This cleanup retires no runtime experiment or qualification gate.
 
+### Explicit live-evaluation admission - 2026-11-14
+
+The separately approved [evaluation decision](Decision_Register.md#explicit-copilot-live-evaluation---2026-11-14)
+adds native Settings runtime review and admission before the existing private
+account/model/chat workflow. The shipped
+[evaluation source](../src/Kora.Windows/Dependencies/CopilotEvaluationDeploymentSource.cs)
+returns unavailable until explicit review of an installed local executable and
+acceptance of runtime/account-use terms and possible charges. It holds the
+reviewed executable read-only, verifies private runtime directories and issues
+a volatile one-hour lease revoked on privacy/host changes. Every physical
+content-bearing send still needs independent final review.
+
+Evaluation registrations do not claim `AllPathLifecycle` evidence; they use an
+explicit Copilot-only host evaluation gate alongside final-request, account and
+integrated-host admission. Production qualification and Gate 0 remain open.
+There is no automatic install, ambient sign-in, monetary cap, proven
+containment or general hosted fallback. The
+[user guide](../docs/copilot-requests.md) owns the complete setup and limitations.
+The older unavailable-source descriptions below record the prior implementation
+baseline, not the new opt-in evaluation workflow.
+
 ### Maintained Copilot SDK boundary - 2026-10-23
 
 The production source now compiles the Windows

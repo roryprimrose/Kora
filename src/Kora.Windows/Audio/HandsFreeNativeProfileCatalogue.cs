@@ -6,6 +6,8 @@ namespace Kora.Windows.Audio;
 
 internal static class HandsFreeNativeProfileCatalogue
 {
+    internal const double KoraKeywordThreshold = 1e30;
+
     internal static HandsFreeNativeProfile CreatePreparedProfile(ISpeechComponentFiles files)
     {
         var component = HandsFreeSetupCatalogue.Component;
@@ -26,6 +28,6 @@ internal static class HandsFreeNativeProfileCatalogue
                 ["sendump"] = Path.Combine(root, "sendump.data"),
                 ["fdict"] = Path.Combine(root, "noise.data"),
                 ["featparams"] = Path.Combine(root, "features.data"),
-            });
+            }, keywordThreshold: KoraKeywordThreshold);
     }
 }

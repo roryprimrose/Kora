@@ -165,6 +165,7 @@ public sealed class HandsFreeOfflineEvaluationTests
             EvaluationOnly = true,
             Assembly = typeof(HandsFreeOfflineEvaluationTests).Assembly.ManifestModule.ModuleVersionId,
             NativeSha256 = HandsFreeSetupCatalogue.NativeSha256,
+            assets.Profile.KeywordThreshold,
             Assets = assets.Profile.Assets.Select(asset => new { Name = Path.GetFileName(asset.Path), asset.Length, asset.Sha256 }),
             SampleRate = 16000,
             FrameRate = 100,
@@ -224,6 +225,48 @@ public sealed class HandsFreeOfflineEvaluationTests
                 detector.Accept(new short[320]).Should().BeNull();
             }
         }
+    }
+
+    [Fact(Explicit = true)]
+    public async Task ActualNativeEndpointPreservesSpeechAcrossChunkBoundaries()
+    {
+        RequirePreviousNativeJoin();
+        var token = TestContext.Current.CancellationToken;
+        await using var fixture = await HandsFreeOfflineFixture.AdmitSelected(token);
+        var samples = await fixture.ReadPcm("immediate", token);
+        try
+        {
+            var configuration = await PocketSphinxKeywordConfiguration.CreateAsync(fixture.Profile, "Kora", token);
+            KeywordAudioSegment? interval = null;
+            using (var detector = new PocketSphinxKeywordDetector(fixture.Profile, configuration))
+            {
+                for (var offset = 0; interval is null && offset < samples.Length; offset += 320)
+                {
+                    interval = detector.Accept(samples.AsSpan(offset, Math.Min(320, samples.Length - offset)));
+                }
+            }
+            interval.Should().NotBeNull();
+            var start = checked((int)interval!.CommandStartSample);
+            var ends = new List<int>();
+            foreach (var chunk in new[] { 127, 320, 512, 2240 })
+            {
+                using var endpoint = new SileroCommandEndpoint(fixture.Profile.VadPath, VoiceCaptureTiming.Default);
+                var end = 0;
+                for (var offset = start; offset < samples.Length; offset += chunk)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var count = Math.Min(chunk, samples.Length - offset);
+                    if (!endpoint.Accept(samples.AsSpan(offset, count))) { continue; }
+                    end = offset + count;
+                    break;
+                }
+                end.Should().BeGreaterThan(start, $"chunk size {chunk} must endpoint this same command");
+                ends.Add(end);
+                TestContext.Current.TestOutputHelper!.WriteLine($"ChunkSamples={chunk}; CommandEnd={end}");
+            }
+            (ends.Max() - ends.Min()).Should().BeLessThan(2240);
+        }
+        finally { Array.Clear(samples); }
     }
 
     [Theory(Explicit = true)]
@@ -293,7 +336,7 @@ public sealed class HandsFreeOfflineEvaluationTests
         pendingNativeSession = session;
         session.Start();
         var wakeTask = session.WaitForWakeAsync(token);
-        while (!wakeTask.IsCompleted && await microphone.Pump(token)) { }
+        while (wakes == 0 && await microphone.Pump(token)) { }
         if (!positive)
         {
             wakeTask.IsCompleted.Should().BeFalse();
@@ -306,13 +349,14 @@ public sealed class HandsFreeOfflineEvaluationTests
             WriteReceipt(fixture, id, detectorSamples, null, null, opens, 0, session.IsQuiescent);
             return;
         }
-        wakeTask.IsCompleted.Should().BeTrue("the selected positive fixture must produce a real wake before EOF");
+        wakes.Should().Be(1, "the selected positive fixture must produce a real wake before EOF");
         var wake = await wakeTask;
         wake.CommandStartSample.Should().Be(interval!.CommandStartSample);
         var stale = () => session.CaptureCommandAsync(wake with { Generation = wake.Generation - 1 }, token);
         await stale.Should().ThrowAsync<InvalidOperationException>();
         opens.Should().Be(0);
         var capture = session.CaptureCommandAsync(wake, token);
+        if (capture.IsFaulted) { await capture; }
         var repeated = () => session.CaptureCommandAsync(wake, token);
         await repeated.Should().ThrowAsync<InvalidOperationException>();
         probe.Drain();
@@ -360,6 +404,7 @@ public sealed class HandsFreeOfflineEvaluationTests
             Case = id,
             SampleRate = 16000,
             FrameRate = 100,
+            fixture.Profile.KeywordThreshold,
             DetectorSamples = detectorSamples,
             FirstFrame = interval?.FirstFrame,
             LastFrameInclusive = interval?.LastFrame,

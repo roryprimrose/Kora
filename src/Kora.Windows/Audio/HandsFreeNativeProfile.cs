@@ -13,9 +13,12 @@ internal sealed class HandsFreeNativeProfile
 {
     public HandsFreeNativeProfile(string nativeLibraryPath, string modelDirectory, string dictionaryPath,
         string vadPath, IEnumerable<HandsFreeNativeAsset> assets, IEnumerable<string> names, string? qualification,
-        IReadOnlyDictionary<string, string>? configurationFiles = null)
+        IReadOnlyDictionary<string, string>? configurationFiles = null, double keywordThreshold = 1e-30)
     {
         if (qualification is not null) { ArgumentException.ThrowIfNullOrWhiteSpace(qualification); }
+        if (!double.IsFinite(keywordThreshold) || keywordThreshold <= 0)
+        { throw new ArgumentOutOfRangeException(nameof(keywordThreshold), "A finite positive keyword likelihood-ratio cutoff is required."); }
+        KeywordThreshold = keywordThreshold;
         CaptureQualified = qualification is not null;
         NativeLibraryPath = RequireAbsolute(nativeLibraryPath);
         ModelDirectory = RequireAbsolute(modelDirectory);
@@ -55,6 +58,7 @@ internal sealed class HandsFreeNativeProfile
     public IReadOnlyList<HandsFreeNativeAsset> Assets { get; }
     public FrozenSet<string> Names { get; }
     public bool CaptureQualified { get; }
+    public double KeywordThreshold { get; }
     public IReadOnlyDictionary<string, string> ConfigurationFiles { get; }
 
     internal string ObserveNativeIdentity()

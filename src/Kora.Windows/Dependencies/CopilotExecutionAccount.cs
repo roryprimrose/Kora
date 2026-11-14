@@ -7,7 +7,7 @@ public sealed class CopilotExecutionAccount
 {
     public CopilotExecutionAccount(ProviderProfileTuple profile, string login, string token,
         string executablePath, string workingDirectory, string baseDirectory,
-        IReadOnlyDictionary<string, string> environment, DateTimeOffset expiresAt)
+        IReadOnlyDictionary<string, string> environment, DateTimeOffset expiresAt, bool isEvaluation = false)
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(environment);
@@ -27,11 +27,13 @@ public sealed class CopilotExecutionAccount
         BaseDirectory = baseDirectory;
         Environment = CopilotExecutionEnvironment.Copy(environment);
         ExpiresAt = expiresAt;
+        IsEvaluation = isEvaluation;
     }
 
     public ProviderProfileTuple Profile { get; }
     public string Login { get; }
     public DateTimeOffset ExpiresAt { get; }
+    public bool IsEvaluation { get; }
     internal string Token { get; }
     internal string ExecutablePath { get; }
     internal string WorkingDirectory { get; }

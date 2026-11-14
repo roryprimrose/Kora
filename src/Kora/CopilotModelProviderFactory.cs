@@ -19,7 +19,8 @@ internal sealed class CopilotModelProviderFactory(OllamaModelProviderFactory loc
         if (model?.Selection != selection) { return null; }
         var account = await accounts.ResolveAsync(profile, cancellationToken).ConfigureAwait(false);
         return account is null ? null : new(selection,
-            ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle
+            ModelQualificationGate.DotNetFinalRequest | (account.IsEvaluation
+                ? ModelQualificationGate.UserReviewedCopilotEvaluation : ModelQualificationGate.AllPathLifecycle)
                 | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost,
             account.ExpiresAt, new CopilotModelTurnAdapter(runtime, reviews), () => account.ExpiresAt > time.GetUtcNow());
     }

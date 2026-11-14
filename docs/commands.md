@@ -2186,8 +2186,9 @@ continue to work.
 - **block hosted models**
 - **disable cloud models**
 
-Hosted execution is disabled by default. Copilot and Claude workflows exist,
-but their required account-use approvals are unavailable in this build.
+Hosted execution is disabled by default. Copilot has an explicitly admitted
+[live-evaluation setup](copilot-requests.md); this is not production qualification.
+Claude's required account-use approval remains unavailable in this build.
 Enabling hosted models records permission; it neither signs in nor sends a
 request, and it does not provide a cloud fallback.
 

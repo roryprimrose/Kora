@@ -426,7 +426,8 @@ public sealed partial class App : Avalonia.Application
             copilotAccountWindow = new CopilotAccountWindowController(viewModel,
                 Services.GetRequiredService<Kora.Windows.Dependencies.CopilotAccountBroker>(),
                 Services.GetRequiredService<Kora.Application.Voice.AudioControlAdmission>(),
-                Services.GetRequiredService<ILogger<CopilotAccountWindowController>>());
+                Services.GetRequiredService<ILogger<CopilotAccountWindowController>>(),
+                Services.GetRequiredService<Kora.Windows.Dependencies.CopilotEvaluationDeploymentSource>());
             copilotAccountWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner);
             viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>(), fileWindow,

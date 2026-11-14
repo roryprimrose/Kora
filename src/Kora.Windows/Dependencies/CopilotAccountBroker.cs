@@ -194,7 +194,8 @@ public sealed partial class CopilotAccountBroker : ICopilotExecutionAccountSourc
             var prepared = entries.ToDictionary(model => new ProviderProfileTuple(ProviderService.Copilot, accountId, next,
                 model.Id, new("default"), new("default")), model => new CopilotExecutionAccount(
                     new(ProviderService.Copilot, accountId, next, model.Id, new("default"), new("default")), login, credential,
-                    approved.ExecutablePath, approved.WorkingDirectory, approved.BaseDirectory, approved.Environment, expires));
+                    approved.ExecutablePath, approved.WorkingDirectory, approved.BaseDirectory, approved.Environment, expires,
+                    approved.IsEvaluation));
             lock (stateGate)
             {
                 token.ThrowIfCancellationRequested();

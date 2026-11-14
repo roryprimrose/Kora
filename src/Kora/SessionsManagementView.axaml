@@ -184,7 +184,7 @@
           <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
           <Button x:Name="ReviewSessionMetadata" Content="Review one session metadata answer..." IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="SubmitCopilotConversation" Content="Submit explicitly with Copilot (separate disclosure review)"
-            IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires a current approved Copilot account/model and hosted policy. Unavailable until enabled. Never falls back." />
+            IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires explicit Copilot setup in Settings, a current selected account/model and hosted policy. Live evaluation is not production qualification. Every request requires disclosure review; never falls back." />
           <Button x:Name="SubmitLocalFirst" Content="Ask locally; review Copilot only if unavailable"
             IsEnabled="{Binding CanSubmitLocalFirst}" ToolTip.Tip="Requires Local first mode. Only a genuine local Unavailable result and confirmed exact resource join can offer review. Separate final-byte disclosure approval is always required." />
           <Button x:Name="SubmitClaudeConversation" Content="Submit explicitly with Claude (separate disclosure reviews)"

@@ -11,8 +11,9 @@ or [setup](#readiness). For named local folders, see [Knowledge sources](knowled
 
 **Source-specific capture limits:** in **Knowledge > Manage knowledge sources**, reload and select one source, get its desired/current-captured limits, then review lower file-count/per-file-byte/total-byte limits or reset and separately confirm/cancel. [Exact controls and commands](knowledge-sources.md#lower-the-next-capture-limits-for-one-source) affect only its next separately reviewed refresh, never a pending/pinned capture. They are not shared generic model settings.
 
-**AI answers are unavailable in this build.** You can inspect and save supported
-preferences, but a saved choice is not proof that its model or service can run.
+**Production-qualified AI answers remain unavailable.** Explicit
+[Copilot live evaluation](copilot-requests.md) can be admitted separately.
+A saved preference is not proof that its model or service can run.
 
 Open Settings by:
 
@@ -583,9 +584,10 @@ The model-location controls set where Kora is allowed to use AI:
   to its running instance. This build approves no local model profile.
   Turning it off cancels an in-flight local request and prevents later
   requests from reaching Ollama.
-- **Allow hosted models** is off by default. Copilot and Claude request
-  workflows exist, but their required account-use approvals are unavailable
-  in this build. Enabling this permission neither signs in nor sends data,
+- **Allow hosted models** is off by default. Copilot has a separate explicit
+  [live-evaluation runtime/account setup](copilot-requests.md); Claude's
+  account-use approval remains unavailable.
+  Enabling this permission neither signs in nor sends data,
   and there is no automatic cloud fallback.
 
 These device-local choices are applied immediately and retained across
@@ -613,7 +615,7 @@ provider fallback or confidence-based handoff.
 
 Individual edits retain the saved other fields, app default service and other service tuples. A model edit never replaces incompatible reasoning/context IDs: use the complete draft/save above to choose all dependents explicitly. Missing/stale complete bases and changed selection/ownership/privacy/call/session/generation/app/account/catalogue state reject confirmation. No individual app field reset exists; selected-service tuple reset remains unresolved, not a substitute.
 
-Current production catalogues have **no available models**: the implemented local adapter has no accepted release qualification, and hosted authentication remains unavailable. Desired service may be saved while its model details remain Unavailable. **Sign in** is disabled/Unavailable, not a fake login or use of machine credentials ([composition](../src/Kora/ProviderProfileComposition.cs), [release authority](../src/Kora.Definitions/Qualifications/BundledLocalModelQualificationAuthority.cs)).
+Production-qualified catalogues have **no available models**. For explicitly opted-in testing, **Set up Copilot live evaluation and account** can admit an installed runtime, verify a volatile token and expose that account's actual advertised models. Follow the [complete Copilot setup and chat guide](copilot-requests.md). It never reuses ambient machine credentials and does not qualify the runtime for production. Local release qualification and Claude/Codex authentication remain unavailable ([composition](../src/Kora/ProviderProfileComposition.cs), [release authority](../src/Kora.Definitions/Qualifications/BundledLocalModelQualificationAuthority.cs)).
 
 Status separates saved choices from models that are ready to use. Unknown, expired, retired, cross-service, changed-account or changed-catalogue values do not select replacements. **Reset default service** re-observes Local-if-installed/otherwise-Unset and retains all service tuples. **Clear model settings for this service** removes only that tuple and leaves it unresolved.
 
@@ -639,7 +641,7 @@ Service/model/reasoning/context each start as **Inherit app**. Review one exact 
 
 Choose only one model, reasoning or context option in the independent field pickers; the other two choices come from the current effective tuple, not the separate full-profile draft. Review shows old/new whole effective tuples and sparse changes. Only the selected field becomes explicit. Missing/incompatible state requires complete-profile recovery; retained nulls inherit later app edits. Changing a picker invalidates confirmation.
 
-Service can remain desired/unresolved. Model-dependent saves require the current exact advertised catalogue; production has no models, so these save controls stay unavailable. A service override inherits that service's app tuple, not another service's IDs. Stale session/selection/generation/policy/app revision or catalogue/account changes refuse confirmation without substitution.
+Service can remain desired/unresolved. Model-dependent saves require the current exact advertised catalogue, available for Copilot only after explicit live-evaluation setup and account verification. Production qualification remains separate. A service override inherits that service's app tuple, not another service's IDs. Stale session/selection/generation/policy/app revision or catalogue/account changes refuse confirmation without substitution.
 
 Later edits affect future admitted provider-neutral turns only. Existing LocalOnly/handoff/envelope boundaries and the buffered local bootstrap reasoner are unchanged; no authentication, network/model call or egress is enabled. [Exact commands and recovery](commands.md#inspect-or-change-an-exact-session-provider-profile) share the same private durable session-policy workflow.
 

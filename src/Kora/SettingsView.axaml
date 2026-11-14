@@ -1762,8 +1762,10 @@
             <TextBlock Text="{Binding ProviderSuggestionStatus}" Classes="settings-description" TextWrapping="Wrap" />
             <Button Content="Review AI service suggestion" Command="{Binding ReviewProviderSuggestionCommand}" IsEnabled="{Binding CanReviewProviderSuggestion}" />
             <Button Content="Discard AI service suggestion" Command="{Binding DiscardProviderSuggestionCommand}" IsEnabled="{Binding CanChangeProviderProfile}" />
-            <Button Content="Configure Copilot account (volatile token)" Click="OnCopilotAccountClicked"
+            <Button Content="Set up Copilot live evaluation and account" Click="OnCopilotAccountClicked"
                     IsEnabled="{Binding CanChangeProviderProfile}" />
+            <TextBlock Text="Copilot: explicitly approve an installed runtime for live evaluation, verify your account, then refresh and select a model. In Sessions, use Submit explicitly with Copilot; every physical request needs its own disclosure review. Evaluation is not production qualification."
+                       Classes="settings-description" TextWrapping="Wrap" />
             <Button Content="Configure Claude account (volatile API credential)" Click="OnClaudeAccountClicked"
                     IsEnabled="{Binding CanChangeProviderProfile}" />
             <ComboBox ItemsSource="{Binding ProviderProfileModels}" SelectedItem="{Binding SelectedProviderProfileModel}"

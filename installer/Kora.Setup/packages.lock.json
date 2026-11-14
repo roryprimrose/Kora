@@ -1,7 +1,7 @@
 {
   "version": 2,
   "dependencies": {
-    "net10.0-windows10.0.19041": {
+    "net11.0-windows10.0.19041": {
       "Avalonia.Desktop": {
         "type": "Direct",
         "requested": "[12.1.3, )",
@@ -188,11 +188,6 @@
         "resolved": "10.2.0",
         "contentHash": "ONGlIBht0ygEdKc0bCt9XWUiq19/460dAu7fCKzPM34OFJSMQIohEDTJwjCJ8vVp8znNakloc9xFF9+R/eDCYQ=="
       },
-      "Microsoft.Extensions.DependencyInjection.Abstractions": {
-        "type": "Transitive",
-        "resolved": "10.0.12",
-        "contentHash": "9/qymSh7hVDMGTGwrLz8MRp5zRyXy9adGDOs4HwRdnLil3oZGYuWeZjbmHgCQ9BL1qBroVfgUK3U/nb61617Cw=="
-      },
       "Microsoft.ML.OnnxRuntime.Managed": {
         "type": "Transitive",
         "resolved": "1.30.0",
@@ -338,22 +333,19 @@
         "type": "Project",
         "dependencies": {
           "Kora.Core": "[0.1.0, )",
-          "Kora.Tools": "[0.1.0, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+          "Kora.Tools": "[0.1.0, )"
         }
       },
       "kora.core": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Data.Sqlite": "[10.0.12, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+          "Microsoft.Data.Sqlite": "[10.0.12, )"
         }
       },
       "kora.tools": {
         "type": "Project",
         "dependencies": {
-          "Kora.Core": "[0.1.0, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+          "Kora.Core": "[0.1.0, )"
         }
       },
       "kora.windows": {
@@ -362,7 +354,6 @@
           "GitHub.Copilot.SDK": "[1.0.26, )",
           "KokoroSharp": "[0.8.4, )",
           "Kora.Core": "[0.1.0, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
           "Microsoft.ML.OnnxRuntime": "[1.30.0, )",
           "Microsoft.Win32.SystemEvents": "[10.0.12, )",
           "MisakiSharp": "[2.2.0, )",
@@ -377,8 +368,7 @@
         "resolved": "1.0.26",
         "contentHash": "z5irU7ylg09KnZIE/82lbk08ZZ6S0mHc0RA+EzYrOxYrdBm+GEx+QDLM5dqOYE0xwvBxWRIkSKeGHeUcMkQGuA==",
         "dependencies": {
-          "Microsoft.Extensions.AI.Abstractions": "10.2.0",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.2"
+          "Microsoft.Extensions.AI.Abstractions": "10.2.0"
         }
       },
       "KokoroSharp": {
@@ -404,15 +394,6 @@
           "Microsoft.Data.Sqlite.Core": "10.0.12",
           "SQLitePCLRaw.bundle_e_sqlite3": "2.1.12",
           "SQLitePCLRaw.core": "2.1.12"
-        }
-      },
-      "Microsoft.Extensions.Logging.Abstractions": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.12, )",
-        "resolved": "10.0.12",
-        "contentHash": "+24lC4plfbEDNfLAdTV/SWKS7dW+16X4HdydO3R++134kSNTzcbYA4KpR1Hdh6uWisB8Za3AzwyOn+K+NxWIug==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12"
         }
       },
       "Microsoft.ML.OnnxRuntime": {
@@ -467,7 +448,7 @@
         "contentHash": "IrIKdPfbeCtgDeKQvJE2EtS8sSLxxpBRzCCpkg/4jORLwmhSUrVZtIrnbbaWQxo3tjnXK6aHH6MNsvi3S3PuTg=="
       }
     },
-    "net10.0-windows10.0.19041/win-x64": {
+    "net11.0-windows10.0.19041/win-x64": {
       "WixToolset.BootstrapperApplicationApi": {
         "type": "Direct",
         "requested": "[7.0.0, )",
@@ -534,7 +515,7 @@
         "contentHash": "IrIKdPfbeCtgDeKQvJE2EtS8sSLxxpBRzCCpkg/4jORLwmhSUrVZtIrnbbaWQxo3tjnXK6aHH6MNsvi3S3PuTg=="
       }
     },
-    "net10.0-windows10.0.19041/win-x86": {
+    "net11.0-windows10.0.19041/win-x86": {
       "WixToolset.BootstrapperApplicationApi": {
         "type": "Direct",
         "requested": "[7.0.0, )",

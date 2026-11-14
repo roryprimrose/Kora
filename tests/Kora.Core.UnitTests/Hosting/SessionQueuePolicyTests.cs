@@ -21,7 +21,8 @@ public sealed class SessionQueuePolicyTests
         var pending = Entry(new(Guid.NewGuid()), 1);
         if (lifetimeFormat)
         {
-            pending = pending with { RecordVersion = 2, PendingLifetimeMinutes = 120, ExpiresAt = Now.AddMinutes(120) };
+            pending = pending with { RecordVersion = 2, PendingLifetimeMinutes = 120, ExpiresAt = Now.AddMinutes(120),
+                Request = new(pending.Request.RequestId, pending.Request.SessionId, pending.Request.TaskId, RequestOrigin.ActivatedVoice) };
         }
         var admitted = pending.Admit(new(2), 2, Now.AddSeconds(1), minutes);
         admitted.RecordVersion.Should().Be(3);

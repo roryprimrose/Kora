@@ -40,7 +40,7 @@ internal static class Program
                 session.Detected(0, mode != SetupAction.Install,
                     installedScope: mode == SetupAction.Install ? null : InstallScope.CurrentUser);
                 session.ReportRuntimeRequirements(
-                    new(InstallerDependencyState.Installed, "Sample .NET 10 desktop/base runtimes."),
+                    new(InstallerDependencyState.Installed, "Sample .NET 11 desktop/base runtimes."),
                     new(InstallerDependencyState.UpdateRequired, "Sample older VC++ runtime."));
                 if (completePreview)
                 {

@@ -1,7 +1,7 @@
 {
   "version": 2,
   "dependencies": {
-    "net10.0-windows10.0.19041": {
+    "net11.0-windows10.0.19041": {
       "Meziantou.Analyzer": {
         "type": "Direct",
         "requested": "[3.0.320, )",
@@ -149,25 +149,6 @@
         "type": "Transitive",
         "resolved": "10.2.0",
         "contentHash": "ONGlIBht0ygEdKc0bCt9XWUiq19/460dAu7fCKzPM34OFJSMQIohEDTJwjCJ8vVp8znNakloc9xFF9+R/eDCYQ=="
-      },
-      "Microsoft.Extensions.DependencyInjection.Abstractions": {
-        "type": "Transitive",
-        "resolved": "10.0.12",
-        "contentHash": "9/qymSh7hVDMGTGwrLz8MRp5zRyXy9adGDOs4HwRdnLil3oZGYuWeZjbmHgCQ9BL1qBroVfgUK3U/nb61617Cw=="
-      },
-      "Microsoft.Extensions.Options": {
-        "type": "Transitive",
-        "resolved": "10.0.12",
-        "contentHash": "TDYD33TSRpXKZWlmTXNlj5kCihxatmv2Ec1u6C+bMYLphCS7PoSLE9Pjd/nunDoE7yETk+LLKjVJX78HYtWjpA==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
-          "Microsoft.Extensions.Primitives": "10.0.12"
-        }
-      },
-      "Microsoft.Extensions.Primitives": {
-        "type": "Transitive",
-        "resolved": "10.0.12",
-        "contentHash": "dYfCLR52UA+3DL7C4I/pvSaRPkNqxrUAQmbFL2u0zvYKKzqgrFCJl08Df+F1aYc8leu9JvpC9bsURUdpExcBXQ=="
       },
       "Microsoft.ML.OnnxRuntime.Managed": {
         "type": "Transitive",
@@ -332,15 +313,13 @@
         "type": "Project",
         "dependencies": {
           "Kora.Core": "[0.1.0, )",
-          "Kora.Tools": "[0.1.0, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+          "Kora.Tools": "[0.1.0, )"
         }
       },
       "kora.core": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Data.Sqlite": "[10.0.12, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+          "Microsoft.Data.Sqlite": "[10.0.12, )"
         }
       },
       "kora.definitions": {
@@ -352,8 +331,7 @@
       "kora.tools": {
         "type": "Project",
         "dependencies": {
-          "Kora.Core": "[0.1.0, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+          "Kora.Core": "[0.1.0, )"
         }
       },
       "kora.windows": {
@@ -362,7 +340,6 @@
           "GitHub.Copilot.SDK": "[1.0.26, )",
           "KokoroSharp": "[0.8.4, )",
           "Kora.Core": "[0.1.0, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
           "Microsoft.ML.OnnxRuntime": "[1.30.0, )",
           "Microsoft.Win32.SystemEvents": "[10.0.12, )",
           "MisakiSharp": "[2.2.0, )",
@@ -409,8 +386,7 @@
         "resolved": "1.0.26",
         "contentHash": "z5irU7ylg09KnZIE/82lbk08ZZ6S0mHc0RA+EzYrOxYrdBm+GEx+QDLM5dqOYE0xwvBxWRIkSKeGHeUcMkQGuA==",
         "dependencies": {
-          "Microsoft.Extensions.AI.Abstractions": "10.2.0",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.2"
+          "Microsoft.Extensions.AI.Abstractions": "10.2.0"
         }
       },
       "KokoroSharp": {
@@ -448,10 +424,7 @@
         "type": "CentralTransitive",
         "requested": "[10.0.12, )",
         "resolved": "10.0.12",
-        "contentHash": "lXyK2O5GoYvfxW8eCFcD16JFbcoSTM1sJkAM0UHS1jZyl9NYMW64Tqm6OQFT0IDBjZi+xHt95/Zg+nxZhGFhZg==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12"
-        }
+        "contentHash": "lXyK2O5GoYvfxW8eCFcD16JFbcoSTM1sJkAM0UHS1jZyl9NYMW64Tqm6OQFT0IDBjZi+xHt95/Zg+nxZhGFhZg=="
       },
       "Microsoft.Extensions.Logging": {
         "type": "CentralTransitive",
@@ -459,18 +432,7 @@
         "resolved": "10.0.12",
         "contentHash": "6I46fTPfgYkrjRYfRXbho9WOvOelTnNjWuZws/hzGHDASH1LEJeA4VKK9k3wJvido8o7jJSB5WkMTonX7HM1bA==",
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection": "10.0.12",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
-          "Microsoft.Extensions.Options": "10.0.12"
-        }
-      },
-      "Microsoft.Extensions.Logging.Abstractions": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.12, )",
-        "resolved": "10.0.12",
-        "contentHash": "+24lC4plfbEDNfLAdTV/SWKS7dW+16X4HdydO3R++134kSNTzcbYA4KpR1Hdh6uWisB8Za3AzwyOn+K+NxWIug==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12"
+          "Microsoft.Extensions.DependencyInjection": "10.0.12"
         }
       },
       "Microsoft.ML.OnnxRuntime": {
@@ -550,7 +512,7 @@
         "contentHash": "IrIKdPfbeCtgDeKQvJE2EtS8sSLxxpBRzCCpkg/4jORLwmhSUrVZtIrnbbaWQxo3tjnXK6aHH6MNsvi3S3PuTg=="
       }
     },
-    "net10.0-windows10.0.19041/win-x64": {
+    "net11.0-windows10.0.19041/win-x64": {
       "Avalonia.Angle.Windows.Natives": {
         "type": "Transitive",
         "resolved": "2.1.27548.20260419",
@@ -611,7 +573,7 @@
         "contentHash": "IrIKdPfbeCtgDeKQvJE2EtS8sSLxxpBRzCCpkg/4jORLwmhSUrVZtIrnbbaWQxo3tjnXK6aHH6MNsvi3S3PuTg=="
       }
     },
-    "net10.0-windows10.0.19041/win-x86": {
+    "net11.0-windows10.0.19041/win-x86": {
       "Avalonia.Angle.Windows.Natives": {
         "type": "Transitive",
         "resolved": "2.1.27548.20260419",

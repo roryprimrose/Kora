@@ -653,6 +653,8 @@ public sealed partial class EvidenceAdvancedFilterTests
         viewer.Close();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Theory discovery intentionally receives independent mutable test data.")]
     public static TheoryData<string> InvalidExactText => new()
     {
         " ", "\t", " exact", "exact ", "ex\nact", "ex\0act", "\ud800",

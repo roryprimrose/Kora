@@ -96,7 +96,7 @@ Resolve this executable to an absolute path under the owning checkout and
 launch it through the approved desktop tool:
 
 ```text
-src\Kora\bin\Debug\net10.0-windows10.0.19041.0\Kora.exe
+src\Kora\bin\Debug\net11.0-windows10.0.19041.0\Kora.exe
 ```
 
 Verify the intended process and completed startup (usable window/tray controls),

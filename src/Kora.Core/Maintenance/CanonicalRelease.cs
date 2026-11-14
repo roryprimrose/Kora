@@ -6,7 +6,7 @@ public static class CanonicalRelease
     public const int InstallerProtocol = 2;
     public const string RepositoryUrl = "https://github.com/" + Repository;
     public const string ApiRoot = "https://api.github.com/repos/" + Repository;
-    public const string Runtime = "framework-dependent .NET 10 + Windows Desktop 10 + native prerequisites";
+    public const string Runtime = "framework-dependent .NET 11 + Windows Desktop 11 + native prerequisites";
     public const string Limits = "Unsigned POC; hashes detect consistency, not publisher authentication. "
         + "Automatic checks never install. Installer download/start requires separate exact native approval. "
         + "No source changes or protected-deployment acceptance is implied. Deployment mode is unknown.";

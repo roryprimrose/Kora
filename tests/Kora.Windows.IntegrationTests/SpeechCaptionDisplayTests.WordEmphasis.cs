@@ -73,7 +73,7 @@ public sealed partial class SpeechCaptionDisplayTests
             layer.Underlines().Should().BeEmpty();
             At(100);
             reader.Text.Should().Be(text);
-            layer.Underlines().Any().Should().Be(qualified);
+            (layer.Underlines().Count > 0).Should().Be(qualified);
             ControlAutomationPeer.CreatePeerForElement(reader)!.GetName().Should().Be("Current spoken utterance");
             var decorationPeer = ControlAutomationPeer.CreatePeerForElement(layer)!;
             decorationPeer.IsControlElement().Should().BeFalse();
@@ -108,7 +108,7 @@ public sealed partial class SpeechCaptionDisplayTests
                 AssertUnderlines(6, 2);
                 reader.FontSize.Should().Be(16 * percent / 100.0);
                 reader.SelectedText.Should().Be("Go");
-                layer.Underlines().Any().Should().Be(qualified);
+                (layer.Underlines().Count > 0).Should().Be(qualified);
             }
             var presenter = reader.GetVisualDescendants().OfType<TextPresenter>().Single();
             var first = presenter.TextLayout.HitTestTextPosition(3);

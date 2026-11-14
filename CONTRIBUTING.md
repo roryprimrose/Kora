@@ -187,6 +187,34 @@ their reconciliation path.
 
 Restore, build, and test with the pinned SDK and locked dependencies:
 
+The maintained solutions target .NET 11 using SDK 11.0.100 (latest patch
+roll-forward), with portable `net11.0` projects and
+`net11.0-windows10.0.19041.0` Windows projects. CI installs the SDK from
+`global.json`. Historical experiments and their recorded toolchains are not
+retargeted. .NET 11 is an STS release supported through November 14, 2028.
+Keep a supported .NET 10 runtime alongside .NET 11 for the pinned local tools
+(including ReportGenerator). CI explicitly installs the .NET 10 SDK in jobs
+that restore those tools; `global.json` still selects .NET 11 for all builds.
+The x86/x64 runtime now requires the x86-64-v2 instruction-set baseline;
+ReadyToRun code can fall back to JIT on supported CPUs below its v3 target.
+See the [.NET 11 announcement](https://devblogs.microsoft.com/dotnet/announcing-dotnet-11/)
+and [runtime hardware requirements](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-11/runtime#updated-minimum-hardware-requirements).
+
+Logging abstractions are supplied by the .NET 11 shared framework rather than
+explicit package references. Other package versions remain independently
+pinned; retargeting is not a blanket dependency update. Runtime/JIT and SDK
+startup improvements need no application rewrite. Preview Runtime Async,
+Native AOT publishing, C# union/closed-hierarchy refactors and process API
+replacements are not enabled by this migration: they need separate focused
+compatibility and behavioral evidence. MAUI/Blazor changes do not apply to
+Kora's Avalonia UI.
+
+The migration preserves canonical quiet-hours `HH:mm` values (including
+rejection of `24:00`) and the existing retained trace-flag allowlist. New
+framework parsing behavior and enum members must not widen saved-data admission.
+Fractional capture timing remains exact to a tick; tests assert integer ticks
+rather than relying on floating-point-to-decimal conversion.
+
 ```powershell
 dotnet restore .\Kora.slnx --locked-mode
 dotnet tool restore

@@ -466,6 +466,8 @@ public sealed partial class SessionAttachmentWindowTests
         internal byte[] Bytes { get; } = [0xef, 0xbb, 0xbf, .. Encoding.UTF8.GetBytes(Text)];
         internal int Reads { get; private set; }
         internal int Disposals { get; private set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+            Justification = "Metadata is an immutable snapshot of the fixture's current bytes.")]
         public LocalFileMetadata Metadata => new(@"C:\Synthetic\source.md", "verified-synthetic-native-identity", Bytes.Length, DateTimeOffset.UnixEpoch);
         public Task<ILocalFileSelection> InspectAsync(string selectedPath, CancellationToken cancellationToken) => Task.FromResult<ILocalFileSelection>(this);
         public Task<byte[]> ReadAsync(CancellationToken cancellationToken) { Reads++; return Task.FromResult(Bytes); }

@@ -1,6 +1,6 @@
 # Kora
 
-A Windows-only, local-first desktop assistant built with .NET 10 and Avalonia.
+A Windows-only, local-first desktop assistant built with .NET 11 and Avalonia.
 Kora accepts typed and explicitly activated voice requests, provides local
 speech and visual responses, and keeps execution and consent under host control.
 
@@ -32,7 +32,7 @@ unavailable. This is not a qualified release; see the
 
 ## Run from source
 
-Developer builds require Git, PowerShell 7 and the .NET 10 SDK pinned in
+Developer builds require Git, PowerShell 7 and the .NET 11 SDK pinned in
 [global.json](global.json). On Windows:
 
 ```powershell

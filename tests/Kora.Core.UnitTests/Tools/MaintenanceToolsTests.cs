@@ -77,6 +77,8 @@ public sealed class MaintenanceToolsTests
         MaintenanceTools.Matches(reply, "unknown").Should().BeFalse();
         var check = reply with { Maintenance = reply.Maintenance! with { Installer = null, Availability = ReleaseAvailability.UpToDate } };
         MaintenanceTools.Matches(check, MaintenanceTools.Check).Should().BeTrue();
+        MaintenanceTools.Matches(check with { Maintenance = check.Maintenance! with { Availability = ReleaseAvailability.Available } },
+            MaintenanceTools.Check).Should().BeTrue();
         MaintenanceTools.Matches(check with { Maintenance = check.Maintenance! with { Availability = ReleaseAvailability.Unknown } },
             MaintenanceTools.Check).Should().BeFalse();
         MaintenanceTools.Matches(reply with { Maintenance = reply.Maintenance! with { Availability = ReleaseAvailability.UpToDate } },

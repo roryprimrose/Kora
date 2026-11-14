@@ -343,6 +343,8 @@ public sealed class WindowsPrivacyObservationServiceTests
         observer.Current.SessionState.Should().Be(WindowsSessionState.Unlocked);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Each test receives its own snapshot and collection to prevent shared fixture state.")]
     private static WindowsPrivacySnapshot Ready => new(
         WindowsSessionState.Unlocked, MicrophoneAccessState.Allowed, 0, ["mic"], "mic", "speaker");
 

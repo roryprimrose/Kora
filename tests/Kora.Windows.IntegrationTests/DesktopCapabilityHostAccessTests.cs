@@ -123,6 +123,8 @@ public sealed class DesktopCapabilityHostAccessTests
     {
         public event EventHandler<WindowsPrivacyChangedEventArgs>? Changed { add { } remove { } }
         public WindowsSessionState State { get; set; } = WindowsSessionState.Unlocked;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+            Justification = "The fixture must observe current mutable privacy state on every read.")]
         public WindowsPrivacySnapshot Current => new(State, MicrophoneAccessState.Unknown, 0, [], null, null);
         public WindowsPrivacySnapshot Refresh() => Current;
         public void Dispose() { }

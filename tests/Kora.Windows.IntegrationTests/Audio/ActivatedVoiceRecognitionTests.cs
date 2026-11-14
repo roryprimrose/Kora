@@ -1100,6 +1100,8 @@ public sealed partial class ActivatedVoiceRecognitionTests(
         FakePrivacy privacy, FakeFactory factory, VoiceCaptureLimits? limits = null) =>
         new(Logger, privacy, factory, limits ?? VoiceCaptureLimits.Default);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Each test receives its own snapshot and collection to prevent shared fixture state.")]
     private static WindowsPrivacySnapshot Ready => new(
         WindowsSessionState.Unlocked, MicrophoneAccessState.Allowed, 1, ["mic"], "mic", "speaker");
 

@@ -51,7 +51,7 @@
     <ApplicationIcon>Assets\Kora.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net11.0-windows10.0.19041.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Kora</RootNamespace>

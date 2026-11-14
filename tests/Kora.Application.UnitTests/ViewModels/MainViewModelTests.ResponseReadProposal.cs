@@ -411,6 +411,7 @@ public sealed partial class MainViewModelTests
     [InlineData("invocation")]
     [InlineData("complete")]
     [InlineData("stopped")]
+    [InlineData("stopped-callback")]
     [InlineData("foreign-activity")]
     public async Task ResponseReadProposalRejectsNonOriginalOrEndedDecisionContexts(string kind)
     {
@@ -426,9 +427,25 @@ public sealed partial class MainViewModelTests
         {
             if (string.Equals(kind, "complete", StringComparison.Ordinal)) { context.Complete(HostOperationOutcome.Completed); }
             if (string.Equals(kind, "stopped", StringComparison.Ordinal)) { context.Activity!.Stop(); }
+            if (string.Equals(kind, "stopped-callback", StringComparison.Ordinal))
+            {
+                Task? attempt = null;
+                using var listener = new System.Diagnostics.ActivityListener
+                {
+                    ShouldListenTo = source => string.Equals(source.Name, "Kora.Application", StringComparison.Ordinal),
+                    ActivityStopped = activity =>
+                    {
+                        if (ReferenceEquals(activity, context.Activity)) { attempt = confirm(); }
+                    },
+                };
+                System.Diagnostics.ActivitySource.AddActivityListener(listener);
+                context.Activity!.Stop();
+                attempt.Should().NotBeNull();
+                await attempt!;
+            }
             using var foreign = string.Equals(kind, "foreign-activity", StringComparison.Ordinal)
                 ? new System.Diagnostics.Activity("test.foreign").Start() : null;
-            await confirm();
+            if (kind is not "stopped-callback") { await confirm(); }
         }
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.HasResponseReadProposal.Should().BeTrue();

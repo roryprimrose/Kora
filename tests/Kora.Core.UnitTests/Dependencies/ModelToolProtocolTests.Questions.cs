@@ -110,10 +110,12 @@ public sealed partial class ModelToolProtocolTests
         create.Should().Throw<InvalidDataException>();
     }
 
-    [Fact]
-    public void MissingOptionLabelIsRejectedWithoutRepairOrPartialQuestion()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MissingOptionsOrLabelIsRejectedWithoutRepairOrPartialQuestion(bool missingCollection)
     {
-        var create = () => LocalModelQuestionPolicy.CreateSpec(new("Choose format", [null!, "Detailed"]));
+        var create = () => LocalModelQuestionPolicy.CreateSpec(new("Choose format", missingCollection ? null! : [null!, "Detailed"]));
         create.Should().Throw<InvalidDataException>();
     }
 

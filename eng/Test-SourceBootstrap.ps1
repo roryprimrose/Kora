@@ -44,7 +44,7 @@ New-ProofDirectory $repository
 Invoke-Checked 'git' @('init', $repository)
 Invoke-Checked 'git' @('-C', $repository, 'config', 'user.name', 'R17 fixture')
 Invoke-Checked 'git' @('-C', $repository, 'config', 'user.email', 'r17@example.invalid')
-Write-ProofJson @{ sdk = @{ version = '10.0.401' } } (Join-Path $repository 'global.json')
+Write-ProofJson @{ sdk = @{ version = '11.0.100' } } (Join-Path $repository 'global.json')
 Write-ProofJson @{ version = 2; dependencies = @{} } (Join-Path $repository 'packages.lock.json')
 'fixture source' | Set-Content -LiteralPath (Join-Path $repository 'input.txt')
 Invoke-Checked 'git' @('-C', $repository, 'add', '.')
@@ -117,7 +117,7 @@ function Invoke-SourceCompile {
         'origin' { Invoke-Checked 'git' @('-C', $Checkout, 'remote', 'set-url', 'origin', 'wrong-origin') }
         'revision' { Invoke-Checked 'git' @('-C', $Checkout, '-c', 'core.hooksPath=', 'checkout', '--detach', $script:firstRevision) }
     }
-    return [ordered]@{ sdk = '10.0.401'; version = '0.1.0'; rid = 'win-x64'; configuration = 'Release'
+    return [ordered]@{ sdk = '11.0.100'; version = '0.1.0'; rid = 'win-x64'; configuration = 'Release'
         selfContained = $false; dependencyRestore = 'locked'; channel = 'local-source'
         origin = 'Local operator build of canonical source; not an official release binary.'; os = 'fixture' }
 }
@@ -341,7 +341,7 @@ $cleanCheckout = Join-Path $root "checkouts\$second"
 Expect-SourceFailure 'Wrong SDK blocked before restore or build' {
     & $originalCompile $cleanCheckout $compileStage $compileStage $second
 } 'Exact pinned SDK'
-$script:sdk = '10.0.401'
+$script:sdk = '11.0.100'
 $script:commands = [Collections.Generic.List[object]]::new()
 function Invoke-SourceCommand { param($Command,$Arguments,$Log); $script:commands.Add(@($Arguments)) }
 & $originalCompile $cleanCheckout $compileStage $compileStage $second | Out-Null

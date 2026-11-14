@@ -27,26 +27,36 @@ internal sealed partial class SessionsViewModel
     public IReadOnlyList<HistoryMetadataOption<RequestOrigin>> HistoryAnswerChannels { get; } =
         [new(null), .. Enum.GetValues<RequestOrigin>().Select(value => new HistoryMetadataOption<RequestOrigin>(value))];
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "The binding uses immutable value-equal options reflecting the current filter, not stable object identity.")]
     public HistoryMetadataOption<SessionHistoryKind> HistoryKindChoice
     {
         get => new(historyMetadata.Kind);
         set { if (value is not null) { EditHistoryMetadata(historyMetadata with { Kind = value.Value }); } }
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "The binding uses immutable value-equal options reflecting the current filter, not stable object identity.")]
     public HistoryMetadataOption<HostTaskState> HistoryTaskStateChoice
     {
         get => new(historyMetadata.TaskState);
         set { if (value is not null) { EditHistoryMetadata(historyMetadata with { TaskState = value.Value }); } }
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "The binding uses immutable value-equal options reflecting the current filter, not stable object identity.")]
     public HistoryMetadataOption<HostInteractionOutcome> HistoryDecisionChoice
     {
         get => new(historyMetadata.Decision);
         set { if (value is not null) { EditHistoryMetadata(historyMetadata with { Decision = value.Value }); } }
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "The binding uses immutable value-equal options reflecting the current filter, not stable object identity.")]
     public HistoryMetadataOption<QuestionStatus> HistoryQuestionStatusChoice
     {
         get => new(historyMetadata.QuestionStatus);
         set { if (value is not null) { EditHistoryMetadata(historyMetadata with { QuestionStatus = value.Value }); } }
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "The binding uses immutable value-equal options reflecting the current filter, not stable object identity.")]
     public HistoryMetadataOption<RequestOrigin> HistoryAnswerChannelChoice
     {
         get => new(historyMetadata.AnswerChannel);

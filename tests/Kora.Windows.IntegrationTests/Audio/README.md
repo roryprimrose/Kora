@@ -14,7 +14,7 @@ From the repository root, build the existing project with analyzers, without an 
 
 ```powershell
 dotnet build .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-restore
-$runner = '.\tests\Kora.Windows.IntegrationTests\bin\Release\net10.0-windows10.0.19041.0\Kora.Windows.IntegrationTests.exe'
+$runner = '.\tests\Kora.Windows.IntegrationTests\bin\Release\net11.0-windows10.0.19041.0\Kora.Windows.IntegrationTests.exe'
 $classes = @(
   'PocketSphinxKeywordConfigurationTests', 'PocketSphinxKeywordDetectorTests',
   'HandsFreeOfflineEvaluationTests', 'HandsFreeSetupTests',

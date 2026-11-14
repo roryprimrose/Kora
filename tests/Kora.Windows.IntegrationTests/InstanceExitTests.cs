@@ -97,6 +97,22 @@ public sealed class InstanceExitTests
     }
 
     [Fact]
+    public async Task CliCancellationStillWritesFailureDiagnostics()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        (await ExitCommandStartup.RunAsync(["--exit"], token => Task.FromCanceled<InstanceExitResult>(token),
+            output, error, cancellation.Token)).Should().Be(1);
+
+        output.ToString().Should().BeEmpty();
+        error.ToString().Should().Contain("Graceful exit was not confirmed")
+            .And.Contain("No process was forcibly terminated");
+    }
+
+    [Fact]
     public async Task CliNoOwnerDoesNotClaimCleanShutdown()
     {
         using var output = new StringWriter();

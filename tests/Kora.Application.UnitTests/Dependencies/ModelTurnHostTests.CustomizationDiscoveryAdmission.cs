@@ -29,6 +29,10 @@ public sealed partial class ModelTurnHostTests
     [InlineData("serialized-limit")]
     [InlineData("late-source")]
     [InlineData("private-after-read")]
+    [InlineData("private-before-read")]
+    [InlineData("stopped")]
+    [InlineData("complete")]
+    [InlineData("stopped-callback")]
     public async Task DiscoveryReviewRejectsInvalidOrDriftingSourcesWithoutTruncationOrLastGoodFallback(string fault)
     {
         using var f = new Fixture();
@@ -64,13 +68,39 @@ public sealed partial class ModelTurnHostTests
             };
         }
         if (fault is "private-after-read") { sources.AfterRead = () => f.ControlRevision++; }
+        if (fault is "private-before-read") { f.CanControl = false; }
+        if (fault is "stopped")
+        {
+            root.Activity!.Stop();
+        }
+        if (fault is "complete") { root.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Completed); }
         if (fault is "late-source")
         { sources.AfterRead = () => sources.Values[0] = sources.Values[0] with { Revision = Guid.NewGuid().ToString("N") }; }
         var target = new SessionWorkspaceEntry(f.Session with { IsActive = fault is not "inactive" }, null);
         var origin = fault is "origin" ? RequestOrigin.HostSystem : fault is "channel" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi;
-        await new CustomizationDiscoveryService(sources, catalogue, use, f, f.Time)
-            .Invoking(service => service.Review(selected, target, "Which helper?", origin, static () => true, Token))
-            .Should().ThrowAsync<Exception>();
+        var service = new CustomizationDiscoveryService(sources, catalogue, use, f, f.Time);
+        if (fault is "stopped-callback")
+        {
+            Task<CustomizationDiscoverySnapshot>? attempt = null;
+            using var stoppedListener = new System.Diagnostics.ActivityListener
+            {
+                ShouldListenTo = source => string.Equals(source.Name, "Kora.Application", StringComparison.Ordinal),
+                ActivityStopped = activity =>
+                {
+                    if (ReferenceEquals(activity, root.Activity))
+                    { attempt = service.Review(selected, target, "Which helper?", origin, static () => true, Token); }
+                },
+            };
+            System.Diagnostics.ActivitySource.AddActivityListener(stoppedListener);
+            root.Activity!.Stop();
+            attempt.Should().NotBeNull();
+            await FluentActions.Awaiting(() => attempt!).Should().ThrowAsync<InvalidOperationException>();
+        }
+        else
+        {
+            await service.Invoking(value => value.Review(selected, target, "Which helper?", origin, static () => true, Token))
+                .Should().ThrowAsync<Exception>();
+        }
         f.RetainCalls.Should().Be(0);
         f.Adapter.Calls.Should().Be(0);
     }

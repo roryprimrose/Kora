@@ -8,7 +8,7 @@ The authoritative implementation policy is
 
 ## Project structure
 
-[Kora.Tools.csproj](Kora.Tools.csproj) targets `net10.0` and references
+[Kora.Tools.csproj](Kora.Tools.csproj) targets `net11.0` and references
 [Kora.Core](../Kora.Core). It does not reference Application, Windows, desktop,
 Avalonia or provider SDKs. Application consumes Tools; native APIs remain behind
 Core contracts implemented in Windows, and desktop supplies DI and presentation.

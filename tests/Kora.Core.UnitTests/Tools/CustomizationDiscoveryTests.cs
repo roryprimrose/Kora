@@ -49,6 +49,7 @@ public sealed class CustomizationDiscoveryTests
         }
         CustomizationDiscoveryTools.IsSupported(CustomizationKind.Agent).Should().BeTrue();
         CustomizationDiscoveryTools.IsSupported(CustomizationKind.Instruction).Should().BeTrue();
+        CustomizationDiscoveryTools.IsValid(Record() with { SourceCategory = CustomizationScope.User }).Should().BeTrue();
     }
 
     [Theory]

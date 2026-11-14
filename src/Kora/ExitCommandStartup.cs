@@ -14,7 +14,7 @@ internal static class ExitCommandStartup
     {
         if (args is not ["--exit"])
         {
-            await error.WriteLineAsync("Usage: Kora.exe --exit");
+            await error.WriteLineAsync("Usage: Kora.exe --exit", CancellationToken.None);
             return 2;
         }
         try
@@ -22,16 +22,16 @@ internal static class ExitCommandStartup
             var result = await request(cancellationToken);
             if (result is { Status: InstanceExitStatus.NoOwner, ProcessId: null, ProcessExitCode: null })
             {
-                await output.WriteLineAsync("NO_OWNER: no assistant ownership was observed; clean shutdown is not implied.");
+                await output.WriteLineAsync("NO_OWNER: no assistant ownership was observed; clean shutdown is not implied.", CancellationToken.None);
                 return 0;
             }
             if (result is not { Status: InstanceExitStatus.Exited, ProcessId: > 0, ProcessExitCode: not null })
             { throw new InvalidDataException("Exit did not provide an authenticated process result."); }
             await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture,
-                $"EXITED: processId={result.ProcessId}; processExitCode={result.ProcessExitCode}."));
+                $"EXITED: processId={result.ProcessId}; processExitCode={result.ProcessExitCode}."), CancellationToken.None);
             if (result.ProcessExitCode != 0)
             {
-                await error.WriteLineAsync("The process exited with a failure code; clean shutdown is not confirmed.");
+                await error.WriteLineAsync("The process exited with a failure code; clean shutdown is not confirmed.", CancellationToken.None);
                 return 3;
             }
             return 0;
@@ -40,7 +40,7 @@ internal static class ExitCommandStartup
             or UnauthorizedAccessException or Win32Exception or OperationCanceledException or TimeoutException
             or JsonException or ArgumentException or BadImageFormatException or InvalidDataException)
         {
-            await error.WriteLineAsync($"Graceful exit was not confirmed ({exception.GetType().Name}). No process was forcibly terminated.");
+            await error.WriteLineAsync($"Graceful exit was not confirmed ({exception.GetType().Name}). No process was forcibly terminated.", CancellationToken.None);
             return 1;
         }
     }

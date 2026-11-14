@@ -65,7 +65,8 @@ internal sealed partial class EvidenceViewModel
     public static IReadOnlyList<ActivityKindChoice> ActivityKindChoices { get; } =
         [new(null, "Any"), .. Enum.GetValues<ActivityKind>().Select(value => new ActivityKindChoice(value, value.ToString()))];
     public static IReadOnlyList<TraceFlagsChoice> TraceFlagsChoices { get; } =
-        [new(null, "Any"), .. Enum.GetValues<ActivityTraceFlags>().Select(value => new TraceFlagsChoice(value, value.ToString()))];
+        [new(null, "Any"), .. Enum.GetValues<ActivityTraceFlags>().Where(TraceSnapshot.IsValidFlags)
+            .Select(value => new TraceFlagsChoice(value, value.ToString()))];
     public static IReadOnlyList<TraceSourceVersionAvailability> TraceVersionAvailabilities { get; } = Enum.GetValues<TraceSourceVersionAvailability>();
     public sealed record TraceParentKindChoice(TraceParentKind Value, string Label)
     {

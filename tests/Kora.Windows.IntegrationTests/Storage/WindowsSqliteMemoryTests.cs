@@ -13,6 +13,8 @@ namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed partial class WindowsSqliteMemoryTests
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Each test receives an independent candidate value object.")]
     private static MemoryCandidate Candidate => new(MemoryContentClass.ResponsePreference, "exact reviewed memory café");
 
     [WindowsFact]

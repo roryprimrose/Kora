@@ -48,7 +48,8 @@ public sealed record QuietHoursSchedule
 
     private static TimeOnly ParseTime(string value)
     {
-        if (!TimeOnly.TryParseExact(value, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time))
+        if (!TimeOnly.TryParseExact(value, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)
+            || !string.Equals(time.ToString("HH:mm", CultureInfo.InvariantCulture), value, StringComparison.Ordinal))
         { throw new ArgumentException("Use an explicit 24-hour HH:mm time.", nameof(value)); }
         return time;
     }

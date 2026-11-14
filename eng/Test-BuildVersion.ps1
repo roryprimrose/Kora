@@ -62,7 +62,7 @@ function Assert-BinaryVersion {
         $exitCode = $LASTEXITCODE
     }
     if ($exitCode -ne 0) { throw 'Version fixture build failed.' }
-    $binary = Join-Path $fixture 'bin\Release\net10.0\VersionFixture.dll'
+    $binary = Join-Path $fixture 'bin\Release\net11.0\VersionFixture.dll'
     $metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo($binary)
     Assert ($metadata.ProductVersion -ceq $Expected) `
         "Compiled binary metadata did not match $Expected."
@@ -87,7 +87,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $fixture 'VersionFixture.csproj'), @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
   <Import Project="$targets" />

@@ -18,6 +18,8 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class NativeDetailRendererTests
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Each test operation intentionally receives an independent renderer.")]
     private static NativeDetailRenderer Renderer => new(NullLogger<NativeDetailRenderer>.Instance);
 
     [Fact]

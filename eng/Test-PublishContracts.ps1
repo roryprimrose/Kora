@@ -46,7 +46,7 @@ $expectedSums = @($manifest.files | ForEach-Object { "$($_.sha256)  $($_.path)" 
 if (($sums -join '|') -cne ($expectedSums -join '|')) { throw 'SHA256SUMS does not match full receipt shape.' }
 Assert-PublishRuntime (@{ runtimeOptions = @{ frameworks = $manifest.frameworks } }) `
     (Get-Content -LiteralPath (Join-Path $copy 'Kora.deps.json') -Raw | ConvertFrom-Json -AsHashtable) $Rid
-$passed.Add("Actual schema-2 receipt, SHA256SUMS, $Rid native closure, resources and both .NET 10 shared frameworks")
+$passed.Add("Actual schema-2 receipt, SHA256SUMS, $Rid native closure, resources and both .NET 11 shared frameworks")
 if ($Rid -ceq 'win-x64') {
     $imports = @($manifest.peFiles | Where-Object path -CEQ 'onnxruntime.dll' | ForEach-Object imports)
     foreach ($name in 'VCRUNTIME140.dll', 'MSVCP140.dll', 'VCRUNTIME140_1.dll', 'MSVCP140_1.dll') {
@@ -130,8 +130,8 @@ foreach ($case in 'missing-framework', 'wrong-version', 'extra-framework') {
     $runtime = Get-Content -LiteralPath $runtimePath -Raw | ConvertFrom-Json -AsHashtable
     switch ($case) {
         'missing-framework' { $runtime.runtimeOptions.frameworks = @($runtime.runtimeOptions.frameworks[0]) }
-        'wrong-version' { $runtime.runtimeOptions.frameworks[0].version = '9.0.0' }
-        'extra-framework' { $runtime.runtimeOptions.frameworks += @{ name = 'Unexpected'; version = '10.0.0' } }
+        'wrong-version' { $runtime.runtimeOptions.frameworks[0].version = '10.0.0' }
+        'extra-framework' { $runtime.runtimeOptions.frameworks += @{ name = 'Unexpected'; version = '11.0.0' } }
     }
     Write-ProofJson $runtime $runtimePath
     Expect-PublishFailure "$case is rejected" { Inspect-Fixture $case } 'Runtime contract changed'

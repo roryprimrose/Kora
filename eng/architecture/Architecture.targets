@@ -10,7 +10,7 @@
                            Condition="'$(MSBuildProjectName)' == 'Kora.Application'" />
     <_KoraAllowedReference Include="$(KoraArchitectureSourceRoot)\Kora.Definitions\Kora.Definitions.csproj;$(KoraArchitectureSourceRoot)\Kora.Application\Kora.Application.csproj;$(KoraArchitectureSourceRoot)\Kora.Windows\Kora.Windows.csproj"
                            Condition="'$(MSBuildProjectName)' == 'Kora'" />
-    <Analyzer Include="$(MSBuildThisFileDirectory)bin\$(Configuration)\net10.0\Kora.Architecture.dll"
+    <Analyzer Include="$(MSBuildThisFileDirectory)bin\$(Configuration)\net11.0\Kora.Architecture.dll"
               Condition="'$(_KoraPortableLayer)' == 'true' and '$(KoraArchitectureAnalyze)' == 'true'" />
   </ItemGroup>
   <Target Name="KoraCheckArchitecture">

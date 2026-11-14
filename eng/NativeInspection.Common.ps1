@@ -72,8 +72,8 @@ function Assert-PublishRuntime {
     }
     $frameworks = @($Runtime.runtimeOptions.frameworks)
     if ($frameworks.Count -ne 2 -or
-        @($frameworks | Where-Object { $_.name -ceq 'Microsoft.NETCore.App' -and $_.version -ceq '10.0.0' }).Count -ne 1 -or
-        @($frameworks | Where-Object { $_.name -ceq 'Microsoft.WindowsDesktop.App' -and $_.version -ceq '10.0.0' }).Count -ne 1) {
+        @($frameworks | Where-Object { $_.name -ceq 'Microsoft.NETCore.App' -and $_.version -ceq '11.0.0' }).Count -ne 1 -or
+        @($frameworks | Where-Object { $_.name -ceq 'Microsoft.WindowsDesktop.App' -and $_.version -ceq '11.0.0' }).Count -ne 1) {
         throw 'Runtime contract changed; review inspector and WiX prerequisite checks.'
     }
 }

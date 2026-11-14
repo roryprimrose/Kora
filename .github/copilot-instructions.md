@@ -2,7 +2,7 @@
 
 ## Product and architecture
 
-- Kora is a Windows-only, local-first Avalonia desktop assistant targeting .NET 10.
+- Kora is a Windows-only, local-first Avalonia desktop assistant targeting .NET 11.
 - Preserve the dependency direction: `Kora.Core` contains portable contracts and domain rules; `Kora.Tools` contains host-owned C# actions; `Kora.Definitions` contains bundled behavior definitions/resources; `Kora.Application` contains orchestration and presentation state; `Kora.Windows` contains Windows integrations; `Kora` composes the desktop. Tools and Definitions reference Core, never Application/Windows/desktop. Keep Windows APIs, handles, registry/device APIs and OS-specific exceptions out of Core, Tools, Definitions and Application.
 - Before proposing or starting a feature, apply [product admission](../Design/MVP_Scope.md#product-admission-and-realignment): name the approved outcome, concrete scenario, host-versus-extension rationale and complete interaction. Source layout, dependencies, tests and spare capacity are not product approval. Repairs, accessibility, reliability and proportionate usability within approved outcomes do not need a new decision; material expansion or retired-work revival does.
 - Prefer bounded increments toward approved voice/model interaction, shared settings proposals, governed tools/MCP/skills/agents/instructions, presence/readable results and permissioned session conversations. An unavailable provider is not permission to invent unrelated utilities. Do not recreate retired features or fill slots with variants; report a shortage of approved work.

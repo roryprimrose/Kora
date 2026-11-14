@@ -158,6 +158,8 @@ public sealed class LocalFileAnswerContextTests
     [InlineData("task")]
     [InlineData("origin")]
     [InlineData("invocation")]
+    [InlineData("source-origin")]
+    [InlineData("destination-invocation")]
     public void ContextRejectsStaleOrForgedSourceLocationAndInvalidSelection(string defect)
     {
         var (source, search, _) = Create();
@@ -186,8 +188,13 @@ public sealed class LocalFileAnswerContextTests
             "invocation" => new(original.RequestId, original.SessionId, original.TaskId, RequestOrigin.LocalUi, new(Guid.NewGuid())),
             _ => original,
         };
+        var sourceRequest = defect is "source-origin"
+            ? new HostRequest(original.RequestId, original.SessionId, original.TaskId, RequestOrigin.ActivatedVoice) : original;
+        if (defect is "destination-invocation")
+        { request = new(original.RequestId, original.SessionId, original.TaskId, original.Origin, new(Guid.NewGuid())); }
         var create = () => new LocalFileAnswerContext(source, search, string.Equals(defect, "query", StringComparison.Ordinal) ? string.Empty : "alpha",
-            request, string.Equals(defect, "generation", StringComparison.Ordinal) ? default : new(1), DateTimeOffset.UnixEpoch);
+            request, string.Equals(defect, "generation", StringComparison.Ordinal) ? default : new(1), DateTimeOffset.UnixEpoch,
+            defect is "source-origin" or "destination-invocation" ? sourceRequest : null);
         create.Should().Throw<InvalidDataException>();
     }
 

@@ -82,9 +82,9 @@ after user consent under its MIT license and downloads the pinned Qwen3 1.7B
 model under Apache-2.0; neither is bundled into Kora's publish archives.
 
 The hosted adapter pins the MIT-licensed `GitHub.Copilot.SDK` **1.0.26**.
-Its managed .NET 10 dependency closure includes
-`Microsoft.Extensions.AI.Abstractions` 10.2.0 and the centrally pinned logging
-abstractions. The package's build/content assets are excluded: restoring,
+Its managed dependency closure includes
+`Microsoft.Extensions.AI.Abstractions` 10.2.0; logging abstractions are supplied
+by the .NET 11 shared framework. The package's build/content assets are excluded: restoring,
 building or publishing Kora must not implicitly download or redistribute the
 separate Copilot runtime. The package declares runtime **1.0.103**; that is
 dependency metadata, not installed-runtime or distribution approval.

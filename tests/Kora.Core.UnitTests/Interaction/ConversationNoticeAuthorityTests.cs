@@ -35,6 +35,15 @@ public sealed class ConversationNoticeAuthorityTests
         notice.Invoking(item => item.Validate(Task(state, 4))).Should().Throw<InvalidDataException>();
     }
 
+    [Fact]
+    public void ActivatedVoiceNoticeRequiresItsOwnExactDurableTask()
+    {
+        var request = new HostRequest(Request.RequestId, Request.SessionId, Request.TaskId, RequestOrigin.ActivatedVoice);
+        var notice = Notice() with { Request = request };
+        notice.Validate(new(request, new(3), HostTaskState.Succeeded));
+        notice.Invoking(item => item.Validate(Task())).Should().Throw<InvalidDataException>();
+    }
+
     [Theory]
     [InlineData("request")]
     [InlineData("invocation")]

@@ -9,6 +9,8 @@ namespace Kora.Windows.IntegrationTests.KnowledgeSources;
 
 public sealed partial class WindowsKnowledgeSourceTests
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Theory discovery intentionally receives independent mutable test data.")]
     public static TheoryData<SourceOperation, InventoryField> ChangedInventories =>
         new(from operation in Enum.GetValues<SourceOperation>()
             from changedField in Enum.GetValues<InventoryField>()

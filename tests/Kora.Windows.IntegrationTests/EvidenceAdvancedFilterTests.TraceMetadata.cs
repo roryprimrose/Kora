@@ -14,6 +14,23 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class EvidenceAdvancedFilterTests
 {
+    [Fact]
+    public async Task EveryOfferedTraceFlagsChoiceReachesTheReaderWithoutExpandingAdmission()
+    {
+        using var listener = WindowsDailyEvidenceReaderTests.Listen();
+        var reader = new CapturingReader();
+        var viewer = Viewer(reader);
+        var count = 0;
+        foreach (var choice in EvidenceViewModel.TraceFlagsChoices)
+        {
+            viewer.TraceFlags = choice;
+            await viewer.SearchAsync();
+            reader.Queries.Should().HaveCount(++count);
+            reader.Queries[^1].TraceFlags.Should().Be(choice.Value);
+        }
+        viewer.Close();
+    }
+
     [Theory]
     [InlineData(EvidenceSource.All)]
     [InlineData(EvidenceSource.Log)]
@@ -175,7 +192,7 @@ public sealed partial class EvidenceAdvancedFilterTests
             ActivityTraceFlags.None, "Kora.Core", null, "request", ActivityKind.Client);
         foreach (var version in new[] { null, "1", "2" })
         foreach (var kind in Enum.GetValues<ActivityKind>())
-        foreach (var flags in Enum.GetValues<ActivityTraceFlags>())
+        foreach (var flags in new[] { ActivityTraceFlags.None, ActivityTraceFlags.Recorded })
         {
             sink.WriteActivity(new(new(Guid.NewGuid()), trace with { SourceVersion = version, Kind = kind, Flags = flags },
                 owner, Edge, Edge, HostOperationOutcome.Completed, []));

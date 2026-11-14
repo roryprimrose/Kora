@@ -22,7 +22,7 @@ public sealed record TraceSnapshot(
     {
         if (!IsValidW3CId(TraceId, 32) || !IsValidW3CId(SpanId, 16)
             || ParentSpanId is not null && !IsValidW3CId(ParentSpanId, 16)
-            || !Enum.IsDefined(Kind) || !Enum.IsDefined(Flags)
+            || !Enum.IsDefined(Kind) || !IsValidFlags(Flags)
             || Source is not ("Kora.Core" or "Kora.Application" or "Kora.Windows" or "Kora.Desktop")
             || SourceVersion is not null && !IsValidMetadataText(SourceVersion)
             || !IsValidMetadataText(Name))
@@ -30,6 +30,9 @@ public sealed record TraceSnapshot(
             throw new InvalidDataException("The retained activity trace metadata is invalid.");
         }
     }
+
+    public static bool IsValidFlags(ActivityTraceFlags flags) =>
+        flags is ActivityTraceFlags.None or ActivityTraceFlags.Recorded;
 
     public static bool IsValidMetadataText(string? value)
     {
@@ -50,6 +53,6 @@ public sealed record TraceSnapshot(
     public static TraceSnapshot? Capture(Activity? activity) => activity is null ? null :
         new(activity.TraceId.ToHexString(), activity.SpanId.ToHexString(),
             activity.ParentSpanId == default ? null : activity.ParentSpanId.ToHexString(),
-            activity.ActivityTraceFlags, activity.Source.Name, activity.Source.Version,
+            activity.ActivityTraceFlags & ActivityTraceFlags.Recorded, activity.Source.Name, activity.Source.Version,
             activity.OperationName, activity.Kind);
 }

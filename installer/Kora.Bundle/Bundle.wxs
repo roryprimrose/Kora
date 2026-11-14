@@ -12,9 +12,9 @@
     <Variable Name="KoraApplicationExeHash" Type="string" Value="$(ApplicationExeHash)" />
     <Variable Name="KoraApplicationAssemblyHash" Type="string" Value="$(ApplicationAssemblyHash)" />
     <netfx:DotNetCoreSearch Id="DesktopRuntimeSearch" Variable="DesktopRuntimeVersion"
-                          RuntimeType="desktop" Platform="x64" MajorVersion="10" />
+                          RuntimeType="desktop" Platform="x64" MajorVersion="11" />
     <netfx:DotNetCoreSearch Id="CoreRuntimeSearch" Variable="CoreRuntimeVersion"
-                          RuntimeType="core" Platform="x64" MajorVersion="10" />
+                          RuntimeType="core" Platform="x64" MajorVersion="11" />
     <util:RegistrySearch Id="VCRuntimeSearch" Variable="VCRuntimeVersion"
                          Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
                          Value="Version" Result="value" Bitness="always64" />
@@ -25,15 +25,15 @@
       <PayloadGroupRef Id="BootstrapperDependencies" />
     </BootstrapperApplication>
     <Chain>
-      <ExePackage Id="DesktopRuntime" DisplayName=".NET 10 x64 Desktop Runtime"
+      <ExePackage Id="DesktopRuntime" DisplayName=".NET 11 x64 Desktop Runtime"
                   PerMachine="yes" Permanent="yes" Vital="yes" Cache="remove"
-                  DetectCondition="DesktopRuntimeVersion &gt;= v10.0.12 AND CoreRuntimeVersion &gt;= v10.0.12"
+                  DetectCondition="DesktopRuntimeVersion &gt;= v11.0.0 AND CoreRuntimeVersion &gt;= v11.0.0"
                   InstallArguments="/install /quiet /norestart" Protocol="burn">
-        <ExePackagePayload Name="windowsdesktop-runtime-10.0.12-win-x64.exe"
-                           DownloadUrl="https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.12/windowsdesktop-runtime-10.0.12-win-x64.exe"
-                           Size="60032984"
-                           Hash="0B907E9312867172A4EB82F4B5AB3F7C2D25E27D8349546D77EEB5D5B8CBECAB9EBEBFED189B13E9669DC578D892756C548366DA539D47B3DDAC5EFCB7AE72FE"
-                           Version="10.0.12.0" ProductName=".NET Desktop Runtime" />
+        <ExePackagePayload Name="windowsdesktop-runtime-11.0.0-win-x64.exe"
+                           DownloadUrl="https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/11.0.0/windowsdesktop-runtime-11.0.0-win-x64.exe"
+                           Size="62332904"
+                           Hash="CA20DBA0C69DD6AE3932D2A42BEEEECC4F4ECE0BE084F9921B001C8ACD4ECE7999DF73EDE76B87B6AE0D34974112DDD1C828FAFAD487DF27C25E59E7F794C059"
+                           Version="11.0.0.0" ProductName=".NET Desktop Runtime" />
       </ExePackage>
       <ExePackage Id="VCRuntime" DisplayName="Microsoft Visual C++ v14 x64 Runtime"
                   PerMachine="yes" Permanent="yes" Vital="yes" Cache="remove"

@@ -52,7 +52,7 @@ one second of generated zero-valued PCM and confirms no wake. It captures and
 plays no audio, uses no transcript, and grants no production qualification.
 Missing or altered assets fail. Its `kora-native-silence-v1` receipt is a
 negative native smoke observation, not acoustic, VAD, ASR or playback evidence.
-The original corpus-bound smoke and seven replay cases remain unchanged.
+The corpus-bound smoke and seven replay cases remain separately selected.
 The separate Silero smoke loads the pinned ONNX model and feeds generated
 silence until the default five-second no-command timeout. It requires no early
 endpoint and completion at the first 512-sample boundary at or after 80000
@@ -61,6 +61,10 @@ negative native path, not speech discrimination or real microphone timing.
 The pinned native engine declares sample rate as an integer configuration
 parameter. The adapter uses the integer setter/getter for both 16000-Hz sample
 rate and 100-fps frame rate; a floating getter returns zero for this parameter.
+
+The keyword likelihood-ratio cutoff is compiled host profile metadata, not microphone consent or acoustic qualification. The adapter explicitly sets and checks `kws_threshold` after native initialization. It must be finite and positive; it is not a probability capped at one.
+
+The Kora candidate uses `1e30`, shared with the evaluation profile. A small generated corpus distinguished its Kora examples from a confusable phrase at this cutoff; that observation is not physical recall, a measured false-activation rate or release qualification. Existing profiles without a supplied cutoff retain the prior native default `1e-30`. Production capture remains unavailable.
 
 **Do not run the following under a deterministic-only grant.** Native evaluation requires separate explicit permission, already available exact assets, independently approved audio fixtures and their retention decision. No code here downloads, installs assets into application data, captures a device, plays sound, invokes an application router or dispatches a conversation/tool effect.
 
@@ -123,6 +127,14 @@ $env:KORA_OFFLINE_MANIFEST_SHA256 = '<independently approved manifest SHA-256>'
 These are eight selected native cases: one silence smoke and seven replay cases. A selected run without the manifest, assets or corpus **fails**, rather than skipping, returning success or substituting fake detection. Silence smoke is negative evidence only.
 
 [HandsFreeOfflineEvaluationTests](HandsFreeOfflineEvaluationTests.cs) uses the production detector, Silero endpoint and Windows hands-free session. Its file-backed microphone substitutes only the device. A command-only PCM probe checks post-name samples, detector intervals, stale-generation denial, once-only wake consumption and no second capture from later PCM.
+
+Corpus streams are opened from verified native handles, so their `FileStream.Name` is not a usable pathname. Replay reopens the canonical manifest path while the original file and ancestor leases remain pinned. It pauses file pumping at the synchronous wake activation notification, then awaits the wake task; asynchronous task scheduling cannot consume and overwrite the bounded pre-roll.
+
+The separately selected endpoint comparison feeds the same command interval in 127-, 320-, 512- and 2240-sample chunks through the real VAD. It verifies endpoint completion and bounded chunk-rounding differences, not acoustic accuracy:
+
+```powershell
+& $runner -explicit only -method Kora.Windows.IntegrationTests.Audio.HandsFreeOfflineEvaluationTests.ActualNativeEndpointPreservesSpeechAcrossChunkBoundaries
+```
 
 The probe does **not** recognize speech, fabricate transcripts or prove first-word ASR accuracy. Windows ASR is not implemented by this corpus contract; adding independently approved recognizer fixtures needs a separate decision.
 

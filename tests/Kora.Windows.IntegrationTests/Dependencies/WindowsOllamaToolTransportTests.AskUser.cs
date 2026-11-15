@@ -101,6 +101,33 @@ public sealed partial class WindowsOllamaToolTransportTests
         f.Bodies.Should().HaveCount(fault is "repeat" ? 2 : 1);
     }
 
+    [Fact]
+    public async Task Sdk_ask_user_without_a_native_id_preserves_existing_canonical_question_correlation()
+    {
+        await using var f = new Fixture();
+        using var root = f.Root();
+        var wire = AskUserResponse("""{"prompt":"Which details?","options":["Version","Readiness"],"minimum":1,"maximum":1}""")
+            .Replace("\"id\":\"ask_1\",", "", StringComparison.Ordinal);
+        f.Chat = (message, _) => Task.FromResult(Json(message, f.Bodies.Count == 1
+            ? wire : StructuredResponse("""{"kind":"answer","answer":"Actual clarified answer"}""")));
+        var first = f.Request(toolMode: ModelToolMode.None, clarificationAllowed: true);
+        var reply = await f.Transport.CompleteAsync(first, Token);
+        var question = reply.Message.Should().BeOfType<ModelClarificationQuestion>().Subject;
+        question.CallId.Should().Be("ollama_r1_c0");
+        var answer = new ModelQuestionAnswerMessage(question, new(["option-0"]), RequestOrigin.LocalUi);
+
+        var final = await f.Transport.CompleteAsync(ModelToolProtocol.CreateRequest(first.Provenance, first.Profile,
+            first.Context, [question, answer], 2, clarificationAllowed: true), Token);
+
+        final.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        using var continued = JsonDocument.Parse(f.Bodies[1]);
+        var messages = continued.RootElement.GetProperty("messages");
+        messages[2].GetProperty("tool_calls")[0].GetProperty("id").GetString().Should().Be(question.CallId);
+        messages[3].GetProperty("tool_call_id").GetString().Should().Be(question.CallId);
+        messages[3].GetProperty("content").GetString().Should()
+            .Be(System.Text.Encoding.UTF8.GetString(ModelToolProtocol.SerializeMessage(answer)));
+    }
+
     private static string AskUserResponse(string arguments, bool duplicate = false, string content = "")
     {
         using var input = JsonDocument.Parse(arguments);

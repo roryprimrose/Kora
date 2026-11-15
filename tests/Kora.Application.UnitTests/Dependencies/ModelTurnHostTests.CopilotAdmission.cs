@@ -149,6 +149,95 @@ public sealed partial class ModelTurnHostTests
         runtime.Transmissions.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Copilot_text_stream_preserves_exact_request_and_final_only_retention_until_resources_join(bool cancel)
+    {
+        using var f = new Fixture();
+        var runtime = new ConversationCopilotStream();
+        var reviews = new HostedTransmissionReviewService(f, f.Time);
+        var host = f.CopilotProfiles(runtime, reviews);
+        reviews.Offered += review => reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
+        await using var service = f.ConversationService(host, execution: host);
+        var updates = new List<Kora.Application.Hosting.ConversationAnswerPresentation>();
+        service.ProvisionalAnswerChanged += (update, _) =>
+        {
+            f.Retained!.AssistantResponse.Should().BeNull();
+            f.ExecutionCompletions.Should().Be(0);
+            updates.Add(update);
+            return ValueTask.CompletedTask;
+        };
+        var target = new Kora.Core.Storage.SessionWorkspaceEntry(f.Session, null);
+        var pending = service.SubmitCopilotAnswerStreamAsync(target, "original streamed request", () => true, Token);
+        await runtime.Entered.Task.WaitAsync(Token);
+        try
+        {
+            updates.Should().ContainSingle().Which.Update.Answer.Should().Be("safe preview");
+            updates[0].IsCurrent().Should().BeTrue();
+            if (cancel)
+            {
+                var running = (await service.ReadRunningConversationAsync(target, () => true, Token))!;
+                await service.CancelRunningConversationAsync(running.Target, () => true, Token);
+                updates[0].IsCurrent().Should().BeFalse();
+            }
+            pending.IsCompleted.Should().BeFalse();
+            host.IsQuiescent.Should().BeFalse();
+            f.ExecutionCompletions.Should().Be(0);
+        }
+        finally { runtime.Release.TrySetResult(); }
+        var receipt = await pending;
+        receipt.Message.Body.Should().Be("original streamed request");
+        receipt.Message.Request.Should().Be(updates[0].Target.Request);
+        receipt.Message.AssistantResponse?.Body.Should().Be(cancel ? null : "safe preview complete");
+        receipt.Message.Outcome.Should().Be(cancel ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Succeeded);
+        updates[0].IsCurrent().Should().BeFalse();
+        f.ExecutionCompletions.Should().Be(1);
+        host.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Copilot_text_stream_preserves_buffered_runtime_compatibility_without_previews()
+    {
+        using var f = new Fixture();
+        var runtime = new HostedRuntime();
+        var reviews = new HostedTransmissionReviewService(f, f.Time);
+        var host = f.CopilotProfiles(runtime, reviews);
+        reviews.Offered += review => reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
+        await using var service = f.ConversationService(host, execution: host);
+        var updates = 0;
+        service.ProvisionalAnswerChanged += (_, _) => { updates++; return ValueTask.CompletedTask; };
+        var receipt = await service.SubmitCopilotAnswerStreamAsync(new(f.Session, null), "original", () => true, Token);
+        receipt.Message.AssistantResponse!.Body.Should().Be("actual-boundary-answer");
+        runtime.Calls.Should().Be(1);
+        updates.Should().Be(0);
+    }
+
+    private sealed class ConversationCopilotStream : ICopilotAnswerTurnRuntime
+    {
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool IsQuiescent => !Entered.Task.IsCompleted || Release.Task.IsCompleted;
+        public Task<CopilotTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
+            ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<Kora.Core.Tools.CapabilityReply>> invokeTool,
+            Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission, CancellationToken token) =>
+            throw new InvalidOperationException("Text stream must use the SDK streaming seam.");
+        public async Task<CopilotTurnReply> RunWithAnswerAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
+            ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<Kora.Core.Tools.CapabilityReply>> invokeTool,
+            Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission,
+            Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken token)
+        {
+            ModelToolProtocol.ReadContext(context.Span, provenance).ToolMode.Should().Be(ModelToolMode.None);
+            var final = new CopilotTransmission(provenance, profile, new("https://api.githubcopilot.com/chat/completions"),
+                System.Text.Encoding.UTF8.GetBytes("{\"model\":\"exact-model\",\"messages\":[\"original\"]}"));
+            if (!await admitTransmission(final, token)) { return new(ModelTurnOutcome.DeniedEgress); }
+            await publish(new(provenance, "safe preview"), token);
+            Entered.TrySetResult();
+            await Release.Task;
+            return new(ModelTurnOutcome.Succeeded, "safe preview complete");
+        }
+    }
+
     [Fact]
     public async Task Hosted_preparation_cannot_survive_profile_replacement_between_resolution_and_admission()
     {

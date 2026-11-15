@@ -345,7 +345,7 @@ public sealed partial class ModelTurnHostTests
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private sealed class CapabilityBroker(McpAccountReference account) : IMcpConnectionBroker, IMcpConnection
+    private sealed class CapabilityBroker(McpAccountReference account) : McpWireTestConnection, IMcpConnectionBroker
     {
         internal bool BinaryPrompt { get; init; }
         internal bool PaginatedResources { get; init; }
@@ -356,16 +356,16 @@ public sealed partial class ModelTurnHostTests
         internal bool Disposed { get; private set; }
         internal List<string> Methods { get; } = [];
         internal string? LastParams { get; private set; }
-        public McpAccountReference Account => account;
-        public McpEndpoint Endpoint => account.Destination;
-        public IReadOnlyList<IPAddress> RemoteAddresses => [IPAddress.Parse("8.8.8.8")];
+        public override McpAccountReference Account => account;
+        public override McpEndpoint Endpoint => account.Destination;
+        public override IReadOnlyList<IPAddress> RemoteAddresses => [IPAddress.Parse("8.8.8.8")];
         public Task<IReadOnlyList<McpAccountChoice>> ReadAccountsAsync(CancellationToken token) =>
             Task.FromResult<IReadOnlyList<McpAccountChoice>>([new(account, "Test delegated user")]);
         public Task<IMcpConnection> ConnectAsync(McpAccountReference selected, CancellationToken token) =>
             Task.FromResult<IMcpConnection>(this);
-        public Task<bool> IsCurrentAsync(CancellationToken token) => Task.FromResult(true);
-        public Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token) => Task.CompletedTask;
-        public Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> wire, int maximumResponseBytes, CancellationToken token)
+        public override Task<bool> IsCurrentAsync(CancellationToken token) => Task.FromResult(true);
+        public override Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token) => Task.CompletedTask;
+        public override Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> wire, int maximumResponseBytes, CancellationToken token)
         {
             using var request = JsonDocument.Parse(wire.AsMemory());
             var root = request.RootElement;
@@ -402,7 +402,7 @@ public sealed partial class ModelTurnHostTests
             return Task.FromResult(ImmutableArray.CreateRange(Encoding.UTF8.GetBytes("{\"jsonrpc\":\"2.0\",\"id\":"
                 + root.GetProperty("id").GetRawText() + ",\"result\":" + result + "}")));
         }
-        public ValueTask DisposeAsync()
+        public override ValueTask DisposeAsync()
         {
             Disposed = true;
             AfterDispose?.Invoke();

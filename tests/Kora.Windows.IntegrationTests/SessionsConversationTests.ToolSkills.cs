@@ -210,8 +210,10 @@ public sealed partial class SessionsConversationTests
                         }
                         finally { exactReview.PropertyChanged -= Reviewed; }
                         await RequireEnabled(review);
-                        approval.FindControl<StackPanel>("ChoicePanel")!.Children.OfType<RadioButton>()
-                            .Single(choice => Equals(choice.Content, "Once")).IsChecked = true;
+                        var choice = approval.FindControl<StackPanel>("ChoicePanel")!.Children.OfType<RadioButton>()
+                            .Single(choice => Equals(choice.Content, "Once"));
+                        await AwaitSubmittedActivityChoiceAsync(approval, choice, native.Token);
+                        choice.IsChecked = true;
                         var submit = approval.FindControl<Button>("SubmitAnswer")!;
                         await RequireEnabled(submit);
                         submit.IsEnabled.Should().BeTrue();

@@ -80,6 +80,13 @@ public sealed partial class SessionConversationService(
         SubmitCoreAsync(target, body, admitted, beforeRetain, null, RequestOrigin.LocalUi, null,
             ModelTurnChoice.Hosted, token, copilot: true, ordinaryActiveDeadline: true);
 
+    public Task<ConversationSubmissionReceipt> SubmitCopilotAnswerStreamAsync(SessionWorkspaceEntry target, string body,
+        Func<bool> admitted, CancellationToken token) =>
+        SubmitCoreAsync(target, body, admitted, null, null, RequestOrigin.LocalUi,
+            (request, now) => new(request, Policy, body, [], now,
+                now.Add(HostedTurnAuthorization.MaximumDuration), ModelToolMode.None),
+            ModelTurnChoice.Hosted, token, copilot: true, ordinaryActiveDeadline: true);
+
     /// <summary>Host-only reviewed-source lifecycle; callbacks cannot confer authority or replace host validation.</summary>
     internal Task<ConversationSubmissionReceipt> SubmitReviewedContextAsync(SessionWorkspaceEntry target, string body,
         Func<HostRequest, DateTimeOffset, ModelContextEnvelope> createContext, Func<bool> admitted,

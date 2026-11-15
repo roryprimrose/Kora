@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Windows.Dependencies;
 
 /// <summary>One owned, isolated SDK process and volatile session per admitted turn. Live enablement is independent.</summary>
-public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncDisposable
+public sealed partial class CopilotSdkTurnRuntime : ICopilotAnswerTurnRuntime, IAsyncDisposable
 {
     private readonly ICopilotExecutionAccountSource accounts;
     private readonly TimeProvider time;
@@ -40,9 +40,21 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
     }
 
 #pragma warning disable GHCP001 // Pinned SDK final-request interception; the unsupported transport paths remain explicitly denied.
-    public async Task<CopilotTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
+    public Task<CopilotTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
         ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
-        Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission, CancellationToken cancellationToken)
+        Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission, CancellationToken cancellationToken) =>
+        RunCoreAsync(provenance, profile, context, invokeTool, admitTransmission, null, cancellationToken);
+
+    public Task<CopilotTurnReply> RunWithAnswerAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
+        ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
+        Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken cancellationToken) =>
+        RunCoreAsync(provenance, profile, context, invokeTool, admitTransmission, publish, cancellationToken);
+
+    private async Task<CopilotTurnReply> RunCoreAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
+        ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
+        Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(provenance);
         ArgumentNullException.ThrowIfNull(profile);
@@ -58,6 +70,9 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
         {
             return new(ModelTurnOutcome.Denied);
         }
+        var toolContext = ModelToolProtocol.ReadContext(context.Span, provenance);
+        if (publish is not null && toolContext.ToolMode != ModelToolMode.None)
+        { return new(ModelTurnOutcome.Denied); }
         if (Interlocked.CompareExchange(ref occupied, 1, 0) != 0) { return new(ModelTurnOutcome.Unavailable); }
         if (Volatile.Read(ref disposed))
         {
@@ -143,7 +158,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                     else
                     {
                         contextCapacityTokens = model.Capabilities.Limits.MaxContextWindowTokens;
-                        var functions = ModelToolProtocol.ReadContext(context.Span, provenance).Tools.Select(descriptor =>
+                        var functions = toolContext.Tools.Select(descriptor =>
                         {
                             var name = "kora_" + descriptor.Id.Replace('.', '_');
                             return CopilotTool.DefineTool(async (string input, ToolInvocation invocation, CancellationToken token) =>
@@ -166,6 +181,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                             }, new() { SkipPermission = true }, new() { Name = name });
                         }).ToArray();
                         var configuration = CreateSessionConfiguration(account, sessionId, files, functions);
+                        configuration.Streaming = publish is not null;
                         session = await client.CreateAsync(configuration, callbacks.Token).ConfigureAwait(false);
                         if (!string.Equals(session.SessionId, sessionId, StringComparison.Ordinal) || !Live())
                         {
@@ -174,7 +190,27 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                         else
                         {
                             // Human transmission review shares the host deadline; the SDK's default 60-second wait must not truncate it.
-                            pending = session.SendAsync(new UTF8Encoding(false, true).GetString(context.Span), Timeout.InfiniteTimeSpan, callbacks.Token);
+                            var previous = string.Empty;
+                            async ValueTask Publish(string answer, CancellationToken token)
+                            {
+                                using var lease = drain.Enter();
+                                using var callbackActivity = continuation();
+                                var update = new ModelAnswerUpdate(provenance, answer);
+                                update.Validate();
+                                if (!Live() || requestHandler.Denied || !requestHandler.HasSuccessfulTransmission
+                                    || !answer.StartsWith(previous, StringComparison.Ordinal)
+                                    || Encoding.UTF8.GetByteCount(answer) > (toolContext.Constraints?.OutputUtf8Bytes ?? ModelToolProtocol.MaximumOutputUtf8Bytes)
+                                    || !ReferenceEquals(await accounts.ResolveAsync(profile, token).ConfigureAwait(false), account)
+                                    || !Live())
+                                { throw new InvalidDataException("Copilot provisional runtime admission changed."); }
+                                await publish!(update, token).ConfigureAwait(false);
+                                previous = answer;
+                                callbackActivity.Complete(HostOperationOutcome.Completed);
+                            }
+                            var prompt = new UTF8Encoding(false, true).GetString(context.Span);
+                            pending = publish is null
+                                ? session.SendAsync(prompt, Timeout.InfiniteTimeSpan, callbacks.Token)
+                                : session.SendWithAnswerAsync(prompt, Timeout.InfiniteTimeSpan, Publish, callbacks.Token);
                             unreleasedSend = pending;
                             var answer = await pending.WaitAsync(callbacks.Token).ConfigureAwait(false);
                             callbacks.Token.ThrowIfCancellationRequested();
@@ -182,6 +218,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                             result = !accountCurrent ? new(ModelTurnOutcome.AuthenticationRequired)
                                 : requestHandler.Denied || !requestHandler.HasSuccessfulTransmission ? new(ModelTurnOutcome.DeniedEgress)
                                 : !Live() || string.IsNullOrWhiteSpace(answer)
+                                || !answer.StartsWith(previous, StringComparison.Ordinal)
                                 || JsonSerializer.SerializeToUtf8Bytes(new LocalModelResponse(answer, null)).Length > ModelContextEnvelope.MaximumOutputUtf8Bytes
                                 ? new(ModelTurnOutcome.Unknown) : new(ModelTurnOutcome.Succeeded, answer);
                         }
@@ -199,6 +236,12 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
             TransmissionDenied(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
             result = new(ModelTurnOutcome.DeniedEgress);
+        }
+        catch (InvalidDataException exception)
+        {
+            LateOutputDiscarded(logger, exception.GetType().Name);
+            activity.Complete(HostOperationOutcome.Failed);
+            result = new(ModelTurnOutcome.Unknown);
         }
         finally
         {

@@ -30,7 +30,8 @@ public sealed partial class SessionsConversationTests
             DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddSeconds(15), ModelToolMode.McpReadOnly, mcpTool: tool);
         var context = ModelToolProtocol.ReadContext(envelope.Serialize(), provenance);
         var request = ModelToolProtocol.CreateRequest(provenance, null, context, [], 1);
-        using var wire = System.Text.Json.JsonDocument.Parse(Kora.Windows.Dependencies.OllamaToolWire.WriteRequest(request, "fake-model", []));
+        using var wire = System.Text.Json.JsonSerializer.SerializeToDocument(
+            Kora.Windows.Dependencies.OllamaChatMessages.CreateRequest(request, "fake-model", []).Request);
         var function = wire.RootElement.GetProperty("tools").EnumerateArray().Should().ContainSingle().Subject.GetProperty("function");
         function.GetProperty("name").GetString().Should().Be("mcp.search");
         function.GetProperty("parameters").GetRawText().Should().Be(NativeMcpSchema);
@@ -239,7 +240,9 @@ public sealed partial class SessionsConversationTests
                 owner.FindControl<Button>(explicitUser ? "InvokeMcp" : "SubmitMcp")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 if (cancelIgnored)
                 {
-                    await entered.Task.WaitAsync(f.Token);
+                    await Task.WhenAny(entered.Task, owner.ConversationOperation).WaitAsync(f.Token);
+                    if (owner.ConversationOperation.IsCompleted) { await owner.ConversationOperation; }
+                    entered.Task.IsCompleted.Should().BeTrue(model.ConversationStatus);
                     owner.FindControl<Button>("CancelMcp")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     owner.ConversationCancellationOperation.IsCompleted.Should().BeFalse();
                     owner.ConversationOperation.IsCompleted.Should().BeFalse();

@@ -221,7 +221,16 @@ public sealed partial class WindowsOllamaToolTransportTests
         var initial = f.Request(toolMode: ModelToolMode.None);
         var canonical = ModelToolProtocol.SerializeRequest(initial).Length;
         f.BoundModel = Model + new string('m', canonical);
-        var native = OllamaToolWire.WriteRequest(initial, f.BoundModel, [], streaming: true).Length;
+        int native;
+        await using (var baseline = new Fixture { BoundModel = f.BoundModel })
+        {
+            using var baselineRoot = baseline.Root();
+            baseline.Chat = (message, _) => Task.FromResult(Json(message, NativeAnswer(baseline.BoundModel)));
+            var observed = await baseline.Transport.CompleteWithAnswerAsync(baseline.Request(toolMode: ModelToolMode.None),
+                static (_, _) => ValueTask.CompletedTask, Token);
+            observed.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            native = baseline.Bodies.Single().Length;
+        }
         native.Should().BeGreaterThan(canonical);
         f.Chat = (message, _) => Task.FromResult(Json(message, NativeAnswer(f.BoundModel)));
         var request = f.Request(toolMode: ModelToolMode.None,
@@ -232,6 +241,89 @@ public sealed partial class WindowsOllamaToolTransportTests
         else { f.Paths.Should().BeEmpty(); }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Sdk_stream_holds_ownership_through_physical_EOF_after_a_normal_terminal(bool revoke)
+    {
+        await using var f = new Fixture();
+        using var root = f.Root();
+        var bytes = Encoding.UTF8.GetBytes(AnswerChunk("answer") + "\n" + AnswerTerminal + "\n");
+        var stream = new AnswerStream(bytes, 4096, bytes.Length);
+        f.Chat = (message, _) => Task.FromResult(AnswerStreaming(message, stream));
+        var updates = new List<string>();
+        var pending = f.Transport.CompleteWithAnswerAsync(f.Request(toolMode: ModelToolMode.None), (update, _) =>
+        {
+            updates.Add(update.Answer);
+            return ValueTask.CompletedTask;
+        }, Token);
+        await stream.Paused.Task.WaitAsync(Token);
+        try
+        {
+            pending.IsCompleted.Should().BeFalse();
+            stream.Disposed.Should().BeFalse();
+            updates.Should().Equal("answer");
+            if (revoke) { await f.Revoked.CancelAsync(); }
+        }
+        finally { stream.Release.TrySetResult(); }
+
+        var reply = await pending;
+        reply.Outcome.Should().Be(revoke ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded);
+        if (revoke) { reply.Message.Should().BeNull(); }
+        else { reply.Message.Should().BeOfType<ModelFinalResponse>().Which.Answer.Should().Be("answer"); }
+        stream.Disposed.Should().BeTrue();
+        f.Bodies.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Sdk_uncancellable_line_reader_still_passes_host_cancellation_to_the_physical_read()
+    {
+        await using var f = new Fixture();
+        using var root = f.Root();
+        var first = AnswerChunk("provisional") + "\n";
+        var stream = new AnswerStream(Encoding.UTF8.GetBytes(first + AnswerTerminal), 3,
+            Encoding.UTF8.GetByteCount(first), honorCancellation: true);
+        f.Chat = (message, _) => Task.FromResult(AnswerStreaming(message, stream));
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var updates = new List<string>();
+        var pending = f.Transport.CompleteWithAnswerAsync(f.Request(toolMode: ModelToolMode.None), (update, _) =>
+        {
+            updates.Add(update.Answer);
+            return ValueTask.CompletedTask;
+        }, cancellation.Token);
+        await stream.Paused.Task.WaitAsync(Token);
+        try
+        {
+            await cancellation.CancelAsync();
+            var reply = await pending.WaitAsync(Token);
+            reply.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+            reply.Message.Should().BeNull();
+            stream.Disposed.Should().BeTrue();
+            updates.Should().Equal("provisional");
+        }
+        finally { stream.Release.TrySetResult(); }
+    }
+
+    [Fact]
+    public async Task Sdk_stream_publication_failure_disposes_the_physical_source_without_retry_or_final_answer()
+    {
+        await using var f = new Fixture();
+        using var root = f.Root();
+        var stream = new AnswerStream(Encoding.UTF8.GetBytes(AnswerChunk("provisional") + "\n" + AnswerTerminal), 7);
+        f.Chat = (message, _) => Task.FromResult(AnswerStreaming(message, stream));
+        var request = f.Request(toolMode: ModelToolMode.None);
+
+        var reply = await f.Transport.CompleteWithAnswerAsync(request,
+            static (_, _) => throw new InvalidDataException("Synthetic publication failure."), Token);
+
+        reply.Outcome.Should().Be(ModelTurnOutcome.Denied);
+        reply.Message.Should().BeNull();
+        reply.Usage.Should().BeNull();
+        stream.Disposed.Should().BeTrue();
+        (await f.Transport.CompleteAsync(request, Token)).Outcome.Should().Be(ModelTurnOutcome.Denied);
+        f.Bodies.Should().ContainSingle();
+    }
+
     private static HttpResponseMessage AnswerStreaming(HttpRequestMessage message, Stream stream)
     {
         var response = Streaming(message, stream);
@@ -239,7 +331,7 @@ public sealed partial class WindowsOllamaToolTransportTests
         return response;
     }
 
-    private sealed class AnswerStream(byte[] bytes, int segment, int pauseAt = int.MaxValue) : Stream
+    private sealed class AnswerStream(byte[] bytes, int segment, int pauseAt = int.MaxValue, bool honorCancellation = false) : Stream
     {
         internal TaskCompletionSource Paused { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -255,7 +347,8 @@ public sealed partial class WindowsOllamaToolTransportTests
             if (offset >= pauseAt && !Release.Task.IsCompleted)
             {
                 Paused.TrySetResult();
-                await Release.Task;
+                if (honorCancellation) { await Release.Task.WaitAsync(cancellationToken); }
+                else { await Release.Task; }
             }
             var count = Math.Min(Math.Min(buffer.Length, segment), bytes.Length - offset);
             if (offset < pauseAt) { count = Math.Min(count, pauseAt - offset); }

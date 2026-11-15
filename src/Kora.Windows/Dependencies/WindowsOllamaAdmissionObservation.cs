@@ -62,21 +62,24 @@ public sealed partial class WindowsOllamaAdmissionObservation(ILogger<WindowsOll
         try
         {
             using var client = WindowsOllamaToolTransport.CreateClient();
-            foreach (var path in new[] { "api/version", "api/tags" })
-            {
-                if (!await WindowsOllamaToolProcessObservation.IsCurrentAsync(subject.Runtime, cancellationToken).ConfigureAwait(false))
-                { return false; }
-                using var message = new HttpRequestMessage(HttpMethod.Get, new Uri(WindowsOllamaToolTransport.Endpoint, path));
-                using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-                if (WindowsOllamaToolTransport.Status(response, message) != ModelTurnOutcome.Succeeded)
-                { throw new InvalidDataException("Exact local metadata is unavailable or redirected; no substitute is authorized."); }
-                var bytes = await WindowsOllamaToolTransport.ReadBoundedAsync(response.Content,
-                    ModelToolProtocol.MaximumOutputUtf8Bytes, cancellationToken).ConfigureAwait(false);
-                if (string.Equals(path, "api/version", StringComparison.Ordinal)) { OllamaToolWire.VerifyVersion(bytes, evidence.RuntimeVersion); }
-                else { OllamaToolWire.VerifyModel(bytes, evidence.Model, evidence.ModelSha256); }
-            }
+            await OllamaSdkMetadata.VerifyAsync(evidence.RuntimeVersion, evidence.Model, evidence.ModelSha256,
+                SendAsync, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             return subject.Account == Account() && subject.WindowsSessionId == CurrentSession()
                 && await WindowsOllamaToolProcessObservation.IsCurrentAsync(subject.Runtime, cancellationToken).ConfigureAwait(false);
+
+            async Task<byte[]> SendAsync(HttpRequestMessage message, CancellationToken token)
+            {
+                token.ThrowIfCancellationRequested();
+                if (!await WindowsOllamaToolProcessObservation.IsCurrentAsync(subject.Runtime, token).ConfigureAwait(false))
+                { throw new InvalidDataException("The exact local runtime changed before SDK metadata dispatch."); }
+                token.ThrowIfCancellationRequested();
+                using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+                if (WindowsOllamaToolTransport.Status(response, message) != ModelTurnOutcome.Succeeded)
+                { throw new InvalidDataException("Exact local metadata is unavailable or redirected; no substitute is authorized."); }
+                return await WindowsOllamaToolTransport.ReadBoundedAsync(response.Content,
+                    ModelToolProtocol.MaximumOutputUtf8Bytes, token).ConfigureAwait(false);
+            }
         }
         catch (Exception exception) when (exception is HttpRequestException or IOException)
         {

@@ -5,45 +5,17 @@ namespace Kora.Windows.Dependencies;
 
 internal static partial class OllamaToolWire
 {
-    private static void WriteAskUserTool(Utf8JsonWriter writer, bool formsAllowed)
+    internal static JsonElement QuestionFormat(ModelToolMode mode)
     {
-        writer.WriteStartObject();
-        writer.WriteString("type", "function");
-        writer.WriteStartObject("function");
-        writer.WriteString("name", ModelToolProtocol.AskUserToolName);
-        writer.WriteString("description", ModelToolProtocol.AskUserDescription
-            + (formsAllowed ? " Alternatively supply prompt and one to four required fields, each bounded text or singleChoice. "
-                + "Do not combine fields with top-level options or selection bounds. No defaults or credentials." : string.Empty));
-        writer.WritePropertyName("parameters");
-        writer.WriteRawValue(formsAllowed ? ModelToolProtocol.FormAskUserInputSchema : ModelToolProtocol.AskUserInputSchema);
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-    }
-
-    private static void WriteQuestionExchange(Utf8JsonWriter writer, ModelClarificationQuestion question,
-        ModelQuestionAnswerMessage answer)
-    {
-        writer.WriteStartObject();
-        writer.WriteString("role", "assistant");
-        writer.WriteString("content", string.Empty);
-        writer.WriteStartArray("tool_calls");
-        writer.WriteStartObject();
-        writer.WriteString("id", question.CallId);
-        writer.WriteString("type", "function");
-        writer.WriteStartObject("function");
-        writer.WriteString("name", ModelToolProtocol.AskUserToolName);
-        writer.WritePropertyName("arguments");
-        writer.WriteRawValue(ModelToolProtocol.SerializeQuestionArguments(question.Question));
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-        writer.WriteEndArray();
-        writer.WriteEndObject();
-        writer.WriteStartObject();
-        writer.WriteString("role", "tool");
-        writer.WriteString("tool_name", ModelToolProtocol.AskUserToolName);
-        writer.WriteString("tool_call_id", question.CallId);
-        writer.WriteString("content", StrictUtf8.GetString(ModelToolProtocol.SerializeMessage(answer)));
-        writer.WriteEndObject();
+        using var memory = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(memory))
+        {
+            writer.WriteStartObject();
+            WriteQuestionFormat(writer, mode);
+            writer.WriteEndObject();
+        }
+        using var document = JsonDocument.Parse(memory.ToArray());
+        return document.RootElement.GetProperty("format").Clone();
     }
 
     private static void WriteQuestionFormat(Utf8JsonWriter writer, ModelToolMode mode)

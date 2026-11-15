@@ -337,8 +337,9 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
         internal CopilotSdkTurnRuntime Runtime { get; }
         internal FakeClient Client { get; } = new();
         internal ModelTurnConstraints? Constraints { get; set; }
+        internal ModelToolMode ToolMode { get; set; } = ModelToolMode.ReadOnly;
         internal byte[] Context => new ModelContextEnvelope(Request, "policy", "original-session-request", [],
-            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1), ModelToolMode.ReadOnly, Constraints).Serialize();
+            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1), ToolMode, Constraints).Serialize();
         internal CopilotClientOptions? Options { get; private set; }
         internal bool AccountAvailable { get; set; } = true;
         internal bool ApproveTransmission { get; set; } = true;
@@ -401,6 +402,7 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
         internal TaskCompletionSource Stopping { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal Func<CancellationToken, Task<string?>> Send { get; set; } =
             _ => Task.FromResult<string?>("genuine-sdk-boundary-answer");
+        internal Func<Func<string, CancellationToken, ValueTask>, CancellationToken, Task<string?>>? Stream { get; set; }
         internal Func<Task> Stop { get; set; } = () => Task.CompletedTask;
         internal Func<CancellationToken, Task> BeforeSend { get; set; } = _ => Task.CompletedTask;
         internal TimeProvider? WaitClock { get; set; }
@@ -416,6 +418,15 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
             WaitTimeout = timeout;
             var pending = SendCoreAsync(prompt, token);
             return WaitClock is { } clock ? await pending.WaitAsync(timeout, clock, token) : await pending;
+        }
+        public async Task<string?> SendWithAnswerAsync(string prompt, TimeSpan timeout,
+            Func<string, CancellationToken, ValueTask> publish, CancellationToken token)
+        {
+            WaitTimeout = timeout;
+            Prompt = prompt;
+            Sent = true;
+            await BeforeSend(token);
+            return Stream is null ? await Send(token) : await Stream(publish, token);
         }
         private async Task<string?> SendCoreAsync(string prompt, CancellationToken token)
         { Prompt = prompt; Sent = true; await BeforeSend(token); return await Send(token); }

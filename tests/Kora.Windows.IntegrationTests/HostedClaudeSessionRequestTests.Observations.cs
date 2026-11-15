@@ -74,7 +74,7 @@ public sealed partial class HostedClaudeSessionRequestTests
             using var continuation = JsonDocument.Parse(posts[2].Body);
             var history = continuation.RootElement.GetProperty("messages");
             history[0].GetProperty("role").GetString().Should().Be("user");
-            history[0].GetProperty("content").GetString().Should().Be(original);
+            history[0].GetProperty("content")[0].GetProperty("text").GetString().Should().Be(original);
             history[1].GetProperty("role").GetString().Should().Be("assistant");
             history[1].GetProperty("content")[0].GetProperty("id").GetString().Should().Be("call_version_1");
             history[2].GetProperty("role").GetString().Should().Be("user");
@@ -102,6 +102,7 @@ public sealed partial class HostedClaudeSessionRequestTests
     [InlineData("oversize")]
     [InlineData("mixed-prose")]
     [InlineData("server-tool")]
+    [InlineData("sdk-caller")]
     public async Task EntireNativeProposalIsValidatedBeforeAnyHostEffectAndNeverRetainedAsAnswer(string fault)
     {
         using var f = new InteractionStorageFixture();
@@ -115,6 +116,7 @@ public sealed partial class HostedClaudeSessionRequestTests
             "duplicate-field" => Proposal(VersionProposal.Replace("\"input\":{}", "\"input\":{},\"input\":{}", StringComparison.Ordinal)),
             "extra-field" => Proposal(VersionProposal.Replace("\"input\":{}", "\"input\":{},\"approved\":true", StringComparison.Ordinal)),
             "server-tool" => Proposal(VersionProposal.Replace("\"tool_use\"", "\"server_tool_use\"", StringComparison.Ordinal)),
+            "sdk-caller" => Proposal(VersionProposal.Replace("\"input\":{}", "\"input\":{},\"caller\":{\"type\":\"direct\"}", StringComparison.Ordinal)),
             "mixed-prose" => Proposal("""{"type":"text","text":"not a final answer"},""" + VersionProposal),
             "oversize" => new string('x', 4097),
             _ => "{",
@@ -195,7 +197,7 @@ public sealed partial class HostedClaudeSessionRequestTests
         c.Http.Respond = request => ClaudeAccountBrokerTests.Fixture.Json(request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
             ? """{"input_tokens":25}""" : ++messages == 1
                 ? Proposal("{\"type\":\"tool_use\",\"id\":\"exact_call_1\",\"name\":\""
-                    + Kora.Windows.Dependencies.ClaudeObservationWire.Name(id) + "\",\"input\":" + input + "}")
+                    + Kora.Windows.Dependencies.ClaudeToolMessages.Name(id) + "\",\"input\":" + input + "}")
                 : ClaudeMessagesRuntimeTests.Answer);
         c.Reviews.ClaudeOffered += review =>
         {

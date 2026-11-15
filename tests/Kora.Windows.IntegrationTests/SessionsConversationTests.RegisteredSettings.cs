@@ -50,7 +50,7 @@ public sealed partial class SessionsConversationTests
             var running = deadline.Capture();
             var adapter = new DeadlineAnswerAdapter(reset ? "reset work.active-deadline-minutes" : "set work.active-deadline-minutes to 10");
             await using var composed = new Composition(f, adapter: adapter);
-            var parent = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, ".net-test-artifacts"));
+            var parent = Path.Combine(OwnedStorageFixture.ScratchParent(), ".net-test-artifacts");
             Directory.CreateDirectory(parent);
             using var native = new NativeUxFixtureSession(parent);
             await native.InitializeAsync(null, ordinaryDeadlineConfiguration: deadline);

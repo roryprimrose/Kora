@@ -78,7 +78,12 @@ public sealed partial class SettingsView : UserControl, IDisposable
         owner.Closing += OnHostClosing;
         owner.Closed += OnHostClosed;
         model.PrivacyClosureRequested += OnPrivacyClosed;
-        settingsTabs.SelectionChanged += (_, _) => BindCallActivationReviewLifetime();
+        settingsTabs.SelectionChanged += (_, _) =>
+        {
+            BindCallActivationReviewLifetime();
+            localEvaluationPresentation?.Refresh();
+            if (!settingsTabs.IsSettingVisible("providers.app.profile")) { RetireLocalEvaluationReview(); }
+        };
         settingsTabs.ResultsChanged += (_, _) =>
         {
             var id = settingsTabs.ExactSettingId;
@@ -88,6 +93,7 @@ public sealed partial class SettingsView : UserControl, IDisposable
                 PrepareIndividualSetting(id);
             }
             BindCallActivationReviewLifetime();
+            localEvaluationPresentation?.Refresh();
         };
         BindSpeechComponents(viewModel);
         if (captionDisplay is not null)
@@ -135,6 +141,13 @@ public sealed partial class SettingsView : UserControl, IDisposable
     private void OnHostClosed(object? sender, EventArgs args) => Dispose();
     private void OnPrivacyClosed(object? sender, EventArgs args)
     {
+        try { localEvaluation?.Revoke(); }
+        catch (Exception exception)
+        {
+            model.ReportHostInteractionFailure("Evaluation authority is closed; revocation callback failed. Failure type: "
+                + exception.GetType().Name);
+        }
+        RetireLocalEvaluationReview();
         IsVisible = false;
         RefreshPresentation();
     }
@@ -152,26 +165,35 @@ public sealed partial class SettingsView : UserControl, IDisposable
                 model.CancelSpokenApprovalReview();
                 speechComponentCancellation?.Cancel();
                 localAdmissionReview = null;
+                RetireLocalEvaluationReview();
             }
             PresentationChanged?.Invoke(this, EventArgs.Empty);
         }
         BindCallActivationReviewLifetime();
+        localEvaluationPresentation?.Refresh();
     }
 
     internal Func<bool> CapturePresentation() => nativeLifetime.Capture();
 
-    internal void RefreshNativePresentation() => nativeLifetime.Refresh();
+    internal void RefreshNativePresentation()
+    {
+        nativeLifetime.Refresh();
+        localEvaluationPresentation?.Refresh();
+    }
 
     internal bool PrepareClose()
     {
         knowledgeSources?.Close();
-        return knowledgeSources is not { IsQuiescent: false };
+        RetireLocalEvaluationReview();
+        return !localEvaluationBusy && knowledgeSources is not { IsQuiescent: false };
     }
 
     public void Dispose()
     {
         if (disposed) { return; }
         disposed = true;
+        RetireLocalEvaluationReview();
+        localEvaluationPresentation?.Dispose();
         nativeLifetime.PresentationChanged -= OnNativePresentationChanged;
         nativeLifetime.ActivationChanged -= OnNativeActivationChanged;
         nativeLifetime.Dispose();

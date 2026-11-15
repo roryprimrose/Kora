@@ -18,12 +18,16 @@ internal static class ProviderProfileComposition
         services.AddSingleton<SessionProviderProfileConfigurationService>();
         services.AddSingleton<ISessionProviderProfileStore>(provider => provider.GetRequiredService<WindowsSqliteHostInteractionStore>());
         services.AddSingleton<ILocalModelQualificationAuthority, BundledLocalModelQualificationAuthority>();
-        services.AddSingleton<IWindowsOllamaAdmissionObservation, WindowsOllamaAdmissionObservation>();
+        services.AddSingleton<WindowsOllamaAdmissionObservation>();
+        services.AddSingleton<IWindowsOllamaAdmissionObservation>(provider => provider.GetRequiredService<WindowsOllamaAdmissionObservation>());
+        services.AddSingleton<IWindowsOllamaEvaluationObservation>(provider => provider.GetRequiredService<WindowsOllamaAdmissionObservation>());
+        services.AddSingleton<WindowsOllamaEvaluationSource>();
         services.AddSingleton<WindowsOllamaAdmissionBroker>();
         services.AddSingleton<ILocalModelAdmissionBroker>(provider => provider.GetRequiredService<WindowsOllamaAdmissionBroker>());
         services.AddSingleton<LocalModelAdmissionPreferences>();
         services.AddSingleton<OllamaAdmissionWorkflow>();
-        services.AddSingleton<IWindowsOllamaQualificationSource>(provider => provider.GetRequiredService<WindowsOllamaAdmissionBroker>());
+        services.AddSingleton<IWindowsOllamaQualificationSource>(provider => new LocalAdmissionSource(
+            provider.GetRequiredService<WindowsOllamaEvaluationSource>(), provider.GetRequiredService<WindowsOllamaAdmissionBroker>()));
         services.AddSingleton<WindowsOllamaRuntimeResolver>();
         services.AddSingleton<CopilotEvaluationDeploymentSource>();
         services.AddSingleton<ICopilotDeploymentApprovalSource>(provider => provider.GetRequiredService<CopilotEvaluationDeploymentSource>());
@@ -43,5 +47,12 @@ internal static class ProviderProfileComposition
         services.AddSingleton<ILocalProviderInstallationObservation, WindowsOllamaInstallationObservation>();
         services.AddSingleton<IProviderProfilePreferences>(provider =>
             new LocalProviderProfilePreferences(provider.GetRequiredService<IPreferenceStore>()));
+    }
+
+    private sealed class LocalAdmissionSource(WindowsOllamaEvaluationSource evaluation,
+        WindowsOllamaAdmissionBroker qualified) : IWindowsOllamaQualificationSource
+    {
+        public Task<WindowsOllamaQualification?> ReadAsync(CancellationToken cancellationToken) =>
+            evaluation.HasAdmission ? evaluation.ReadAsync(cancellationToken) : qualified.ReadAsync(cancellationToken);
     }
 }

@@ -78,6 +78,17 @@ page requests, tools, resources and prompt retrieval. Core exposes
 Application no longer constructs external JSON-RPC requests or assigns IDs.
 The private in-process Kora MCP projection retains its separate implementation.
 
+The bounded private-server assessment against the same pinned SDK retains
+[the stateless dispatcher](../src/Kora.Application/Mcp/KoraMcpServer.cs).
+`McpServer.Create` requires an established `ITransport` session, `RunAsync`
+and owned disposal; it is not a stateless request-to-response handler.
+Replacing this private projection would add transport/session workers,
+caller-context binding and shutdown coordination while still requiring raw
+envelope admission, canonical schemas/receipts, preference/currentness checks
+and complete response-byte bounds. SDK DTO serialization alone would be a
+cosmetic facade, not removal of protocol infrastructure. No network listener,
+external access or automatically executable tools are introduced.
+
 The SDK does not own host authority. Original bounded response bytes pass
 Core's strict parsers before SDK decoding; typed agreement checks return
 the original schema/text/structured-JSON evidence and actual response-byte
@@ -128,6 +139,16 @@ containment or general hosted fallback. The
 [user guide](../docs/copilot-requests.md) owns the complete setup and limitations.
 The older unavailable-source descriptions below record the prior implementation
 baseline, not the new opt-in evaluation workflow.
+
+### Explicit native Ollama live evaluation
+
+The additional explicit native Ollama evaluation route is governed separately in
+[Local Inference](Local_Inference.md#explicit-native-ollama-live-evaluation).
+It accepts no release attestations: a current user separately reviews and confirms
+the supported running runtime and pinned model, producing a volatile labelled
+evaluation profile. Existing host authority, canonical validation, physical byte
+bounds and quiescence remain mandatory. Claude/Codex remain unavailable; no provider
+is automatically enabled. Follow [the complete native setup interaction](../docs/settings.md#optional-ollama-live-evaluation).
 
 ### Maintained Copilot SDK boundary - 2026-10-23
 

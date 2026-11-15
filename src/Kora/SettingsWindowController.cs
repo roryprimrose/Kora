@@ -8,6 +8,8 @@ using Kora.Core.Hosting;
 using Kora.Application.Presentation;
 using Kora.Application.Configuration.SettingInspection;
 using Kora.SettingInspection;
+using Kora.Application.Voice;
+using Kora.Windows.Dependencies;
 
 using Microsoft.Extensions.Logging;
 
@@ -28,6 +30,11 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
     private long nativeVisibilityRevision;
     private SettingInspectionWorkflow? settingInspection;
     private TimeProvider inspectionTime = TimeProvider.System;
+    private WindowsOllamaEvaluationSource? localEvaluation;
+    private AudioControlAdmission? localEvaluationAdmission;
+
+    internal void BindLocalEvaluation(WindowsOllamaEvaluationSource source, AudioControlAdmission admission)
+    { localEvaluation = source; localEvaluationAdmission = admission; }
 
     internal void BindSettingInspection(SettingInspectionWorkflow workflow, TimeProvider time)
     { settingInspection = workflow; inspectionTime = time; }
@@ -251,6 +258,8 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
 
     private void ConfigureView(SettingsView settingsView)
     {
+        if (localEvaluation is { } evaluation && localEvaluationAdmission is { } admission)
+        { settingsView.BindLocalEvaluation(evaluation, admission, logger); }
         settingsView.BindNavigation(EditOwnedInstructions, InspectSkillPackages, InspectExactGrants,
             ReviewLocalVersion, ReturnToVersionQuestion);
         if (settingInspection is { } inspection)

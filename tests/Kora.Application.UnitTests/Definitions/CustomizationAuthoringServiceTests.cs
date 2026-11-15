@@ -84,6 +84,7 @@ public sealed class CustomizationAuthoringServiceTests : IDisposable
         observed.Context!.UserRequest.Should().Be(critique);
         observed.Context.Evidence.Single().Content.Should().Be(source);
         observed.Context.ToolMode.Should().Be(ModelToolMode.None);
+        observed.Context.OutputFormat.Should().Be(ModelOutputFormat.OwnedAgentProposal);
         observed.Joined.Should().BeTrue();
     }
 

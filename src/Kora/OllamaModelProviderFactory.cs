@@ -15,9 +15,10 @@ internal sealed class OllamaModelProviderFactory(
         CancellationToken cancellationToken)
     {
         var receipt = await resolver.ResolveAsync(selection, profile, cancellationToken).ConfigureAwait(false);
-        return receipt?.QualificationEvidence is not { } evidence || !evidence.IsCurrent(time.GetUtcNow()) ? null : new(selection,
-            ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
+        return receipt is null || !receipt.IsCurrent(time.GetUtcNow()) ? null : new(selection,
+            (receipt.IsEvaluation ? ModelQualificationGate.UserReviewedOllamaEvaluation : ModelQualificationGate.LocalCandidateSelection)
+                | ModelQualificationGate.IntegratedHost,
             receipt.Catalogue.ValidUntil, new OllamaModelTurnAdapter(resolver, receipt, time, logging, createTransport),
-            () => receipt.IsCurrent(time.GetUtcNow()) && evidence.IsCurrent(time.GetUtcNow()));
+            () => receipt.IsCurrent(time.GetUtcNow()));
     }
 }

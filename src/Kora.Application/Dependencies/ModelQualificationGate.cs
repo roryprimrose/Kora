@@ -10,4 +10,5 @@ internal enum ModelQualificationGate
     AllPathLifecycle = 8,
     ExecutionAccount = 16,
     UserReviewedCopilotEvaluation = 32,
+    UserReviewedOllamaEvaluation = 64,
 }

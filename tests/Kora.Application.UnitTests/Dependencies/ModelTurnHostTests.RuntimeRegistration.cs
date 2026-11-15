@@ -8,6 +8,32 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData("local", true)]
+    [InlineData("copilot", false)]
+    [InlineData("claims-production", false)]
+    [InlineData("foreign-evaluation", false)]
+    [InlineData("hosted-gate", false)]
+    [InlineData("unknown-gate", false)]
+    [InlineData("missing-host", false)]
+    [InlineData("expired", false)]
+    [InlineData("revoked", false)]
+    public void Ollama_evaluation_is_separate_from_release_qualification_and_requires_current_host_admission(
+        string state, bool admitted)
+    {
+        using var f = new Fixture();
+        var evidence = ModelQualificationGate.UserReviewedOllamaEvaluation | ModelQualificationGate.IntegratedHost;
+        if (state is "claims-production") { evidence |= ModelQualificationGate.LocalCandidateSelection; }
+        if (state is "foreign-evaluation") { evidence |= ModelQualificationGate.UserReviewedCopilotEvaluation; }
+        if (state is "hosted-gate") { evidence |= ModelQualificationGate.AllPathLifecycle; }
+        if (state is "unknown-gate") { evidence |= (ModelQualificationGate)128; }
+        if (state is "missing-host") { evidence &= ~ModelQualificationGate.IntegratedHost; }
+        var registration = new ModelProviderRegistration(
+            state is "copilot" ? ModelProviderSelection.CopilotCandidate : ModelProviderSelection.OllamaCandidate,
+            evidence, state is "expired" ? f.Time.Now : f.Time.Now.AddMinutes(1), f.Adapter, () => state is not "revoked");
+        registration.IsQualified(f.Time.Now).Should().Be(admitted);
+    }
+
+    [Theory]
     [InlineData("copilot", true)]
     [InlineData("local", false)]
     [InlineData("missing-final-gate", false)]

@@ -136,6 +136,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
         // Reuse the producer's complete history, provenance, catalogue and byte policy.
         ModelToolProtocol.CreateRequest(request.Provenance, request.Profile, request.Context, request.Messages,
             request.Round, request.Budget, request.ClarificationAllowed);
+        if (request.Context.OutputFormat != ModelOutputFormat.Text && publish is not null)
+        { return Finish(request, ModelTurnOutcome.Unavailable); }
         if (request.Profile is null) { return Finish(request, ModelTurnOutcome.Unavailable); }
         if (original is null)
         {

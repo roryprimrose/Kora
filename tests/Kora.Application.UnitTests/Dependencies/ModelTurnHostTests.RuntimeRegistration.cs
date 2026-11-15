@@ -8,6 +8,68 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData("current", true)]
+    [InlineData("missing-account", false)]
+    [InlineData("missing-send-review", false)]
+    [InlineData("claims-production", false)]
+    [InlineData("foreign-provider", false)]
+    public void Claude_preview_preserves_account_and_final_send_admission_without_claiming_lifecycle_qualification(string state, bool admitted)
+    {
+        using var f = new Fixture();
+        var evidence = ModelQualificationGate.UserReviewedClaudeEvaluation | ModelQualificationGate.ExecutionAccount
+            | ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.IntegratedHost;
+        if (state is "missing-account") { evidence &= ~ModelQualificationGate.ExecutionAccount; }
+        if (state is "missing-send-review") { evidence &= ~ModelQualificationGate.DotNetFinalRequest; }
+        if (state is "claims-production") { evidence |= ModelQualificationGate.AllPathLifecycle; }
+        var selection = ModelProviderSelection.CopilotCandidate with { Provider = ModelProviderIdentity.Claude };
+        if (state is "foreign-provider") { selection = ModelProviderSelection.CopilotCandidate; }
+        var registration = new ModelProviderRegistration(selection, evidence, f.Time.Now.AddMinutes(1), f.Adapter);
+        registration.IsQualified(f.Time.Now).Should().Be(admitted);
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("admitted", ModelTurnOutcome.Succeeded)]
+    [InlineData("missing-host", ModelTurnOutcome.Unavailable)]
+    [InlineData("revoked", ModelTurnOutcome.Unavailable)]
+    public async Task Local_preview_uses_the_actual_host_without_claiming_candidate_qualification(string state, ModelTurnOutcome expected)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        var evidence = ModelQualificationGate.UserReviewedLocalEvaluation;
+        if (state is not "missing-host") { evidence |= ModelQualificationGate.IntegratedHost; }
+        var source = new RegistrationSource
+        {
+            Resolve = (selection, _, _) => Task.FromResult<ModelProviderRegistration?>(new(selection,
+                evidence, f.Time.Now.AddMinutes(1), f.Adapter, () => state is not "revoked")),
+        };
+        var host = f.ConfiguredProfiles(registrationSource: source);
+        var admitted = await host.AdmitAsync(ModelTurnChoice.Local, f.Context(), null, Token);
+        admitted.Result.Outcome.Should().Be(expected);
+        if (expected == ModelTurnOutcome.Succeeded)
+        { (await host.RunAsync(admitted.Turn!, Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded); }
+        f.Adapter.Calls.Should().Be(expected == ModelTurnOutcome.Succeeded ? 1 : 0);
+    }
+
+    [Theory]
+    [InlineData("foreign-provider")]
+    [InlineData("claims-qualified")]
+    [InlineData("copilot-evaluation")]
+    public void Local_preview_cannot_claim_production_evidence_or_another_provider(string failure)
+    {
+        using var f = new Fixture();
+        var flags = ModelQualificationGate.UserReviewedLocalEvaluation | ModelQualificationGate.IntegratedHost;
+        if (failure is "claims-qualified") { flags |= ModelQualificationGate.LocalCandidateSelection; }
+        if (failure is "copilot-evaluation") { flags |= ModelQualificationGate.UserReviewedCopilotEvaluation; }
+        var selection = failure is "foreign-provider" ? ModelProviderSelection.CopilotCandidate : ModelProviderSelection.OllamaCandidate;
+        var registration = new ModelProviderRegistration(selection, flags, f.Time.Now.AddMinutes(1), f.Adapter);
+        registration.IsQualified(f.Time.Now).Should().BeFalse();
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData("copilot", true)]
     [InlineData("local", false)]
     [InlineData("missing-final-gate", false)]

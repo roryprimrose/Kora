@@ -37,13 +37,16 @@ public sealed partial class ClaudeMessagesRuntime
             if (model?.Selection != provenance.Selection
                 || model.Context.Single(option => option.Id == profile.Context).InputTokenLimit is not { } inputLimit
                 || !account.OutputLimits.TryGetValue(profile.Model, out var outputLimit)
-                || !account.Approval.TextStreams.Contains(new(profile.Model, profile.Reasoning, profile.Context, inputLimit, outputLimit)))
+                || (!account.Approval.HasCurrentDevelopmentPreview
+                    && !account.Approval.TextStreams.Contains(new(profile.Model, profile.Reasoning, profile.Context, inputLimit, outputLimit))))
             { return new(ModelTurnOutcome.Unavailable); }
             async ValueTask<bool> Live(CancellationToken ct) => !disposed && !quarantined && !ct.IsCancellationRequested
+                && (!account.Approval.IsDevelopmentPreview || account.Approval.HasCurrentDevelopmentPreview)
                 && context.CreatedAt <= time.GetUtcNow() && context.ExpiresAt > time.GetUtcNow()
                 && await accounts.CurrentAsync(account, ct).ConfigureAwait(false)
                 && await current(ct).ConfigureAwait(false)
                 && !disposed && !quarantined && !ct.IsCancellationRequested && context.CreatedAt <= time.GetUtcNow()
+                && (!account.Approval.IsDevelopmentPreview || account.Approval.HasCurrentDevelopmentPreview)
                 && context.ExpiresAt > time.GetUtcNow();
             http = create();
             var sender = new ClaudeFinalRequestHandler(http, accounts);

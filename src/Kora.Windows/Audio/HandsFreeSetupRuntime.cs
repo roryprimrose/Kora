@@ -19,11 +19,17 @@ public sealed class HandsFreeSetupRuntime : ISpeechComponentRuntime, IAsyncDispo
     private readonly SpeechComponentDefinition component;
     private readonly HandsFreeNativeProfile profile;
     private readonly bool compatible;
+    private readonly DevelopmentPreviewAdmission? preview;
+    private HandsFreeNativeProfile? previewProfile;
+    private DevelopmentPreviewLease? previewLease;
 
     public HandsFreeSetupRuntime(ISpeechComponentFiles files)
         : this(HandsFreeSetupCatalogue.Component, HandsFreeNativeProfileCatalogue.CreatePreparedProfile(files),
             OperatingSystem.IsWindows() && RuntimeInformation.ProcessArchitecture == Architecture.X64)
     { }
+
+    public HandsFreeSetupRuntime(ISpeechComponentFiles files, DevelopmentPreviewAdmission preview) : this(files)
+    { this.preview = preview; }
 
     internal HandsFreeSetupRuntime(SpeechComponentDefinition component, HandsFreeNativeProfile profile, bool compatible)
     {
@@ -32,7 +38,25 @@ public sealed class HandsFreeSetupRuntime : ISpeechComponentRuntime, IAsyncDispo
         this.compatible = compatible;
     }
 
-    internal IReadOnlyList<HandsFreeNativeProfile> Profiles => [profile];
+    internal IReadOnlyList<HandsFreeNativeProfile> Profiles
+    {
+        get
+        {
+            var lease = preview?.Resolve(DevelopmentPreviewCapability.Wake);
+            if (lease is null) { return [profile]; }
+            lock (ownership)
+            {
+                if (!ReferenceEquals(previewLease, lease))
+                {
+                    previewLease = lease;
+                    previewProfile = new(profile.NativeLibraryPath, profile.ModelDirectory, profile.DictionaryPath,
+                        profile.VadPath, profile.Assets, ["Kora"], qualification: null, profile.ConfigurationFiles,
+                        profile.KeywordThreshold, () => lease.IsCurrent);
+                }
+                return [previewProfile!];
+            }
+        }
+    }
     internal bool IsPlatformCompatible => compatible;
     internal bool IsCaptureHeld
     {

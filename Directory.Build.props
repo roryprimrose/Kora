@@ -11,7 +11,12 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+    <DefineConstants Condition="'$(KoraDevelopmentPreview)' == 'true'">$(DefineConstants);KORA_DEVELOPMENT_PREVIEW</DefineConstants>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(KoraDevelopmentPreview)' == 'true'">
+    <AssemblyMetadata Include="KoraBuildProfile" Value="development-preview" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />

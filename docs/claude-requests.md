@@ -1,14 +1,17 @@
 # Claude requests
 
 Claude is an online AI service from Anthropic. **Requests are unavailable in
-this build**, because the required account-use approval is not enabled.
+ordinary builds**, because the required account-use approval is not enabled.
 The controls below do not bypass that restriction or sign you in through
-another app.
+another app. In a marked **Development Preview**, explicitly opt in to Claude
+through **Settings > Set up development preview capabilities**, then complete
+the independent account and physical-send reviews below. This permits testing,
+not production qualification; credentials and requests may incur usage charges.
 
 ## Availability and independent setup
 
 Claude is a distinct hosted service, not a Copilot account or a local-model
-fallback. The shipped deployment/account-use approval source is **unavailable**.
+fallback. The ordinary deployment/account-use approval source is **unavailable**.
 Implementation tests do not enable or qualify a real account. No sign-in,
 inference, paid request or provider qualification is performed automatically.
 
@@ -158,7 +161,7 @@ limits do not enable or qualify a Claude deployment.
 
 In private Sessions, **Stream explicitly with Claude (text only, separately qualified)** submits only the original USER body, without history, memory, tools or source instructions. It uses the same provisional conversation pane, labelled **Provisional answer - not retained**, not a new renderer ([submission](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs), [presentation](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
 
-This native-only operation requires independent positive evidence for the exact model/reasoning/context tuple and its input/output token ceilings, in the current deployment approval and credential/workspace account lease. Existing buffered approval does not admit streaming; missing/new evidence stays unavailable. The shipped approval source remains unavailable ([profile evidence](../src/Kora.Windows/Dependencies/ClaudeDeploymentApproval.cs), [default source](../src/Kora.Windows/Dependencies/UnavailableClaudeDeploymentApprovalSource.cs)).
+In ordinary builds, this native-only operation requires independent positive evidence for the exact model/reasoning/context tuple and its input/output token ceilings, in the current deployment approval and credential/workspace account lease. Existing buffered approval does not admit streaming; missing/new evidence stays unavailable. A current explicit Claude Development Preview opt-in permits this implemented stream without claiming production evidence. The exact account/model/token bounds and every independent send review remain mandatory ([admission](../src/Kora.Windows/Dependencies/ClaudeDeploymentApproval.cs), [default source](../src/Kora.Windows/Dependencies/UnavailableClaudeDeploymentApprovalSource.cs)).
 
 Count Tokens remains a separately reviewed physical POST. A second native final-byte review shows the actual Messages body with `stream:true`; earlier request review, voice input or counting consent cannot approve it. No implicit selection, retry or buffered fallback occurs ([runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs), [physical send](../src/Kora.Windows/Dependencies/ClaudeFinalRequestHandler.cs)).
 

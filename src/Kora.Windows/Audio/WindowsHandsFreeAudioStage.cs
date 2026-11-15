@@ -10,6 +10,7 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
     private readonly ReadOnlyCollection<HandsFreeNativeProfile> profiles;
     private readonly HandsFreeSetupRuntime? setup;
     private readonly IHandsFreeNativeFactory factory;
+    private IReadOnlyList<HandsFreeNativeProfile> Profiles => setup?.Profiles ?? profiles;
 
     public WindowsHandsFreeAudioStage() : this([]) { }
     public WindowsHandsFreeAudioStage(HandsFreeSetupRuntime setup) : this(setup, new HandsFreeNativeFactory()) { }
@@ -21,11 +22,11 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
         this.factory = factory ?? new HandsFreeNativeFactory();
     }
     public bool IsAvailable => setup?.IsPlatformCompatible != false && setup?.IsCaptureHeld != true
-        && profiles.Any(profile => profile.CaptureQualified);
+        && Profiles.Any(profile => profile.CaptureQualified);
     public bool SupportsProfile(string assistantName, SpeechInputSelection selection) =>
         selection == SpeechInputProfileCatalogue.NativeWakeSelection && setup?.IsPlatformCompatible != false
         && setup?.IsCaptureHeld != true
-        && profiles.Count(profile => profile.CaptureQualified && profile.Names.Contains(assistantName)) == 1;
+        && Profiles.Count(profile => profile.CaptureQualified && profile.Names.Contains(assistantName)) == 1;
 
     public async Task<IAsyncDisposable> PrepareProfileAsync(
         string assistantName, SpeechInputSelection selection, CancellationToken cancellationToken)
@@ -34,7 +35,7 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
         {
             throw new InvalidOperationException("The exact configured name/profile is unavailable.");
         }
-        var profile = profiles.Single(candidate => candidate.CaptureQualified && candidate.Names.Contains(assistantName));
+        var profile = Profiles.Single(candidate => candidate.CaptureQualified && candidate.Names.Contains(assistantName));
         HandsFreeSetupRuntime.CaptureOwnership? ownership = null;
         HandsFreeAssetLease? assets = null;
         try
@@ -69,7 +70,7 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
         ArgumentNullException.ThrowIfNull(binding);
         cancellationToken.ThrowIfCancellationRequested();
         binding.Profile.Selection.Validate();
-        var profile = profiles.SingleOrDefault(candidate => candidate.CaptureQualified && candidate.Names.Contains(binding.AssistantName));
+        var profile = Profiles.SingleOrDefault(candidate => candidate.CaptureQualified && candidate.Names.Contains(binding.AssistantName));
         if (profile is null || setup?.IsPlatformCompatible == false || setup?.IsCaptureHeld == true
             || (binding.Profile.Selection.ProfileId is SpeechInputProfileCatalogue.NativeWakeProfileId
                 ? !SupportsProfile(binding.AssistantName, binding.Profile.Selection)
@@ -79,7 +80,7 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
             throw new InvalidOperationException("The exact local native/model/name/playback profile is unavailable. Use push-to-talk or native controls.");
         }
         HandsFreeSetupRuntime.CaptureOwnership? ownership = null;
-        bool Admitted() => !cancellationToken.IsCancellationRequested
+        bool Admitted() => profile.CaptureQualified && !cancellationToken.IsCancellationRequested
             && ownership?.Token.IsCancellationRequested != true && binding.CanCapture();
         if (!Admitted()) { throw new OperationCanceledException("Fresh hands-free admission is unavailable."); }
         var timing = binding.Timing;

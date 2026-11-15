@@ -5,12 +5,16 @@ Use [Commands](commands.md) for exact phrases and parameters,
 workflows. This page explains capability boundaries rather than duplicating
 those references.
 
-**The fixed bundled script executor is implemented but unavailable until its installed contained profile is qualified.**
+**In ordinary builds, the fixed bundled script executor is unavailable until its installed contained profile is qualified.**
 See the [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 Exact commands run Kora's built-in actions. The reviewed AI workflows described
-below require an approved model; **this build has none available**. Opening
+below require an admitted model; **ordinary builds have no qualified local or Claude profile available**. Opening
 their windows, installing Ollama or selecting instructions cannot enable
-answers, execute scripts or grant permission.
+answers, execute scripts or grant permission. A marked **Development Preview**
+provides **Settings > Set up development preview capabilities** for explicit
+local-model, Claude, wake and fixed-worker experimentation. Fixed workers still
+require protected runtime preparation, AppContainer containment, content-bound
+grants and action review; model/wake opt-in does not admit worker execution.
 
 An **instruction** guides an answer; a **skill** is reusable task guidance; an
 **agent profile** adds a role and limits. A **tool** is an operation Kora can

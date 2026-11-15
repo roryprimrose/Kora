@@ -47,6 +47,31 @@ remain unreachable and clearly unavailable through UI, commands, model tools,
 setup and documentation. Existing CI, review, licence and coverage requirements
 remain in force; this policy does not change workflow or branch protections.
 
+### Explicit Development Preview admission
+
+The product owner approved a downloadable Development Preview with separate,
+original-user per-capability opt-in. Builds with `KoraDevelopmentPreview=true`
+carry an explicit build marker and native warning. They may execute unqualified
+local/hosted model and prepared speech profiles to obtain actual integration,
+quality and acoustic feedback. Known model correctness/latency failures and
+unperformed final installed/RC observations are not prerequisites for that
+development-only admission. They remain failures or unperformed evidence;
+preview consent does not produce release attestations.
+
+Preview admission is volatile, expires after at most one host hour and retires
+on loss of its current host/privacy authority. Setup does not authenticate,
+capture audio, infer, invoke a worker or auto-opt-in on restart. Installed
+dependencies, exact executable/model identities, local-only source rules,
+account credentials and independent final-send review, microphone consent,
+fixed-action grants, audited intent, AppContainer restrictions and resource
+joins remain required. Missing safety implementation is not an experimental
+success fallback. Ordinary builds retain release-qualified admission.
+
+Production enablement, advertising and integrated RC qualification remain
+subject to the other tiers and criteria on this page. A development payload
+must never be represented as that evidence or automatically relabelled as a
+production release.
+
 ### Non-Waivable Safety and Critical Fixtures
 
 Authority, consent, privacy, instance ownership, egress, required durable intent/

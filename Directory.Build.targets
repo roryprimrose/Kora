@@ -1,4 +1,8 @@
 <Project>
+  <Target Name="ValidateDevelopmentPreviewProfile" BeforeTargets="CoreCompile">
+    <Error Condition="'$(KoraDevelopmentPreview)' != '' And '$(KoraDevelopmentPreview)' != 'true' And '$(KoraDevelopmentPreview)' != 'false'"
+           Text="KoraDevelopmentPreview must be explicitly true or false." />
+  </Target>
   <Target Name="ResolveKoraBuildVersion" BeforeTargets="PrepareForBuild;GetAssemblyVersion"
           Condition="'$(KoraResolveBuildVersion)' == 'true'">
     <PropertyGroup>

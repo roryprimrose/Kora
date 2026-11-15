@@ -47,6 +47,18 @@ validated by this runtime branch.
 
 ## Implementation Direction
 
+The [Development Preview](Acceptance_Criteria.md#explicit-development-preview-admission)
+reuses these maintained SDK/host paths. Copilot keeps its existing exact
+installed-runtime evaluation controls. Claude preview opt-in creates only a
+volatile deployment scope and credential-bound lease; native credential entry,
+account-bound model discovery and every physical-send review remain independent.
+The same live preview lease permits the implemented native text-only stream
+without inventing exact-profile release evidence; account/model/token bounds,
+each physical-send review and provisional-publication revalidation still apply.
+No account is inferred from ambient sign-in and no preview grant proves
+all-path lifecycle or production qualification. Ordinary builds retain the
+unavailable Claude deployment source.
+
 ### Qualification scope and maintained-test migration
 
 Apply [I/E/Q](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy):
@@ -325,7 +337,7 @@ Deterministic host/native tests are implementation evidence, not provider/accoun
 
 #### Native text-stream implementation, not enablement
 
-The explicit native text-only stream is separately admitted by exact deployment model/reasoning/context/token-ceiling evidence, in addition to the current credential/workspace lease. An existing buffered profile, unknown stream evidence or the shipped unavailable approval source cannot enable it ([evidence](../src/Kora.Windows/Dependencies/ClaudeDeploymentApproval.cs), [runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs)).
+In ordinary builds, the explicit native text-only stream requires exact deployment model/reasoning/context/token-ceiling evidence in addition to the current credential/workspace lease. Buffered approval or unknown stream evidence cannot enable it. In an explicitly opted-in Development Preview, the current preview lease admits experimentation without claiming that evidence; the exact account/catalogue profile, bounds and final-send reviews still apply ([admission](../src/Kora.Windows/Dependencies/ClaudeDeploymentApproval.cs), [runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs)).
 
 It preserves `anthropic-version: 2023-06-01`, independently reviewed Count Tokens and `stream:true` Messages POSTs, and the canonical typed provisional conversation presentation. The strict SSE state machine admits only ordered text blocks, cumulative bounded usage and a unique normal terminal followed by EOF; buffered and observation paths remain separate ([decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [official sequence](https://platform.claude.com/docs/en/build-with-claude/streaming), [version policy](https://platform.claude.com/docs/en/api/versioning)).
 

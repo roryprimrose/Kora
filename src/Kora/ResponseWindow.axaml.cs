@@ -52,6 +52,7 @@ public sealed partial class ResponseWindow : Window
         getWorkingArea = workingArea ?? (() => (Screens.ScreenFromWindow(this) ?? Screens.Primary)?.WorkingArea);
         responseInactivity = new(timeProvider ?? TimeProvider.System);
         InitializeComponent();
+        this.FindControl<TextBlock>("DevelopmentPreviewCaption")!.IsVisible = DevelopmentPreviewBuild.Enabled;
         if (details is not null)
         {
             SessionWorkspace.ReopenHostDocumentAsync = (tab, admitted) =>

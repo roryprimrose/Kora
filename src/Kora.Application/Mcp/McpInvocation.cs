@@ -146,15 +146,15 @@ internal sealed partial class McpInvocation(
         Kora.Core.Conversation.ConversationText.Validate(arguments, submission: true);
         await ValidateAsync(token).ConfigureAwait(false);
         await ApproveAsync(McpReviewStage.Invocation, arguments, token).ConfigureAwait(false);
-        ImmutableArray<byte> observed;
+        McpConnectionReply<McpRemoteResult> observed;
         try
         {
-            observed = await ExchangeAsync(McpProtocol.InvocationRequest(selected.Name, selected.Schema, arguments, nextRequestId),
+            observed = await ExchangeAsync((transport, current) => transport.InvokeAsync(selected.Name, selected.Schema, arguments, current),
                 McpProtocol.MaximumResultUtf8Bytes, token).ConfigureAwait(false);
         }
         catch (McpExchangeException)
         { return new(CapabilityOutcome.Failed, "mcp-transport-failed-review-before-new-request"); }
-        var result = McpProtocol.ReadInvocationResult(observed.AsSpan(), nextRequestId++);
+        var result = observed.Value;
         await ValidateAsync(token).ConfigureAwait(false);
         if (result.IsError) { return new(CapabilityOutcome.Failed, "mcp-server-reported-error"); }
         Kora.Core.Conversation.ConversationText.RequireNoCredentials(result.Text);
@@ -194,7 +194,8 @@ internal sealed partial class McpInvocation(
         return reply;
     }
 
-    private async Task<ImmutableArray<byte>> ExchangeAsync(byte[] wire, int limit, CancellationToken token)
+    private async Task<McpConnectionReply<T>> ExchangeAsync<T>(
+        Func<IMcpConnection, CancellationToken, Task<McpConnectionReply<T>>> invoke, int limit, CancellationToken token)
     {
         await ValidateAsync(token).ConfigureAwait(false);
         var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ProtectedOperation,
@@ -204,11 +205,11 @@ internal sealed partial class McpInvocation(
         audit.Write(requested);
         try
         {
-            ImmutableArray<byte> result;
+            McpConnectionReply<T> result;
             try
             {
                 await ValidateAsync(token).ConfigureAwait(false);
-                result = await connection!.ExchangeAsync(ImmutableArray.CreateRange(wire), limit, token).ConfigureAwait(false);
+                result = await invoke(connection!, token).ConfigureAwait(false);
             }
             catch (Exception exception) when (!token.IsCancellationRequested
                 && exception is HttpRequestException or IOException or ObjectDisposedException or OperationCanceledException)
@@ -217,7 +218,7 @@ internal sealed partial class McpInvocation(
                 throw new McpExchangeException(exception);
             }
             await ValidateAsync(token).ConfigureAwait(false);
-            if (result.IsDefaultOrEmpty || result.Length > limit)
+            if (result.Utf8Bytes < 1 || result.Utf8Bytes > limit)
             { throw new InvalidDataException("The complete MCP transport response is empty or exceeds its bound."); }
             audit.Write(requested.WithOutcome(SecurityAuditOutcome.Succeeded));
             await ValidateAsync(token).ConfigureAwait(false);

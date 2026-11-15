@@ -198,6 +198,8 @@ internal sealed partial class SessionsViewModel
         ? SubmitConversationCoreAsync(allowQuestion: false, localAnswer: true)
         : SubmitOrdinaryConversationAsync(localAnswer: true);
     public Task SubmitCopilotConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, copilot: true);
+    public Task SubmitCopilotAnswerStreamAsync() =>
+        SubmitConversationCoreAsync(allowQuestion: false, copilot: true, copilotStreamAnswer: true);
     public bool CanSubmitLocalFirst => CanSubmitConversation && localHandoff is not null && !assistantReply;
     public Task SubmitLocalFirstAsync() => SubmitConversationCoreAsync(allowQuestion: false, localFirst: true);
 
@@ -205,7 +207,7 @@ internal sealed partial class SessionsViewModel
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
         Func<bool>? mcpCallerAdmission = null, bool claude = false, bool claudeObservations = false,
         ModelToolMode clarificationTools = ModelToolMode.None, bool localAnswer = false, bool claudeStreamAnswer = false,
-        bool localFirst = false, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
+        bool localFirst = false, bool copilotStreamAnswer = false, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = mcpBody ?? composerBody;
@@ -247,7 +249,9 @@ internal sealed partial class SessionsViewModel
                     ? await conversation!.SubmitClaudeWithClarificationAsync(target, body, live, presenter!, lifetime.Token)
                     : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
             : copilot
-            ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
+            ? copilotStreamAnswer
+                ? await conversation!.SubmitCopilotAnswerStreamAsync(target, body, live, lifetime.Token)
+                : await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
             : clarificationTools == ModelToolMode.ReadOnly
             ? await conversation!.SubmitReadOnlyWithClarificationAsync(target, body, live, presenter!, lifetime.Token)
             : pageAddress is null

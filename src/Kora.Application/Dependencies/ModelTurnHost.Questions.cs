@@ -19,6 +19,7 @@ public sealed partial class ModelTurnHost
                 Reason: ModelTurnReason.InvalidProviderResponse)); }
             if (turn.PublishAnswer is { } publish && turn.Context.ToolMode == ModelToolMode.None
                 && (turn.Provenance.Selection.Provider == ModelProviderIdentity.Ollama
+                    || turn.Registration.Adapter is CopilotModelTurnAdapter
                     || turn.Registration.Adapter is ClaudeModelTurnAdapter { StreamsAnswer: true })
                 && turn.ConversationTarget is not null && turn.Registration.Adapter is IModelAnswerTurnAdapter streaming)
             {

@@ -40,6 +40,20 @@ no tools, files, history, attachments, memory, agents, delegation or instruction
 from other sources are included. Advertised native effort options map directly
 to the wire; a rejected combination is not changed or retried.
 
+Buffered text, separately qualified streaming, reviewed observations and clarification requests use the official Anthropic .NET SDK through
+Microsoft.Extensions.AI `IChatClient`. Kora still owns credentials, exact-byte
+disclosure, counted-input admission, strict response policy, budgets and
+cancellation/resource ownership. SDK retries and provider telemetry are
+explicitly disabled. The host chooses the physical headers; SDK metadata and
+trace headers are not forwarded. Tool declarations, proposals and results use
+MEAI message types; the SDK never executes a Kora tool or answers a question.
+Kora still validates each entire batch and owns all execution and continuation.
+Models discovery uses the official SDK's Models/page types behind a bounded
+host-owned read-only request gate. Account approval, credential binding and
+catalogue publication remain Kora responsibilities. The adapter identity is now
+`anthropic-messages-meai-sdk-v5`; earlier adapter evidence does not
+qualify this implementation.
+
 Typed or current-name activated voice input uses the canonical request review
 and separate confirmation without speaking internal identifiers:
 
@@ -148,7 +162,7 @@ This native-only operation requires independent positive evidence for the exact 
 
 Count Tokens remains a separately reviewed physical POST. A second native final-byte review shows the actual Messages body with `stream:true`; earlier request review, voice input or counting consent cannot approve it. No implicit selection, retry or buffered fallback occurs ([runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs), [physical send](../src/Kora.Windows/Dependencies/ClaudeFinalRequestHandler.cs)).
 
-The decoder consumes actual progressive UTF-8 SSE, including split code points and escaped JSON strings. Only validated text deltas reach provisional presentation. Normal message/block ordering, cumulative token usage, `end_turn`, one `message_stop` and physical EOF are required; unknown events/fields, tools, thinking, citations, provider errors, truncation and `max_tokens` cannot produce success ([decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [protocol](https://platform.claude.com/docs/en/build-with-claude/streaming)).
+The official SDK consumes progressive UTF-8 SSE and projects text through MEAI `IChatClient`. A host boundary guard validates the qualified raw event framing and policy before bytes enter the SDK; it does not synthesize a final provider message. Only validated text deltas reach provisional presentation. Normal message/block ordering, cumulative token usage, `end_turn`, one `message_stop` and physical EOF are required; unknown events/fields, tools, thinking, citations, provider errors, truncation and `max_tokens` cannot produce success. The host retains the physical stream until asynchronous disposal finishes, including when SDK enumeration or publication fails ([boundary guard](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [protocol](https://platform.claude.com/docs/en/build-with-claude/streaming)).
 
 The pinned API version remains `2023-06-01`. Both POST bodies cumulatively fit 32768 UTF-8 bytes; counting response plus complete SSE cumulatively fit 4096 bytes, with at most 128 events, JSON depth 24 and 64 ordered text blocks. Bounds are inclusive. Exact catalogue ceilings remain at most 8192 input/4096 output tokens. Reviews and transport share the two-minute deadline ([runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs), [decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [version policy](https://platform.claude.com/docs/en/api/versioning)).
 
@@ -182,7 +196,7 @@ Each continuation has a new Count Tokens POST and a new Messages POST: **each ne
 
 The complete observation turn permits at most six calls and seven exchanges within 15 seconds, including reviews, with cumulative 32768-byte input and 4096-byte output limits. Both physical request bodies, raw responses, framing and sanitized host results consume the budgets.
 Unknown fields/names, duplicate call IDs, mixed prose/tool proposals, unsupported blocks and incomplete or oversized responses terminate without retry.
-Only a genuine final text answer is retained as ASSISTANT; intermediate proposals are not answers ([constraints](../src/Kora.Core/Dependencies/ClaudeObservationTools.cs), [translation](../src/Kora.Windows/Dependencies/ClaudeObservationWire.cs)).
+Only a genuine final text answer is retained as ASSISTANT; intermediate proposals are not answers ([constraints](../src/Kora.Core/Dependencies/ClaudeObservationTools.cs), [MEAI mapping](../src/Kora.Windows/Dependencies/ClaudeToolMessages.cs)).
 
 Changing the selected tool scope invalidates the current operation even if restored later. Account/catalogue/profile/session/privacy revocation and cancellation deny further sends and late publication; actual HTTP work remains owned until joined.
 The shipped approval source remains **unavailable**; these controls do not enable a deployment, approve costs or initiate any live trial ([native scope](../src/Kora/SessionsViewModel.Claude.cs), [unavailable approval](../src/Kora.Windows/Dependencies/UnavailableClaudeDeploymentApprovalSource.cs)).

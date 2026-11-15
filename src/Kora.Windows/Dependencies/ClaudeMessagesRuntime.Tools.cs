@@ -1,5 +1,6 @@
 using Kora.Core.Dependencies;
 using Kora.Core.Providers;
+using Microsoft.Extensions.AI;
 
 namespace Kora.Windows.Dependencies;
 
@@ -69,12 +70,12 @@ public sealed partial class ClaudeMessagesRuntime
         }
 
         private async ValueTask<bool> Live(CancellationToken token) =>
-            !disposed && !owner.disposed && !token.IsCancellationRequested
+            !disposed && !owner.disposed && !owner.quarantined && !token.IsCancellationRequested
             && context.CreatedAt <= owner.time.GetUtcNow() && context.ExpiresAt > owner.time.GetUtcNow()
             && await owner.accounts.CurrentAsync(account, token).ConfigureAwait(false)
             && await current(token).ConfigureAwait(false)
-            && !disposed && !owner.disposed && !token.IsCancellationRequested
-            && context.ExpiresAt > owner.time.GetUtcNow();
+            && !disposed && !owner.disposed && !owner.quarantined && !token.IsCancellationRequested
+            && context.CreatedAt <= owner.time.GetUtcNow() && context.ExpiresAt > owner.time.GetUtcNow();
 
         public async Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
         {
@@ -93,43 +94,40 @@ public sealed partial class ClaudeMessagesRuntime
                 // Revalidate complete serial history before translating any provider-native bytes.
                 _ = ModelToolProtocol.CreateRequest(provenance, profile, request.Context, request.Messages,
                     request.Round, request.Budget, request.ClarificationAllowed);
-                var countBody = ClaudeObservationWire.Serialize(request, null);
-                var messageBody = ClaudeObservationWire.Serialize(request, outputLimit);
-                var chargedInput = Math.Max(ModelToolProtocol.SerializeRequest(request).Length,
-                    checked(countBody.Length + messageBody.Length));
-                if (chargedInput > request.Budget.InputUtf8Bytes)
-                { return new(ModelTurnOutcome.DeniedEgress, provenance); }
                 var sender = new ClaudeFinalRequestHandler(http, owner.accounts);
-                var counted = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
-                    "/v1/messages/count_tokens", countBody), account, admit, Live, token,
-                    request.Budget.OutputUtf8Bytes).ConfigureAwait(false);
-                if (counted is null) { return new(ModelTurnOutcome.DeniedEgress, provenance); }
-                using var count = Parse(counted);
-                if (count.RootElement.EnumerateObject().Count() != 1
-                    || !count.RootElement.GetProperty("input_tokens").TryGetInt32(out var tokens)
-                    || tokens <= 0 || tokens > inputLimit || counted.Length >= request.Budget.OutputUtf8Bytes)
-                { return new(ModelTurnOutcome.DeniedEgress, provenance); }
-                var response = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
-                    "/v1/messages", messageBody), account, admit, Live, token,
-                    request.Budget.OutputUtf8Bytes - counted.Length).ConfigureAwait(false);
-                if (response is null) { return new(ModelTurnOutcome.DeniedEgress, provenance); }
-                tokenUsage = ReadTokenUsage(response, outputLimit, inputLimit);
-                var assistant = ClaudeObservationWire.Parse(response, profile, outputLimit, inputLimit, request.Context.Tools,
+                using var handler = new ClaudeSdkRequestHandler(sender, account, provenance, profile, inputLimit,
+                    outputLimit, admit, Live, () => owner.quarantined = true, usage => tokenUsage = usage,
+                    toolRequest: request);
+                using var sdkHttp = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+                // The qualified legacy tool envelope omits the SDK-required caller field; strict raw host validation is authoritative.
+                using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential, validateResponse: false);
+                using var chat = sdk.AsIChatClient(profile.Model.Value, outputLimit);
+                var options = CreateChatOptions(profile, outputLimit);
+                options.Tools = ClaudeToolMessages.CreateTools(request);
+                ChatResponse response;
+                try
+                {
+                    response = await chat.GetResponseAsync(ClaudeToolMessages.CreateMessages(request),
+                        options, token).ConfigureAwait(false);
+                }
+                catch (Exception) when (handler.Denied)
+                { return new(ModelTurnOutcome.DeniedEgress, provenance) { TokenUsage = tokenUsage }; }
+                var assistant = ClaudeToolMessages.Parse(response, request.Context.Tools,
                     request.ClarificationAllowed && request.Messages.IsEmpty);
                 token.ThrowIfCancellationRequested();
                 if (!await Live(token).ConfigureAwait(false))
                 { return new(ModelTurnOutcome.DeniedEgress, provenance) { TokenUsage = tokenUsage }; }
                 var chargedOutput = Math.Max(ModelToolProtocol.SerializeMessage(assistant).Length,
-                    checked(counted.Length + response.Length));
+                    handler.PhysicalOutputUtf8Bytes);
                 if (chargedOutput > request.Budget.OutputUtf8Bytes)
                 { return new(ModelTurnOutcome.DeniedEgress, provenance) { TokenUsage = tokenUsage }; }
-                return new(ModelTurnOutcome.Succeeded, provenance, assistant, new(chargedInput, chargedOutput))
+                return new(ModelTurnOutcome.Succeeded, provenance, assistant, new(handler.ChargedInputUtf8Bytes, chargedOutput))
                 { TokenUsage = tokenUsage };
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             { return new(ModelTurnOutcome.Cancelled, provenance) { TokenUsage = tokenUsage }; }
             catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or System.Text.Json.JsonException
-                or InvalidOperationException or KeyNotFoundException or FormatException)
+                or InvalidOperationException or KeyNotFoundException or FormatException or Anthropic.Exceptions.AnthropicException)
             {
                 RequestFailed(owner.logger, exception.GetType().Name);
                 return new(ModelTurnOutcome.Unknown, provenance) { TokenUsage = tokenUsage };

@@ -267,10 +267,14 @@
           "SQLitePCLRaw.core": "2.1.12"
         }
       },
-      "Microsoft.Extensions.AI.Abstractions": {
+      "Microsoft.Extensions.AI": {
         "type": "Transitive",
-        "resolved": "10.2.0",
-        "contentHash": "ONGlIBht0ygEdKc0bCt9XWUiq19/460dAu7fCKzPM34OFJSMQIohEDTJwjCJ8vVp8znNakloc9xFF9+R/eDCYQ=="
+        "resolved": "10.8.0",
+        "contentHash": "QfthL8e2X/Z6jRs4YyVS2+HTApJvhz725l35HYZ9cfwlEuQnpzY89NJoGNmpuNZn4LIvvQOQeZIbu3jggBXgUg==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.8.0",
+          "System.Numerics.Tensors": "10.0.10"
+        }
       },
       "Microsoft.ML.OnnxRuntime.Managed": {
         "type": "Transitive",
@@ -405,8 +409,8 @@
       },
       "System.Numerics.Tensors": {
         "type": "Transitive",
-        "resolved": "9.0.5",
-        "contentHash": "hS5G2PmTFHt534LfQB1WIKALMHrZu2rNdzzRr1UfDBSpFcJrKBL38ShOr/yy5s11GFzZKyLp55jdLN5LRA5t2A=="
+        "resolved": "10.0.10",
+        "contentHash": "9Ildb4Y9maDztB0ZRGxsNShbpCQ2Tjv2dr4IjskBxpTGhH7aIz1+oC+Hl833ASs/htWwsH6myNe+sRpeyCzeMQ=="
       },
       "Tmds.DBus.Protocol": {
         "type": "Transitive",
@@ -441,15 +445,28 @@
       "kora.windows": {
         "type": "Project",
         "dependencies": {
+          "Anthropic": "[13.6.0, )",
           "GitHub.Copilot.SDK": "[1.0.26, )",
           "KokoroSharp": "[0.8.4, )",
           "Kora.Core": "[0.1.0, )",
+          "Microsoft.Extensions.AI.Abstractions": "[10.11.0, )",
           "Microsoft.ML.OnnxRuntime": "[1.30.0, )",
           "Microsoft.Win32.SystemEvents": "[10.0.12, )",
           "MisakiSharp": "[2.2.0, )",
+          "ModelContextProtocol.Core": "[2.4.0, )",
           "NAudio": "[3.1.0, )",
+          "OllamaSharp": "[5.5.2, )",
           "SkiaSharp": "[3.119.4, )",
           "System.Speech": "[10.0.12, )"
+        }
+      },
+      "Anthropic": {
+        "type": "CentralTransitive",
+        "requested": "[13.6.0, )",
+        "resolved": "13.6.0",
+        "contentHash": "KPmqMhlU3Q2hOlslb4TgRMgQGDzf5v4qW/1bgE+D8dK5BbB1v3Ml40eMGmktmwm+5FPL9arV5MgXWoMBJLHniw==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.5.1"
         }
       },
       "GitHub.Copilot.SDK": {
@@ -486,6 +503,12 @@
           "SQLitePCLRaw.core": "2.1.12"
         }
       },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "CentralTransitive",
+        "requested": "[10.11.0, )",
+        "resolved": "10.11.0",
+        "contentHash": "h4DX/TdJU4fk1GGaf19n6Kujkj6VXbGeL4UEOsQ8+ZJC5fVApPauokCtvBP684BYbczUYZQNfo1mbmyHG4WVSg=="
+      },
       "Microsoft.ML.OnnxRuntime": {
         "type": "CentralTransitive",
         "requested": "[1.30.0, )",
@@ -507,6 +530,15 @@
         "resolved": "2.2.0",
         "contentHash": "ldGseoE8qsCuaQlJU8WhxwGkHQvtx3FMXdFXArMKq2DItEGGtQbJ5t4jw7tVGgf9E3I2uLg2ZHR/JNVTAVauHw=="
       },
+      "ModelContextProtocol.Core": {
+        "type": "CentralTransitive",
+        "requested": "[2.4.0, )",
+        "resolved": "2.4.0",
+        "contentHash": "q98pZMlcxhsh0LpGXcT2ow7sGNveCPhDlJT3zJ7Cz5nNyPmPkm8P57dUIUpzv1w6qWbdSZcR/Z+RbZtNYjEmXQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0"
+        }
+      },
       "NAudio": {
         "type": "CentralTransitive",
         "requested": "[3.1.0, )",
@@ -520,6 +552,16 @@
           "NAudio.Wasapi": "3.1.0",
           "NAudio.WinForms": "3.1.0",
           "NAudio.WinMM": "3.1.0"
+        }
+      },
+      "OllamaSharp": {
+        "type": "CentralTransitive",
+        "requested": "[5.5.2, )",
+        "resolved": "5.5.2",
+        "contentHash": "oI/dJ5xk9X2eAUSv0kvN26LtN900muLdmyFAIQLUkzOJZi4blIfQzPdkHWH8i5/Tf9SQVoc2pxTz3Tjfrp7qlQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI": "10.8.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.8.0"
         }
       },
       "SkiaSharp": {

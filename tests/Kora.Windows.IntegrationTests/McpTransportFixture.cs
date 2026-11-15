@@ -15,6 +15,7 @@ internal sealed class McpTransportFixture : IDisposable
     internal McpAccountReference Account => Lease.Account;
     internal TestLease Lease { get; } = new();
     internal List<SentRequest> Requests { get; } = [];
+    internal List<string[]> HeaderNames { get; } = [];
     internal List<string> Methods { get; } = [];
     internal int Calls => Methods.Count(method => string.Equals(method, "tools/call", StringComparison.Ordinal));
     internal bool Connected { get; private set; }
@@ -125,6 +126,7 @@ internal sealed class McpTransportFixture : IDisposable
                 request.Headers.Authorization?.ToString(), request.Content.Headers.ContentType?.ToString(),
                 request.Headers.Accept.ToString(), request.Headers.GetValues("MCP-Protocol-Version").Single(), bytes);
             owner.Requests.Add(sent);
+            owner.HeaderNames.Add(request.Headers.Select(header => header.Key).ToArray());
             var response = owner.Send is { } send ? await send(sent, cancellationToken) : method switch
             {
                 "initialize" => Json(Initialization),

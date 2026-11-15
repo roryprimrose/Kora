@@ -34,6 +34,9 @@ There is no automatic hosted fallback.
    **Submit explicitly with Copilot (separate disclosure review)**. A session
    override can supersede the app default; select Copilot for that session or
    clear the conflicting override.
+   For a tool-free answer with volatile previews, choose **Stream explicitly
+   with Copilot (text only, separate disclosure review)** instead. It uses the
+   same account, policy and separate per-send disclosure decisions.
 
 ## Every send remains a separate decision
 
@@ -45,9 +48,13 @@ new consent; account setup and model selection never approve content egress.
 
 The whole turn, including reviews, has a two-minute deadline. Successful bounded
 answers are retained as ASSISTANT data in the same conversation; failed or
-denied turns retain no assistant answer. Streaming, inherited history,
-attachments, native Copilot tools, MCP, skills and agents are not enabled by
-this operation.
+denied turns retain no assistant answer. Tool-free requests can show provisional
+answer prefixes from the SDK while the same request is running. These previews
+are volatile: cancellation or changed authority invalidates them, and only the
+validated final answer is retained. Tool-bearing requests remain buffered.
+The reviewed HTTP response is still buffered, so this does not promise
+network-level token latency. Inherited history, attachments, native Copilot
+tools, MCP, skills and agents are not enabled by this operation.
 
 ## Lifetime, privacy and limitations
 

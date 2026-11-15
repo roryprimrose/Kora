@@ -106,11 +106,50 @@ bootstrap readiness cannot bypass exact host/session/task admission. Transport
 implementation is not candidate acceptance, qualification evidence, permission
 to start a server, or permission to install/download/select another model.
 
+Buffered and streaming tool-free requests use community-maintained `OllamaSharp` 5.5.2 through
+MEAI `IChatClient` for request serialization and typed response projection
+([implementation](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.Sdk.cs)).
+The [host request gate](../src/Kora.Windows/Dependencies/OllamaSdkRequestHandler.cs)
+admits one fixed-endpoint request with explicit disabled thinking and no tools,
+inherited headers or unapproved options. Kora adds `truncate=false`/`shift=false`
+because the package does not expose them. Both SDK and native paths share
+byte charging, exact runtime/model metadata checks and the final process-use
+recheck. Raw response policy is validated before SDK decoding; typed text must
+match exactly. Provider failures do not retry or fall back. The host awaits
+physical stream disposal before success and quarantines release failures.
+Streaming uses SDK NDJSON decoding and text projection behind an
+[owned raw stream guard](../src/Kora.Windows/Dependencies/OllamaAnswerStream.cs).
+The guard binds physical reads to host cancellation even when the SDK omits
+read cancellation, enforces cumulative raw limits and a unique normal terminal,
+and requires physical EOF. SDK synchronous disposal only releases its borrowed
+view; the host awaits actual asynchronous source disposal and then revalidates
+authority before final success. No synthetic provider response is reconstructed.
+Tool/clarification continuations use SDK-native `ChatRequest`/`Message` types
+and `ChatAsync`, rather than the package's lossy MEAI tool mapper. The SDK owns
+request serialization and typed response decoding. Kora retains inert exact
+Core schemas, validates the entire raw batch before SDK projection, and
+requires canonical agreement. The final gate supplies the admitted native
+`tool_call_id` missing from the SDK message type. Observation calls without
+provider IDs stay without IDs on the wire; native `ask_user` retains its
+existing canonical question-correlation behavior. Exact results remain
+native tool content, not wrapped result objects. Host tools/questions,
+continuation and replay/authority policy remain host-owned, without SDK
+automatic function invocation
+([compatibility rationale](Runtime_Provider_Feasibility.md#rt1-net-outcome-selected-source-built-profile-passes)).
+
 The catalogue parser accepts typed optional `capabilities`, `context_length`,
 `embedding_length` and `runner` observations from current Ollama metadata.
 These observations cannot expand the host-owned tool set, establish a usable
 context envelope, select a runner or qualify a profile. Malformed, duplicate
 or unknown fields and changed model/runtime identities still fail closed.
+Turn-time and admission probes share SDK `GetVersionAsync` and
+`ListLocalModelsAsync` behind an
+[exact read-only metadata gate](../src/Kora.Windows/Dependencies/OllamaSdkMetadata.cs).
+The host retains bounded physical reads, strict raw validation and asynchronous
+release before SDK decoding. Typed version/digest must match the admitted
+profile. The unused SDK date property is excluded from decoding to preserve
+the existing uninterpreted optional `modified_at` string contract. There is
+no automatic model selection, retry or broader discovery.
 Native responses also accept the nonnegative `prompt_eval_cached_count`
 observation without changing canonical input/output usage semantics or
 inferring a billing, context-capacity or qualification claim.
@@ -260,7 +299,7 @@ existing task invariant; do not wait by replaying or disposing the shared host.
 [ModelToolMode.None](../src/Kora.Core/Dependencies/ModelToolMode.cs) fixes the
 complete canonical catalogue to empty and rejects all tool history. Missing,
 unknown or mismatched wire mode/catalogue fails closed; text instructions alone
-never disable tools. The [native request](../src/Kora.Windows/Dependencies/OllamaToolWire.cs)
+never disable tools. The [SDK request mapping](../src/Kora.Windows/Dependencies/OllamaChatMessages.cs)
 omits the `tools` field, and [transport](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.cs)
 rejects unsolicited tool calls. The [bounded adapter](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs)
 refuses tool-call messages before callback dispatch, including fake transports.
@@ -423,7 +462,7 @@ Context consumers require `ModelToolMode.None`, nonempty exact-request evidence 
 The host refuses any tool callback for that envelope and rejects an attempted proposal even if the adapter later returns an answer. Action, grant and question outputs remain invalid.
 
 The local choice uses existing model admission and does not confer model qualification or hosted egress.
-The [protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Context.cs) and [native transport](../src/Kora.Windows/Dependencies/OllamaToolWire.cs) owner must add support for the empty tool catalogue; unsupported transports refuse rather than substituting the normal catalogue.
+The [protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Context.cs) and [SDK mapping](../src/Kora.Windows/Dependencies/OllamaChatMessages.cs) support the empty tool catalogue; unsupported transports refuse rather than substituting the normal catalogue.
 Production profiles remain unavailable until separately qualified. Synthetic success at the model seam is not runtime or containment evidence.
 
 Cancellation closes source authority immediately, but terminal task recording and disposal wait for actual adapter quiescence.

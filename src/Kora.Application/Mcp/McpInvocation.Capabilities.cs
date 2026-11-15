@@ -14,7 +14,6 @@ internal sealed partial class McpInvocation
     private McpServerCapabilities? serverCapabilities;
     private McpCapability? contentCapability;
     private McpContentContinuationReview? contentContinuation;
-    private int nextRequestId = 2;
     private int discoveryPages;
     private int discoveryBytes;
     internal McpTextDocument? Content { get; private set; }
@@ -43,9 +42,9 @@ internal sealed partial class McpInvocation
         await ValidateAsync(token).ConfigureAwait(false);
         connection = await broker.ConnectAsync(account, token).ConfigureAwait(false);
         await ValidateAsync(token).ConfigureAwait(false);
-        var initialize = await ExchangeAsync(McpProtocol.InitializeRequest(), McpProtocol.MaximumDiscoveryUtf8Bytes, token).ConfigureAwait(false);
-        serverCapabilities = McpCapabilityProtocol.ReadInitialization(initialize.AsSpan());
-        await connection.NotifyAsync(ImmutableArray.CreateRange(McpProtocol.InitializedNotification()), token).ConfigureAwait(false);
+        var initialize = await ExchangeAsync(static (transport, current) => transport.InitializeAsync(current),
+            McpProtocol.MaximumDiscoveryUtf8Bytes, token).ConfigureAwait(false);
+        serverCapabilities = initialize.Value;
         await ValidateAsync(token).ConfigureAwait(false);
     }
 
@@ -61,13 +60,12 @@ internal sealed partial class McpInvocation
             token.ThrowIfCancellationRequested();
             if (++discoveryPages > McpCapabilityProtocol.MaximumPages)
             { throw new InvalidDataException("The MCP inventory exceeds its page bound. No complete inventory was produced."); }
-            var id = nextRequestId++;
-            var bytes = await ExchangeAsync(McpCapabilityProtocol.ListRequest(kind, id, cursor),
+            var observed = await ExchangeAsync((transport, current) => transport.ListAsync(kind, cursor, current),
                 McpProtocol.MaximumDiscoveryUtf8Bytes, token).ConfigureAwait(false);
-            discoveryBytes += bytes.Length;
+            discoveryBytes += observed.Utf8Bytes;
             if (discoveryBytes > McpCapabilityProtocol.MaximumInventoryBytes)
             { throw new InvalidDataException("The complete MCP inventory exceeds its byte bound."); }
-            var page = McpCapabilityProtocol.ReadPage(bytes.AsSpan(), kind, id);
+            var page = observed.Value;
             foreach (var item in page.Items)
             {
                 if (!identities.Add(item.Id) || items.Count >= McpCapabilityProtocol.MaximumItems)
@@ -142,16 +140,14 @@ internal sealed partial class McpInvocation
             if (kind == McpCapabilityKind.ResourceTemplate
                 && configuration.IsCapabilityExplicitlyDisabled(serverId, McpCapabilityKind.Resource, uri!))
             { throw new InvalidOperationException("The resolved resource is excluded from Kora use."); }
-            var id = nextRequestId++;
-            var wire = kind == McpCapabilityKind.Prompt
-                ? McpCapabilityProtocol.PromptRequest(contentCapability, arguments, id)
-                : McpCapabilityProtocol.ResourceRequest(uri!, id);
             var reviewedArguments = kind == McpCapabilityKind.Prompt ? arguments
                 : JsonSerializer.Serialize(new { Parameters = arguments, ResourceUri = uri });
             await ApproveAsync(McpReviewStage.Invocation, reviewedArguments, token).ConfigureAwait(false);
-            var result = await ExchangeAsync(wire, McpCapabilityProtocol.MaximumContentBytes, token).ConfigureAwait(false);
-            var document = kind == McpCapabilityKind.Prompt ? McpCapabilityProtocol.ReadPrompt(result.AsSpan(), id)
-                : McpCapabilityProtocol.ReadResource(result.AsSpan(), id, uri!);
+            var result = await ExchangeAsync((transport, current) => kind == McpCapabilityKind.Prompt
+                    ? transport.ReadPromptAsync(contentCapability, arguments, current)
+                    : transport.ReadResourceAsync(uri!, current),
+                McpCapabilityProtocol.MaximumContentBytes, token).ConfigureAwait(false);
+            var document = result.Value;
             foreach (var block in document.Blocks)
             {
                 Core.Conversation.ConversationText.RequireNoCredentials(block.Text);

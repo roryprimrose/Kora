@@ -21,11 +21,11 @@ public sealed class McpPolicyTests
         public McpEndpoint Endpoint => throw new NotSupportedException();
         public IReadOnlyList<System.Net.IPAddress> RemoteAddresses => throw new NotSupportedException();
         public Task<bool> IsCurrentAsync(CancellationToken token) => throw new NotSupportedException();
-        public Task<System.Collections.Immutable.ImmutableArray<byte>> ExchangeAsync(
-            System.Collections.Immutable.ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token) =>
-            throw new NotSupportedException();
-        public Task NotifyAsync(System.Collections.Immutable.ImmutableArray<byte> notification, CancellationToken token) =>
-            throw new NotSupportedException();
+        public Task<McpConnectionReply<McpServerCapabilities>> InitializeAsync(CancellationToken token) => throw new NotSupportedException();
+        public Task<McpConnectionReply<McpCapabilityPage>> ListAsync(McpCapabilityKind kind, string? cursor, CancellationToken token) => throw new NotSupportedException();
+        public Task<McpConnectionReply<McpRemoteResult>> InvokeAsync(string name, McpToolSchema schema, string arguments, CancellationToken token) => throw new NotSupportedException();
+        public Task<McpConnectionReply<McpTextDocument>> ReadResourceAsync(string uri, CancellationToken token) => throw new NotSupportedException();
+        public Task<McpConnectionReply<McpTextDocument>> ReadPromptAsync(McpCapability prompt, string arguments, CancellationToken token) => throw new NotSupportedException();
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
     private const string Schema = """

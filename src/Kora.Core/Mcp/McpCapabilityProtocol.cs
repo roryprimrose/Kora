@@ -40,7 +40,18 @@ public static class McpCapabilityProtocol
 
     public static byte[] ListRequest(McpCapabilityKind kind, int requestId, string? cursor = null)
     {
-        var method = kind switch
+        var method = ListMethod(kind);
+        ValidateCursor(cursor);
+        return Request(method, requestId, cursor is null ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new(StringComparer.Ordinal) { ["cursor"] = cursor });
+    }
+
+    public static void ValidateCursor(string? cursor)
+    {
+        if (cursor is not null) { ValidateText(cursor, 2048); }
+    }
+
+    public static string ListMethod(McpCapabilityKind kind) => kind switch
         {
             McpCapabilityKind.Tool => "tools/list",
             McpCapabilityKind.Resource => "resources/list",
@@ -48,10 +59,6 @@ public static class McpCapabilityProtocol
             McpCapabilityKind.Prompt => "prompts/list",
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
-        if (cursor is not null) { ValidateText(cursor, 2048); }
-        return Request(method, requestId, cursor is null ? new Dictionary<string, string>(StringComparer.Ordinal)
-            : new(StringComparer.Ordinal) { ["cursor"] = cursor });
-    }
 
     public static McpCapabilityPage ReadPage(ReadOnlySpan<byte> bytes, McpCapabilityKind kind, int requestId)
     {
@@ -110,6 +117,12 @@ public static class McpCapabilityProtocol
 
     public static byte[] PromptRequest(McpCapability prompt, string arguments, int requestId)
     {
+        var input = ReadPromptArguments(prompt, arguments);
+        return Request("prompts/get", requestId, new { name = prompt.Id, arguments = input });
+    }
+
+    public static JsonElement ReadPromptArguments(McpCapability prompt, string arguments)
+    {
         ArgumentNullException.ThrowIfNull(prompt);
         if (prompt.Kind != McpCapabilityKind.Prompt || prompt.UnavailableReason is not null)
         { throw new InvalidDataException("Choose a supported exact MCP prompt."); }
@@ -124,7 +137,7 @@ public static class McpCapabilityProtocol
                 || item.Value.ValueKind != JsonValueKind.String || item.Value.GetString()!.Length > 1024)
             || parameters.Any(parameter => parameter.Required && !supplied.Any(item => string.Equals(item.Name, parameter.Name, StringComparison.Ordinal))))
         { throw new InvalidDataException("Prompt arguments must match the exact declared string parameters."); }
-        return Request("prompts/get", requestId, new { name = prompt.Id, arguments = input.RootElement });
+        return input.RootElement.Clone();
     }
 
     public static McpTextDocument ReadResource(ReadOnlySpan<byte> bytes, int requestId, string requestedUri)

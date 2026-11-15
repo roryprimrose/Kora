@@ -5,13 +5,16 @@ using Kora.Core.Providers;
 
 namespace Kora.Windows.Dependencies;
 
-/// <summary>Strict incremental named SSE text profile for anthropic-version 2023-06-01.</summary>
-internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int inputLimit, int outputLimit,
-    Func<string, ValueTask> publish, Action<ModelTokenUsage>? observeUsage = null)
+/// <summary>Validates the qualified raw SSE profile before bytes enter the SDK. The host owns asynchronous disposal.</summary>
+internal sealed class ClaudeAnswerStream(Stream source, ProviderProfileTuple profile, int inputLimit, int outputLimit,
+    int limit, Action quarantine, Action<ModelTokenUsage>? observeUsage = null) : Stream
 {
     internal const int MaximumEvents = 128;
-    private readonly StringBuilder answer = new();
-    private JsonElement message;
+    private readonly byte[] bytes = new byte[limit + 1];
+    private int count;
+    private int lineStart;
+    private int decodedBytes;
+    private int inputTokens;
     private int phase;
     private int blocks;
     private int deltas;
@@ -20,71 +23,64 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
     private bool ended;
     private string? eventName;
     private byte[]? data;
+    private bool released;
+    internal bool Completed { get; private set; }
 
-    internal static Task<byte[]> ReadCountAsync(HttpContent content, Action quarantine, CancellationToken token) =>
-        ReadOwnedAsync(content, ModelContextEnvelope.MaximumOutputUtf8Bytes, async stream =>
-        {
-            using var memory = new MemoryStream();
-            var buffer = new byte[ModelContextEnvelope.MaximumOutputUtf8Bytes + 1];
-            while (true)
-            {
-                var read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length - (int)memory.Length), token).ConfigureAwait(false);
-                token.ThrowIfCancellationRequested();
-                if (read == 0) { return memory.ToArray(); }
-                await memory.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
-                if (memory.Length > ModelContextEnvelope.MaximumOutputUtf8Bytes)
-                { throw new InvalidDataException("Cumulative Claude output exceeds its byte budget."); }
-            }
-        }, quarantine, token);
-
-    internal static Task<byte[]> ReadAsync(HttpContent content, ProviderProfileTuple profile, int inputLimit,
-        int outputLimit, int limit, Func<string, ValueTask> publish, Action quarantine, CancellationToken token,
-        Action<ModelTokenUsage>? observeUsage = null)
+    public override bool CanRead => !released;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position
     {
-        if (content.Headers.ContentType?.MediaType is not "text/event-stream"
-            || content.Headers.ContentEncoding.Count != 0
-            || content.Headers.ContentType.CharSet is { } charset && !charset.Equals("utf-8", StringComparison.OrdinalIgnoreCase))
-        { throw new InvalidDataException("Claude text streaming requires unencoded UTF-8 SSE."); }
-        var decoder = new ClaudeAnswerStream(profile, inputLimit, outputLimit, publish, observeUsage);
-        return ReadOwnedAsync(content, limit, async stream =>
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(released, this);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (buffer.IsEmpty || Completed) { return 0; }
+        var read = await source.ReadAsync(bytes.AsMemory(count, Math.Min(buffer.Length, bytes.Length - count)),
+            cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (read == 0)
         {
-            var bytes = new byte[limit + 1];
-            var count = 0;
-            var start = 0;
-            while (true)
-            {
-                var read = await stream.ReadAsync(bytes.AsMemory(count), token).ConfigureAwait(false);
-                token.ThrowIfCancellationRequested();
-                if (read == 0) { break; }
-                var end = count + read;
-                if (end > limit) { throw new InvalidDataException("Cumulative Claude SSE exceeds its byte budget."); }
-                for (var index = count; index < end; index++)
-                {
-                    if (bytes[index] != (byte)'\n') { continue; }
-                    var length = index - start;
-                    if (length > 0 && bytes[index - 1] == (byte)'\r') { length--; }
-                    await decoder.LineAsync(bytes.AsMemory(start, length), token).ConfigureAwait(false);
-                    start = index + 1;
-                }
-                count = end;
-            }
-            if (start != count || decoder.eventName is not null || decoder.data is not null || decoder.phase != 5)
+            if (lineStart != count || eventName is not null || data is not null || phase != 5)
             { throw new InvalidDataException("Claude SSE ended without a complete, unique normal terminal."); }
-            var terminal = decoder.Terminal();
-            if (terminal.Length > limit) { throw new InvalidDataException("Complete Claude answer exceeds its byte budget."); }
-            return terminal;
-        }, quarantine, token);
+            Completed = true;
+            return 0;
+        }
+        var end = count + read;
+        if (end > limit) { throw new InvalidDataException("Cumulative Claude SSE exceeds its byte budget."); }
+        for (var index = count; index < end; index++)
+        {
+            if (bytes[index] != (byte)'\n') { continue; }
+            var length = index - lineStart;
+            if (length > 0 && bytes[index - 1] == (byte)'\r') { length--; }
+            Line(bytes.AsMemory(lineStart, length), cancellationToken);
+            lineStart = index + 1;
+        }
+        bytes.AsMemory(count, read).CopyTo(buffer);
+        count = end;
+        return read;
     }
 
-    private static async Task<byte[]> ReadOwnedAsync(HttpContent content, int limit,
-        Func<Stream, Task<byte[]>> read, Action quarantine, CancellationToken token)
+    public override async ValueTask DisposeAsync()
     {
-        if (content.Headers.ContentLength > limit)
-        { throw new InvalidDataException("Claude output exceeds its byte budget."); }
-        var stream = await content.ReadAsStreamAsync(token).ConfigureAwait(false);
-        try { token.ThrowIfCancellationRequested(); return await read(stream).ConfigureAwait(false); }
-        finally { await DisposeOwnedAsync(stream, quarantine).ConfigureAwait(false); }
+        if (released) { return; }
+        released = true;
+        try { await DisposeOwnedAsync(source, quarantine).ConfigureAwait(false); }
+        finally { await base.DisposeAsync().ConfigureAwait(false); }
     }
+
+    public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+        ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+    public override void Flush() => throw new NotSupportedException();
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
     internal static void DisposeOwned(IDisposable? resource, Action? quarantine)
     {
@@ -98,7 +94,7 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
         catch { quarantine?.Invoke(); throw; }
     }
 
-    private async ValueTask LineAsync(ReadOnlyMemory<byte> line, CancellationToken token)
+    private void Line(ReadOnlyMemory<byte> line, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         if (line.IsEmpty)
@@ -110,7 +106,7 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
             var root = json.RootElement;
             if (!string.Equals(root.GetProperty("type").GetString(), eventName, StringComparison.Ordinal))
             { throw new InvalidDataException("Claude named event does not match its JSON type."); }
-            await ConsumeAsync(eventName, root).ConfigureAwait(false);
+            Consume(eventName, root);
             eventName = null;
             data = null;
             return;
@@ -122,7 +118,7 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
         else { throw new InvalidDataException("Unsupported Claude SSE framing."); }
     }
 
-    private async ValueTask ConsumeAsync(string type, JsonElement root)
+    private void Consume(string type, JsonElement root)
     {
         switch (type)
         {
@@ -131,8 +127,7 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
                 return;
             case "message_start" when phase == 0:
                 Fields(root, "type", "message");
-                message = root.GetProperty("message").Clone();
-                var start = message;
+                var start = root.GetProperty("message");
                 Fields(start, "id", "type", "role", "model", "content", "stop_reason", "stop_sequence", "usage");
                 if (start.GetProperty("type").GetString() is not "message" || start.GetProperty("role").GetString() is not "assistant"
                     || string.IsNullOrWhiteSpace(start.GetProperty("id").GetString())
@@ -149,6 +144,7 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
                     || usage.TryGetProperty("cache_creation_input_tokens", out var created) && created.GetInt32() != 0
                     || usage.TryGetProperty("cache_read_input_tokens", out var cached) && cached.GetInt32() != 0)
                 { throw new InvalidDataException("Claude SSE start exceeds the exact token profile."); }
+                inputTokens = input;
                 observeUsage?.Invoke(new(input, null, input));
                 phase = 1;
                 return;
@@ -170,11 +166,10 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
                 if (delta.GetProperty("type").GetString() is not "text_delta")
                 { throw new InvalidDataException("Only decoded native text deltas are supported."); }
                 var text = delta.GetProperty("text").GetString() ?? throw new InvalidDataException("Missing native text delta.");
-                answer.Append(text);
                 deltas++;
-                if (new UTF8Encoding(false, true).GetByteCount(answer.ToString()) > ModelContextEnvelope.MaximumOutputUtf8Bytes)
+                decodedBytes = checked(decodedBytes + new UTF8Encoding(false, true).GetByteCount(text));
+                if (decodedBytes > ModelContextEnvelope.MaximumOutputUtf8Bytes)
                 { throw new InvalidDataException("Decoded Claude answer exceeds its byte budget."); }
-                if (text.Length != 0) { await publish(answer.ToString()).ConfigureAwait(false); }
                 return;
             case "content_block_stop" when phase == 2 && deltas > 0:
                 Fields(root, "type", "index");
@@ -195,7 +190,6 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
                     || output < outputTokens || output > outputLimit)
                 { throw new InvalidDataException("Claude cumulative output tokens changed invalidly."); }
                 outputTokens = output;
-                var inputTokens = message.GetProperty("usage").GetProperty("input_tokens").GetInt32();
                 observeUsage?.Invoke(new(inputTokens, outputTokens, inputTokens));
                 ended = reason.ValueKind != JsonValueKind.Null;
                 phase = 3;
@@ -208,14 +202,6 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
                 throw new InvalidDataException("Unsupported, erroneous or out-of-order Claude streaming event.");
         }
     }
-
-    private byte[] Terminal() => JsonSerializer.SerializeToUtf8Bytes(new
-    {
-        id = message.GetProperty("id").GetString(), type = "message", role = "assistant", model = profile.Model.Value,
-        content = new[] { new { type = "text", text = answer.ToString() } },
-        stop_reason = "end_turn", stop_sequence = (string?)null,
-        usage = new { input_tokens = message.GetProperty("usage").GetProperty("input_tokens").GetInt32(), output_tokens = outputTokens },
-    });
 
     private static void Index(JsonElement element, int expected)
     {

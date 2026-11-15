@@ -125,6 +125,8 @@ public sealed class ClaudeAccountBrokerTests : IDisposable
     [InlineData("partial-page")]
     [InlineData("overflow")]
     [InlineData("duplicate-json")]
+    [InlineData("missing-cursor")]
+    [InlineData("empty-more-page")]
     public async Task Incomplete_unknown_and_oversized_catalogues_never_publish_partial_models(string fault)
     {
         var f = new Fixture();
@@ -139,6 +141,8 @@ public sealed class ClaudeAccountBrokerTests : IDisposable
             "partial-page" => Fixture.Page([model], more: true, last: "foreign"),
             "overflow" => Fixture.Page(Enumerable.Range(0, 65).Select(index => Fixture.Model("model-" + index))),
             "duplicate-json" => "{\"data\":[],\"data\":[],\"has_more\":false}",
+            "missing-cursor" => "{\"data\":[" + model + "],\"has_more\":true}",
+            "empty-more-page" => Fixture.Page([], more: true, last: "missing"),
             _ => throw new InvalidOperationException(),
         };
         await using var broker = f.Create();
@@ -161,6 +165,48 @@ public sealed class ClaudeAccountBrokerTests : IDisposable
         (await broker.ObserveAsync(Token)).Models.Select(model => model.Id.Value).Should().Equal("model-1", "model-2");
         f.Requests.Count.Should().Be(2);
         f.Requests.Should().OnlyContain(request => string.Equals(request.Method, "GET", StringComparison.Ordinal));
+        Uri.UnescapeDataString(f.Requests[0].Uri).Should().Contain("limit=64").And.Contain("lifecycle[]=active");
+        f.Requests[1].Uri.Should().Contain("after_id=model-1");
+    }
+
+    [Theory]
+    [InlineData(429)]
+    [InlineData(500)]
+    public async Task Models_sdk_failure_never_retries_or_publishes_an_authenticated_catalogue(int status)
+    {
+        var f = new Fixture
+        {
+            Respond = _ => new HttpResponseMessage((HttpStatusCode)status)
+            {
+                Content = new StringContent("""{"error":{"type":"overloaded_error","message":"synthetic failure"}}"""),
+                Headers = { { "Retry-After", "0" } },
+            },
+        };
+        await using var broker = f.Create();
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
+        await Assert.ThrowsAnyAsync<Exception>(() => broker.SignInAsync(Fixture.Credential, () => true, Token));
+        f.Requests.Should().ContainSingle().Which.Method.Should().Be("GET");
+        (await broker.ObserveAsync(Token)).Models.Should().BeEmpty();
+        f.Audits.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
+        broker.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Approval_revocation_between_sdk_pages_withholds_all_models_and_prevents_next_get()
+    {
+        var f = new Fixture();
+        f.Respond = _ =>
+        {
+            f.Approved = false;
+            return Fixture.Json(Fixture.Page([Fixture.Model("model-1")], more: true, last: "model-1"));
+        };
+        await using var broker = f.Create();
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => broker.SignInAsync(Fixture.Credential, () => true, Token));
+        f.Requests.Should().ContainSingle();
+        (await broker.ObserveAsync(Token)).Models.Should().BeEmpty();
+        f.Audits.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
+        broker.IsQuiescent.Should().BeTrue();
     }
 
     [Fact]

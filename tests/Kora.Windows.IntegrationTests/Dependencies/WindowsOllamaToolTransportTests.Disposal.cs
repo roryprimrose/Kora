@@ -15,6 +15,43 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 public sealed partial class WindowsOllamaToolTransportTests
 {
     [Theory]
+    [InlineData("version", "source")]
+    [InlineData("tags", "source")]
+    [InlineData("version", "revoked")]
+    [InlineData("tags", "revoked")]
+    [InlineData("version", "cancelled")]
+    [InlineData("tags", "cancelled")]
+    public async Task Sdk_metadata_cleanup_joins_physical_release_before_rechecking_authority(string stage, string change)
+    {
+        await using var f = new Fixture();
+        using var root = f.Root();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var handler = new NativeDisposalHandler(stage, "none", false, pauseDisposal: true);
+        await using var transport = new WindowsOllamaToolTransport(new HttpClient(handler), _ => f.Binding(),
+            (_, _) => Task.FromResult(f.ProcessCurrent), f.Time, NullLogger<WindowsOllamaToolTransport>.Instance);
+        var pending = transport.CompleteAsync(f.Request(), cancellation.Token);
+        await handler.DisposalEntered.Task.WaitAsync(Token);
+        try
+        {
+            if (change is "source") { f.ProcessCurrent = false; }
+            else if (change is "revoked") { await f.Revoked.CancelAsync(); }
+            else { await cancellation.CancelAsync(); }
+            pending.IsCompleted.Should().BeFalse();
+            handler.Sends.Should().Be(stage is "version" ? 1 : 2);
+        }
+        finally { handler.ReleaseDisposal.TrySetResult(); }
+
+        var reply = await pending;
+
+        reply.Outcome.Should().Be(change is "cancelled" ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Denied);
+        reply.Message.Should().BeNull();
+        reply.Usage.Should().BeNull();
+        handler.Sends.Should().Be(stage is "version" ? 1 : 2);
+        handler.Responses.Should().OnlyContain(response => response.DisposeAttempts == 1
+            && response.Reader.AsyncDisposeAttempts == 1);
+    }
+
+    [Theory]
     [InlineData("version", "stream", false)]
     [InlineData("tags", "response", false)]
     [InlineData("chat", "stream", false)]

@@ -1,8 +1,10 @@
 using System.Text;
 using System.Text.Json;
+using Anthropic.Models.Messages;
 using Kora.Core.Dependencies;
 using Kora.Core.Providers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.AI;
 
 namespace Kora.Windows.Dependencies;
 
@@ -55,10 +57,6 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
             var inputLimit = model.Context.Single(option => option.Id == profile.Context).InputTokenLimit;
             if (inputLimit is null || !account.OutputLimits.TryGetValue(profile.Model, out var outputLimit))
             { return new(ModelTurnOutcome.Unavailable); }
-            var countBody = Serialize(context, profile, null);
-            var messageBody = Serialize(context, profile, outputLimit);
-            if (checked(countBody.Length + messageBody.Length) > ModelContextEnvelope.MaximumInputUtf8Bytes)
-            { return new(ModelTurnOutcome.DeniedEgress); }
             var http = create();
             try
             {
@@ -67,22 +65,26 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
                     && context.ExpiresAt > time.GetUtcNow() && await accounts.CurrentAsync(account, ct).ConfigureAwait(false)
                     && await current(ct).ConfigureAwait(false)
                     && !disposed && !quarantined && !ct.IsCancellationRequested && context.ExpiresAt > time.GetUtcNow();
-                var counted = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
-                    "/v1/messages/count_tokens", countBody), account, admit, Live, token,
-                    ModelContextEnvelope.MaximumOutputUtf8Bytes, quarantine: Quarantine).ConfigureAwait(false);
-                if (counted is null) { return new(ModelTurnOutcome.DeniedEgress); }
-                using var count = Parse(counted);
-                if (count.RootElement.EnumerateObject().Count() != 1
-                    || !count.RootElement.GetProperty("input_tokens").TryGetInt32(out var inputTokens)
-                    || inputTokens <= 0 || inputTokens > inputLimit
-                    || counted.Length >= ModelContextEnvelope.MaximumOutputUtf8Bytes)
-                { return new(ModelTurnOutcome.DeniedEgress); }
-                var response = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
-                    "/v1/messages", messageBody), account, admit, Live, token,
-                    ModelContextEnvelope.MaximumOutputUtf8Bytes - counted.Length, quarantine: Quarantine).ConfigureAwait(false);
-                if (response is null) { return new(ModelTurnOutcome.DeniedEgress); }
-                tokenUsage = ReadTokenUsage(response, outputLimit, inputLimit.Value);
-                var answer = ParseAnswer(response, profile, outputLimit, inputLimit.Value);
+                using var handler = new ClaudeSdkRequestHandler(sender, account, provenance, profile,
+                    inputLimit.Value, outputLimit, admit, Live, Quarantine, usage => tokenUsage = usage);
+                using var sdkHttp = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+                using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential);
+                using var chat = sdk.AsIChatClient(profile.Model.Value, outputLimit);
+                ChatResponse response;
+                try
+                {
+                    response = await chat.GetResponseAsync(
+                        [new ChatMessage(ChatRole.System, context.SystemPolicy), new ChatMessage(ChatRole.User, context.UserRequest)],
+                        CreateChatOptions(profile, outputLimit), token).ConfigureAwait(false);
+                }
+                catch (Exception) when (handler.Denied) { return new(ModelTurnOutcome.DeniedEgress); }
+                if (response.FinishReason != ChatFinishReason.Stop || response.Messages.Count != 1
+                    || response.Messages[0].Role != ChatRole.Assistant
+                    || response.Messages[0].Contents.Any(content => content is not TextContent))
+                { throw new InvalidDataException("SDK returned unsupported answer content."); }
+                var answer = response.Text;
+                if (string.IsNullOrWhiteSpace(answer) || Encoding.UTF8.GetByteCount(answer) > ModelContextEnvelope.MaximumOutputUtf8Bytes)
+                { throw new InvalidDataException("Claude final answer is empty or exceeds its byte bound."); }
                 token.ThrowIfCancellationRequested();
                 return await Live(token).ConfigureAwait(false)
                     ? new(ModelTurnOutcome.Succeeded, answer) { TokenUsage = tokenUsage }
@@ -93,7 +95,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         { return new(ModelTurnOutcome.Cancelled) { TokenUsage = tokenUsage }; }
         catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException
-            or InvalidOperationException or KeyNotFoundException or FormatException)
+            or InvalidOperationException or KeyNotFoundException or FormatException or Anthropic.Exceptions.AnthropicException)
         {
             RequestFailed(logger, exception.GetType().Name);
             return new(ModelTurnOutcome.Unknown) { TokenUsage = tokenUsage };
@@ -101,40 +103,17 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
         finally { operation.Release(); }
     }
 
-    internal static byte[] Serialize(ModelContextEnvelope context, ProviderProfileTuple profile, int? outputLimit,
-        bool streamAnswer = false)
+    private static ChatOptions CreateChatOptions(ProviderProfileTuple profile, int outputLimit) => new()
     {
-        using var memory = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(memory))
+        ModelId = profile.Model.Value, MaxOutputTokens = outputLimit,
+        RawRepresentationFactory = _ => new MessageCreateParams
         {
-            writer.WriteStartObject();
-            writer.WriteString("model", profile.Model.Value);
-            writer.WriteString("system", context.SystemPolicy);
-            writer.WriteStartArray("messages");
-            writer.WriteStartObject();
-            writer.WriteString("role", "user");
-            writer.WriteString("content", context.UserRequest);
-            writer.WriteEndObject();
-            writer.WriteEndArray();
-            writer.WriteStartObject("thinking");
-            writer.WriteString("type", "disabled");
-            writer.WriteEndObject();
-            if (outputLimit is not null)
-            {
-                writer.WriteNumber("max_tokens", outputLimit.Value);
-                writer.WriteBoolean("stream", streamAnswer);
-                if (profile.Reasoning.Value is not "disabled")
-                {
-                    writer.WriteStartObject("output_config");
-                    writer.WriteString("effort", profile.Reasoning.Value);
-                    writer.WriteEndObject();
-                }
-            }
-            writer.WriteEndObject();
-        }
-        if (memory.Length > ClaudeTransmission.MaximumBodyBytes) { throw new InvalidDataException("Complete native Claude request exceeds its byte bound."); }
-        return memory.ToArray();
-    }
+            Model = profile.Model.Value, MaxTokens = outputLimit, Messages = [],
+            Thinking = new ThinkingConfigDisabled(),
+            OutputConfig = profile.Reasoning.Value is "disabled" ? null
+                : new OutputConfig { Effort = profile.Reasoning.Value },
+        },
+    };
 
     internal static JsonDocument Parse(byte[] bytes)
     {
@@ -164,9 +143,19 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
         var root = json.RootElement;
         ValidateMessage(root, profile, outputLimit, inputLimit, "end_turn");
         var content = root.GetProperty("content");
+        ValidateTextBlocks(content);
+        var answer = new StringBuilder();
+        foreach (var block in content.EnumerateArray()) { answer.Append(block.GetProperty("text").GetString()); }
+        var text = answer.ToString();
+        if (string.IsNullOrWhiteSpace(text) || Encoding.UTF8.GetByteCount(text) > ModelContextEnvelope.MaximumOutputUtf8Bytes)
+        { throw new InvalidDataException("Claude final answer is empty or exceeds its byte bound."); }
+        return text;
+    }
+
+    internal static void ValidateTextBlocks(JsonElement content)
+    {
         if (content.ValueKind != JsonValueKind.Array || content.GetArrayLength() is < 1 or > 64)
         { throw new InvalidDataException("Claude final text blocks are missing or oversized."); }
-        var answer = new StringBuilder();
         foreach (var block in content.EnumerateArray())
         {
             if (block.GetProperty("type").GetString() is not "text" || block.EnumerateObject().Any(property =>
@@ -174,12 +163,9 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
                 || block.TryGetProperty("citations", out var citations) && citations.ValueKind != JsonValueKind.Null
                     && (citations.ValueKind != JsonValueKind.Array || citations.GetArrayLength() != 0))
             { throw new InvalidDataException("Claude returned unsupported tools, thinking, citations or authority blocks."); }
-            answer.Append(block.GetProperty("text").GetString() ?? throw new InvalidDataException("Missing final text."));
+            if (block.GetProperty("text").ValueKind != JsonValueKind.String)
+            { throw new InvalidDataException("Missing final text."); }
         }
-        var text = answer.ToString();
-        if (string.IsNullOrWhiteSpace(text) || Encoding.UTF8.GetByteCount(text) > ModelContextEnvelope.MaximumOutputUtf8Bytes)
-        { throw new InvalidDataException("Claude final answer is empty or exceeds its byte bound."); }
-        return text;
     }
 
     internal static void ValidateMessage(JsonElement root, ProviderProfileTuple profile, int outputLimit, int inputLimit, string stopReason)

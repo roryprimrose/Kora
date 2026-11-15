@@ -5,7 +5,7 @@ using Kora.Core.Mcp;
 
 namespace Kora.Windows.Mcp;
 
-internal sealed class McpHttpConnection : IMcpConnection
+internal sealed partial class McpHttpConnection : IMcpConnection
 {
     private readonly McpAccountLease lease;
     private readonly IPAddress[] addresses;
@@ -44,14 +44,14 @@ internal sealed class McpHttpConnection : IMcpConnection
         return valid;
     }, token);
 
-    public Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token)
+    internal Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token)
     {
         if (maximumResponseBytes is < 1 or > McpProtocol.MaximumDiscoveryUtf8Bytes)
         { throw new ArgumentOutOfRangeException(nameof(maximumResponseBytes)); }
         return RunAsync(current => PostAsync(request, maximumResponseBytes, notification: false, current), token);
     }
 
-    public async Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token) =>
+    internal async Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token) =>
         await RunAsync(current => PostAsync(notification, 0, notification: true, current), token).ConfigureAwait(false);
 
     private async Task<ImmutableArray<byte>> PostAsync(ImmutableArray<byte> wire, int limit, bool notification, CancellationToken token)
@@ -182,7 +182,15 @@ internal sealed class McpHttpConnection : IMcpConnection
         finally
         {
             await Task.WhenAll(pending).ConfigureAwait(false);
-            try { client.Dispose(); }
+            try
+            {
+                try { if (sdk is not null) { await sdk.DisposeAsync().ConfigureAwait(false); } }
+                finally
+                {
+                    try { sdkHttp?.Dispose(); }
+                    finally { client.Dispose(); }
+                }
+            }
             finally
             {
                 try { lease.Dispose(); }

@@ -135,7 +135,7 @@ public sealed partial class HostedClaudeSessionRequestTests
             using var json = JsonDocument.Parse(posts[2].Body);
             var history = json.RootElement.GetProperty("messages");
             history.GetArrayLength().Should().Be(3);
-            history[0].GetProperty("content").GetString().Should().Be(original);
+            history[0].GetProperty("content")[0].GetProperty("text").GetString().Should().Be(original);
             history[1].GetProperty("role").GetString().Should().Be("assistant");
             history[1].GetProperty("content")[0].GetProperty("name").GetString().Should().Be("ask_user");
             var result = history[2].GetProperty("content")[0];

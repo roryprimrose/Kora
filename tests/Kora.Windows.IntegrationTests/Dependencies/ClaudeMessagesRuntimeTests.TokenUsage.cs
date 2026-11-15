@@ -59,33 +59,42 @@ public sealed partial class ClaudeMessagesRuntimeTests
     }
 
     [Fact]
-    public void MetricsDescriptorTranslatesToAnEmptyNativeSchemaAndBackToTheExactHostTool()
+    public async Task MetricsDescriptorTranslatesThroughTheOfficialSdkAndBackToTheExactHostTool()
     {
-        var request = HostRequest.Create(RequestOrigin.LocalUi);
-        var profile = new ProviderProfileTuple(ProviderService.Claude, new("account"), new(1),
-            new("exact-model"), new("disabled"), new("8192"));
-        var context = new ModelContextEnvelope(request, "policy", "request", [], DateTimeOffset.UnixEpoch,
-            DateTimeOffset.UnixEpoch.AddMinutes(1), ModelToolMode.ReadOnly,
+        var fixture = new ClaudeAccountBrokerTests.Fixture();
+        await using var broker = fixture.Create();
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
+        await broker.SignInAsync(ClaudeAccountBrokerTests.Fixture.Credential, () => true, Token);
+        var catalogue = await broker.ObserveAsync(Token);
+        var profile = fixture.Profile(catalogue);
+        var context = new ModelContextEnvelope(root.Request, "policy", "request", [], fixture.Time.GetUtcNow(),
+            fixture.Time.GetUtcNow().AddMinutes(1), ModelToolMode.ReadOnly,
             ClaudeObservationTools.Constrain(["session.get_metrics"]));
-        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request,
-            new(ModelProviderIdentity.Claude, new(Guid.NewGuid()), new(1)));
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), root.Request, catalogue.Models[0].Selection);
         var turn = ModelToolProtocol.CreateRequest(provenance, profile,
             ModelToolProtocol.ReadContext(context.Serialize(), provenance), [], 1);
-        using var body = JsonDocument.Parse(ClaudeObservationWire.Serialize(turn, 4096));
+        var native = JsonSerializer.Serialize(new
+        {
+            id = "message", type = "message", role = "assistant", model = "exact-model",
+            content = new[] { new { type = "tool_use", id = "metrics", name = "kora_session_get_metrics", input = new { } } },
+            stop_reason = "tool_use", stop_sequence = (string?)null, usage = new { input_tokens = 25, output_tokens = 5 },
+        });
+        fixture.Respond = message => ClaudeAccountBrokerTests.Fixture.Json(
+            message.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal) ? """{"input_tokens":25}""" : native);
+        await using var runtime = new ClaudeMessagesRuntime(broker, fixture.Time,
+            NullLogger<ClaudeMessagesRuntime>.Instance, fixture.CreateHttp);
+        await using var transport = (await runtime.OpenToolTurnAsync(provenance, profile, context,
+            (_, _) => ValueTask.FromResult(true), _ => ValueTask.FromResult(true), Token))!;
+        var reply = await transport.CompleteAsync(turn, Token);
+        reply.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        using var body = JsonDocument.Parse(fixture.Requests.Last(item => item.Method is "POST").Body);
         var tool = body.RootElement.GetProperty("tools").EnumerateArray().Single();
         tool.GetProperty("name").GetString().Should().Be("kora_session_get_metrics");
         var schema = tool.GetProperty("input_schema");
         schema.GetProperty("additionalProperties").GetBoolean().Should().BeFalse();
         schema.GetProperty("properties").EnumerateObject().Should().BeEmpty();
         schema.GetProperty("required").GetArrayLength().Should().Be(0);
-        var native = JsonSerializer.SerializeToUtf8Bytes(new
-        {
-            id = "message", type = "message", role = "assistant", model = "exact-model",
-            content = new[] { new { type = "tool_use", id = "metrics", name = "kora_session_get_metrics", input = new { } } },
-            stop_reason = "tool_use", stop_sequence = (string?)null, usage = new { input_tokens = 25, output_tokens = 5 },
-        });
-        var calls = ClaudeObservationWire.Parse(native, profile, 4096, 8192, turn.Context.Tools)
-            .Should().BeOfType<ModelAssistantToolCalls>().Subject;
+        var calls = reply.Message.Should().BeOfType<ModelAssistantToolCalls>().Subject;
         calls.Calls.Should().ContainSingle().Which.CapabilityId.Should().Be("session.get_metrics");
         calls.Calls[0].InputJson.Should().Be("{}");
     }

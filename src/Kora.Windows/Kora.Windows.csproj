@@ -5,6 +5,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Anthropic" />
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
     <PackageReference
         Include="GitHub.Copilot.SDK"
         ExcludeAssets="build;buildTransitive;contentFiles" />
@@ -14,7 +16,9 @@
     <PackageReference Include="Microsoft.ML.OnnxRuntime" />
     <PackageReference Include="Microsoft.Win32.SystemEvents" />
     <PackageReference Include="MisakiSharp" />
+    <PackageReference Include="ModelContextProtocol.Core" />
     <PackageReference Include="NAudio" />
+    <PackageReference Include="OllamaSharp" />
     <PackageReference Include="SkiaSharp" />
     <PackageReference Include="System.Speech" />
   </ItemGroup>

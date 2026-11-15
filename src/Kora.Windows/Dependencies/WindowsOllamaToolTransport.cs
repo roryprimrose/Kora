@@ -167,81 +167,19 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
         using var timeout = new CancellationTokenSource(remaining, time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(callerToken, lifetime.Token,
             selected.Revoked, timeout.Token);
-        HttpResponseMessage? response = null;
         try
         {
             linked.Token.ThrowIfCancellationRequested();
             if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
             { return Finish(request, ModelTurnOutcome.Denied); }
-            var streaming = publish is not null && request.Context.ToolMode == ModelToolMode.None
-                && !request.ClarificationAllowed && request.Round == 1;
-            var body = OllamaToolWire.WriteRequest(request, selected.Model, exchanges, streaming);
-            var inputCharge = Math.Max(body.Length, ModelToolProtocol.SerializeRequest(request).Length);
-            var outputLimit = Math.Min(request.Budget.OutputUtf8Bytes,
-                ModelToolProtocol.MaximumOutputUtf8Bytes - outputBytes - resultBytes);
-            if (inputCharge > request.Budget.InputUtf8Bytes
-                || inputCharge > ModelToolProtocol.MaximumInputUtf8Bytes - inputBytes || outputLimit <= 0)
-            { return Finish(request, ModelTurnOutcome.Denied); }
-            inputBytes += inputCharge;
-            outputBytes += resultBytes;
-            admittedHistory = request.Messages.Select(ModelToolProtocol.SerializeMessage).ToArray();
-            var metadata = await VerifyMetadataAsync(request, outputLimit, linked.Token).ConfigureAwait(false);
-            if (metadata != ModelTurnOutcome.Succeeded) { return Finish(request, metadata); }
-            if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
-            { return Finish(request, ModelTurnOutcome.Denied); }
-            using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(Endpoint, "api/chat"))
-            {
-                Content = new ByteArrayContent(body),
-            };
-            message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead,
-                linked.Token).ConfigureAwait(false);
-            var status = Status(response, message, streaming);
-            if (status != ModelTurnOutcome.Succeeded) { return Finish(request, status); }
-            var wire = streaming
-                ? await OllamaToolWire.ReadAnswerStreamAsync(response.Content, selected.Model, outputLimit, async answer =>
-                {
-                    if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
-                    { throw new InvalidDataException("Native stream admission changed before publication."); }
-                    await publish!(new(request.Provenance, answer), linked.Token).ConfigureAwait(false);
-                }, linked.Token, observeUsage, RecordReleaseFailure).ConfigureAwait(false)
-                : new OllamaToolWire.AnswerWire(await ReadBoundedAsync(response.Content, outputLimit, linked.Token,
-                    RecordReleaseFailure).ConfigureAwait(false), 0);
-            observeUsage(OllamaToolWire.ReadTokenUsage(wire.Terminal, selected.Model));
-            var parsed = OllamaToolWire.ReadReply(wire.Terminal, selected.Model, request.Round, request.ClarificationAllowed,
-                request.Context.McpTool, request.Context.ToolMode);
-            var outputCharge = Math.Max(Math.Max(wire.Terminal.Length, wire.Charge), ModelToolProtocol.SerializeMessage(parsed.Message).Length);
-            if (outputCharge > outputLimit) { return Finish(request, ModelTurnOutcome.Denied); }
-            outputBytes += outputCharge;
-            if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
-            { return Finish(request, ModelTurnOutcome.Denied); }
+            var reply = await CompleteSdkAsync(request, selected, Math.Min(request.Budget.OutputUtf8Bytes,
+                ModelToolProtocol.MaximumOutputUtf8Bytes - outputBytes - resultBytes), resultBytes,
+                observeUsage, publish, linked.Token).ConfigureAwait(false);
+            if (selected.Revoked.IsCancellationRequested) { return Finish(request, ModelTurnOutcome.Denied); }
+            if (callerToken.IsCancellationRequested || disposed || lifetime.IsCancellationRequested)
+            { return Finish(request, ModelTurnOutcome.Cancelled); }
             linked.Token.ThrowIfCancellationRequested();
-            if (time.GetUtcNow() >= deadline) { return Finish(request, ModelTurnOutcome.TimedOut); }
-            if (parsed is { Message: ModelAssistantToolCalls calls })
-            {
-                if (request.Context.ToolMode == ModelToolMode.None)
-                { return Finish(request, ModelTurnOutcome.Denied); }
-                var previousIds = exchanges.SelectMany(exchange => exchange.Calls.Calls).Select(call => call.CallId)
-                    .ToHashSet(StringComparer.Ordinal);
-                var previousCalls = previousIds.Count;
-                if (issuedQuestion?.CallId is { } questionId) { previousIds.Add(questionId); }
-                if (calls.Calls.Length > ModelToolProtocol.MaximumCalls - previousCalls
-                    || calls.Calls.Any(call => previousIds.Contains(call.CallId)))
-                { return Finish(request, ModelTurnOutcome.Denied); }
-                exchanges.Add(new(calls, parsed.NativeMessage));
-            }
-            else if (parsed.Message is ModelClarificationQuestion question)
-            {
-                if (!request.ClarificationAllowed || issuedQuestion is not null
-                    || question.CallId is { } questionId && exchanges.Any(exchange =>
-                        exchange.Calls.Calls.Any(call => string.Equals(call.CallId, questionId, StringComparison.Ordinal)))
-                    || request.Context.ToolMode == ModelToolMode.ReadOnly && question.CallId is null && question.Question.Options.Count == 0)
-                { return Finish(request, ModelTurnOutcome.Denied); }
-                issuedQuestion = question;
-                issuedQuestionIndex = request.Messages.Length;
-            }
-            else { CloseConversation(request.Provenance); }
-            return new(ModelTurnOutcome.Succeeded, request.Provenance, parsed.Message, new(inputCharge, outputCharge));
+            return reply;
         }
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
         {
@@ -249,7 +187,35 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
                 : callerToken.IsCancellationRequested || lifetime.IsCancellationRequested ? ModelTurnOutcome.Cancelled
                 : ModelTurnOutcome.TimedOut);
         }
-        finally { DisposeResource(response); }
+    }
+
+    private ModelToolTransportReply AcceptReply(ModelToolRequest request, ModelAssistantMessage message,
+        byte[] nativeMessage, int inputCharge, int outputCharge)
+    {
+        if (message is ModelAssistantToolCalls calls)
+        {
+            if (request.Context.ToolMode == ModelToolMode.None) { return Finish(request, ModelTurnOutcome.Denied); }
+            var previousIds = exchanges.SelectMany(exchange => exchange.Calls.Calls).Select(call => call.CallId)
+                .ToHashSet(StringComparer.Ordinal);
+            var previousCalls = previousIds.Count;
+            if (issuedQuestion?.CallId is { } questionId) { previousIds.Add(questionId); }
+            if (calls.Calls.Length > ModelToolProtocol.MaximumCalls - previousCalls
+                || calls.Calls.Any(call => previousIds.Contains(call.CallId)))
+            { return Finish(request, ModelTurnOutcome.Denied); }
+            exchanges.Add(new(calls, nativeMessage));
+        }
+        else if (message is ModelClarificationQuestion question)
+        {
+            if (!request.ClarificationAllowed || issuedQuestion is not null
+                || question.CallId is { } questionId && exchanges.Any(exchange =>
+                    exchange.Calls.Calls.Any(call => string.Equals(call.CallId, questionId, StringComparison.Ordinal)))
+                || request.Context.ToolMode == ModelToolMode.ReadOnly && question.CallId is null && question.Question.Options.Count == 0)
+            { return Finish(request, ModelTurnOutcome.Denied); }
+            issuedQuestion = question;
+            issuedQuestionIndex = request.Messages.Length;
+        }
+        else { CloseConversation(request.Provenance); }
+        return new(ModelTurnOutcome.Succeeded, request.Provenance, message, new(inputCharge, outputCharge));
     }
 
     private bool Current(ModelToolRequest request) =>
@@ -271,25 +237,67 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
         return Current(request);
     }
 
+    private async Task<(ModelTurnOutcome Outcome, HttpResponseMessage? Response, int InputCharge)> OpenChatAsync(
+        ModelToolRequest request, byte[] body, bool streaming, int outputLimit, int resultBytes, CancellationToken token)
+    {
+        var inputCharge = Math.Max(body.Length, ModelToolProtocol.SerializeRequest(request).Length);
+        if (inputCharge > request.Budget.InputUtf8Bytes
+            || inputCharge > ModelToolProtocol.MaximumInputUtf8Bytes - inputBytes || outputLimit <= 0)
+        { return (ModelTurnOutcome.Denied, null, 0); }
+        inputBytes += inputCharge;
+        outputBytes += resultBytes;
+        admittedHistory = request.Messages.Select(ModelToolProtocol.SerializeMessage).ToArray();
+        var metadata = await VerifyMetadataAsync(request, outputLimit, token).ConfigureAwait(false);
+        if (metadata != ModelTurnOutcome.Succeeded) { return (metadata, null, 0); }
+        if (!await ObserveAsync(request, token).ConfigureAwait(false))
+        { return (ModelTurnOutcome.Denied, null, 0); }
+        using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(Endpoint, "api/chat"))
+        {
+            Content = new ByteArrayContent(body),
+        };
+        message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+        var status = Status(response, message, streaming);
+        if (status == ModelTurnOutcome.Succeeded) { return (status, response, inputCharge); }
+        DisposeResource(response);
+        return (status, null, 0);
+    }
+
     private async Task<ModelTurnOutcome> VerifyMetadataAsync(ModelToolRequest request, int outputLimit, CancellationToken token)
     {
-        foreach (var path in new[] { "api/version", "api/tags" })
+        ModelTurnOutcome? denied = null;
+        var selected = binding!;
+        try
         {
-            if (!await ObserveAsync(request, token).ConfigureAwait(false)) { return ModelTurnOutcome.Denied; }
-            using var message = new HttpRequestMessage(HttpMethod.Get, new Uri(Endpoint, path));
-            var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+            await OllamaSdkMetadata.VerifyAsync(selected.RuntimeVersion, selected.Model, selected.ModelDigest,
+                SendAsync, token).ConfigureAwait(false);
+            return ModelTurnOutcome.Succeeded;
+        }
+        catch (InvalidDataException) when (denied is not null) { return denied.Value; }
+
+        async Task<byte[]> SendAsync(HttpRequestMessage message, CancellationToken cancellationToken)
+        {
+            if (client.DefaultRequestHeaders.Any())
+            { throw new InvalidDataException("Ambient headers are not admitted by the SDK metadata transport."); }
+            if (!await ObserveAsync(request, cancellationToken).ConfigureAwait(false))
+            {
+                denied = ModelTurnOutcome.Denied;
+                throw new InvalidDataException("The SDK metadata exchange is no longer admitted.");
+            }
+            var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             try
             {
                 var status = Status(response, message);
-                if (status != ModelTurnOutcome.Succeeded) { return status; }
-                var bytes = await ReadBoundedAsync(response.Content, outputLimit, token, RecordReleaseFailure).ConfigureAwait(false);
-                if (string.Equals(path, "api/version", StringComparison.Ordinal))
-                { OllamaToolWire.VerifyVersion(bytes, binding!.RuntimeVersion); }
-                else { OllamaToolWire.VerifyModel(bytes, binding!.Model, binding.ModelDigest); }
+                if (status != ModelTurnOutcome.Succeeded)
+                {
+                    denied = status;
+                    throw new InvalidDataException("The physical SDK metadata response was not admitted by the host.");
+                }
+                return await ReadBoundedAsync(response.Content, outputLimit, cancellationToken,
+                    RecordReleaseFailure).ConfigureAwait(false);
             }
             finally { DisposeResource(response); }
         }
-        return ModelTurnOutcome.Succeeded;
     }
 
     internal static ModelTurnOutcome Status(HttpResponseMessage response, HttpRequestMessage request, bool streaming = false)

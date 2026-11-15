@@ -12,6 +12,21 @@ internal sealed class ClaudeFinalRequestHandler(HttpClient http, ClaudeAccountBr
         Func<CancellationToken, ValueTask<bool>> current, CancellationToken token, int maximumResponseBytes = 262144,
         Func<HttpContent, CancellationToken, Task<byte[]>>? read = null, Action? quarantine = null)
     {
+        var response = await OpenAsync(transmission, account, admit, current, token, quarantine).ConfigureAwait(false);
+        if (response is null) { return null; }
+        try
+        {
+            return read is null
+                ? await ClaudeAccountBroker.ReadBoundedAsync(response.Content, maximumResponseBytes, token, quarantine).ConfigureAwait(false)
+                : await read(response.Content, token).ConfigureAwait(false);
+        }
+        finally { ClaudeAnswerStream.DisposeOwned(response, quarantine); }
+    }
+
+    internal async Task<HttpResponseMessage?> OpenAsync(ClaudeTransmission transmission, ClaudeAccount account,
+        Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
+        Func<CancellationToken, ValueTask<bool>> current, CancellationToken token, Action? quarantine = null)
+    {
         token.ThrowIfCancellationRequested();
         if (http.DefaultRequestHeaders.Any())
         { throw new InvalidDataException("Ambient HTTP headers cannot enter a Claude transmission."); }
@@ -43,11 +58,13 @@ internal sealed class ClaudeFinalRequestHandler(HttpClient http, ClaudeAccountBr
         {
             token.ThrowIfCancellationRequested();
             if (!response.IsSuccessStatusCode) { throw new HttpRequestException("Claude POST did not return a successful response."); }
-            return read is null
-                ? await ClaudeAccountBroker.ReadBoundedAsync(response.Content, maximumResponseBytes, token, quarantine).ConfigureAwait(false)
-                : await read(response.Content, token).ConfigureAwait(false);
+            return response;
         }
-        finally { ClaudeAnswerStream.DisposeOwned(response, quarantine); }
+        catch
+        {
+            ClaudeAnswerStream.DisposeOwned(response, quarantine);
+            throw;
+        }
     }
 
     internal static ClaudeTransmission Prepare(ModelTurnProvenance provenance, Kora.Core.Providers.ProviderProfileTuple profile,

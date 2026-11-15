@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Anthropic.Models.Models;
 using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -162,70 +163,64 @@ public sealed partial class ClaudeAccountBroker : IAsyncDisposable
                 && issuer.Outcome == HostOperationOutcome.Unknown && Interlocked.Read(ref epoch) == admittedEpoch
                 && approval.ExpiresAt > time.GetUtcNow() && lease.ExpiresAt > time.GetUtcNow();
             using var http = create();
+            async ValueTask<bool> Current(CancellationToken ct) => Live()
+                && ReferenceEquals(approval, await deployments.ResolveAsync(ct).ConfigureAwait(false))
+                && ReferenceEquals(lease, await deployments.BindCredentialAsync(approval, digest, ct).ConfigureAwait(false))
+                && Live() && !ct.IsCancellationRequested;
+            using var handler = new ClaudeSdkModelsHandler(http, credential, approval, lease, Current);
+            using var sdkHttp = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+            // Validate consumed legacy fields below, not newer SDK metadata outside the approved profile.
+            using var sdk = ClaudeSdkClient.Create(sdkHttp, credential, validateResponse: false);
             var models = new List<ProviderCatalogueModel>();
             var limits = new Dictionary<ProviderChoiceId, int>();
             var ids = new HashSet<string>(StringComparer.Ordinal);
             var snapshotRevision = new HostRevision(Interlocked.Increment(ref revision));
-            string? after = null;
+            ModelListPage? inventory = null;
             for (var page = 0; ; page++)
             {
                 token.ThrowIfCancellationRequested();
-                if (page >= 64 || !Live() || !ReferenceEquals(approval, await deployments.ResolveAsync(token).ConfigureAwait(false))
-                    || !ReferenceEquals(lease, await deployments.BindCredentialAsync(approval, digest, token).ConfigureAwait(false)))
+                if (page >= 64 || !await Current(token).ConfigureAwait(false))
                 { throw new InvalidOperationException("Claude setup approval changed or pagination exceeded its bound."); }
-                var path = "https://api.anthropic.com/v1/models?limit=64&lifecycle=active"
-                    + (after is null ? string.Empty : "&after_id=" + Uri.EscapeDataString(after));
-                using var request = new HttpRequestMessage(HttpMethod.Get, path);
-                AddHeaders(request, credential, approval, lease);
-                using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
-                if (!response.IsSuccessStatusCode) { throw new HttpRequestException("Claude Models authentication/catalogue was not confirmed."); }
-                using var json = ClaudeMessagesRuntime.Parse(await ReadBoundedAsync(response.Content, 262144, token).ConfigureAwait(false));
-                var root = json.RootElement;
-                var data = root.GetProperty("data");
-                if (data.ValueKind != JsonValueKind.Array || data.GetArrayLength() > 64) { throw new InvalidDataException("Incomplete Models page."); }
-                foreach (var model in data.EnumerateArray())
+                inventory = inventory is null
+                    ? await sdk.Models.List(new ModelListParams { Limit = 64, Lifecycle = [Lifecycle.Active] }, token).ConfigureAwait(false)
+                    : await inventory.Next(token).ConfigureAwait(false);
+                foreach (var model in inventory.Items)
                 {
-                    if (models.Count == 64 || model.GetProperty("type").GetString() is not "model"
-                        || model.GetProperty("lifecycle").GetString() is not "active")
+                    if (models.Count == 64 || model.Type.GetString() is not "model"
+                        || model.Lifecycle.Value() is not ModelInfoLifecycle.Active)
                     { throw new InvalidDataException("Only a complete bounded active catalogue is supported."); }
-                    var id = model.GetProperty("id").GetString() ?? throw new InvalidDataException("Missing model ID.");
+                    var id = model.ID;
                     if (!ids.Add(id)) { throw new InvalidDataException("Duplicate Models entry."); }
-                    var input = model.GetProperty("max_input_tokens").GetInt32();
-                    var output = model.GetProperty("max_tokens").GetInt32();
+                    var input = checked((int)(model.MaxInputTokens ?? throw new InvalidDataException("Missing input token limit.")));
+                    var output = checked((int)(model.MaxTokens ?? throw new InvalidDataException("Missing output token limit.")));
                     if (input <= 0 || output <= 0) { throw new InvalidDataException("Unknown model token limits."); }
-                    var caps = model.GetProperty("capabilities");
-                    var thinking = caps.GetProperty("thinking");
-                    if (!thinking.GetProperty("types").GetProperty("disabled").GetProperty("supported").GetBoolean())
+                    var caps = model.Capabilities ?? throw new InvalidDataException("Missing model capabilities.");
+                    if (!caps.Thinking.Types.Disabled.Supported)
                     { throw new InvalidDataException("The text-only profile requires native disabled thinking."); }
-                    var effort = caps.GetProperty("effort");
+                    var effort = caps.Effort;
                     var options = new List<ProviderProfileOption>();
-                    if (effort.GetProperty("supported").GetBoolean())
+                    if (effort.Supported)
                     {
-                        foreach (var level in effort.EnumerateObject())
+                        foreach (var level in effort.RawData)
                         {
-                            if (level.Name is "supported") { continue; }
-                            if (level.Name is not ("low" or "medium" or "high" or "xhigh" or "max"))
+                            if (level.Key is "supported") { continue; }
+                            if (level.Key is not ("low" or "medium" or "high" or "xhigh" or "max"))
                             { throw new InvalidDataException("Unknown native effort level."); }
                             if (level.Value.ValueKind != JsonValueKind.Null && level.Value.GetProperty("supported").GetBoolean())
-                            { options.Add(new(new(level.Name), "Thinking disabled; effort " + level.Name, false)); }
+                            { options.Add(new(new(level.Key), "Thinking disabled; effort " + level.Key, false)); }
                         }
                         if (options.Count == 0) { throw new InvalidDataException("Incomplete effort capability."); }
                     }
                     else { options.Add(new(new("disabled"), "Thinking disabled; default effort", true)); }
                     var choice = new ProviderChoiceId(id);
                     var ceiling = Math.Min(input, 8192);
-                    models.Add(new(choice, model.GetProperty("display_name").GetString() ?? id,
+                    models.Add(new(choice, model.RawData["display_name"].ValueKind == JsonValueKind.Null ? id : model.DisplayName,
                         new(ModelProviderIdentity.Claude, new(Guid.NewGuid()), snapshotRevision), options,
                         [new(new(ceiling.ToString(CultureInfo.InvariantCulture)), "Exact input ceiling: "
                             + ceiling.ToString(CultureInfo.InvariantCulture) + " tokens", false, ceiling)]));
                     limits.Add(choice, Math.Min(output, 4096));
                 }
-                if (!root.GetProperty("has_more").GetBoolean()) { break; }
-                var last = root.GetProperty("last_id").GetString();
-                if (data.GetArrayLength() == 0 || last is null || string.Equals(last, after, StringComparison.Ordinal)
-                    || !string.Equals(data[data.GetArrayLength() - 1].GetProperty("id").GetString(), last, StringComparison.Ordinal))
-                { throw new InvalidDataException("Incomplete pagination cursor."); }
-                after = last;
+                if (!handler.HasMore) { break; }
             }
             token.ThrowIfCancellationRequested();
             if (models.Count == 0 || !Live()

@@ -185,6 +185,8 @@
           <Button x:Name="ReviewSessionMetadata" Content="Review one session metadata answer..." IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="SubmitCopilotConversation" Content="Submit explicitly with Copilot (separate disclosure review)"
             IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires explicit Copilot setup in Settings, a current selected account/model and hosted policy. Live evaluation is not production qualification. Every request requires disclosure review; never falls back." />
+          <Button x:Name="SubmitCopilotAnswerStream" Content="Stream explicitly with Copilot (text only, separate disclosure review)"
+            IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Uses SDK answer events without tools. Same explicit Copilot setup and final-byte consent. Previews are volatile; only the validated final answer is retained. HTTP remains buffered; no guaranteed token latency or production qualification." />
           <Button x:Name="SubmitLocalFirst" Content="Ask locally; review Copilot only if unavailable"
             IsEnabled="{Binding CanSubmitLocalFirst}" ToolTip.Tip="Requires Local first mode. Only a genuine local Unavailable result and confirmed exact resource join can offer review. Separate final-byte disclosure approval is always required." />
           <Button x:Name="SubmitClaudeConversation" Content="Submit explicitly with Claude (separate disclosure reviews)"

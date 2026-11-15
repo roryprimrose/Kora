@@ -13,6 +13,41 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 public sealed partial class ClaudeMessagesRuntimeTests
 {
     [Theory]
+    [InlineData(429)]
+    [InlineData(500)]
+    public async Task Official_sdk_tool_exchange_never_retries_or_reuses_review_after_http_failure(int status)
+    {
+        var fixture = new ClaudeAccountBrokerTests.Fixture();
+        await using var broker = fixture.Create();
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
+        await broker.SignInAsync(ClaudeAccountBrokerTests.Fixture.Credential, () => true, Token);
+        var catalogue = await broker.ObserveAsync(Token);
+        var profile = fixture.Profile(catalogue);
+        var context = ToolContext(root.Request, fixture.Time);
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), root.Request, catalogue.Models[0].Selection);
+        var reviews = 0;
+        fixture.Respond = message => message.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
+            ? ClaudeAccountBrokerTests.Fixture.Json("""{"input_tokens":25}""")
+            : new HttpResponseMessage((System.Net.HttpStatusCode)status)
+            {
+                Content = new StringContent("""{"error":{"type":"overloaded_error","message":"synthetic failure"}}"""),
+                Headers = { { "Retry-After", "0" } },
+            };
+        await using var runtime = new ClaudeMessagesRuntime(broker, fixture.Time,
+            NullLogger<ClaudeMessagesRuntime>.Instance, fixture.CreateHttp);
+        await using var transport = (await runtime.OpenToolTurnAsync(provenance, profile, context,
+            (_, _) => { reviews++; return ValueTask.FromResult(true); }, _ => ValueTask.FromResult(true), Token))!;
+        var reply = await transport.CompleteAsync(ModelToolProtocol.CreateRequest(provenance, profile,
+            ModelToolProtocol.ReadContext(context.Serialize(), provenance), [], 1), Token);
+        reply.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+        reply.Message.Should().BeNull();
+        reply.Usage.Should().BeNull();
+        reply.TokenUsage.Should().BeNull();
+        reviews.Should().Be(2);
+        fixture.Requests.Count(item => item.Method is "POST").Should().Be(2);
+    }
+
+    [Theory]
     [InlineData(0, ModelTurnOutcome.Succeeded)]
     [InlineData(-1, ModelTurnOutcome.DeniedEgress)]
     public async Task BothPhysicalInputBodiesAreChargedAtTheExactCumulativeBoundaryBeforeAnySend(int adjustment, ModelTurnOutcome expected)
@@ -26,14 +61,19 @@ public sealed partial class ClaudeMessagesRuntimeTests
         var context = ToolContext(root.Request, f.Time);
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), root.Request, catalogue.Models[0].Selection);
         var source = ModelToolProtocol.ReadContext(context.Serialize(), provenance);
-        var initial = ModelToolProtocol.CreateRequest(provenance, profile, source, [], 1);
-        var bytes = Math.Max(ModelToolProtocol.SerializeRequest(initial).Length,
-            ClaudeObservationWire.Serialize(initial, null).Length + ClaudeObservationWire.Serialize(initial, 4096).Length);
-        var request = ModelToolProtocol.CreateRequest(provenance, profile, source, [], 1,
-            new(bytes + adjustment, ModelToolProtocol.MaximumOutputUtf8Bytes));
         f.Respond = message => ClaudeAccountBrokerTests.Fixture.Json(message.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
             ? """{"input_tokens":25}""" : Answer);
         await using var runtime = new ClaudeMessagesRuntime(broker, f.Time, NullLogger<ClaudeMessagesRuntime>.Instance, f.CreateHttp);
+        var initial = ModelToolProtocol.CreateRequest(provenance, profile, source, [], 1);
+        var baselineTransport = (await runtime.OpenToolTurnAsync(provenance, profile, context,
+            (_, _) => ValueTask.FromResult(true), _ => ValueTask.FromResult(true), Token))!;
+        await using (baselineTransport)
+        { (await baselineTransport.CompleteAsync(initial, Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded); }
+        var bytes = Math.Max(ModelToolProtocol.SerializeRequest(initial).Length,
+            f.Requests.Where(item => item.Method is "POST").Sum(item => item.Body.Length));
+        f.Requests.Clear();
+        var request = ModelToolProtocol.CreateRequest(provenance, profile, source, [], 1,
+            new(bytes + adjustment, ModelToolProtocol.MaximumOutputUtf8Bytes));
         var transport = (await runtime.OpenToolTurnAsync(provenance, profile, context,
             (_, _) => ValueTask.FromResult(true), _ => ValueTask.FromResult(true), Token))!;
         runtime.IsQuiescent.Should().BeFalse();

@@ -9,6 +9,7 @@ using Kora.Application.Presentation;
 using Kora.Application.Voice;
 using Kora.Controls;
 using Kora.Core.Configuration;
+using Kora.Windows.IntegrationTests.Storage;
 
 namespace Kora.Windows.IntegrationTests;
 
@@ -20,7 +21,7 @@ public sealed class OrdinaryTurnDeadlineUiTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            var parent = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, ".net-test-artifacts"));
+            var parent = Path.Combine(OwnedStorageFixture.ScratchParent(), ".net-test-artifacts");
             Directory.CreateDirectory(parent);
             using var f = NativeUxTestFixture.Create(parent);
             await using var admission = new AudioControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));

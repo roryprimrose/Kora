@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Net;
 
 namespace Kora.Core.Mcp;
@@ -11,6 +10,9 @@ public interface IMcpConnection : IAsyncDisposable
     IReadOnlyList<IPAddress> RemoteAddresses { get; }
     CancellationToken AdmissionWithdrawn => new(canceled: true);
     Task<bool> IsCurrentAsync(CancellationToken token);
-    Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token);
-    Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token);
+    Task<McpConnectionReply<McpServerCapabilities>> InitializeAsync(CancellationToken token);
+    Task<McpConnectionReply<McpCapabilityPage>> ListAsync(McpCapabilityKind kind, string? cursor, CancellationToken token);
+    Task<McpConnectionReply<McpRemoteResult>> InvokeAsync(string name, McpToolSchema schema, string arguments, CancellationToken token);
+    Task<McpConnectionReply<McpTextDocument>> ReadResourceAsync(string uri, CancellationToken token);
+    Task<McpConnectionReply<McpTextDocument>> ReadPromptAsync(McpCapability prompt, string arguments, CancellationToken token);
 }

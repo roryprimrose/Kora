@@ -16,6 +16,6 @@ public sealed class ClaudeDeploymentApproval
     }
     public DateTimeOffset ExpiresAt { get; }
     public System.Collections.Immutable.ImmutableArray<ClaudeTextStreamProfile> TextStreams { get; }
-    public string Adapter => "anthropic-messages-https-text-v1";
+    public string Adapter => "anthropic-messages-meai-sdk-v5";
     public string ApiVersion => "2023-06-01";
 }

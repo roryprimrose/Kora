@@ -149,6 +149,8 @@ public sealed partial class SessionsConversationTests
                     var terminal = (await completion).RequireReceipt();
                     terminal.Task.State.Should().Be(HostTaskState.Unknown);
                     terminal.Message.AssistantResponse.Should().BeNull();
+                    await WhenModelAsync(model, () => model.RunningConversationStatus.Contains(
+                        "Terminal Cancelled", StringComparison.Ordinal));
                     await model.RefreshRunningConversationAsync();
                     model.RunningConversationStatus.Should().Contain("No active admitted conversation lease");
                 }

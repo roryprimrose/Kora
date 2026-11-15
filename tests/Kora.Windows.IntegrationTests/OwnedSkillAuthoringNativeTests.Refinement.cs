@@ -14,6 +14,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Skills;
 using Kora.Core.Tools;
 using Kora.NativeUxFixture;
+using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Skills;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -107,8 +108,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
         if (initialV3) { scenario = scenario["v3-".Length..]; }
         await HeadlessSession.RunAsync(async () =>
         {
-            var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
-            Directory.CreateDirectory(parent);
+            var parent = OwnedStorageFixture.ScratchParent();
             using var f = new NativeUxFixtureSession(parent);
             await f.InitializeAsync();
             await using var admission = new OwnedSkillControlAdmission(f.Interactions, f.Interactions, new(f.Tasks));
@@ -356,8 +356,10 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 if (scenario is "cancel-publication") { (await store.List(f.Token)).Should().BeEmpty(); }
                 else
                 {
-                    var saved = (await store.Read(draft.Id, draft.Version, f.Token))!;
-                    saved.Document.ManifestBytes.ToArray().Should().Equal(draft.ManifestBytes.ToArray());
+                    var saved = await store.Read(draft.Id, draft.Version, f.Token);
+                    saved.Should().NotBeNull("publication must complete: {0}",
+                        string.Join("\n", owned.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text)));
+                    saved!.Document.ManifestBytes.ToArray().Should().Equal(draft.ManifestBytes.ToArray());
                     saved.Document.Guidance.Should().Be(adapter.Body);
                     saved.Document.IsAvailableForInvocation.Should().BeFalse();
                     if (initialV5) { saved.Document.CompleteText.Should().Be(PackageProposal(adapter.Body).CompleteText); }

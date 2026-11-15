@@ -65,9 +65,9 @@ public sealed partial class WindowsOllamaToolTransportTests
         using var root = fixture.Root();
         var initial = fixture.Request(toolMode: mode);
         var canonicalBytes = ModelToolProtocol.SerializeRequest(initial).Length;
-        var originalNativeBytes = OllamaToolWire.WriteRequest(initial, Model, []).Length;
+        var originalNativeBytes = await MeasureAsync(Model);
         fixture.BoundModel = Model + new string('m', Math.Max(1, canonicalBytes - originalNativeBytes + 1));
-        var nativeBytes = OllamaToolWire.WriteRequest(initial, fixture.BoundModel, []).Length;
+        var nativeBytes = await MeasureAsync(fixture.BoundModel);
         nativeBytes.Should().BeGreaterThan(canonicalBytes);
         var answer = NativeAnswer(fixture.BoundModel);
         Encoding.UTF8.GetByteCount(answer).Should().BeLessThan(ModelToolProtocol.MaximumOutputUtf8Bytes);
@@ -90,6 +90,16 @@ public sealed partial class WindowsOllamaToolTransportTests
             fixture.Paths.Should().BeEmpty();
             reply.Message.Should().BeNull();
             reply.Usage.Should().BeNull();
+        }
+
+        async Task<int> MeasureAsync(string model)
+        {
+            await using var baseline = new Fixture { BoundModel = model };
+            using var baselineRoot = baseline.Root();
+            baseline.Chat = (message, _) => Task.FromResult(Json(message, NativeAnswer(model)));
+            (await baseline.Transport.CompleteAsync(baseline.Request(toolMode: mode), Token))
+                .Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            return baseline.Bodies.Single().Length;
         }
     }
 

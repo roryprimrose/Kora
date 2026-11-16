@@ -13,6 +13,7 @@ internal sealed partial class AgentRunView : UserControl, IDisposable
     internal Func<bool> CapturePresentation() => lifetime.Capture();
     internal event EventHandler? Closed;
     internal event EventHandler? PresentationLost;
+    internal ReviewContentsLink ContentsLink { get; } = new();
     internal TextBox Source { get; } = new() { PlaceholderText = "Full path to an existing user-owned .agent.md file", IsUndoEnabled = false };
     internal TextBox Input { get; } = new() { AcceptsReturn = true, Height = 90, IsUndoEnabled = false };
     internal TextBox Recommendation { get; } = new() { IsReadOnly = true, AcceptsReturn = true, Height = 110, IsUndoEnabled = false, IsVisible = false };
@@ -66,6 +67,7 @@ internal sealed partial class AgentRunView : UserControl, IDisposable
         AddSharedSkillControls(panel, run);
         Add("Read source and review exact invocation", "Review");
         panel.Children.Add(Review);
+        panel.Children.Add(ContentsLink.Button);
         panel.Children.Add(Resolve);
         Resolve.Click += (_, _) => run("Resolve");
         panel.Children.Add(Confirm);
@@ -107,6 +109,7 @@ internal sealed partial class AgentRunView : UserControl, IDisposable
         if (disposed) { return; }
         disposed = true;
         Owner.Closed -= OwnerClosed;
+        ContentsLink.Dispose();
         lifetime.Dispose();
         Clear();
         Closed?.Invoke(this, EventArgs.Empty);

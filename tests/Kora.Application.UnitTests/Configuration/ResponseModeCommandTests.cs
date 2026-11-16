@@ -90,7 +90,7 @@ public sealed class ResponseModeCommandTests
     [InlineData("use")]
     [InlineData("usex")]
     [InlineData("Nova Scotia use spoken responses")]
-    [InlineData("Kora use spoken responses")]
+    [InlineData("Aria use spoken responses")]
     [InlineData("use these visual responses")]
     [InlineData("check")]
     [InlineData("checkx")]

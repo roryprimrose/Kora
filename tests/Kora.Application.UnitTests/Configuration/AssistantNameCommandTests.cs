@@ -51,13 +51,13 @@ public sealed class AssistantNameCommandTests
     }
 
     [Theory]
-    [InlineData("Kora, get assistant name")]
+    [InlineData("Aria, get assistant name")]
     [InlineData("Nova")]
     [InlineData("NovaX get assistant name")]
     [InlineData("please set assistant name to Nova")]
     [InlineData("set appearance.theme to dark")]
     [InlineData("set speech.voice to default")]
-    [InlineData("Kora, call yourself Atlas")]
+    [InlineData("Aria, call yourself Atlas")]
     [InlineData("NovaX call yourself Atlas")]
     [InlineData("please call yourself Atlas")]
     [InlineData("say what is your name")]

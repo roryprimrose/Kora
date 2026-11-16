@@ -79,7 +79,7 @@ public sealed class SessionQueueConfigurationCommandTests
         SessionQueueConfigurationCommand.Parse(text, "Nova")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
 
     [Theory]
-    [InlineData("Kora, show fixed read queue settings")]
+    [InlineData("Aria, show fixed read queue settings")]
     [InlineData("NovaX show fixed read queue settings")]
     [InlineData("please show fixed read queue settings")]
     [InlineData("show fixed reader queue settings")]
@@ -163,7 +163,7 @@ public sealed class SessionQueueConfigurationCommandTests
     }
 
     [Theory]
-    [InlineData("Kora, list queue settings")]
+    [InlineData("Aria, list queue settings")]
     [InlineData("queue list 00000000-0000-0000-0000-000000000001")]
     [InlineData("NovaX get queue.execution-slots")]
     [InlineData("Nova")]

@@ -90,7 +90,7 @@ public sealed class NaturalAppearanceCommandTests
     [Theory]
     [InlineData("")]
     [InlineData("Nova")]
-    [InlineData("Kora, use dark mode")]
+    [InlineData("Aria, use dark mode")]
     [InlineData("Novation, use dark mode")]
     [InlineData("please use dark mode")]
     [InlineData("use dark mode and open settings")]

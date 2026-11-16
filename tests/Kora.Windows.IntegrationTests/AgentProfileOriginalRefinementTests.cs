@@ -105,7 +105,7 @@ public sealed class AgentProfileOriginalRefinementTests
             async Task Run(string command) { f.Main.CommandText = command; await f.Main.RunTypedCommand.ExecuteAsync(); }
             async Task<Window> Decision(Task operation)
             {
-                (await Task.WhenAny(next.Task, operation)).Should().BeSameAs(next.Task, "expected native decision; status: {0}", editor?.Status.Text);
+                (await Task.WhenAny(next.Task, operation).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken)).Should().BeSameAs(next.Task, "expected native decision; status: {0}", editor?.Status.Text);
                 var result = await next.Task.WaitAsync(TestContext.Current.CancellationToken);
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 return result;
@@ -140,7 +140,7 @@ public sealed class AgentProfileOriginalRefinementTests
                 editor.Status.Text, f.Main.CaptureInstructionEditorEligibility().Invoke(), f.Main.CanRevealPrivatePresentation,
                 f.Main.IsProtectedCall, f.Main.IsResponseInteractionPending, controller.ActiveOperation.Status);
             Click(editor, "Edit existing original");
-            await controller.ActiveOperation;
+            await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             editor.NameInput.IsReadOnly.Should().BeTrue();
             if (scenario is "draft-tool") { editor.Source.Text = ToolSource(source); }
             if (scenario is "empty-draft") { editor.Source.Text = string.Empty; }
@@ -167,7 +167,7 @@ public sealed class AgentProfileOriginalRefinementTests
             else { generating = Run("agent author ask"); }
             if (scenario is "original-tool" or "draft-tool" or "empty-draft" or "original-v4" or "before-source" or "before-missing")
             {
-                await generating;
+                await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 next.Task.IsCompleted.Should().BeFalse();
                 adapter.Calls.Should().Be(0);
             }
@@ -217,7 +217,7 @@ public sealed class AgentProfileOriginalRefinementTests
                     generating.IsCompleted.Should().BeFalse();
                     models.IsQuiescent.Should().BeFalse();
                     adapter.Pending!.SetResult(Adapter.Reply());
-                    await generating;
+                    await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                     models.IsQuiescent.Should().BeTrue();
                     editor.Source.Text.Should().NotContain("Short proposed guidance");
                     if (scenario is "late-private")
@@ -226,7 +226,7 @@ public sealed class AgentProfileOriginalRefinementTests
                 }
                 else if (scenario is "admission-source-return")
                 {
-                    await generating;
+                    await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                     adapter.Calls.Should().Be(0);
                     editor.Source.Text.Should().Be(source);
                     (await File.ReadAllBytesAsync(destination.DisplayPath, f.Token)).Should().Equal(originalBytes);
@@ -247,7 +247,7 @@ public sealed class AgentProfileOriginalRefinementTests
                     }
                     if (scenario is not ("adopt-draft" or "adopt-request" or "adopt-voice-consent"))
                     { Click(comparison, scenario is "reject" ? "Reject proposal" : "Use proposed draft"); }
-                    await generating;
+                    await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                     if (scenario is "final-owner") { store.AfterRead = null; owner--; }
                     if (scenario is "save" or "native-save" or "voice-save" or "cancel-save" or "uncertain-save")
                     {
@@ -260,7 +260,7 @@ public sealed class AgentProfileOriginalRefinementTests
                         await Run("agent author save as new");
                         editor.Confirm.IsEnabled.Should().BeFalse("an original cannot use create-only Save");
                         Click(editor, "Review Save (new or existing original)");
-                        await controller.ActiveOperation;
+                        await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                         editor.Review.Text.Should().Contain(source).And.Contain(editor.Source.Text).And.Contain(destination.DisplayPath);
                         if (scenario is "uncertain-save")
                         { files.AfterPublication = () => throw new IOException("Synthetic unconfirmed update"); }
@@ -269,7 +269,7 @@ public sealed class AgentProfileOriginalRefinementTests
                         confirmation.Title.Should().Be("Confirm Save existing original");
                         store.Updates.Should().Be(0);
                         Click(confirmation, scenario is "cancel-save" ? "Cancel" : "Save existing original");
-                        await controller.ActiveOperation;
+                        await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                         if (scenario is "cancel-save") { store.Updates.Should().Be(0); }
                         else
                         {
@@ -281,7 +281,7 @@ public sealed class AgentProfileOriginalRefinementTests
                             {
                                 editor.Status.Text.Should().Contain("unconfirmed");
                                 Click(editor, "Review Save (new or existing original)");
-                                await controller.ActiveOperation;
+                                await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                                 editor.Confirm.IsEnabled.Should().BeFalse();
                                 store.Updates.Should().Be(1);
                             }
@@ -290,7 +290,7 @@ public sealed class AgentProfileOriginalRefinementTests
                     }
                     else { editor.Source.Text.Should().NotContain("Short proposed guidance"); }
                 }
-                else { await generating; }
+                else { await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken); }
                 if (adapter.Calls != 0)
                 {
                     using var wire = JsonDocument.Parse(adapter.Wire!);

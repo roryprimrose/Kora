@@ -71,7 +71,7 @@ public sealed partial class MainViewModelTests
         f.Reasoner.Requests.Should().BeEmpty();
         Activity.Current.Should().BeSameAs(hostile);
         f.Voice.StartedPhrases.Should().Contain("Nova prepare evidence trace")
-            .And.Contain("evidence trace help").And.NotContain("Kora prepare evidence trace");
+            .And.Contain("evidence trace help").And.Contain("Kora prepare evidence trace").And.NotContain("Aria prepare evidence trace");
     }
 
     [Fact]

@@ -969,13 +969,14 @@ settings, consent/privacy downgrade, general registry or full R10/R09 acceptance
 
 ### Delivered bounded appearance subset (R10)
 
-Thirteen independently persisted options are admitted:
+Fourteen independently persisted options are admitted:
 `appearance.theme`, `appearance.presence-display`, `appearance.presence-timeout`,
 `appearance.response-timeout`, `appearance.presence-size`,
 `appearance.dot-size`, `appearance.dot-density`,
 `appearance.movement-speed`, `appearance.speech-scaling` and
-`appearance.speech-scale-amount`, `appearance.reader-text-scale`, and
-`appearance.native-presence-renderer` and `appearance.reduced-motion`. The [end-user reference](../docs/settings.md#appearance)
+`appearance.speech-scale-amount`, `appearance.reader-text-scale`,
+`appearance.native-presence-renderer`, `appearance.reduced-motion` and
+`appearance.conversation-on-right`. The [end-user reference](../docs/settings.md#appearance)
 lists their exact types, units, defaults and bounds. Each descriptor declares
 device-local scope, appearance-only effect, local-host availability,
 immediate-after-save timing and per-option reset. Animation driven by playback
@@ -1729,9 +1730,9 @@ No additional qualified local wake/ASR/resource tuple is offered. Existing unsup
 
 The default assistant name is "Kora"; [Assistant and Activation Name](Activation_Name.md)
 defines the implemented display/command identity, its device-local persistence,
-and the stronger detector requirements that remain future work. The current
-name is custom-only: after commit, the previous name is not retained as a
-hidden alias. The executable, application-data roots, assemblies, log names,
+and the stronger detector requirements that remain future work. A custom
+name is accepted together with "Kora"; any other previous name is not retained
+as a hidden alias. The executable, application-data roots, assemblies, log names,
 and trust identity remain Kora.
 Device switching revalidates session, capture, and playback-rejection safety.
 First run selects System without recording and obtains explicit ongoing voice

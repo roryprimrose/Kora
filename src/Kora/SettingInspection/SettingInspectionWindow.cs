@@ -22,14 +22,14 @@ internal sealed class SettingInspectionWindow : Window
     {
         this.presenter = presenter;
         this.failure = failure;
-        Title = "Inspect current Kora settings";
+        Title = "Inspect current settings";
         Width = 850;
         Height = 720;
         DataContext = presenter;
         var question = new TextBox { PlaceholderText = "Original question (256 characters / 512 UTF-8 bytes maximum)" };
         question.Bind(TextBox.TextProperty, new Binding(nameof(presenter.Question)) { Mode = BindingMode.TwoWay });
         if (typography is not null) { NativeReaderTypography.Bind(question, typography); }
-        AutomationProperties.SetName(question, "Original question about confirmed Kora settings");
+        AutomationProperties.SetName(question, $"Original question about confirmed {AssistantNameDisplay.Current.Name} settings");
         var source = new ComboBox
         {
             ItemsSource = new[] { SettingInspectionProfile.ConfirmedSettings, SettingInspectionProfile.WindowsRate },

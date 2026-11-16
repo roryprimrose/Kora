@@ -87,7 +87,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     shell.WindowState = WindowState.Normal;
                     break;
             }
-            await saving;
+            await saving.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             var saved = await store.Read("example", "1.0.0", f.Token);
             if (scenario is "save")
             {

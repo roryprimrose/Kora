@@ -1,6 +1,7 @@
 <UserControl
     x:Class="Kora.DetailContentView"
     xmlns="https://github.com/avaloniaui"
+    xmlns:assistant="using:Kora"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Kora.Controls"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
@@ -66,11 +67,12 @@
         <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="17"
                                 AutomationProperties.Name="Exact inert admitted detail literal match" />
       </ScrollViewer>
-      <TextBlock x:Name="CopyPolicyLabel" Text="Copy all copies the complete active view: rendered Markdown as semantic plain text with inert HTML, or unchanged source/plain text. Copy source always preserves the original text. Clipboard content leaves Kora's boundary and may be read by other apps or clipboard history/sync."
+      <TextBlock x:Name="CopyPolicyLabel" Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Copy all copies the complete active view: rendered Markdown as semantic plain text with inert HTML, or unchanged source/plain text. Copy source always preserves the original text. Clipboard content leaves {0}’s boundary and may be read by other apps or clipboard history/sync.'}"
                  TextWrapping="Wrap" />
       <CheckBox x:Name="DisclosureConfirmation" TabIndex="11"
-                Content="I confirm disclosure of this private source outside Kora."
-                AutomationProperties.Name="Confirm private source disclosure outside Kora" />
+                AutomationProperties.Name="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Confirm private source disclosure outside {0}'}" >
+        <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='I confirm disclosure of this private source outside {0}.'}" TextWrapping="Wrap" />
+      </CheckBox>
       <WrapPanel>
         <Button x:Name="CopySelection" Content="Copy selection (Ctrl+C)" TabIndex="12"
                 AutomationProperties.Name="Copy selected text from the continuous reader" />

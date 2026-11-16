@@ -368,7 +368,7 @@ public sealed partial class MainWindow : Window
         windowActionFailed = true;
         DesktopLog.Error(logger, exception, "Applying a desktop window action");
         viewModel.ReportHostInteractionFailure(
-            "Desktop presentation failed. Use the native tray controls to exit and restart Kora. " + exception.Message);
+            $"Desktop presentation failed. Use the native tray controls to exit and restart {AssistantNameDisplay.Current.Name}. " + exception.Message);
     }
 
     internal static async Task<HostOperationOutcome> RunWindowActionAsync(

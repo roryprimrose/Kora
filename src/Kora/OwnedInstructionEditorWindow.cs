@@ -49,7 +49,7 @@ internal sealed class OwnedInstructionEditorWindow : Window
 
     internal OwnedInstructionEditorWindow(Action<string> run)
     {
-        Title = "Kora instruction and prompt editor";
+        Title = "Instruction and prompt editor";
         Width = 960;
         Height = 720;
         View = new(this, run, static () => true);

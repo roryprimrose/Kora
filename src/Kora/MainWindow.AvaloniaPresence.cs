@@ -30,10 +30,10 @@ public sealed partial class MainWindow
         DesktopLog.Error(logger, exception, "Presenting the standard presence");
         HidePresenceWindow();
         viewModel.ReportPresenceRendererStatus(
-            "Standard animation mode is unavailable. Choose Experimental in Settings or exit normally; Kora did not switch automatically.");
+            $"Standard animation mode is unavailable. Choose Experimental in Settings or exit normally; {AssistantNameDisplay.Current.Name} did not switch automatically.");
         viewModel.ReportHostInteractionFailure(
             "The standard presence renderer is unavailable. Other presentation and audio services remain independent. "
-            + "Choose another animation mode in Settings or exit Kora normally.");
+            + $"Choose another animation mode in Settings or exit {AssistantNameDisplay.Current.Name} normally.");
     }
 
     private void CloseAvaloniaPresence()

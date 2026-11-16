@@ -137,7 +137,7 @@ public sealed partial class MainViewModelTests
         fixture.CaptionPreferences.Options!.DismissalDelaySeconds.Should().Be(29);
         fixture.Voice.StartedPhrases.Should().Contain("Nova show the current sentence")
             .And.Contain("Nova keep speech text visible for twenty-nine seconds")
-            .And.NotContain("Kora show the current sentence");
+            .And.Contain("Kora show the current sentence").And.NotContain("Aria show the current sentence");
         fixture.Reasoner.Requests.Should().BeEmpty();
     }
 

@@ -16,8 +16,8 @@ public sealed record NewRequestOpenCommand(bool Accepted, bool ActivationPrefixe
         var trimmed = input.Trim();
         var normalized = BuiltInCommandRouter.Normalize(trimmed);
         var bare = normalized.StartsWith(Phrase, StringComparison.Ordinal);
-        if (!bare && !normalized.StartsWith(
-            BuiltInCommandRouter.Normalize(AssistantNameRules.Normalize(assistantName)) + " " + Phrase, StringComparison.Ordinal))
+        var activated = BuiltInCommandRouter.TryRemoveNormalizedActivationName(normalized, assistantName, out var remainder);
+        if (!bare && !(activated && remainder.StartsWith(Phrase, StringComparison.Ordinal)))
         { return null; }
         var text = bare ? trimmed : ArtifactCommandRouter.RemoveActivationPrefix(trimmed, assistantName);
         var prefixed = !string.Equals(text, trimmed, StringComparison.Ordinal);

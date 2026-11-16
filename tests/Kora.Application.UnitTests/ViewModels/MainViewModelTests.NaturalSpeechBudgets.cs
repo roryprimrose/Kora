@@ -20,14 +20,14 @@ public sealed partial class MainViewModelTests
         await fixture.RaiseActivatedTranscriptAsync("set spoken summary word limit to 40", 1);
         fixture.ViewModel.Transcript.Should().Contain("current assistant-name prefix");
         fixture.Preferences.SummaryLimits.Should().BeNull();
-        await fixture.RaiseActivatedTranscriptAsync("Kora, set spoken summary word limit to 40", 1);
+        await fixture.RaiseActivatedTranscriptAsync("Aria, set spoken summary word limit to 40", 1);
         fixture.Preferences.SummaryLimits.Should().BeNull();
         await fixture.RaiseActivatedTranscriptAsync("Novax, set spoken summary word limit to 40", 1);
         fixture.Preferences.SummaryLimits.Should().BeNull();
         await fixture.RaiseActivatedTranscriptAsync("Nova, set spoken summary word limit to 40", 1);
         fixture.Preferences.SummaryLimits.Should().Be(new SpokenSummaryLimits(3, 40));
         fixture.Voice.StartedPhrases.Should().Contain("Nova show spoken summary limits")
-            .And.NotContain("Kora show spoken summary limits");
+            .And.Contain("Kora show spoken summary limits").And.NotContain("Aria show spoken summary limits");
         await fixture.RunAsync("what can you do");
         fixture.ViewModel.ResponseBody.Should().Contain("show spoken summary limits");
         fixture.TextToSpeech.ClearSpokenResponse();

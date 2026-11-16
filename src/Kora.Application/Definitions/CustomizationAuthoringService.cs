@@ -52,26 +52,12 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
         Func<bool> eligible, CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
     {
         _ = OwnedAgentProfileDocument.ProposeToolFree(name, source, "Authoring validation", "Inert validation");
-        return Generate(requestText, source, AgentPolicy, answer => ParseAgentProposal(name, source, answer), eligible, token, validateSource);
+        return Generate(requestText, source, AgentPolicy, answer => ParseAgentProposal(name, source, answer), eligible, token, validateSource,
+            ModelOutputFormat.OwnedAgentProposal);
     }
 
-    public static OwnedAgentProfileDocument ParseAgentProposal(string name, string source, string answer)
-    {
-        if (ArtifactFileDocument.Encode(answer, false).Length > ArtifactDefinition.MaximumContentLength)
-        { throw new InvalidDataException("The complete agent proposal exceeds the source limit. Nothing was truncated or staged."); }
-        try
-        {
-            using var json = JsonDocument.Parse(answer, new JsonDocumentOptions { MaxDepth = 2 });
-            var root = json.RootElement;
-            if (root.ValueKind != JsonValueKind.Object || root.EnumerateObject().Count() != 2
-                || !root.TryGetProperty("description", out var description) || description.ValueKind != JsonValueKind.String
-                || !root.TryGetProperty("body", out var body) || body.ValueKind != JsonValueKind.String)
-            { throw new InvalidDataException("The model must return only a description and complete guidance body. No authority fields are accepted."); }
-            return OwnedAgentProfileDocument.ProposeToolFree(name, source, description.GetString()!, body.GetString()!);
-        }
-        catch (JsonException exception)
-        { throw new InvalidDataException("Invalid agent proposal JSON. No draft was changed.", exception); }
-    }
+    public static OwnedAgentProfileDocument ParseAgentProposal(string name, string source, string answer) =>
+        OwnedAgentProfileDocument.ParseProposal(name, source, answer);
 
     public Task<CustomizationVoiceIntent> Interpret(CustomizationVoiceContext context, string requestText,
         Func<bool> eligible, CancellationToken token)
@@ -165,7 +151,8 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
     }
 
     private async Task<T> Generate<T>(string requestText, string evidence, string policy, Func<string, T> parse,
-        Func<bool> eligible, CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
+        Func<bool> eligible, CancellationToken token, Func<CancellationToken, Task>? validateSource = null,
+        ModelOutputFormat outputFormat = ModelOutputFormat.Text)
     {
         if (string.IsNullOrWhiteSpace(requestText)) { throw new InvalidDataException("Describe the definition or the change to discuss."); }
         if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
@@ -182,7 +169,7 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
             var now = time.GetUtcNow();
             var context = new ModelContextEnvelope(request, policy, requestText,
                 [new(new(Guid.NewGuid()), request, new(1), evidence, ModelEvidenceDisclosure.LocalOnly)],
-                now, now.AddMinutes(2), ModelToolMode.None);
+                now, now.AddMinutes(2), ModelToolMode.None, outputFormat: outputFormat);
             context.RequireCompleteInputLimit();
             var candidate = await runner.AdmitAsync(LocalContextSessionTarget.Existing(sourceRequest, request, control.Session.Generation),
                 eligible, token, validateSource).ConfigureAwait(false);

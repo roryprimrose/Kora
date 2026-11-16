@@ -351,6 +351,7 @@ public sealed class AgentProfileConversationalAuthoringTests
         {
             Calls++;
             Wire = context.ToArray();
+            ModelToolProtocol.ReadContext(Wire, provenance).OutputFormat.Should().Be(ModelOutputFormat.OwnedAgentProposal);
             Origin = HostActivity.RequireCurrent().Request.Origin;
             if (AttemptTool) { ToolAttempt = await invokeTool("application.get_version", "{}", token); }
             Started.TrySetResult();

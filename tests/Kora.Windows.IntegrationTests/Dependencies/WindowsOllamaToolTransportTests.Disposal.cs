@@ -15,6 +15,40 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 public sealed partial class WindowsOllamaToolTransportTests
 {
     [Theory]
+    [InlineData("source")]
+    [InlineData("revoked")]
+    [InlineData("cancelled")]
+    public async Task AgentProposalJoinsPhysicalReleaseAndSuppressesLateAuthorityChanges(string change)
+    {
+        await using var f = new Fixture();
+        using var root = f.Root();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var handler = new NativeDisposalHandler("chat", "none", false, pauseDisposal: true);
+        await using var transport = new WindowsOllamaToolTransport(new HttpClient(handler), _ => f.Binding(),
+            (_, _) => Task.FromResult(f.ProcessCurrent), f.Time, NullLogger<WindowsOllamaToolTransport>.Instance);
+        var request = f.Request(toolMode: ModelToolMode.None, outputFormat: ModelOutputFormat.OwnedAgentProposal);
+        var pending = transport.CompleteAsync(request, cancellation.Token);
+        (await Task.WhenAny(pending, handler.DisposalEntered.Task)).Should().BeSameAs(handler.DisposalEntered.Task);
+        try
+        {
+            if (change is "source") { f.ProcessCurrent = false; }
+            else if (change is "revoked") { await f.Revoked.CancelAsync(); }
+            else { await cancellation.CancelAsync(); }
+            pending.IsCompleted.Should().BeFalse();
+            (await transport.CompleteAsync(request, Token)).Outcome.Should().Be(ModelTurnOutcome.Denied);
+            handler.Sends.Should().Be(3);
+        }
+        finally { handler.ReleaseDisposal.TrySetResult(); }
+        var reply = await pending;
+        reply.Outcome.Should().Be(change is "cancelled" ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Denied);
+        reply.Message.Should().BeNull();
+        reply.Usage.Should().BeNull();
+        handler.Responses.Should().OnlyContain(response => response.DisposeAttempts == 1
+            && response.Reader.AsyncDisposeAttempts == 1);
+        handler.Sends.Should().Be(3);
+    }
+
+    [Theory]
     [InlineData("version", "source")]
     [InlineData("tags", "source")]
     [InlineData("version", "revoked")]

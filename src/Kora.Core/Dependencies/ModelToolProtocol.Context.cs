@@ -19,7 +19,9 @@ public static partial class ModelToolProtocol
     {
         ValidateProvenance(provenance);
         using var document = ReadJson(wire, MaximumInputUtf8Bytes);
-        if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("WebPages", out _))
+        if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("OutputFormat", out _))
+        { RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "ToolMode", "Tools", "MaximumOutputUtf8Bytes", "OutputFormat"); }
+        else if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("WebPages", out _))
         {
             RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "ToolMode", "Tools", "MaximumOutputUtf8Bytes", "WebPages");
             RequireFields(document.RootElement.GetProperty("WebPages"), "Destinations");
@@ -40,6 +42,9 @@ public static partial class ModelToolProtocol
         { throw new InvalidDataException("The host context has invalid typed fields.", exception); }
         var tools = content.Constraints?.GetTools(content.ToolMode) ?? GetTools(content.ToolMode);
         if (content.SystemPolicy is null || content.UserRequest is null || content.Evidence is null
+            || content.OutputFormat != ModelOutputFormat.Text
+                && (content.OutputFormat != ModelOutputFormat.OwnedAgentProposal || content.ToolMode != ModelToolMode.None
+                    || provenance.Selection.Provider != ModelProviderIdentity.Ollama)
             || (content.ToolMode == ModelToolMode.McpReadOnly) != (content.McpTool is not null)
             || content.WebPages is not null && content.ToolMode != ModelToolMode.LocalWebPage
             || content.Tools is null || content.MaximumOutputUtf8Bytes != MaximumOutputUtf8Bytes
@@ -53,7 +58,7 @@ public static partial class ModelToolProtocol
             && (provenance.Selection.Provider != ModelProviderIdentity.Claude || !evidence.IsEmpty))
         { throw new InvalidDataException("Hosted clarification requires its explicit Claude operation without source evidence."); }
         return new(provenance, content.SystemPolicy, content.UserRequest, evidence, content.ToolMode,
-            ImmutableArray.CreateRange(wire.ToArray()), content.Constraints, content.McpTool, content.WebPages);
+            ImmutableArray.CreateRange(wire.ToArray()), content.Constraints, content.McpTool, content.WebPages, content.OutputFormat);
     }
 
     public static IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode) => mode switch
@@ -74,5 +79,6 @@ public static partial class ModelToolProtocol
 
     private sealed record ContextContent(string SystemPolicy, string UserRequest, ModelContextEvidence[] Evidence,
         ModelToolMode ToolMode, CapabilityDescriptor[] Tools, int MaximumOutputUtf8Bytes,
-        ModelTurnConstraints? Constraints = null, Mcp.McpModelTool? McpTool = null, Network.LocalWebPageScope? WebPages = null);
+        ModelTurnConstraints? Constraints = null, Mcp.McpModelTool? McpTool = null, Network.LocalWebPageScope? WebPages = null,
+        ModelOutputFormat OutputFormat = ModelOutputFormat.Text);
 }

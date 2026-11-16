@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.Dependencies;
 
-/// <summary>Fresh read-only observation of an independently authorized exact runtime. Never discovers a substitute.</summary>
+/// <summary>Fresh read-only observation of an exactly admitted qualified or evaluated runtime. Never discovers a substitute.</summary>
 public sealed partial class WindowsOllamaRuntimeResolver : IProviderCapabilityCatalogue
 {
     private readonly IWindowsOllamaQualificationSource qualifications;
@@ -31,7 +31,7 @@ public sealed partial class WindowsOllamaRuntimeResolver : IProviderCapabilityCa
     public async Task<WindowsOllamaQualification?> ResolveAsync(ModelProviderSelection selection,
         ProviderProfileTuple profile, CancellationToken cancellationToken)
     {
-        var receipt = await ObserveQualifiedAsync(cancellationToken).ConfigureAwait(false);
+        var receipt = await ObserveAdmittedAsync(cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         return receipt is not null && ProviderProfileRules.Resolve(profile, receipt.Catalogue, time.GetUtcNow())?.Selection == selection
             ? receipt : null;
@@ -41,7 +41,7 @@ public sealed partial class WindowsOllamaRuntimeResolver : IProviderCapabilityCa
     {
         var installed = await installation.ObserveAsync(cancellationToken).ConfigureAwait(false);
         var receipt = installed == LocalProviderInstallation.Installed
-            ? await ObserveQualifiedAsync(cancellationToken).ConfigureAwait(false) : null;
+            ? await ObserveAdmittedAsync(cancellationToken).ConfigureAwait(false) : null;
         cancellationToken.ThrowIfCancellationRequested();
         var now = time.GetUtcNow();
         return new(installed, new[] { ProviderService.Local, ProviderService.Copilot, ProviderService.Claude, ProviderService.Codex }
@@ -61,14 +61,14 @@ public sealed partial class WindowsOllamaRuntimeResolver : IProviderCapabilityCa
             expected.Catalogue.ValidUntil, () => expected.IsCurrent(time.GetUtcNow()) && admitted(), revoked);
     }
 
-    private async Task<WindowsOllamaQualification?> ObserveQualifiedAsync(CancellationToken token)
+    private async Task<WindowsOllamaQualification?> ObserveAdmittedAsync(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         var receipt = await qualifications.ReadAsync(token).ConfigureAwait(false);
         if (receipt is null || !receipt.IsCurrent(time.GetUtcNow())
             || await installation.ObserveAsync(token).ConfigureAwait(false) != LocalProviderInstallation.Installed)
         {
-            Unavailable(logger, "qualification-missing-or-stale");
+            Unavailable(logger, "runtime-admission-missing-or-stale");
             return null;
         }
         var current = await observe(receipt.Runtime, token).ConfigureAwait(false);

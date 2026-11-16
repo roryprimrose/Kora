@@ -32,6 +32,25 @@ public sealed partial class ModelTurnHostTests : IDisposable
     public void Dispose() => listener.Dispose();
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    [Theory]
+    [InlineData(ModelProviderIdentity.Copilot)]
+    [InlineData(ModelProviderIdentity.Claude)]
+    public async Task AgentProposalFormatCannotDispatchAnUnsupportedHostedProfile(ModelProviderIdentity provider)
+    {
+        using var fixture = new Fixture();
+        using var root = fixture.Root();
+        var selection = ModelProviderSelection.OllamaCandidate with { Provider = provider };
+        var host = fixture.Qualified(selection);
+        var context = new ModelContextEnvelope(fixture.Request, "policy", "input", [], DateTimeOffset.UnixEpoch,
+            DateTimeOffset.UnixEpoch.AddMinutes(1), ModelToolMode.None, outputFormat: ModelOutputFormat.OwnedAgentProposal);
+        var result = await host.AdmitAsync(selection, context, Token);
+        result.Result.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+        result.Result.Reason.Should().Be(ModelTurnReason.InvalidPolicy);
+        result.Turn.Should().BeNull();
+        fixture.Adapter.Calls.Should().Be(0);
+        fixture.Audits.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Failed);
+    }
+
     [Fact]
     public async Task Production_profiles_remain_unavailable_without_contacting_either_provider()
     {

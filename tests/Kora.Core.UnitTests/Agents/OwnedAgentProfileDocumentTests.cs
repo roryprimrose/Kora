@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 using AwesomeAssertions;
 
@@ -9,6 +10,51 @@ namespace Kora.Core.UnitTests.Agents;
 
 public sealed class OwnedAgentProfileDocumentTests
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData(Source)]
+    public void TypedProposalPreservesLiteralContentAndCannotChangeHostMetadata(string source)
+    {
+        const string body = "  Inert e\u0301\U0001f642\r\ntools: invented\n";
+        var answer = JsonSerializer.Serialize(new { description = "Explain text", body });
+        var proposed = OwnedAgentProfileDocument.ParseProposal("example", source, answer);
+        proposed.Document.Body.Should().Be(body);
+        proposed.Profile.Tools.Should().BeEmpty();
+        proposed.Profile.References.Should().BeEmpty();
+        var expected = OwnedAgentProfileDocument.ProposeToolFree("example", source, "Explain text", body);
+        proposed.Document.CopyBytes().Should().Equal(expected.Document.CopyBytes());
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("[]")]
+    [InlineData("{}")]
+    [InlineData("{")]
+    [InlineData("""{"description":"Role","body":"Body"}{}""")]
+    [InlineData("""{"description":"Role"}""")]
+    [InlineData("""{"body":"Body"}""")]
+    [InlineData("""{"description":"Role","body":"Body","tools":[]}""")]
+    [InlineData("""{"description":"Role","description":"Role","body":"Body"}""")]
+    [InlineData("""{"description":"Role","body":"Body","bo\u0064y":"Body"}""")]
+    [InlineData("""{"Description":"Role","body":"Body"}""")]
+    [InlineData("""{"description":null,"body":"Body"}""")]
+    [InlineData("""{"description":"Role","body":null}""")]
+    [InlineData("""{"description":false,"body":"Body"}""")]
+    [InlineData("""{"description":"Role","body":{"nested":{"text":"Body"}}}""")]
+    [InlineData("""{"description":"Role","body":"\ud800"}""")]
+    [InlineData("""{"description":"Role","body":"\u0000"}""")]
+    public void TypedProposalRejectsMalformedMissingDuplicateUnknownOrNonliteralFields(string answer) =>
+        ((Action)(() => OwnedAgentProfileDocument.ParseProposal("example", "", answer)))
+            .Should().Throw<InvalidDataException>();
+
+    [Fact]
+    public void TypedProposalRejectsCompleteOversizeWithoutTruncation()
+    {
+        var answer = JsonSerializer.Serialize(new { description = "Role", body = new string('x', 65536) });
+        ((Action)(() => OwnedAgentProfileDocument.ParseProposal("example", "", answer)))
+            .Should().Throw<InvalidDataException>();
+    }
+
     private const string Source = """
         ---
         name: example

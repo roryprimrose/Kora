@@ -623,7 +623,7 @@ provider fallback or confidence-based handoff.
 
 Individual edits retain the saved other fields, app default service and other service tuples. A model edit never replaces incompatible reasoning/context IDs: use the complete draft/save above to choose all dependents explicitly. Missing/stale complete bases and changed selection/ownership/privacy/call/session/generation/app/account/catalogue state reject confirmation. No individual app field reset exists; selected-service tuple reset remains unresolved, not a substitute.
 
-Production-qualified catalogues have **no available models**. For explicitly opted-in testing, **Set up Copilot live evaluation and account** can admit an installed runtime, verify a volatile token and expose that account's actual advertised models. Follow the [complete Copilot setup and chat guide](copilot-requests.md). It never reuses ambient machine credentials and does not qualify the runtime for production. Local release qualification and Claude/Codex authentication remain unavailable ([composition](../src/Kora/ProviderProfileComposition.cs), [release authority](../src/Kora.Definitions/Qualifications/BundledLocalModelQualificationAuthority.cs)).
+Production-qualified catalogues have **no available models**. For explicitly opted-in testing, **Set up Copilot live evaluation and account** can admit an installed runtime, verify a volatile token and expose that account's actual advertised models. Follow the [complete Copilot setup and chat guide](copilot-requests.md). It never reuses ambient machine credentials and does not qualify the runtime for production. The separate [Ollama live evaluation](#optional-ollama-live-evaluation) can admit only the supported running local runtime and pinned model. Local release qualification and Claude/Codex authentication remain unavailable ([composition](../src/Kora/ProviderProfileComposition.cs), [release authority](../src/Kora.Definitions/Qualifications/BundledLocalModelQualificationAuthority.cs)).
 
 Status separates saved choices from models that are ready to use. Unknown, expired, retired, cross-service, changed-account or changed-catalogue values do not select replacements. **Reset default service** re-observes Local-if-installed/otherwise-Unset and retains all service tuples. **Clear model settings for this service** removes only that tuple and leaves it unresolved.
 
@@ -640,6 +640,43 @@ In **Providers**, **Review local runtime** checks for one independently release-
 If a future release includes accepted evidence, review shows the exact runtime, model and bounded options. **Allow reviewed runtime** separately admits only that current instance/account/session for this Kora lifetime; select its available profile separately. The review expires, and changed evidence, ownership or runtime identity requires a new review ([review contract](../src/Kora.Application/Dependencies/OllamaAdmissionReview.cs), [receipt broker](../src/Kora.Windows/Dependencies/WindowsOllamaAdmissionBroker.cs)).
 
 **Revoke local runtime access** closes Kora's live receipt and removes the saved review choice; it does not stop, install or download a process/model. Restart never restores live process authority. If state is malformed or unconfirmed, inspect diagnostics and security records, revoke the saved choice explicitly, then review again. A failed write/audit is not successful admission and there is no automatic retry or hosted fallback ([workflow](../src/Kora.Application/Dependencies/OllamaAdmissionWorkflow.cs), [preference storage](../src/Kora.Application/Configuration/LocalModelAdmissionPreferences.cs)).
+
+### Optional Ollama live evaluation
+
+This is separate from production qualification and **Review local runtime** above.
+Quality, latency, offline-egress and integrated-host release qualification are incomplete.
+Kora does not sandbox the external runtime's own network or storage.
+
+1. Install and start the supported Ollama **0.35.1** runtime with **qwen3:1.7b**
+   using the existing reviewed setup or separately from a trusted source.
+   The installed model must match the exact digest displayed in review
+   ([supported setup constants](../src/Kora.Windows/Dependencies/WindowsOllamaSetupService.cs)).
+   Other versions, models or endpoints are unavailable; there is no substitute.
+2. In **Settings > Providers > Optional Ollama live evaluation**, choose
+   **Inspect running runtime for evaluation**. Kora reads only bounded metadata at
+   `127.0.0.1:11434`, checks the exact executable/account/session/process and shows
+   the runtime/model and their hashes. It does not start Ollama, download a model or
+   run inference during inspection. Inspection does not enable execution.
+3. Review the displayed subject and limitations, check the explicit evaluation
+   consent, then choose **Enable reviewed runtime for live evaluation**.
+   Confirmation rechecks the exact subject. The review expires after five minutes;
+   changed or unavailable identity requires inspecting again.
+4. Refresh services/models from the **Default service and model** actions cog.
+   Select **On-device (Ollama)** and the model labelled **live evaluation; not
+   production-qualified**, **Off** reasoning and **Host-bounded** context, then
+   **Save service and model settings**. Session overrides remain separate.
+5. Use the existing conversation or owned-agent authoring workflow. All existing
+   permissions, tool approvals, current-source checks, bounded output validation,
+   proposal review, explicit adoption and separately confirmed **Save** still apply.
+   An agent proposal uses schema-constrained output; the schema does not approve it.
+
+Evaluation lasts one hour in memory only and ends on privacy/ownership loss,
+runtime/model drift, expiry or **Revoke live evaluation**. Restart does not restore
+it, even if the profile is saved. Revocation does not stop the external process.
+Closing the controls discards an unconfirmed review and cancels/joins setup work.
+Failed audit or metadata checks leave evaluation unavailable, without automatic
+retry or hosted fallback ([evaluation owner](../src/Kora.Windows/Dependencies/WindowsOllamaEvaluationSource.cs),
+[native controls](../src/Kora/SettingsView.OllamaEvaluation.cs)).
 
 ### Exact session provider overrides
 

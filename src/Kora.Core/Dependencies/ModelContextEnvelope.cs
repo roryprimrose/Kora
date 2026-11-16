@@ -21,7 +21,8 @@ public sealed class ModelContextEnvelope
     public ModelContextEnvelope(HostRequest request, string systemPolicy, string userRequest,
         IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt,
         ModelToolMode toolMode = ModelToolMode.ReadOnly, ModelTurnConstraints? constraints = null,
-        McpModelTool? mcpTool = null, Network.LocalWebPageScope? webPages = null)
+        McpModelTool? mcpTool = null, Network.LocalWebPageScope? webPages = null,
+        ModelOutputFormat outputFormat = ModelOutputFormat.Text)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(systemPolicy);
@@ -29,6 +30,9 @@ public sealed class ModelContextEnvelope
         ArgumentNullException.ThrowIfNull(evidence);
         _ = ModelToolProtocol.GetTools(toolMode);
         _ = constraints?.GetTools(toolMode);
+        if (outputFormat != ModelOutputFormat.Text
+            && (outputFormat != ModelOutputFormat.OwnedAgentProposal || toolMode != ModelToolMode.None || constraints is not null))
+        { throw new InvalidDataException("Agent proposal output requires an isolated tool-free authoring context."); }
         if (webPages is not null && toolMode != ModelToolMode.LocalWebPage)
         { throw new InvalidDataException("Explicit page destinations require the local web-page tool mode."); }
         if ((toolMode == ModelToolMode.McpReadOnly) != (mcpTool is not null))
@@ -46,6 +50,7 @@ public sealed class ModelContextEnvelope
         Constraints = constraints;
         McpTool = mcpTool;
         WebPages = webPages;
+        OutputFormat = outputFormat;
         Evidence = ValidateContent(request, systemPolicy, userRequest, evidence);
     }
 
@@ -107,10 +112,16 @@ public sealed class ModelContextEnvelope
     public IReadOnlyList<CapabilityDescriptor> Tools => Constraints?.GetTools(ToolMode) ?? ModelToolProtocol.GetTools(ToolMode);
     public McpModelTool? McpTool { get; }
     public Network.LocalWebPageScope? WebPages { get; }
+    public ModelOutputFormat OutputFormat { get; }
 
     public byte[] Serialize()
     {
         var options = ToolMode == ModelToolMode.SettingsDiscovery ? SettingsJson : null;
+        if (OutputFormat != ModelOutputFormat.Text)
+        {
+            return JsonSerializer.SerializeToUtf8Bytes(new
+            { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes, OutputFormat }, options);
+        }
         if (WebPages is not null)
         {
             return JsonSerializer.SerializeToUtf8Bytes(new

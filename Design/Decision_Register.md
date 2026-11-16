@@ -170,6 +170,20 @@ Model-generated tool, skill, agent or script requests convey no execution author
 the host must validate applicable permission before execution, never execute a proposal as approval
 ([grant rules](Internal_Model_Tools.md#grant-and-feedback-rules)).
 
+## Downloadable Development Preview - 2026-11-13
+
+The product owner selected "Downloadable Development Preview builds with
+explicit per-capability opt-in" to make real workflows testable in Kora before
+production qualification. This admits development execution through existing
+host-owned routes with explicit unqualified status, not fabricated proof.
+Model quality/latency and final acoustic/installed RC evidence do not prevent
+an opted-in preview. Permissions, private source/account/device admission,
+independent physical-send review, audit, fixed-worker containment and actual
+resource joins remain authoritative. Nothing starts merely by opening setup;
+preview authority is volatile and never restored from saved preferences.
+Normal builds and production/release claims retain their independent
+qualification boundaries. See [the preview contract](Acceptance_Criteria.md#explicit-development-preview-admission).
+
 ## Decision inventory
 
 | ID | Decision | Owner | Due before | Status | Required evidence |

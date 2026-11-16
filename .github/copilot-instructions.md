@@ -31,6 +31,7 @@
 
 ## Delivery, readiness and proof
 
+- The separately approved [Development Preview](../Design/Acceptance_Criteria.md#explicit-development-preview-admission) exposes real experimental workflows only in explicitly marked `KoraDevelopmentPreview=true` builds with volatile original-user per-capability opt-in. Model/acoustic quality and final RC proof are not preview setup prerequisites. Do not fabricate release evidence; preserve actual permissions, source/account/device admission, final-send reviews, containment, audit and resource joins. Ordinary builds retain production admission.
 - Apply the [I - Implementation / E - Enablement / Q - RC policy](../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy). Determine the minimum consumed implementation subset; an Rxx label or its remaining completion gap is not a monolithic prerequisite.
 - Retired, historical, optional, physical, lab, hardware, acoustic, provider, containment, installed-native, accessibility or experiment evidence is not an implementation prerequisite. Require it only when enabling, advertising, packaging or materially changing the exact capability/profile and its owning contract requires it.
 - E/Q gates do not block bounded fail-closed implementation, deterministic tests, PR creation or merge. Missing/unknown runtime readiness remains explicitly disabled or unavailable, with deterministic fakes at the platform seam; no speculative enablement, success fallback, real hardware/network substitute or open-ended proof harness.

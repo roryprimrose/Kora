@@ -4,6 +4,9 @@ namespace Kora.Windows.Dependencies;
 
 public sealed class ClaudeDeploymentApproval
 {
+    private readonly DevelopmentPreviewLease? preview;
+    internal ClaudeDeploymentApproval(DevelopmentPreviewLease preview) : this(preview.ExpiresAt)
+    { this.preview = preview; }
     public ClaudeDeploymentApproval(DateTimeOffset expiresAt,
         IEnumerable<ClaudeTextStreamProfile>? textStreams = null)
     {
@@ -15,6 +18,8 @@ public sealed class ClaudeDeploymentApproval
         { throw new InvalidDataException("Claude text-stream evidence requires unique exact bounded profiles."); }
     }
     public DateTimeOffset ExpiresAt { get; }
+    public bool IsDevelopmentPreview => preview is not null;
+    internal bool HasCurrentDevelopmentPreview => preview?.IsCurrent == true;
     public System.Collections.Immutable.ImmutableArray<ClaudeTextStreamProfile> TextStreams { get; }
     public string Adapter => "anthropic-messages-meai-sdk-v5";
     public string ApiVersion => "2023-06-01";

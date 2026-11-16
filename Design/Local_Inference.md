@@ -33,6 +33,14 @@ Production pins were not changed.
 
 ## Three-Tier Admission Policy
 
+The separately approved [Development Preview](Acceptance_Criteria.md#explicit-development-preview-admission)
+uses explicit volatile native model selection and exact current runtime/model
+identity checks to exercise real Kora turns before release qualification.
+Its catalogue is labelled Development Preview and its receipt has no release
+attestation. Known model-quality failures remain recorded; the native host,
+tool/source admission, complete byte bounds and cancellation fences still
+apply. Ordinary builds retain the release-qualified broker.
+
 1. **Development:** deterministic production boundaries and unrelated features
    continue. No local-inference qualification evidence is required.
 2. **Capability:** a materially changed runtime/model/profile must pass the

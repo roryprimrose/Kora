@@ -20,10 +20,16 @@ internal static class ProviderProfileComposition
         services.AddSingleton<ILocalModelQualificationAuthority, BundledLocalModelQualificationAuthority>();
         services.AddSingleton<IWindowsOllamaAdmissionObservation, WindowsOllamaAdmissionObservation>();
         services.AddSingleton<WindowsOllamaAdmissionBroker>();
+        services.AddSingleton<DevelopmentPreviewAdmission>(provider => new(DevelopmentPreviewBuild.Enabled,
+            provider.GetRequiredService<TimeProvider>(), provider.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>()));
+        services.AddSingleton<DevelopmentOllamaAdmissionSource>();
+        services.AddSingleton<DevelopmentClaudeDeploymentSource>();
         services.AddSingleton<ILocalModelAdmissionBroker>(provider => provider.GetRequiredService<WindowsOllamaAdmissionBroker>());
         services.AddSingleton<LocalModelAdmissionPreferences>();
         services.AddSingleton<OllamaAdmissionWorkflow>();
-        services.AddSingleton<IWindowsOllamaQualificationSource>(provider => provider.GetRequiredService<WindowsOllamaAdmissionBroker>());
+        services.AddSingleton<IWindowsOllamaQualificationSource>(provider => DevelopmentPreviewBuild.Enabled
+            ? provider.GetRequiredService<DevelopmentOllamaAdmissionSource>()
+            : provider.GetRequiredService<WindowsOllamaAdmissionBroker>());
         services.AddSingleton<WindowsOllamaRuntimeResolver>();
         services.AddSingleton<CopilotEvaluationDeploymentSource>();
         services.AddSingleton<ICopilotDeploymentApprovalSource>(provider => provider.GetRequiredService<CopilotEvaluationDeploymentSource>());
@@ -31,7 +37,9 @@ internal static class ProviderProfileComposition
         services.AddSingleton<ICopilotExecutionAccountSource>(provider => provider.GetRequiredService<CopilotAccountBroker>());
         services.AddSingleton<CopilotSdkTurnRuntime>();
         services.AddSingleton<Kora.Application.Dependencies.HostedTransmissionReviewService>();
-        services.AddSingleton<IClaudeDeploymentApprovalSource, UnavailableClaudeDeploymentApprovalSource>();
+        if (DevelopmentPreviewBuild.Enabled)
+        { services.AddSingleton<IClaudeDeploymentApprovalSource>(provider => provider.GetRequiredService<DevelopmentClaudeDeploymentSource>()); }
+        else { services.AddSingleton<IClaudeDeploymentApprovalSource, UnavailableClaudeDeploymentApprovalSource>(); }
         services.AddSingleton<ClaudeAccountBroker>();
         services.AddSingleton<ClaudeMessagesRuntime>();
         services.AddSingleton<ClaudeModelProviderFactory>();

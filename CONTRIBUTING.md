@@ -150,6 +150,33 @@ authenticated exit command rather than requiring tray automation.
 
 ## Development checks
 
+### Downloadable Development Preview
+
+Use the explicit build profile for actual opted-in experiments inside Kora:
+
+```powershell
+.\eng\Publish-DevelopmentPreview.ps1
+```
+
+The output is a self-contained Windows x64 ZIP and a source/file-hash manifest,
+not a production-qualified installer. Open the included Kora executable and
+choose **Settings > Set up development preview capabilities**. Select only
+the capabilities being tested and accept their unqualified status. Local
+models must already be installed/running; hosted authentication and every
+content-bearing send retain their existing reviews. Prepared wake data still
+needs microphone consent/profile selection. Bundled fixed workers still need
+their protected runtime preparation, content-bound grant and action review.
+No setup action starts those operations automatically, and restart does not
+restore the volatile preview grant.
+
+The separate **Development Preview** Actions workflow publishes the same
+downloadable artifact when manually invoked on protected main. It does not
+publish a release, change queue admission or claim omitted physical/RC proof.
+Ordinary Debug/Release builds omit this build marker and setup entry unless
+`-p:KoraDevelopmentPreview=true` was explicitly supplied. Per-command optional
+`-PackageSource` overrides support machine-local feed routing without changing
+repository configuration.
+
 PR merge orchestration can run entirely on GitHub, without a local agent.
 See [GitHub-hosted merge admission](eng/merge-queue/README.md) for queue intent,
 failure/retry behaviour, the disabled-by-default rollout and administrator setup.

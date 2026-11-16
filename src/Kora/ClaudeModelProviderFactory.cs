@@ -18,7 +18,8 @@ internal sealed class ClaudeModelProviderFactory(ClaudeAccountBroker accounts, C
         if (ProviderProfileRules.Resolve(profile, catalogue, time.GetUtcNow())?.Selection != selection) { return null; }
         var current = await accounts.IsProfileCurrentAsync(profile, cancellationToken).ConfigureAwait(false);
         return !current ? null : new(selection,
-            ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle
+            ModelQualificationGate.DotNetFinalRequest
+                | (DevelopmentPreviewBuild.Enabled ? ModelQualificationGate.UserReviewedClaudeEvaluation : ModelQualificationGate.AllPathLifecycle)
                 | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost,
             catalogue.ValidUntil, new ClaudeModelTurnAdapter(runtime, reviews, time, logger),
             () => catalogue.IsCurrent(time.GetUtcNow()));

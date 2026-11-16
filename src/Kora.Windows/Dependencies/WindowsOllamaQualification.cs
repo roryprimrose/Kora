@@ -9,6 +9,12 @@ namespace Kora.Windows.Dependencies;
 /// </summary>
 public sealed class WindowsOllamaQualification
 {
+    private readonly DevelopmentPreviewLease? preview;
+    internal WindowsOllamaQualification(Guid evidenceId, ProviderCapabilityCatalogue catalogue,
+        WindowsOllamaRuntimeIdentity runtime, string runtimeVersion, string model, string modelDigest,
+        DevelopmentPreviewLease preview)
+        : this(evidenceId, catalogue, runtime, runtimeVersion, model, modelDigest, preview.Revoked)
+    { this.preview = preview; }
     public WindowsOllamaQualification(Guid evidenceId, ProviderCapabilityCatalogue catalogue,
         WindowsOllamaRuntimeIdentity runtime, string runtimeVersion, string model, string modelDigest,
         CancellationToken revoked, LocalModelQualificationEvidence? qualificationEvidence = null)
@@ -55,6 +61,8 @@ public sealed class WindowsOllamaQualification
     public string ModelDigest { get; }
     public CancellationToken Revoked { get; }
     public LocalModelQualificationEvidence? QualificationEvidence { get; }
+    public bool IsDevelopmentPreview => preview is not null;
     public bool IsCurrent(DateTimeOffset now) => !Revoked.IsCancellationRequested
-        && Runtime.StartedAt <= now && Catalogue.IsCurrent(now) && QualificationEvidence?.IsCurrent(now) == true;
+        && Runtime.StartedAt <= now && Catalogue.IsCurrent(now)
+        && (QualificationEvidence?.IsCurrent(now) == true || preview?.IsCurrent == true);
 }

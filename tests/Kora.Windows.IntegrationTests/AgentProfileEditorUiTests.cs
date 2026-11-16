@@ -82,7 +82,7 @@ public sealed class AgentProfileEditorUiTests
             dialog = await nextDialog.Task.WaitAsync(TestContext.Current.CancellationToken);
             File.Exists(target).Should().BeFalse();
             Click(dialog!, "Save as new");
-            await controller.ActiveOperation;
+            await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             File.ReadAllText(target).Should().Be(source);
             editor.Source.IsReadOnly.Should().BeTrue();
             await Run("agent author list");
@@ -206,7 +206,7 @@ public sealed class AgentProfileEditorUiTests
             await Run("agent author inspect example");
             editor!.Source.IsReadOnly.Should().BeTrue();
             Click(editor, "Edit existing original");
-            await controller.ActiveOperation;
+            await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             editor.Source.IsReadOnly.Should().BeFalse();
             editor.NameInput.IsReadOnly.Should().BeTrue();
             var draft = original + "\nNative edited guidance.";
@@ -216,22 +216,22 @@ public sealed class AgentProfileEditorUiTests
             await Run("agent author save as new");
             editor.Confirm.IsEnabled.Should().BeFalse("updating cannot masquerade as creating a new copy");
             Click(editor, "Review Save (new or existing original)");
-            await controller.ActiveOperation;
+            await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             editor.Review.Text.Should().Contain(original).And.Contain(draft).And.Contain(destination.DisplayPath)
                 .And.Contain("BEFORE: COMPLETE ORIGINAL SOURCE").And.Contain("AFTER: COMPLETE PROPOSED SOURCE");
             File.ReadAllText(destination.DisplayPath).Should().Be(original);
             Click(editor.Confirm);
             Click(await Dialog(), "Cancel");
-            await controller.ActiveOperation;
+            await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             File.ReadAllText(destination.DisplayPath).Should().Be(original);
             editor.Source.Text.Should().Be(draft);
             Click(editor, "Review Save (new or existing original)");
-            await controller.ActiveOperation;
+            await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             editor.Source.Text += "\nInvalidates exact review";
             draft = editor.Source.Text!;
             editor.Confirm.IsEnabled.Should().BeFalse();
             Click(editor, "Review Save (new or existing original)");
-            await controller.ActiveOperation;
+            await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             var external = original + "\nExternal concurrent edit.";
             await File.WriteAllTextAsync(destination.DisplayPath, external, f.Token);
             Click(editor.Confirm);
@@ -243,13 +243,13 @@ public sealed class AgentProfileEditorUiTests
             if (recovery is "Reload from disk (abandon draft)")
             {
                 Click(await Dialog(), "Discard");
-                await controller.ActiveOperation;
+                await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 editor.Source.Text.Should().Be(external);
                 editor.Source.IsReadOnly.Should().BeTrue();
             }
             else if (recovery is "Cancel (keep draft)")
             {
-                await controller.ActiveOperation;
+                await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 editor.Source.Text.Should().Be(draft);
                 File.ReadAllText(destination.DisplayPath).Should().Be(external);
                 var closing = f.Main.ExitAsync();
@@ -264,7 +264,7 @@ public sealed class AgentProfileEditorUiTests
             }
             else
             {
-                await controller.ActiveOperation;
+                await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 editor.Confirm.IsEnabled.Should().BeTrue("overwrite prepares another review, not a write");
                 editor.Review.Text.Should().Contain(external).And.Contain(draft);
                 File.ReadAllText(destination.DisplayPath).Should().Be(external);
@@ -272,11 +272,11 @@ public sealed class AgentProfileEditorUiTests
                 Click(editor.Confirm);
                 Click(await Dialog(), "Save existing original");
                 Click(await Dialog(), "Overwrite with Kora changes");
-                await controller.ActiveOperation;
+                await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 File.ReadAllText(destination.DisplayPath).Should().Be(external + "\nChanged again.");
                 Click(editor.Confirm);
                 Click(await Dialog(), "Save existing original");
-                await controller.ActiveOperation;
+                await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 File.ReadAllText(destination.DisplayPath).Should().Be(draft);
                 editor.Source.IsReadOnly.Should().BeTrue();
                 await Run("agent author inspect example");
@@ -337,7 +337,7 @@ public sealed class AgentProfileEditorUiTests
             { f.Main.CommandText = command; await f.Main.RunTypedCommand.ExecuteAsync(); }
             async Task<Window> Dialog(Task operation)
             {
-                (await Task.WhenAny(next.Task, operation)).Should().BeSameAs(next.Task,
+                (await Task.WhenAny(next.Task, operation).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken)).Should().BeSameAs(next.Task,
                     "the exact native decision must open; status: {0}", editor!.Status.Text);
                 var result = await next.Task.WaitAsync(TestContext.Current.CancellationToken);
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -347,7 +347,7 @@ public sealed class AgentProfileEditorUiTests
             if (existing)
             {
                 Click(editor!, "Edit existing original");
-                await controller.ActiveOperation;
+                await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             }
             var draft = original + "\nKeep the original draft at its original destination.";
             editor!.Source.Text = draft;
@@ -398,7 +398,7 @@ public sealed class AgentProfileEditorUiTests
                 File.Exists(replacementPath).Should().BeFalse();
                 Click(editor.Confirm);
                 Click(await Dialog(controller.ActiveOperation), "Save as new");
-                await controller.ActiveOperation;
+                await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 File.ReadAllText(replacementPath).Should().Be(newSource);
                 audit.Events.Select(item => item.Outcome).Should().Equal(decision is "Save"
                     ? [SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded,

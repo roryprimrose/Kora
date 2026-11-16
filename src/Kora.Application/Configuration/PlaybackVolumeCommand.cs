@@ -19,7 +19,7 @@ public sealed record PlaybackVolumeCommand(AppearanceCommandOperation Operation,
     public static PlaybackVolumeCommand? Parse(string input, string assistantName)
     {
         var text = input.Trim();
-        var name = AssistantNameRules.Normalize(assistantName);
+        var name = AssistantNameRules.ResolveActivationName(text, assistantName);
         var exactRelative = text.Equals("speak louder", StringComparison.OrdinalIgnoreCase)
             || text.Equals("speak quieter", StringComparison.OrdinalIgnoreCase);
         if (!exactRelative && text.StartsWith(name, StringComparison.OrdinalIgnoreCase) && text.Length > name.Length

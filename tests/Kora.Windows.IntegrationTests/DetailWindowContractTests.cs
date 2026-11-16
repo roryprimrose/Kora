@@ -13,7 +13,7 @@ public sealed class DetailWindowContractTests
     {
         var response = XDocument.Parse(Read("ResponseWindow.axaml"));
         var button = response.Descendants().Single(element => string.Equals(element.Name.LocalName, "Button", StringComparison.Ordinal)
-            && string.Equals(element.Attribute("Content")?.Value, "Open exact web-result details", StringComparison.Ordinal));
+            && string.Equals(element.Attribute("AutomationProperties.Name")?.Value, "Open exact web-result details", StringComparison.Ordinal));
         button.Attribute("Tag")!.Value.Should().Be("{Binding}");
         button.Attribute("Click")!.Value.Should().Be("OnWebResultDetailsClicked");
         button.Attribute("AutomationProperties.Name")!.Value.Should().Be("Open exact web-result details");
@@ -68,7 +68,7 @@ public sealed class DetailWindowContractTests
         Named(document, "FindSummary").Attribute("AutomationProperties.Name")!.Value.Should().Contain("current admitted text only");
         Named(document, "FindSummary").Attribute("AutomationProperties.LiveSetting")!.Value.Should().Be("Off");
         Read("DetailContentView.axaml").Should().Contain("DynamicResource").And.Contain("rendered Markdown as semantic plain text with inert HTML")
-            .And.Contain("Clipboard content leaves Kora").And.NotContain("Animation").And.NotContain("WebView");
+            .And.Contain("Clipboard content leaves {0}").And.Contain("AssistantNameDisplay.Current").And.NotContain("Animation").And.NotContain("WebView");
     }
 
     [Fact]

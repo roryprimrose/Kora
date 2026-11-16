@@ -51,6 +51,12 @@ internal sealed partial class OwnedSkillInvocationController(
         main.PropertyChanged += OnMainChanged;
     }
 
+    private void OfferContents(OwnedSkillInvocationView view, OwnedSkillUseReview captured)
+    {
+        if (captured.Contents is { } contents)
+        { view.ContentsLink.Offer(contents, () => ReferenceEquals(window, view) && captured.IsCurrent && Eligible()); }
+    }
+
     private bool Eligible() => !disposed && ownsHost() && ownershipRevision() == ownerRevision
         && main.CallPolicyRevision == callRevision && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible
         && !main.IsResponseInteractionPending && original?.IsCurrent() == true && lifetime?.IsCancellationRequested == false
@@ -107,6 +113,7 @@ internal sealed partial class OwnedSkillInvocationController(
                 }
                 window = opened;
                 opened.Instructions.Text = captured.Text;
+                OfferContents(opened, captured);
                 opened.LiteralInputs.Configure(captured.RequiredNames, (_, _) =>
                 {
                     RetireConfirmation();
@@ -148,6 +155,7 @@ internal sealed partial class OwnedSkillInvocationController(
                     if (Current())
                     {
                         currentWindow.Instructions.Text = currentReview.Text;
+                        OfferContents(currentWindow, currentReview);
                         currentWindow.Status.Text = "Complete exact primary and every declared component captured. Review all files, then separately Enable.";
                     }
                     break;

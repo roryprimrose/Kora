@@ -21,7 +21,8 @@ public sealed class InCallFeedbackCommandTests
         {
             InCallFeedbackCommand.Parse("set calls.feedback-mode to " + mode, "Nova")!.Value.Should().Be(mode);
         }
-        InCallFeedbackCommand.Parse("Kora, get calls.feedback-mode", "Nova").Should().BeNull();
+        InCallFeedbackCommand.Parse("Kora, get calls.feedback-mode", "Nova").Should().NotBeNull();
+        InCallFeedbackCommand.Parse("Aria, get calls.feedback-mode", "Nova").Should().BeNull();
         InCallFeedbackCommand.Parse("NovaX get calls.feedback-mode", "Nova").Should().BeNull();
         InCallFeedbackCommand.Parse("use voice in calls", "Nova").Should().BeNull();
     }

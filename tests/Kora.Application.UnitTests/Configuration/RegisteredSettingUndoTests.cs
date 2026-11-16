@@ -608,6 +608,7 @@ public sealed class RegisteredSettingUndoTests
 
     [Theory]
     [InlineData(AppearanceOption.NativePresenceRenderer)]
+    [InlineData(AppearanceOption.ConversationOnRight)]
     [InlineData((AppearanceOption)(-1))]
     public async Task ResetCannotBroadenTheRegisteredPreferenceSubset(AppearanceOption option)
     {

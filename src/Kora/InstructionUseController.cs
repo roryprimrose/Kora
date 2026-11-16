@@ -96,6 +96,8 @@ internal sealed partial class InstructionUseController(MainViewModel main, Instr
                 }
                 var opened = window;
                 opened.Review.Text = review.Text;
+                var reviewed = review;
+                opened.ContentsLink.Offer(reviewed.Contents, () => ReferenceEquals(review, reviewed) && ReferenceEquals(window, opened) && Current());
                 opened.Confirm.IsEnabled = review.CanConfirm;
                 opened.Status.Text = "No model call or message retention yet. Separately confirm, cancel or close.";
                 return review.Id;
@@ -105,6 +107,7 @@ internal sealed partial class InstructionUseController(MainViewModel main, Instr
             var exact = review;
             var native = target.CapturePresentation();
             review = null;
+            target.ContentsLink.Retire();
             submitting = true;
             main.RetireInstructionUseReview(exact.Id);
             target.Confirm.IsEnabled = false;

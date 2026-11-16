@@ -17,7 +17,8 @@ public sealed partial class MainViewModel
     public void BindReviewedVoiceCommand(ILogger<ReviewedVoiceCommandCapture> captureLogger, TimeProvider time)
     {
         if (reviewedVoiceCommand is not null) { throw new InvalidOperationException("Reviewed command capture already has an owner."); }
-        reviewedVoiceCommand = new(voiceRecognition, uiDispatcher, CaptureReviewedVoiceCommandTarget, captureLogger, time);
+        reviewedVoiceCommand = new(voiceRecognition, uiDispatcher, CaptureReviewedVoiceCommandTarget, captureLogger, time,
+            () => AssistantName);
         reviewedVoiceCommand.Changed += OnReviewedVoiceCommandChanged;
         PropertyChanged += RevalidateReviewedVoiceCommand;
     }

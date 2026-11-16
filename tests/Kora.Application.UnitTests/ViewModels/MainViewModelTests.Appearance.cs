@@ -140,6 +140,7 @@ public sealed partial class MainViewModelTests
             [AppearanceOption.MovementSpeed] = fixture.ViewModel.ResetPresenceMovementSpeedCommand,
             [AppearanceOption.SpeechScaling] = fixture.ViewModel.ResetPresenceSpeechScalingCommand,
             [AppearanceOption.SpeechScaleAmount] = fixture.ViewModel.ResetPresenceSpeechScaleAmountCommand,
+            [AppearanceOption.ConversationOnRight] = fixture.ViewModel.ResetConversationSideCommand,
         };
         foreach (var descriptor in fixture.ViewModel.AppearanceOptions)
         {
@@ -166,7 +167,11 @@ public sealed partial class MainViewModelTests
             .And.Contain(nameof(fixture.ViewModel.PresenceDotDensityPercent))
             .And.Contain(nameof(fixture.ViewModel.PresenceMovementSpeedPercent))
             .And.Contain(nameof(fixture.ViewModel.IsPresenceSpeechScalingEnabled))
-            .And.Contain(nameof(fixture.ViewModel.PresenceSpeechScaleAmountPercent));
+            .And.Contain(nameof(fixture.ViewModel.PresenceSpeechScaleAmountPercent))
+            .And.Contain(nameof(fixture.ViewModel.IsConversationOnRight))
+            .And.Contain(nameof(fixture.ViewModel.SelectedConversationSide));
+        fixture.ViewModel.IsConversationOnRight.Should().BeFalse();
+        fixture.AppearancePreferences.ConversationOnRight.Should().BeFalse("reset saves the left default");
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
         fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeTrue();
         fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();

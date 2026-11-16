@@ -1,3 +1,5 @@
+using Kora.Application.Configuration;
+using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
@@ -5,11 +7,13 @@ using Kora.Core.Voice;
 namespace Kora.Application.Voice;
 
 /// <summary>Bounded memory-only setup operation. It has no command, source, preference or conversation writer.</summary>
-public sealed class SpeechSetupComparison(ISpeechSetupComparisonRuntime runtime, ISpeechInputProfileRuntime profiles)
+public sealed class SpeechSetupComparison(ISpeechSetupComparisonRuntime runtime, ISpeechInputProfileRuntime profiles,
+    AssistantNameConfigurationService? names = null)
     : IAsyncDisposable
 {
-    private const string CancellationFailureStatus =
-        "Comparison cancellation failed. No success is claimed; restart Kora before another comparison.";
+    private string CancellationFailureStatus =>
+        $"Comparison cancellation failed. No success is claimed; restart {AssistantName} before another comparison.";
+    private string AssistantName => names?.DisplayName ?? AssistantNameRules.DefaultName;
     private readonly Lock gate = new();
     private CancellationTokenSource? cancellation;
     private Task work = Task.CompletedTask;
@@ -74,7 +78,7 @@ public sealed class SpeechSetupComparison(ISpeechSetupComparisonRuntime runtime,
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             if (!work.IsCompleted || cancellationFailed)
-            { throw new InvalidOperationException("Cancel and join the previous attempt before review; restart Kora if cancellation failed."); }
+            { throw new InvalidOperationException($"Cancel and join the previous attempt before review; restart {AssistantName} if cancellation failed."); }
             Retire("Review unavailable.");
             if (!admission() || !profiles.IsProfileAvailable)
             { throw new InvalidOperationException("Current microphone/owner/consent/privacy or profile admission is unavailable."); }

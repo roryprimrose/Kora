@@ -38,28 +38,24 @@ public static class LocalModelQuestionSpeech
     public static IEnumerable<string> GetPhrases(LocalModelQuestion question, string assistantName)
     {
         ArgumentNullException.ThrowIfNull(question);
-        var name = AssistantNameRules.Normalize(assistantName);
         var phrases = question.Options.SelectMany((option, index) =>
             new[] { (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) }
                 .Concat(NumberPhrases[index])
                 .Concat(option.All(character => char.IsLetterOrDigit(character)
                     || char.IsWhiteSpace(character) || character is '-' or '\'')
                     ? [option] : []));
-        return phrases.Concat(["cancel question", "never mind", "reject",
-                "accept", "approve", "yes", "no", "deny"])
-            .SelectMany(phrase => new[] { phrase, $"{name} {phrase}" });
+        return AssistantNameRules.WithActivationNames(
+            phrases.Concat(["cancel question", "never mind", "reject",
+                "accept", "approve", "yes", "no", "deny"]),
+            assistantName);
     }
 
     public static int Match(string transcript, LocalModelQuestion question, string assistantName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(transcript);
         ArgumentNullException.ThrowIfNull(question);
-        var name = BuiltInCommandRouter.Normalize(AssistantNameRules.Normalize(assistantName));
-        var normalized = BuiltInCommandRouter.Normalize(transcript);
-        if (normalized.StartsWith($"{name} ", StringComparison.Ordinal))
-        {
-            normalized = normalized[(name.Length + 1)..];
-        }
+        BuiltInCommandRouter.TryRemoveNormalizedActivationName(
+            BuiltInCommandRouter.Normalize(transcript), assistantName, out var normalized);
 
         for (var index = 0; index < question.Options.Count; index++)
         {
@@ -91,7 +87,7 @@ public static class LocalModelQuestionSpeech
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(transcript);
         var answer = transcript.Trim();
-        var name = AssistantNameRules.Normalize(assistantName);
+        var name = AssistantNameRules.ResolveActivationName(answer, assistantName);
         if (answer.StartsWith(name, StringComparison.OrdinalIgnoreCase)
             && (answer.Length == name.Length || !char.IsLetterOrDigit(answer[name.Length])))
         {
@@ -105,12 +101,8 @@ public static class LocalModelQuestionSpeech
     public static bool IsCancellation(string transcript, string assistantName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(transcript);
-        var name = BuiltInCommandRouter.Normalize(AssistantNameRules.Normalize(assistantName));
-        var normalized = BuiltInCommandRouter.Normalize(transcript);
-        if (normalized.StartsWith($"{name} ", StringComparison.Ordinal))
-        {
-            normalized = normalized[(name.Length + 1)..];
-        }
+        BuiltInCommandRouter.TryRemoveNormalizedActivationName(
+            BuiltInCommandRouter.Normalize(transcript), assistantName, out var normalized);
         return normalized is "cancel question" or "never mind" or "reject";
     }
 

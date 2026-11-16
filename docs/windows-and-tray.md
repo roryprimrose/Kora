@@ -44,6 +44,20 @@ Every artifact can be persistently disabled in Kora without deleting its files.
 See [Customizations](customizations.md) for exact commands and the separate
 source-write, model-disclosure and runtime-use boundaries.
 
+## View the contents of an item under review
+
+Reviews for shared and owned skills, bundled skill packages, agent runs, owned
+instruction use and prompt previews include a **View contents** link. It opens
+the exact files that review captured beside the conversation in the expanded
+window: a file tree (folders first) for multi-file items such as skill packages
+and agents with resolved instructions, and a read-only viewer showing each
+file's path and SHA-256. Declared files that were not read yet, such as skill
+references awaiting consent, are listed as not included rather than hidden.
+You can also type or say `show contents`. It opens the most recent review
+that is still current. Viewing contents is optional and never approves,
+enables or runs anything; each review keeps its own confirmation, and closing
+or retiring the review retires its contents view.
+
 ## Owned instructions and prompts
 
 Open **Settings > Custom content > Owned instructions and prompts...**. Choose Instruction

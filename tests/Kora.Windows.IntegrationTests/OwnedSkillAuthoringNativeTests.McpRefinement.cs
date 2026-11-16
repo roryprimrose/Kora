@@ -76,7 +76,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             async Task Run(string command) { f.Main.CommandText = command; await f.Main.RunTypedCommand.ExecuteAsync(); }
             async Task<Window> Review(Task operation)
             {
-                (await Task.WhenAny(next.Task, operation)).Should().BeSameAs(next.Task);
+                (await Task.WhenAny(next.Task, operation).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken)).Should().BeSameAs(next.Task);
                 var result = await next.Task;
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 AssertModalHandoff(editor!, result);
@@ -138,7 +138,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 }
                 else { next.Task.IsCompleted.Should().BeFalse(); }
             }
-            await saving;
+            await saving.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             var target = await store.Read("example", "2.0.0", f.Token);
             if (scenario is "save")
             {

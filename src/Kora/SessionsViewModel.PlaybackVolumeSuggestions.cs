@@ -24,7 +24,7 @@ internal sealed partial class SessionsViewModel
         {
             var saved = await (confirmPlaybackVolumeSuggestion
                 ?? throw new InvalidOperationException("Volume confirmation is unavailable."))(review, lifetime.Token);
-            conversationStatus = saved ? "Kora-only playback volume saved with committed preference and audit readback. No speech replayed."
+            conversationStatus = saved ? $"{AssistantNameDisplay.Current.Name}-only playback volume saved with committed preference and audit readback. No speech replayed."
                 : "Volume save is unconfirmed. Inspect Settings and audit receipts; "
                     + "a write may have persisted. No automatic retry or rollback.";
         }

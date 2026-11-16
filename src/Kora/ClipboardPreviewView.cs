@@ -69,7 +69,7 @@ internal sealed partial class ClipboardPreviewView : UserControl, IClipboardPrev
             Text = "Exact local text only. May contain secrets. No inference without explicit review, egress approval, copy/write or history.\n"
                 + "Review and explain locally confirms one use of this complete snapshot by a qualified LOCAL runtime only; review expires 15 minutes after capture. "
                 + "The clipboard tool requires a permission grant: deny, Once, This session or Always. "
-                + "You are responsible for sensitive text you place in the clipboard; Kora does not classify or scan it. "
+                + $"You are responsible for sensitive text you place in the clipboard; {AssistantNameDisplay.Current.Name} does not classify or scan it. "
                 + "A reusable grant never replaces this exact-snapshot confirmation. No hosted or bootstrap fallback.\n"
                 + "Clipboard changes do not update this snapshot. Close revokes it.",
             TextWrapping = TextWrapping.Wrap,

@@ -96,12 +96,13 @@ public sealed class PromptInputVoiceControllerTests
         try
         {
             await f.Begin();
+            f.AssistantName = "Nova";
             f.Capture.NonQuiescent = true;
             if (duringDelivery) { f.Capture.Transcript("private must not publish"); }
             else { f.Controller.Retire("Cancel while native release cannot be confirmed"); }
             await ((Func<Task>)(() => f.Controller.Quiescence)).Should().ThrowAsync<InvalidOperationException>();
             f.Applied.Should().Be(0);
-            f.Controller.Status.Should().Contain("cleanup unconfirmed");
+            f.Controller.Status.Should().Contain("cleanup unconfirmed").And.Contain("Restart Nova");
             f.Capture.NonQuiescent = false;
             await f.Begin();
             f.Capture.Opens.Should().Be(1);
@@ -423,6 +424,7 @@ public sealed class PromptInputVoiceControllerTests
         public ArtifactCatalogue Catalogue { get; }
         public PromptParameterDraft Draft { get; }
         public PromptInputVoiceController Controller { get; }
+        public string AssistantName { get; set; } = "Kora";
         public bool Focused { get; set; } = true;
         public bool FreshSource { get; set; } = true;
         public int Applied { get; private set; }
@@ -437,7 +439,7 @@ public sealed class PromptInputVoiceControllerTests
                 ArtifactKind.Prompt, "kora-profile", "example").Definition with { OwnedInstructionRevision = "exact" };
             Catalogue = new([Source]);
             Draft = new(Source, Catalogue, () => true);
-            Controller = new(Capture, Dispatcher, () => Admission, Fresh, Logger, time ?? Time);
+            Controller = new(Capture, Dispatcher, () => Admission, Fresh, Logger, time ?? Time, () => AssistantName);
         }
         public Task<bool> Fresh(ArtifactDefinition source, CancellationToken token)
         {

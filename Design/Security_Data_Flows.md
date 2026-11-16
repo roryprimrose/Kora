@@ -363,8 +363,9 @@ The UI always shows the effective processing mode and runtime.
 ## Wake-Listening Privacy
 
 "Kora" activation is a Slice A1 design requirement and runs locally in both
-data modes; production wake remains unavailable. It is the default name, not
-a permanently enabled alias: the current name is custom-only under
+data modes; production wake remains unavailable. "Kora" is always accepted as
+a command prefix alongside a custom name, but the single-keyphrase wake stage
+does not detect it for a custom-name profile; see
 [Assistant and Activation Name](Activation_Name.md).
 Name changes never authenticate a speaker, modify embedded skills/code, expand ambient capture, or bypass output/action policy.
 Setup requires explicit microphone/wake-listening consent; once enabled, verbal activation requires no click or keypress.

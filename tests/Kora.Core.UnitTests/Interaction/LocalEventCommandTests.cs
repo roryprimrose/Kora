@@ -19,7 +19,8 @@ public sealed class LocalEventCommandTests
         LocalEventCommand.Parse(text, "Kora").Should().Be(expected);
         LocalEventCommand.Parse("Aster, " + text, "Aster").Should().Be(expected);
         LocalEventCommand.Parse("Aster\t" + text, "Aster").Should().Be(expected);
-        LocalEventCommand.Parse("Kora, " + text, "Aster").Should().BeNull();
+        LocalEventCommand.Parse("Kora, " + text, "Aster").Should().Be(expected);
+        LocalEventCommand.Parse("Aria, " + text, "Aster").Should().BeNull();
         LocalEventCommand.FixedPhrases.Should().Contain("event " + verb);
         LocalEventCommand.Syntax.Should().Contain("exact-event-id");
     }

@@ -1,5 +1,6 @@
 <UserControl x:Class="Kora.AllWorkView"
     xmlns="https://github.com/avaloniaui"
+    xmlns:assistant="using:Kora"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Kora.Controls"
     xmlns:local="using:Kora"
@@ -120,7 +121,7 @@
                               AutomationProperties.Name="Stop All review and physical joining status; separate from passive overview" />
       <WrapPanel>
       <Button x:Name="StopAllSubmittedWork" Content="_Stop all work…" IsEnabled="{Binding CanStopAll}"
-              AutomationProperties.Name="Stop all submitted work: full host review and separate original-channel confirmation; not just this page or selection; keep Kora open, preserve unsent input, history and grants" />
+              AutomationProperties.Name="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Stop all submitted work: full host review and separate original-channel confirmation; not just this page or selection; keep {0} open, preserve unsent input, history and grants'}" />
       <Button x:Name="Navigate" Content="Open exact _session with fresh passive read" IsEnabled="{Binding CanNavigate}"
               AutomationProperties.Name="Navigate this immutable session ID through Sessions private workspace admission; no resume, dispatch, cancel, enqueue or question retarget" />
       <Button x:Name="CloseView" Content="_Return to conversation" />

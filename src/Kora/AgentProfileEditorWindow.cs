@@ -16,7 +16,7 @@ internal sealed class AgentProfileEditorWindow : Window, IDisposable
     internal Button Confirm => View.Confirm;
     internal AgentProfileEditorWindow(Action<string> run)
     {
-        Title = "Kora-owned agent profile";
+        Title = "Owned agent profile";
         Width = 900; Height = 900;
         View = new(this, run, static () => true);
         Content = View;

@@ -18,7 +18,7 @@ public sealed record SessionQueueCancellationReviewCommand(
     public static SessionQueueCancellationReviewCommand? Parse(string input, string assistantName)
     {
         var text = input.Trim();
-        var prefix = AssistantNameRules.Normalize(assistantName);
+        var prefix = AssistantNameRules.ResolveActivationName(text, assistantName);
         if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && text.Length > prefix.Length
             && (text[prefix.Length] == ',' || char.IsWhiteSpace(text[prefix.Length])))
         { text = text[prefix.Length..].TrimStart(' ', ',', '\t'); }

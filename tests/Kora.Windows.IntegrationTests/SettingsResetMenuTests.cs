@@ -119,7 +119,7 @@ public sealed class SettingsResetMenuTests
         string command, string settingName, string? guard, string accessibleName)
     {
         var cog = LoadSettings().Descendants().Single(element =>
-            string.Equals(element.Attribute("SettingName")?.Value, settingName, StringComparison.Ordinal));
+            string.Equals(AssistantNameXaml.Resolve(element.Attribute("SettingName")?.Value), settingName, StringComparison.Ordinal));
         cog.Name.LocalName.Should().Be(nameof(SettingActionsButton));
         cog.Attribute("IsEnabled")?.Value.Should().Be(guard is null ? null : "{Binding " + guard + "}");
         var item = cog.Descendants().Single(element =>
@@ -164,17 +164,17 @@ public sealed class SettingsResetMenuTests
             .Where(attribute => attribute.Name.LocalName is "Command" or "ResetCommand"
                 && attribute.Value.StartsWith("{Binding Reset", StringComparison.Ordinal))
             .ToArray();
-        bindings.Should().HaveCount(40);
-        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(40);
+        bindings.Should().HaveCount(41);
+        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(41);
         bindings.Select(attribute => attribute.Value).Should().Contain(
             ["{Binding ResetOrdinaryDeadlineCommand}", "{Binding ResetLogonStartupCommand}",
                 "{Binding ResetQuietHoursCommand}", "{Binding ResetDetailPresentationCommand}",
                 "{Binding ResetMarkdownDisplayCommand}"]);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(43);
+            .Should().Be(44);
         elements.Where(element => element.Name.LocalName is nameof(SettingActionsButton))
-            .Select(element => element.Attribute("SettingName")?.Value).Should().Contain(
+            .Select(element => AssistantNameXaml.Resolve(element.Attribute("SettingName")?.Value)).Should().Contain(
                 ["Ordinary task deadline", "Ordinary conversation execution maximum",
                     "Scheduled proactive speech quiet hours", "Detailed result offers"]);
         foreach (var binding in bindings)
@@ -234,7 +234,7 @@ public sealed class SettingsResetMenuTests
     }
 
     [Theory]
-    [InlineData("Appearance", 17, 17, 0, 0)]
+    [InlineData("Appearance", 18, 18, 0, 0)]
     [InlineData("Speech & audio", 10, 9, 5, 0)]
     [InlineData("Responses", 6, 6, 3, 2)]
     [InlineData("Sessions", 2, 2, 2, 0)]

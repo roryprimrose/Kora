@@ -48,7 +48,7 @@ public sealed class QuietHoursCommandTests
 
     [Theory]
     [InlineData("get notices.quiet-hours-other")]
-    [InlineData("Kora, confirm notices.quiet-hours")]
+    [InlineData("Aria, confirm notices.quiet-hours")]
     [InlineData("tell me the time")]
     public void OtherNamesAndOtherCommandsAreNotScheduleAuthority(string text)
     {

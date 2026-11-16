@@ -1,6 +1,7 @@
 ﻿<UserControl
     x:Class="Kora.SettingsView"
     xmlns="https://github.com/avaloniaui"
+    xmlns:assistant="using:Kora"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:configuration="clr-namespace:Kora.Core.Configuration;assembly=Kora.Core"
     xmlns:hosting="clr-namespace:Kora.Core.Hosting;assembly=Kora.Core"
@@ -81,7 +82,7 @@
             <Border Classes="settings-card" controls:SettingsSearch.Id="startup.logon" controls:SettingsSearch.Group="Startup" controls:SettingsSearch.Value="{Binding LogonStartupStatus}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="8">
-                  <TextBlock Text="Start Kora at Windows user logon" Classes="settings-title" />
+                  <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Start {0} at Windows user logon'}" Classes="settings-title" />
                   <TextBlock Text="Off unless explicitly approved. Current-user installed MSI only; machine-wide or unknown entries are not changed. Startup opens the ordinary tray/minimal shell with all fresh consent, privacy and audio gates."
                              Classes="settings-description" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding LogonStartupStatus}" TextWrapping="Wrap" />
@@ -97,7 +98,7 @@
                   </StackPanel>
                 </StackPanel>
                 <controls:SettingActionsButton x:Name="LogonStartupActions" Grid.Column="1"
-                                               SettingName="Start Kora at Windows user logon"
+                                               SettingName="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Start {0} at Windows user logon'}"
                                                ResetCommand="{Binding ResetLogonStartupCommand}"
                                                IsEnabled="{Binding CanControlLogonStartupNative}" />
               </Grid>
@@ -176,7 +177,7 @@
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Reduced motion" Classes="settings-title" />
-                  <TextBlock Text="Freeze presence particle movement in both animation modes. When off, follow Windows animation settings; Kora never overrides Windows reduced motion. Speech sizing and brief colour and visibility transitions remain independent."
+                  <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Freeze presence particle movement in both animation modes. When off, follow Windows animation settings; {0} never overrides Windows reduced motion. Speech sizing and brief colour and visibility transitions remain independent.'}"
                              Classes="settings-description" TextWrapping="Wrap" />
                 </StackPanel>
                 <CheckBox Grid.Column="1" Content="Reduce motion" IsChecked="{Binding IsReducedMotionEnabled}"
@@ -221,6 +222,31 @@
                     VerticalAlignment="Center" />
                 <controls:SettingActionsButton Grid.Column="2" SettingName="Keep responses on top"
                                                ResetCommand="{Binding ResetResponseWindowTopmostCommand}" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card" controls:SettingsSearch.Id="appearance.conversation-on-right" controls:SettingsSearch.Group="Response window" controls:SettingsSearch.Value="{Binding SelectedConversationSide.Name}">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Conversation side" Classes="settings-title" />
+                  <TextBlock
+                      Text="Choose which side of the expanded window shows the conversation. Reviews and contents open on the other side."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <ComboBox Grid.Column="1"
+                    AutomationProperties.Name="Conversation side"
+                    ItemsSource="{Binding ConversationSides}"
+                    SelectedItem="{Binding SelectedConversationSide}"
+                    VerticalAlignment="Center" HorizontalAlignment="Stretch">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="viewModels:ConversationSideChoice">
+                      <TextBlock Text="{Binding Name}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Conversation side"
+                                               ResetCommand="{Binding ResetConversationSideCommand}" />
               </Grid>
             </Border>
 
@@ -282,7 +308,7 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="Animation mode" Classes="settings-title" />
                   <TextBlock
-                      Text="Choose how Kora draws the animated dots. Both modes look the same. Changes wait until startup, dragging and open dialogs have finished."
+                      Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Choose how {0} draws the animated dots. Both modes look the same. Changes wait until startup, dragging and open dialogs have finished.'}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                   <TextBlock Text="{Binding PresenceRendererStatus}"
@@ -574,7 +600,7 @@
               <StackPanel Spacing="8">
                 <TextBlock Text="Foreground push-to-talk shortcut" Classes="settings-title" />
                 <TextBlock Text="{Binding ForegroundPttStatus}" Classes="settings-description" TextWrapping="Wrap" />
-                <TextBlock Text="Optional and unassigned by default. Only the foreground Response window uses this chord, outside text editors and pending questions or approvals. These choices avoid Kora's editing, navigation and reserved system combinations; arbitrary third-party hotkey conflicts are not detected. No global hook or background listening. The microphone button, Space and Enter remain available."
+                <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Optional and unassigned by default. Only the foreground Response window uses this chord, outside text editors and pending questions or approvals. These choices avoid {0}’s editing, navigation and reserved system combinations; arbitrary third-party hotkey conflicts are not detected. No global hook or background listening. The microphone button, Space and Enter remain available.'}"
                            Classes="settings-description" TextWrapping="Wrap" />
                 <ComboBox x:Name="ForegroundPttShortcutChoice" ItemsSource="{Binding ForegroundPttChoices}"
                           SelectedItem="{Binding SelectedForegroundPttShortcut}" DisplayMemberBinding="{Binding Label}"
@@ -591,7 +617,7 @@
                 <TextBlock Text="Conversational voice replies (off by default)" Classes="settings-title" />
                 <TextBlock Text="{Binding ConversationalReplyStatus}" Classes="settings-description" TextWrapping="Wrap"
                            AutomationProperties.Name="{Binding ConversationalReplyStatus}" />
-                <TextBlock Text="After Kora finishes speaking a new exact foreground host question, answer without another click or activation name. One reply only: 15 seconds to start, at most 60 seconds of speech. Cancel reply closes capture. No approval, background listening or capture during playback."
+                <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='After {0} finishes speaking a new exact foreground host question, answer without another click or activation name. One reply only: 15 seconds to start, at most 60 seconds of speech. Cancel reply closes capture. No approval, background listening or capture during playback.'}"
                            Classes="settings-description" TextWrapping="Wrap" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Button Content="Enable conversational replies" Command="{Binding EnableConversationalRepliesCommand}"
@@ -880,15 +906,15 @@
             <Border Classes="settings-card" controls:SettingsSearch.Id="speech.playback-volume" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding SelectedPlaybackVolume}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Kora playback volume (0-100%)" Classes="settings-title" />
-                  <TextBlock Text="Adjust Kora's speech volume without changing Windows or call volume. At 0%, responses appear on screen without speech. Saving stops current speech; changing the volume does not replay it."
+                  <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='{}{0} playback volume (0-100%)'}" Classes="settings-title" />
+                  <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Adjust {0}’s speech volume without changing Windows or call volume. At 0%, responses appear on screen without speech. Saving stops current speech; changing the volume does not replay it.'}"
                              TextWrapping="Wrap" Classes="settings-description" />
                   <TextBlock Text="{Binding PlaybackVolumeStatus}" TextWrapping="Wrap" Classes="settings-description" />
                   <controls:SettingsNumberField Label="Volume" Unit="%" Value="{Binding SelectedPlaybackVolume}" SavedValue="{Binding SavedPlaybackVolume}"
                       Minimum="0" Maximum="{x:Static configuration:PlaybackVolume.MaximumPercent}"
                       ActionCommand="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolumeNative}" />
                 </StackPanel>
-                <controls:SettingActionsButton Grid.Column="1" SettingName="Kora playback volume"
+                <controls:SettingActionsButton Grid.Column="1" SettingName="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='{}{0} playback volume'}"
                                                IsEnabled="{Binding CanChangePlaybackVolumeNative}">
                   <controls:SettingActionsButton.Flyout>
                     <MenuFlyout>
@@ -905,7 +931,7 @@
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Windows voice speed (-10 to 10)" Classes="settings-title" />
-                  <TextBlock Text="Negative values are slower; positive values are faster; 0 is normal. Applies only to Windows voices used by Kora, not Kokoro or other apps. Saving stops current and waiting speech without replaying it."
+                  <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Negative values are slower; positive values are faster; 0 is normal. Applies only to Windows voices used by {0}, not Kokoro or other apps. Saving stops current and waiting speech without replaying it.'}"
                              TextWrapping="Wrap" Classes="settings-description" />
                   <TextBlock Text="{Binding WindowsSpeechRateStatus}" TextWrapping="Wrap" Classes="settings-description" />
                   <controls:SettingsNumberField Label="Voice speed" Value="{Binding SelectedWindowsSpeechRate}" SavedValue="{Binding SavedWindowsSpeechRate}"
@@ -1008,7 +1034,7 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="Device default" Classes="settings-title" />
                   <TextBlock
-                      Text="How Kora responds unless you choose a different mode for a queue, task or call."
+                      Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='How {0} responds unless you choose a different mode for a queue, task or call.'}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
@@ -1073,7 +1099,7 @@
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech captions (off by default)" Classes="settings-title" />
-                  <TextBlock Text="Show the words Kora speaks once playback starts. Current sentence and optional word emphasis can be saved as requests but are unavailable in this build; no exact Windows voice/rate/output profile has qualified alignment. Word emphasis defaults off and never estimates timing; unavailable alignment leaves ordinary caption text unchanged. Captions stay for 0-30 seconds afterward (default 5), or until you unpin them. Stopping speech, replacing a response or hiding private content clears them immediately."
+                  <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Show the words {0} speaks once playback starts. Current sentence and optional word emphasis can be saved as requests but are unavailable in this build; no exact Windows voice/rate/output profile has qualified alignment. Word emphasis defaults off and never estimates timing; unavailable alignment leaves ordinary caption text unchanged. Captions stay for 0-30 seconds afterward (default 5), or until you unpin them. Stopping speech, replacing a response or hiding private content clears them immediately.'}"
                       Classes="settings-description" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding SpeechTextConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
                 </StackPanel>
@@ -1151,7 +1177,7 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="Earlier muted-speaker preference" Classes="settings-title" />
                   <TextBlock
-                      Text="Saved for compatibility only; this no longer changes behavior. If speech is muted or unavailable, Kora always shows the full response on screen."
+                      Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Saved for compatibility only; this no longer changes behavior. If speech is muted or unavailable, {0} always shows the full response on screen.'}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
@@ -1362,7 +1388,7 @@
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <TextBlock Text="Calls" FontSize="28" FontWeight="SemiBold" />
               <TextBlock
-                  Text="Tell Kora when you're in a call. Manual call mode resets when Kora restarts and does not change automatic call detection."
+                  Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Tell {0} when you’re in a call. Manual call mode resets when {0} restarts and does not change automatic call detection.'}"
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
@@ -1422,7 +1448,7 @@
             <Border Classes="settings-card" controls:SettingsSearch.Id="calls.quiet" controls:SettingsSearch.Group="Output" controls:SettingsSearch.Value="{Binding CallVisualOverrideStatus}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Keep Kora quiet during calls" Classes="settings-title" />
+                  <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Keep {0} quiet during calls'}" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding CallVisualOverrideStatus}"
                       Classes="settings-description"
@@ -1454,7 +1480,7 @@
                     </controls:SettingActionsButton.Flyout>
                   </controls:SettingActionsButton>
                 </Grid>
-                <TextBlock Text="By default, responses appear on screen during detected or suspected calls. Choose a different mode or use your normal response settings. Choosing speech does not bypass call protections that keep Kora quiet. If the call or audio status is unknown, the full response remains on screen."
+                <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='By default, responses appear on screen during detected or suspected calls. Choose a different mode or use your normal response settings. Choosing speech does not bypass call protections that keep {0} quiet. If the call or audio status is unknown, the full response remains on screen.'}"
                     Classes="settings-description" TextWrapping="Wrap" />
                 <WrapPanel ItemSpacing="8" LineSpacing="6">
                 <ComboBox ItemsSource="{Binding InCallFeedbackChoices}" SelectedItem="{Binding SelectedInCallFeedbackChoice}"
@@ -1521,7 +1547,7 @@
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <TextBlock Text="AI models" FontSize="28" FontWeight="SemiBold" />
               <TextBlock
-                  Text="Choose whether Kora may use AI models on this device or online to understand requests. Built-in commands still work when all models are turned off."
+                  Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Choose whether {0} may use AI models on this device or online to understand requests. Built-in commands still work when all models are turned off.'}"
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
@@ -1621,7 +1647,7 @@
                 </controls:SettingActionsButton>
               </Grid>
               <TextBlock
-                  Text="Choose the folders Kora searches for prompts, instructions, skills and agent profiles. The list starts with supported Kora and user profile locations. Add a folder or remove a selected location to stop discovering its content. Removing a location does not delete its files. External tools (MCP) use separate configuration files."
+                  Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Choose the folders {0} searches for prompts, instructions, skills and agent profiles. The list starts with supported Kora and user profile locations. Add a folder or remove a selected location to stop discovering its content. Removing a location does not delete its files. External tools (MCP) use separate configuration files.'}"
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
@@ -1745,7 +1771,7 @@
                 </controls:SettingActionsButton.Flyout>
               </controls:SettingActionsButton>
             </Grid>
-            <TextBlock Text="Kora initially chooses the on-device service if a supported Ollama installation is found; otherwise no service is selected. Installation alone does not mean a model is ready or permitted to run. Kora will not silently replace a saved choice. The on-device-only restriction above still applies."
+            <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='{}{0} initially chooses the on-device service if a supported Ollama installation is found; otherwise no service is selected. Installation alone does not mean a model is ready or permitted to run. {0} will not silently replace a saved choice. The on-device-only restriction above still applies.'}"
                        Classes="settings-description" TextWrapping="Wrap" />
             <WrapPanel ItemSpacing="8" LineSpacing="6">
             <ComboBox ItemsSource="{Binding ProviderServiceChoices}" SelectedItem="{Binding SelectedProviderServiceChoice}"
@@ -1802,7 +1828,7 @@
                        Classes="settings-description" TextWrapping="Wrap" />
             <Button Content="Review pending service change" Click="OnReviewHandoffClicked"
                     AutomationProperties.Name="Review pending AI service change" />
-            <TextBlock Text="Available only when Kora has a service change ready for your review. Opening the review does not send data or run a request."
+            <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Available only when {0} has a service change ready for your review. Opening the review does not send data or run a request.'}"
                        Classes="settings-description" TextWrapping="Wrap" />
           </StackPanel>
       </controls:SettingsPage>
@@ -1913,7 +1939,7 @@
                     AutomationProperties.Name="Open the separate retained exact-operation grant inventory, not the legacy named-action approval lists" />
             <TextBlock Text="Model action approvals" FontSize="28" FontWeight="SemiBold" />
             <TextBlock
-                Text="AI models can suggest Kora actions for you to approve. Once allows only that request. Session lasts until Kora exits, restarts or locks Windows through Kora. Always stays approved until you remove it. Approval prompts always appear on screen, even in speech-only mode."
+                Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='AI models can suggest {0} actions for you to approve. Once allows only that request. Session lasts until {0} exits, restarts or locks Windows through {0}. Always stays approved until you remove it. Approval prompts always appear on screen, even in speech-only mode.'}"
                 TextWrapping="Wrap" Classes="muted" />
             <Border Classes="settings-card" controls:SettingsSearch.Value="{Binding RequireAssistantNameForVoiceApproval}">
               <StackPanel Spacing="5">

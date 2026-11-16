@@ -124,11 +124,16 @@ public sealed class WindowsPrivacyObservationServiceTests
                 negativeObserved.TrySetResult();
             }
         };
-        var refresh = Task.Run(observer.Refresh, TestContext.Current.CancellationToken);
-        await readEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
-        var notification = Task.Run(() => source.Notify(WindowsSessionState.Locked), TestContext.Current.CancellationToken);
+        // Both operations intentionally block; they must not depend on thread-pool injection.
+        var refresh = Task.Factory.StartNew(observer.Refresh, TestContext.Current.CancellationToken,
+            TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        var notification = Task.CompletedTask;
         try
         {
+            // Releasing the blocked read on every exit lets observer disposal join it instead of deadlocking.
+            await readEntered.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+            notification = Task.Factory.StartNew(() => source.Notify(WindowsSessionState.Locked), TestContext.Current.CancellationToken,
+                TaskCreationOptions.LongRunning, TaskScheduler.Default);
             await negativeObserved.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
             observer.Current.SessionState.Should().Be(WindowsSessionState.Locked);
         }

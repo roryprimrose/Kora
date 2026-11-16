@@ -3,6 +3,7 @@ using System.Runtime.ExceptionServices;
 
 using Kora.Application.Voice;
 using Kora.Core.Artifacts;
+using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
@@ -21,6 +22,7 @@ public sealed partial class PromptInputVoiceController : IAsyncDisposable
     private readonly Func<ArtifactDefinition, CancellationToken, Task<bool>> fresh;
     private readonly ILogger<PromptInputVoiceController> logger;
     private readonly TimeProvider time;
+    private readonly Func<string> assistantName;
     private Turn? turn;
     private Task retirement = Task.CompletedTask;
     private Task delivery = Task.CompletedTask;
@@ -29,8 +31,9 @@ public sealed partial class PromptInputVoiceController : IAsyncDisposable
 
     public PromptInputVoiceController(IQuestionVoiceRecognitionService capture, IUiDispatcher dispatcher,
         Func<QuestionVoiceAdmission?> observe, Func<ArtifactDefinition, CancellationToken, Task<bool>> fresh,
-        ILogger<PromptInputVoiceController> logger, TimeProvider time)
+        ILogger<PromptInputVoiceController> logger, TimeProvider time, Func<string>? assistantName = null)
     {
+        this.assistantName = assistantName ?? (static () => AssistantNameRules.DefaultName);
         this.capture = capture;
         this.dispatcher = dispatcher;
         this.observe = observe;
@@ -253,7 +256,7 @@ public sealed partial class PromptInputVoiceController : IAsyncDisposable
         {
             failure = exception;
             Failure(logger, exception.GetType().Name);
-            lock (gate) { status = "Prompt microphone cleanup unconfirmed. Restart Kora before more voice input."; }
+            lock (gate) { status = $"Prompt microphone cleanup unconfirmed. Restart {assistantName()} before more voice input."; }
             activity.Complete(HostOperationOutcome.Failed);
             Publish();
         }

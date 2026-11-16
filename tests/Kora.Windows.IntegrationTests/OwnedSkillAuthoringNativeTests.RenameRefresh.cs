@@ -115,7 +115,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     case "fixture": window.Fixture.Text = "{\"input\":\"New private example\",\"assertions\":[{\"kind\":\"equals\",\"value\":\"private\"}]}"; break;
                 }
                 store.Release.TrySetResult();
-                await operation;
+                await operation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 var status = window.GetLogicalDescendants().OfType<TextBlock>()
                     .Single(block => block.Text?.StartsWith(change is "unchanged" ? "Complete package rename" : "Rename is unconfirmed.", StringComparison.Ordinal) == true);
                 status.Text.Should().NotBeNullOrEmpty();
@@ -151,7 +151,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             finally
             {
                 store.Release.TrySetResult();
-                await operation;
+                await operation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             }
         });
     }

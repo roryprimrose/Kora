@@ -80,7 +80,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var operation = publication
                 ? editor.ConfirmPublication(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken)
                 : editor.Review(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken);
-            var review = await next.Task;
+            var review = await next.Task.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             AssertModalHandoff(editor, review);
             var sources = review.GetLogicalDescendants().OfType<TextBox>().ToArray();
             sources.Should().HaveCount(2).And.OnlyContain(source => source.IsReadOnly);

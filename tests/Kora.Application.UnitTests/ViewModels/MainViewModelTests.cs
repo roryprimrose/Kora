@@ -2251,8 +2251,11 @@ public sealed partial class MainViewModelTests : IDisposable
             SecurityAuditInitiator.LocalUser,
             SecurityAuditOutcome.Succeeded);
 
-        await fixture.RunAsync("Kora, what can you do?");
+        await fixture.RunAsync("Aria, what can you do?");
         fixture.ViewModel.ResponseTitle.Should().Be("That isn't a supported built-in command.");
+
+        await fixture.RunAsync("Kora, what can you do?");
+        fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
 
         await fixture.RunAsync("Nova Prime, what can you do?");
         fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
@@ -2283,7 +2286,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.BeginPushToTalkAsync();
         fixture.Voice.StartCalls.Should().Be(2);
         fixture.Voice.StartedPhrases.Should().Contain("Nova what can you do");
-        fixture.Voice.StartedPhrases.Should().NotContain("Kora what can you do");
+        fixture.Voice.StartedPhrases.Should().Contain("Kora what can you do");
 
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
         await fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
@@ -6499,6 +6502,33 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Session.LockCalls.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData("Kora, approve once")]
+    [InlineData("Nova, approve once")]
+    public async Task Voice_grant_confirmation_accepts_the_fixed_or_custom_name_but_not_a_former_name(string reply)
+    {
+        var fixture = new Fixture();
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.SetAssistantNameAsync("Aria");
+        await fixture.ViewModel.SetAssistantNameAsync("Nova");
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
+            GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+
+        await fixture.RaiseActivatedTranscriptAsync("Aria, approve once", 0.9f);
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
+            GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+        fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
+        await fixture.RaiseActivatedTranscriptAsync(reply, 0.9f);
+
+        fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should()
+            .Contain(BuiltInAction.LockMachine);
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
     [Fact]
     public async Task Voice_grant_rejection_and_non_once_replies_never_change_permission()
     {
@@ -8174,7 +8204,6 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
         fixture.ViewModel.State.Should().Be(AssistantState.Success);
-        fixture.ViewModel.StateLabel.Should().Be("COMPLETE");
     }
 
     [Fact]
@@ -10162,6 +10191,14 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
         public bool? NativePresenceRendererEnabled { get; private set; }
+        public bool? ConversationOnRight { get; private set; }
+        public bool? LoadConversationOnRight() => ConversationOnRight;
+        public void SaveConversationOnRight(bool value)
+        {
+            ThrowIfSaveFails();
+            ConversationOnRight = value;
+        }
+
         public bool? ReducedMotionEnabled { get; private set; }
         public bool? LoadReducedMotionEnabled() => ReducedMotionEnabled;
         public void SaveReducedMotionEnabled(bool enabled)

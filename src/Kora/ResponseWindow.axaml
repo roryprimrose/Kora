@@ -48,6 +48,72 @@
     </Style>
     <Style Selector="Window.compact Grid#ResponseLayout">
       <Setter Property="Width" Value="{Binding #ResponseViewport.Viewport.Width}" />
+      <Setter Property="Height" Value="{Binding #ResponseViewport.Viewport.Height}" />
+    </Style>
+    <Style Selector="Border.permission-card">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+      <Setter Property="Background" Value="{DynamicResource KoraSurfaceAltBrush}" />
+      <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Grid.permission-header">
+      <Setter Property="Margin" Value="12,8,6,8" />
+    </Style>
+    <Style Selector="StackPanel.permission-body">
+      <Setter Property="Margin" Value="12,0,12,10" />
+    </Style>
+    <Style Selector="StackPanel.permission-footer">
+      <Setter Property="Margin" Value="12,0,12,12" />
+    </Style>
+    <Style Selector="Button.permission-close">
+      <Setter Property="Padding" Value="6" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+    <Style Selector="Border.permission-chip">
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+      <Setter Property="Background" Value="{DynamicResource KoraWindowBackgroundBrush}" />
+    </Style>
+    <Style Selector="Border.permission-chip > TextBlock">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Button.split-main">
+      <Setter Property="CornerRadius" Value="4,0,0,4" />
+      <Setter Property="Padding" Value="12,5" />
+    </Style>
+    <Style Selector="Button.split-arrow">
+      <Setter Property="CornerRadius" Value="0,4,4,0" />
+      <Setter Property="Padding" Value="7,5" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="Background" Value="{DynamicResource KoraPrimaryBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource KoraAccentForegroundBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.quiet">
+      <Setter Property="Padding" Value="12,5" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="FlyoutPresenter.allow-options">
+      <Setter Property="MinWidth" Value="220" />
+      <Setter Property="Padding" Value="4" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+      <Setter Property="Background" Value="{DynamicResource KoraPresencePanelBrush}" />
+    </Style>
+    <Style Selector="Button.allow-option">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="10,6" />
     </Style>
     <Style Selector="TextBlock">
       <Setter Property="Cursor" Value="Arrow" />
@@ -124,6 +190,13 @@
   <Border x:Name="CompactFrame">
   <Grid RowDefinitions="Auto,Auto,*">
     <Grid Margin="12,8,12,0" ColumnDefinitions="*,Auto">
+      <Grid.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.Or}">
+          <Binding Path="#ShowCurrentInteraction.IsVisible" />
+          <Binding Path="#SessionDictation.IsVisible" />
+          <Binding Path="#CompactLayoutStatus.IsVisible" />
+        </MultiBinding>
+      </Grid.IsVisible>
       <WrapPanel>
       <Button x:Name="ShowCurrentInteraction" Classes="compact-action" Click="OnCurrentInteractionClicked" IsVisible="False"
           ToolTip.Tip="Current interaction" AutomationProperties.Name="Current interaction">
@@ -131,38 +204,12 @@
       </Button>
       <local:SessionDictationButton x:Name="SessionDictation" Classes="compact-action" DataContext="{x:Null}"
           IsEnabled="{Binding CanCompose}" IsVisible="False" ToolTip.Tip="Dictate session message">
-        <PathIcon Data="M 6,1 L 10,1 L 10,9 L 6,9 Z M 3,6 L 4,6 L 4,10 L 7,12 L 7,14 L 5,14 L 5,15 L 11,15 L 11,14 L 9,14 L 9,12 L 12,10 L 12,6 L 13,6 L 13,11 L 10,13 L 6,13 L 3,11 Z" />
+        <PathIcon Data="M 8,1 A 2.5,2.5 0 0 1 10.5,3.5 L 10.5,8 A 2.5,2.5 0 0 1 5.5,8 L 5.5,3.5 A 2.5,2.5 0 0 1 8,1 Z M 3,6 L 4,6 L 4,10 L 7,12 L 7,14 L 5,14 L 5,15 L 11,15 L 11,14 L 9,14 L 9,12 L 12,10 L 12,6 L 13,6 L 13,11 L 10,13 L 6,13 L 3,11 Z" />
       </local:SessionDictationButton>
       <TextBlock x:Name="CompactLayoutStatus" TextWrapping="Wrap" MaxWidth="400"
+          IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
           AutomationProperties.Name="Response layout availability" />
       </WrapPanel>
-      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
-      <Button x:Name="ResponseMoreActions" Classes="compact-action"
-          IsVisible="{Binding #CurrentInteractionContent.IsVisible}"
-          ToolTip.Tip="More response actions" AutomationProperties.Name="More response actions">
-        <PathIcon Data="M 2,7 L 4,7 L 4,9 L 2,9 Z M 7,7 L 9,7 L 9,9 L 7,9 Z M 12,7 L 14,7 L 14,9 L 12,9 Z" />
-        <Button.Flyout>
-          <MenuFlyout>
-            <MenuItem x:Name="CurrentResponseDetails" Header="Current response details"
-                Click="OnCurrentResponseDetailsClicked" />
-            <MenuItem Header="Read current response" Command="{Binding ReadCurrentResponseCommand}"
-                AutomationProperties.Name="Read this current ordinary response aloud once"
-                ToolTip.Tip="Read this response once using normal speech, privacy and output admission." />
-            <Separator />
-            <MenuItem Header="Review speak once during call" Command="{Binding ReviewCallSpeechCommand}" />
-            <MenuItem Header="Confirm speak once" Command="{Binding ConfirmCallSpeechCommand}" />
-            <MenuItem Header="Cancel call speech" Command="{Binding CancelCallSpeechCommand}" />
-            <MenuItem Header="Call speech status" Command="{Binding GetCallSpeechStatusCommand}"
-                ToolTip.Tip="{Binding CallSpeechStatus}" />
-            <Separator />
-            <MenuItem x:Name="BeginReviewedVoiceCommand" Header="Review one spoken command" Click="OnBeginReviewedVoiceCommand"
-                IsEnabled="{Binding !IsReviewedVoiceCommandActive}" />
-            <Separator />
-            <MenuItem x:Name="DismissResponse" Header="Dismiss response" Click="OnDismissClicked" />
-          </MenuFlyout>
-        </Button.Flyout>
-      </Button>
-      </StackPanel>
     </Grid>
     <WrapPanel x:Name="ExpandedControls" Grid.Row="1" Margin="24,0" IsVisible="False">
       <TextBlock Text="{Binding AssistantName}" FontWeight="SemiBold" Margin="0,6,12,0" />
@@ -209,60 +256,85 @@
     </ScrollViewer>
   <Border x:Name="CurrentInteractionContent" Grid.Column="1"
       Padding="22">
-    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel Spacing="4">
-          <TextBlock Text="{Binding StateLabel}" Classes="eyebrow" />
-          <TextBlock
-              Text="{Binding ResponseTitle}"
-              FontSize="22"
-              FontWeight="SemiBold"
-              TextWrapping="Wrap" />
-        </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
-          <Button
-              x:Name="CancelResponseTask" Classes="compact-action"
-              ToolTip.Tip="Cancel task" AutomationProperties.Name="Cancel task"
-              IsVisible="{Binding IsCancelTaskVisible}"
-              Click="OnCancelTaskClicked">
-            <PathIcon Data="M 3,3 L 13,3 L 13,13 L 3,13 Z" />
-          </Button>
-          <Button
-              x:Name="StopResponseSpeech" Classes="compact-action"
-              IsVisible="{Binding IsSpeaking}" Command="{Binding StopSpeechCommand}"
-              ToolTip.Tip="Stop speaking" AutomationProperties.Name="Stop speaking">
-            <PathIcon Data="M 2,6 L 5,6 L 9,2 L 9,14 L 5,10 L 2,10 Z M 12,5 L 14,7 L 16,5 L 17,6 L 15,8 L 17,10 L 16,11 L 14,9 L 12,11 L 11,10 L 13,8 L 11,6 Z" />
-          </Button>
-        </StackPanel>
-      </Grid>
-
-      <ScrollViewer x:Name="ResponseBodyViewport" Grid.Row="1" MaxHeight="150" Focusable="True"
+    <Grid RowDefinitions="*,Auto" RowSpacing="12">
+      <ScrollViewer x:Name="ResponseBodyViewport" Focusable="True"
           VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Current response text; scroll to read full response">
-        <TextBlock x:Name="ResponseBodyText"
-            Text="{Binding ResponseBody}"
-            Classes="muted"
-            FontSize="12"
-            LineHeight="19"
-            TextWrapping="Wrap" />
+        <StackPanel Spacing="8">
+          <TextBlock x:Name="ResponseBodyText"
+              Text="{Binding ResponseBody}"
+              FontSize="13"
+              LineHeight="20"
+              TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding ResponseActions}" IsVisible="{Binding HasResponseActions}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="response-link" Tag="{Binding}" Click="OnResponseActionClicked" Margin="0,0,12,0">
+                  <TextBlock Text="{Binding Label}" TextDecorations="Underline" />
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <ItemsControl ItemsSource="{Binding WebResultDetailActions}" IsVisible="{Binding HasWebResultDetails}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <WrapPanel>
+                  <Button Classes="response-link" Tag="{Binding}" Click="OnWebResultDetailsClicked" Margin="0,0,12,0"
+                          AutomationProperties.Name="Open exact web-result details">
+                    <TextBlock Text="Open details" TextDecorations="Underline" />
+                  </Button>
+                  <Button Classes="response-link" Tag="{Binding}" Click="OnWebSummaryClicked" Margin="0,0,12,0"
+                          AutomationProperties.Name="Review local summary of this exact web result">
+                    <TextBlock Text="Summarize locally" TextDecorations="Underline" />
+                  </Button>
+                  <Button Classes="response-link" Tag="{Binding}" Click="OnExternalBrowserClicked"
+                          AutomationProperties.Name="Open in external browser">
+                    <TextBlock Text="Open in browser" TextDecorations="Underline" />
+                  </Button>
+                </WrapPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Text="{Binding WebResultDetailStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap"
+              IsVisible="{Binding WebResultDetailStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock Text="{Binding WebSummaryStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap"
+              IsVisible="{Binding WebSummaryStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <ItemsControl ItemsSource="{Binding WebSummaryConfirmations}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="response-link" Tag="{Binding}" Click="OnWebSummaryConfirmed"
+                        AutomationProperties.Name="Use this exact web result with the local model">
+                  <TextBlock Text="Use this web result with the local model" TextDecorations="Underline" />
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Text="{Binding WebSummaryText}" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+              IsVisible="{Binding WebSummaryText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
       </ScrollViewer>
 
-      <Border
-          Grid.Row="2"
-          Padding="12"
-          Background="{DynamicResource KoraSurfaceAltBrush}"
-          CornerRadius="9">
-        <StackPanel Spacing="5">
-          <TextBlock Text="LAST TRANSCRIPT" Classes="eyebrow" />
-          <TextBlock Text="{Binding Transcript}" FontSize="11" TextWrapping="Wrap" />
-        </StackPanel>
-      </Border>
-
-      <StackPanel
-          Grid.Row="3"
-          Spacing="6">
+      <!-- A StackPanel skips hidden sections, so absent questions or approvals add no gap above the input. -->
+      <StackPanel Grid.Row="1" Spacing="12">
+      <StackPanel Spacing="6">
+        <StackPanel.IsVisible>
+          <MultiBinding Converter="{x:Static BoolConverters.Or}">
+            <Binding Path="PendingQuestionNavigationStatus" Converter="{x:Static StringConverters.IsNotNullOrEmpty}" />
+            <Binding Path="ReadCurrentResponseStatus" Converter="{x:Static StringConverters.IsNotNullOrEmpty}" />
+            <Binding Path="HasResponseReadProposal" />
+            <Binding Path="IsDetailsOfferPending" />
+            <Binding Path="IsModelQuestionPending" />
+          </MultiBinding>
+        </StackPanel.IsVisible>
         <TextBlock Text="{Binding PendingQuestionNavigationStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap"
+                   IsVisible="{Binding PendingQuestionNavigationStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                    AutomationProperties.Name="Pending question navigation status" />
-        <TextBlock Text="{Binding ReadCurrentResponseStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding ReadCurrentResponseStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap"
+                   IsVisible="{Binding ReadCurrentResponseStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         <StackPanel IsVisible="{Binding HasResponseReadProposal}" Spacing="6">
           <TextBlock Text="{Binding ResponseReadProposalReview}" TextWrapping="Wrap"
                      AutomationProperties.Name="Exact current answer read proposal review" />
@@ -271,9 +343,6 @@
             <Button Content="Confirm captured answer read once" Command="{Binding ConfirmCurrentResponseReadCommand}" />
             <Button Content="Cancel answer read proposal" Command="{Binding CancelCurrentResponseReadCommand}" />
           </WrapPanel>
-        </StackPanel>
-        <StackPanel Spacing="6" IsVisible="{Binding IsProtectedCall}">
-          <TextBlock Text="{Binding CallSpeechStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
         </StackPanel>
         <StackPanel IsVisible="{Binding IsDetailsOfferPending}" Spacing="6">
           <TextBlock Text="Would you like to view the detailed response?" TextWrapping="Wrap" />
@@ -284,94 +353,7 @@
                 AutomationProperties.Name="Decline this detail offer without discarding the result" />
           </WrapPanel>
         </StackPanel>
-        <ItemsControl ItemsSource="{Binding WebResultDetailActions}" IsVisible="{Binding HasWebResultDetails}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <StackPanel Spacing="5">
-              <Button Content="Open exact web-result details"
-                      AutomationProperties.Name="Open exact web-result details"
-                      Tag="{Binding}"
-                      Click="OnWebResultDetailsClicked"
-                      HorizontalAlignment="Left" />
-              <Button Content="Review local summary of this exact web result"
-                      Tag="{Binding}" Click="OnWebSummaryClicked" HorizontalAlignment="Left" />
-              <Button Content="Open in external browser"
-                      Tag="{Binding}" Click="OnExternalBrowserClicked" HorizontalAlignment="Left" />
-              </StackPanel>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <TextBlock Text="{Binding WebResultDetailStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
-        <TextBlock Text="{Binding WebSummaryStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
-        <ItemsControl ItemsSource="{Binding WebSummaryConfirmations}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <Button Content="Use this exact web result with the local model"
-                      Tag="{Binding}" Click="OnWebSummaryConfirmed" HorizontalAlignment="Left" />
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <ScrollViewer MaxHeight="180">
-          <TextBlock Text="{Binding WebSummaryText}" FontSize="12" TextWrapping="Wrap" />
-        </ScrollViewer>
-        <ItemsControl ItemsSource="{Binding ResponseActions}" IsVisible="{Binding HasResponseActions}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel Orientation="Horizontal" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <Button
-                  Classes="response-link"
-                  Tag="{Binding}"
-                  Click="OnResponseActionClicked">
-                <TextBlock Text="{Binding Label}" TextDecorations="Underline" />
-              </Button>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </StackPanel>
-
-      <StackPanel Grid.Row="4" Spacing="6">
-        <ItemsControl ItemsSource="{Binding ModelActionReviews}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <StackPanel Orientation="Horizontal" Spacing="10">
-                <controls:ModelActionReviewButton Classes="primary" Content="Once" Click="OnApproveModelActionOnce"
-                    IsEnabled="{Binding $parent[Window].DataContext.CanConfirmModelActionReview}" />
-                <controls:ModelActionReviewButton Content="This session" Click="OnApproveModelActionForSession"
-                    IsEnabled="{Binding $parent[Window].DataContext.CanConfirmReusableModelActionReview}" />
-                <controls:ModelActionReviewButton Content="Always" Click="OnApproveModelActionAlways"
-                    IsEnabled="{Binding $parent[Window].DataContext.CanConfirmReusableModelActionReview}" />
-                <controls:ModelActionReviewButton Content="Reject" Click="OnRejectModelAction"
-                    IsEnabled="{Binding $parent[Window].DataContext.CanRejectModelActionReview}" />
-              </StackPanel>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <TextBlock Text="{Binding ModelActionReviewStatus}" TextWrapping="Wrap"
-                   AutomationProperties.LiveSetting="Polite" />
-      </StackPanel>
-
-      <StackPanel Grid.Row="5" Spacing="6" IsVisible="{Binding IsGrantEditorVisible}">
-        <TextBlock Text="Choose exact grant change" Classes="eyebrow" />
-        <ComboBox ItemsSource="{Binding GrantActions}" SelectedItem="{Binding SelectedGrantAction}" DisplayMemberBinding="{Binding Action}" />
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <ComboBox ItemsSource="{Binding GrantOperations}" SelectedItem="{Binding SelectedGrantOperation}" />
-          <ComboBox ItemsSource="{Binding GrantScopes}" SelectedItem="{Binding SelectedGrantScope}" />
-          <TextBlock Text="to" VerticalAlignment="Center" />
-          <ComboBox ItemsSource="{Binding GrantScopes}" SelectedItem="{Binding SelectedGrantTargetScope}" />
-          <Button Content="Prepare" Command="{Binding PrepareGrantChangeCommand}" />
-        </StackPanel>
-      </StackPanel>
-
-      <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsGrantChangePending}">
-        <Button Classes="primary" Content="Confirm grant change" Command="{Binding ConfirmGrantChangeCommand}" />
-        <Button Content="Reject" Command="{Binding RejectGrantChangeCommand}" />
-      </StackPanel>
-
-      <StackPanel Grid.Row="7" Spacing="6" IsVisible="{Binding IsModelQuestionPending}">
+      <StackPanel Spacing="6" IsVisible="{Binding IsModelQuestionPending}">
         <TextBlock Text="CHOOSE AN OPTION (NOT AN APPROVAL)" Classes="eyebrow" />
         <TextBlock Text="Choose a suggestion or type or speak your own answer." Classes="muted" FontSize="11" />
         <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto">
@@ -389,8 +371,97 @@
         <Button Content="Cancel question" Click="OnCancelQuestionClicked" HorizontalAlignment="Left" />
       </StackPanel>
 
-      <Border Grid.Row="8"
-              IsVisible="{Binding IsArtifactCommandDropdownVisible}"
+      </StackPanel>
+
+      <StackPanel Spacing="6">
+        <StackPanel.IsVisible>
+          <MultiBinding Converter="{x:Static BoolConverters.Or}">
+            <Binding Path="PendingModelActionReview" Converter="{x:Static ObjectConverters.IsNotNull}" />
+            <Binding Path="ModelActionReviewStatus" Converter="{x:Static StringConverters.IsNotNullOrEmpty}" />
+          </MultiBinding>
+        </StackPanel.IsVisible>
+        <ItemsControl ItemsSource="{Binding ModelActionReviews}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Classes="permission-card"
+                  AutomationProperties.Name="{Binding $parent[Window].DataContext.ModelActionReviewTitle}">
+                <Grid RowDefinitions="Auto,Auto,Auto">
+                  <Grid Classes="permission-header" ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding $parent[Window].DataContext.ModelActionReviewTitle}"
+                        FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    <controls:ModelActionReviewButton Grid.Column="1" Classes="permission-close"
+                        Click="OnRejectModelAction" ToolTip.Tip="Reject" AutomationProperties.Name="Reject and close"
+                        IsEnabled="{Binding $parent[Window].DataContext.CanRejectModelActionReview}">
+                      <PathIcon Data="M 3,3 L 13,13 M 13,3 L 3,13" Width="10" Height="10" />
+                    </controls:ModelActionReviewButton>
+                  </Grid>
+                  <StackPanel Grid.Row="1" Classes="permission-body" Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Text="Run" VerticalAlignment="Center" />
+                      <Border Classes="permission-chip">
+                        <TextBlock Text="{Binding $parent[Window].DataContext.ModelActionReviewCommand}" />
+                      </Border>
+                    </StackPanel>
+                    <TextBlock Text="{Binding $parent[Window].DataContext.ModelActionReviewDetail}"
+                        IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <StackPanel Grid.Row="2" Classes="permission-footer" Orientation="Horizontal" Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="1">
+                      <controls:ModelActionReviewButton Classes="primary split-main" Content="Allow once"
+                          Click="OnApproveModelActionOnce"
+                          AutomationProperties.Name="Allow once"
+                          IsEnabled="{Binding $parent[Window].DataContext.CanConfirmModelActionReview}" />
+                      <Button x:Name="AllowOptionsButton" Classes="split-arrow"
+                          ToolTip.Tip="More allow options" AutomationProperties.Name="More allow options"
+                          IsEnabled="{Binding $parent[Window].DataContext.CanConfirmReusableModelActionReview}">
+                        <PathIcon Data="M 3,6 L 8,11 L 13,6" Width="10" Height="10" />
+                        <Button.Flyout>
+                          <Flyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="allow-options">
+                            <StackPanel DataContext="{Binding #AllowOptionsButton.DataContext}">
+                              <controls:ModelActionReviewButton Classes="allow-option" Content="Allow for this session"
+                                  Click="OnApproveModelActionForSession"
+                                  IsEnabled="{Binding #AllowOptionsButton.IsEnabled}" />
+                              <controls:ModelActionReviewButton Classes="allow-option" Content="Always allow"
+                                  Click="OnApproveModelActionAlways"
+                                  IsEnabled="{Binding #AllowOptionsButton.IsEnabled}" />
+                            </StackPanel>
+                          </Flyout>
+                        </Button.Flyout>
+                      </Button>
+                    </StackPanel>
+                    <controls:ModelActionReviewButton Classes="quiet" Content="Skip" Click="OnRejectModelAction"
+                        AutomationProperties.Name="Reject"
+                        IsEnabled="{Binding $parent[Window].DataContext.CanRejectModelActionReview}" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="{Binding ModelActionReviewStatus}" TextWrapping="Wrap"
+                   IsVisible="{Binding ModelActionReviewStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   AutomationProperties.LiveSetting="Polite" />
+      </StackPanel>
+
+      <StackPanel Spacing="6" IsVisible="{Binding IsGrantEditorVisible}">
+        <TextBlock Text="Choose exact grant change" Classes="eyebrow" />
+        <ComboBox ItemsSource="{Binding GrantActions}" SelectedItem="{Binding SelectedGrantAction}" DisplayMemberBinding="{Binding Action}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ComboBox ItemsSource="{Binding GrantOperations}" SelectedItem="{Binding SelectedGrantOperation}" />
+          <ComboBox ItemsSource="{Binding GrantScopes}" SelectedItem="{Binding SelectedGrantScope}" />
+          <TextBlock Text="to" VerticalAlignment="Center" />
+          <ComboBox ItemsSource="{Binding GrantScopes}" SelectedItem="{Binding SelectedGrantTargetScope}" />
+          <Button Content="Prepare" Command="{Binding PrepareGrantChangeCommand}" />
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsGrantChangePending}">
+        <Button Classes="primary" Content="Confirm grant change" Command="{Binding ConfirmGrantChangeCommand}" />
+        <Button Content="Reject" Command="{Binding RejectGrantChangeCommand}" />
+      </StackPanel>
+
+      <Border IsVisible="{Binding IsArtifactCommandDropdownVisible}"
               MaxHeight="190"
               Padding="5"
               Background="{DynamicResource KoraSurfaceAltBrush}"
@@ -427,27 +498,7 @@
         </controls:ScrollableListBox>
       </Border>
 
-      <StackPanel Grid.Row="9" Spacing="8">
-        <TextBlock Text="{Binding ReviewedVoiceCommandStatus}" TextWrapping="Wrap" FontSize="11" />
-        <WrapPanel>
-          <Button x:Name="FinishReviewedVoiceCommand" Classes="compact-action" Click="OnFinishReviewedVoiceCommand"
-              ToolTip.Tip="Finish capture" AutomationProperties.Name="Finish capture"
-              IsVisible="{Binding IsReviewedVoiceCommandActive}" IsEnabled="{Binding !HasReviewedVoiceCommand}">
-            <PathIcon Data="M 3,3 L 13,3 L 13,13 L 3,13 Z" />
-          </Button>
-          <Button x:Name="CancelReviewedVoiceCommand" Classes="compact-action" Click="OnCancelReviewedVoiceCommand"
-              ToolTip.Tip="Cancel reviewed command" AutomationProperties.Name="Cancel reviewed command"
-              IsVisible="{Binding IsReviewedVoiceCommandActive}">
-            <PathIcon Data="M 2,3 L 3,2 L 8,7 L 13,2 L 14,3 L 9,8 L 14,13 L 13,14 L 8,9 L 3,14 L 2,13 L 7,8 Z" />
-          </Button>
-        </WrapPanel>
-        <TextBox x:Name="ReviewedVoiceCommandInput"
-            IsVisible="{Binding HasReviewedVoiceCommand}" TextChanged="OnReviewedVoiceCommandTextChanged"
-            AutomationProperties.Name="Exact command transcript; edit without executing"
-            AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="110" />
-        <Button x:Name="ConfirmReviewedVoiceCommand" Content="Dispatch this exact voice command once" Click="OnConfirmReviewedVoiceCommand"
-            IsVisible="{Binding HasReviewedVoiceCommand}" />
-      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="9">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="9">
         <TextBox
             x:Name="CommandInput"
             MaxWidth="{Binding #ResponseViewport.Viewport.Width}"
@@ -456,22 +507,35 @@
             PlaceholderText="{Binding CommandInputPlaceholder}"
             KeyDown="OnCommandTextKeyDown"
             VerticalContentAlignment="Center" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9">
         <Button
-            Grid.Column="1"
+            x:Name="CancelResponseTask" Classes="compact-action"
+            ToolTip.Tip="Cancel task" AutomationProperties.Name="Cancel task"
+            IsVisible="{Binding IsCancelTaskVisible}"
+            Click="OnCancelTaskClicked">
+          <PathIcon Data="M 3,3 L 13,3 L 13,13 L 3,13 Z" />
+        </Button>
+        <Button
+            x:Name="StopResponseSpeech" Classes="compact-action"
+            IsVisible="{Binding IsSpeaking}" Command="{Binding StopSpeechCommand}"
+            ToolTip.Tip="Stop speaking" AutomationProperties.Name="Stop speaking">
+          <PathIcon Data="M 2,6 L 5,6 L 9,2 L 9,14 L 5,10 L 2,10 Z M 12,5 L 14,7 L 16,5 L 17,6 L 15,8 L 17,10 L 16,11 L 14,9 L 12,11 L 11,10 L 13,8 L 11,6 Z" />
+        </Button>
+        <Button
             x:Name="PushToTalkButton"
             Classes="compact-action"
             IsVisible="{Binding IsPushToTalkVisible}"
             AutomationProperties.Name="Push to talk; hold while speaking"
             ToolTip.Tip="Push to talk (hold)">
-          <PathIcon Data="M 6,1 L 10,1 L 10,9 L 6,9 Z M 3,6 L 4,6 L 4,10 L 7,12 L 7,14 L 5,14 L 5,15 L 11,15 L 11,14 L 9,14 L 9,12 L 12,10 L 12,6 L 13,6 L 13,11 L 10,13 L 6,13 L 3,11 Z" />
+          <PathIcon Width="18" Height="18" Data="M 8,1 A 2.5,2.5 0 0 1 10.5,3.5 L 10.5,8 A 2.5,2.5 0 0 1 5.5,8 L 5.5,3.5 A 2.5,2.5 0 0 1 8,1 Z M 3,6 L 4,6 L 4,10 L 7,12 L 7,14 L 5,14 L 5,15 L 11,15 L 11,14 L 9,14 L 9,12 L 12,10 L 12,6 L 13,6 L 13,11 L 10,13 L 6,13 L 3,11 Z" />
         </Button>
         <Button
-            Grid.Column="2"
             x:Name="SubmitResponseCommand" Classes="primary compact-action"
             ToolTip.Tip="{Binding CommandSubmitLabel}" AutomationProperties.Name="{Binding CommandSubmitLabel}"
             Command="{Binding RunTypedCommand}">
           <PathIcon Data="M 2,2 L 15,8 L 2,14 L 5,8 Z M 5,8 L 15,8" />
         </Button>
+        </StackPanel>
       </Grid>
       </StackPanel>
     </Grid>

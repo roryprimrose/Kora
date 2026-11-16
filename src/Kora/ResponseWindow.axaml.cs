@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -32,10 +33,12 @@ public sealed partial class ResponseWindow : Window
     private readonly Func<PixelRect?> getWorkingArea;
     internal Action? PrepareDocumentHost { get; set; }
 
+#if !DEBUG
     public ResponseWindow()
         : this(App.Services.GetRequiredService<MainViewModel>(), (Avalonia.Application.Current as App)?.Details)
     {
     }
+#endif
 
     public ResponseWindow(MainViewModel viewModel, DetailWindowController? detailController = null,
         TimeProvider? timeProvider = null)
@@ -78,10 +81,6 @@ public sealed partial class ResponseWindow : Window
         PropertyChanged += OnSessionPresentationChanged;
         PropertyChanged += OnResponseEngagementChanged;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
-        Deactivated += OnReviewedCommandUnavailable;
-        Closed += OnReviewedCommandUnavailable;
-        PropertyChanged += OnReviewedCommandVisibilityChanged;
-        RefreshReviewedVoiceCommand();
         AddHandler(PointerMovedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerPressedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerReleasedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -89,15 +88,6 @@ public sealed partial class ResponseWindow : Window
         PointerPressed += OnInteraction;
         KeyDown += OnInteraction;
     }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
-        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
-    private async void OnDismissClicked(object? sender, RoutedEventArgs eventArgs) =>
-        await RunResponseActionAsync(() =>
-        {
-            HideResponse();
-            return Task.CompletedTask;
-        });
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
@@ -222,6 +212,8 @@ public sealed partial class ResponseWindow : Window
     private Task RunModelActionReviewAsync(object? sender, ModelApprovalScope? scope)
     {
         var target = (sender as ModelActionReviewButton)?.CapturedTarget;
+        // The target is captured first; closing the options flyout detaches its button.
+        (sender as Control)?.FindLogicalAncestorOfType<Avalonia.Controls.Primitives.Popup>()?.Close();
         return RunResponseActionAsync(() => Kora.Application.Hosting.HostRequestRunner.RunAsync(
             Kora.Core.Hosting.RequestOrigin.LocalUi,
             () => scope is { } approval
@@ -350,8 +342,6 @@ public sealed partial class ResponseWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
-        if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.ReviewedVoiceCommandText), StringComparison.Ordinal))
-        { RefreshReviewedVoiceCommand(); }
         if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.IsVisualResponseVisible), StringComparison.Ordinal)
             && !viewModel.IsVisualResponseVisible)
         {
@@ -361,6 +351,12 @@ public sealed partial class ResponseWindow : Window
             pushToTalk.Release();
             Hide();
             viewModel.RetireCurrentResponseSpeech();
+            return;
+        }
+
+        if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.IsConversationOnRight), StringComparison.Ordinal))
+        {
+            UpdateNativeReviewLayout();
             return;
         }
 
@@ -388,7 +384,6 @@ public sealed partial class ResponseWindow : Window
                 eventArgs.PropertyName,
                 nameof(MainViewModel.IsCurrentResponseReadActive),
                 StringComparison.Ordinal)
-            || string.Equals(eventArgs.PropertyName, nameof(MainViewModel.IsReviewedVoiceCommandActive), StringComparison.Ordinal)
             || string.Equals(eventArgs.PropertyName, nameof(MainViewModel.CanConfirmCallSpeech), StringComparison.Ordinal))
         {
             RestartResponseTimeout();
@@ -504,7 +499,7 @@ public sealed partial class ResponseWindow : Window
     private bool KeepsResponseVisible => IsExpanded || IsPointerOver || IsActive && IsKeyboardFocusWithin
         || viewModel.IsResponseAlwaysVisible || viewModel.IsResponseInteractionPending
         || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive
-        || viewModel.IsReviewedVoiceCommandActive || viewModel.CanConfirmCallSpeech
+        || viewModel.CanConfirmCallSpeech
         || viewModel.State == AssistantState.Failure;
 
     private void OnResponseEngagementChanged(object? sender, AvaloniaPropertyChangedEventArgs args)

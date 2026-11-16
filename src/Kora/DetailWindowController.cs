@@ -628,10 +628,10 @@ public sealed partial class DetailWindowController : IDisposable
             {
                 state.ReportStatus(selectionStart is null
                     ? (rendered && state.Content.Kind == DetailContentKind.Markdown
-                        ? "Complete rendered Markdown copied as semantic Unicode plain text outside Kora."
-                        : "Exact source copied as Unicode plain text outside Kora.")
+                        ? $"Complete rendered Markdown copied as semantic Unicode plain text outside {AssistantNameDisplay.Current.Name}."
+                        : $"Exact source copied as Unicode plain text outside {AssistantNameDisplay.Current.Name}.")
                         + (html is null ? string.Empty : " Supported Markdown formatting included as sanitized HTML.")
-                    : "Selected text copied as Unicode plain text outside Kora."
+                    : $"Selected text copied as Unicode plain text outside {AssistantNameDisplay.Current.Name}."
                         + (html is null ? string.Empty : " Supported selected Markdown formatting included as sanitized HTML."));
             }
         }

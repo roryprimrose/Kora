@@ -11,6 +11,8 @@ public sealed class ModelApprovalSpeechTests
     [InlineData("Nova approve for this session", true, ModelApprovalReply.Session)]
     [InlineData("Nova, always allow this", true, ModelApprovalReply.Always)]
     [InlineData("Nova, no", true, ModelApprovalReply.Reject)]
+    [InlineData("Kora, yes", true, ModelApprovalReply.Once)]
+    [InlineData("KORA approve for this session", true, ModelApprovalReply.Session)]
     [InlineData("always allow this", false, ModelApprovalReply.Always)]
     public void Matches_exact_approval_phrases(
         string transcript,
@@ -27,6 +29,8 @@ public sealed class ModelApprovalSpeechTests
     [InlineData("Nova, always allow the computer to lock", true)]
     [InlineData("Nova, yes, even tomorrow", true)]
     [InlineData("someone said Nova approve", true)]
+    [InlineData("Aria, yes", true)]
+    [InlineData("Koral, yes", true)]
     public void Rejects_missing_activation_or_extra_words(string transcript, bool requireName)
     {
         ModelApprovalSpeech.TryMatch(transcript, "Nova", requireName, out _)
@@ -39,6 +43,8 @@ public sealed class ModelApprovalSpeechTests
         var phrases = ModelApprovalSpeech.GetPhrases("Nova Prime").ToArray();
 
         phrases.Should().Contain("Nova Prime approve for this session");
+        phrases.Should().Contain("Kora approve for this session");
         phrases.Should().Contain("always allow this");
+        ModelApprovalSpeech.GetPhrases("Kora").Should().NotContain(phrase => phrase.StartsWith("Nova", StringComparison.Ordinal));
     }
 }

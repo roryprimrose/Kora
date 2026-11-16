@@ -112,7 +112,7 @@ public sealed class AgentProfileConversationalAuthoringTests
             async Task Run(string text) { f.Main.CommandText = text; await f.Main.RunTypedCommand.ExecuteAsync(); }
             async Task<Window> Review(Task operation)
             {
-                (await Task.WhenAny(next.Task, operation)).Should().BeSameAs(next.Task,
+                (await Task.WhenAny(next.Task, operation).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken)).Should().BeSameAs(next.Task,
                     "the native review must open; status: {0}", editor?.Status.Text);
                 var result = await next.Task.WaitAsync(TestContext.Current.CancellationToken);
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -192,7 +192,7 @@ public sealed class AgentProfileConversationalAuthoringTests
                 generating.IsCompleted.Should().BeFalse("the cancellation-ignoring provider is still owned");
                 models.IsQuiescent.Should().BeFalse();
                 adapter.Pending!.SetResult(adapter.Reply());
-                await generating;
+                await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 models.IsQuiescent.Should().BeTrue();
                 store.Creates.Should().Be(0);
                 editor!.Source.Text.Should().NotContain("Genuine fake model");
@@ -220,7 +220,7 @@ public sealed class AgentProfileConversationalAuthoringTests
                 else if (scenario is "accept-request-edit") { editor.DescriptionRequest.Text += "Changed"; }
                 else { Click(comparison, scenario is "reject" ? "Reject proposal" : "Use proposed draft"); }
             }
-            await generating;
+            await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             models.IsQuiescent.Should().BeTrue();
             adapter.Calls.Should().Be(scenario is "cancel-disclosure" ? 0 : 1);
             store.Creates.Should().Be(0);
@@ -289,7 +289,7 @@ public sealed class AgentProfileConversationalAuthoringTests
                 confirmation.Title.Should().Be("Confirm Save as new");
                 store.Creates.Should().Be(0);
                 Click(confirmation, scenario is "cancel-save" ? "Cancel" : "Save as new");
-                await controller.ActiveOperation;
+                await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 if (scenario is "cancel-save") { File.Exists(target).Should().BeFalse(); }
                 else if (scenario is "uncertain-save")
                 {

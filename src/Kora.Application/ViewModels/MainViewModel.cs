@@ -464,6 +464,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetReducedMotionCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReducedMotion));
+        ResetConversationSideCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ConversationOnRight));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
         ResetPresenceDisplayCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceDisplay));
         ResetPresenceRendererCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.NativePresenceRenderer));
@@ -1854,7 +1855,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         : "Show visual text during calls";
 
     public string CallVisualOverrideStatus => ShowVisualTextDuringCalls
-        ? "On · Kora stays quiet during protected calls and shows the full response on screen"
+        ? $"On · {AssistantName} stays quiet during protected calls and shows the full response on screen"
         : "Off · other call, audio and privacy protections still apply";
 
     public string CallVoiceActivationButtonText => AllowVoiceActivationDuringCalls
@@ -1892,7 +1893,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ? " The full response is shown on screen because speech is unavailable or failed."
                 : string.Empty;
             var callOverride = IsCallVisualOverrideActive
-                ? " Kora stays quiet during this call and shows the full response on screen. Listening has its own setting."
+                ? $" {AssistantName} stays quiet during this call and shows the full response on screen. Listening has its own setting."
                 : string.Empty;
             var modeLabel = ResponseModeOptions.Single(
                 option => option.Mode == EffectiveResponseMode).Label;
@@ -1907,13 +1908,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (SetProperty(ref state, value))
             {
-                OnPropertyChanged(nameof(StateLabel));
                 OnPropertyChanged(nameof(PresenceState));
             }
         }
     }
-
-    public string StateLabel => State.GetLabel();
 
     public string ResponseTitle
     {
@@ -2112,7 +2110,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public string VoiceConsentDescription =>
         "Your listening permission is saved for your Windows account on this device. Voice commands are processed on this device. "
-        + "Wake-word listening is not available: Kora does not record or transcribe background audio. "
+        + $"Wake-word listening is not available: {AssistantName} does not record or transcribe background audio. "
         + "Use push-to-talk in the response window or Hold to speak in the foreground Customizations editor when offered; Settings only manages listening permission and readiness. "
         + "Disable listening turns automatic listening off; deliberate held push-to-talk still requires consent and all other microphone checks. Remove listening permission also keeps it off after a restart. "
         + "Unlocking can restore push-to-talk readiness after safety checks, but never starts recording. "
@@ -2206,7 +2204,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     PresentResponse(
                         AssistantState.Information,
                         "Listening is paused.",
-                        "Kora could not confirm that the Windows session is unlocked. Use Enable listening after returning to an unlocked interactive session.");
+                        $"{AssistantName} could not confirm that the Windows session is unlocked. Use Enable listening after returning to an unlocked interactive session.");
                     return;
                 }
 
@@ -2322,7 +2320,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 var providerName = missingSelected?.Name ?? "selected speech provider";
                 return new OptionalSpeechProviderOffer(
                     $"{providerName} needs attention.",
-                    $"Your previously selected {providerName} is no longer available or its assets are incomplete. Would you like to review Speech and audio settings? Kora will not download or replace it automatically.",
+                    $"Your previously selected {providerName} is no longer available or its assets are incomplete. Would you like to review Speech and audio settings? {AssistantName} will not download or replace it automatically.",
                     previousId,
                     IsRecovery: true);
             }
@@ -2591,7 +2589,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public void ReportPresenceInputFailure(string detail) =>
         ShowFailure("Presence mouse routing is unavailable.",
-            $"The presence has been hidden to avoid blocking other windows. Restart Kora to try again. {detail}");
+            $"The presence has been hidden to avoid blocking other windows. Restart {AssistantName} to try again. {detail}");
 
     public void ReportHostInteractionFailure(string detail) =>
         ShowFailure("Native question unavailable.", detail);
@@ -2932,7 +2930,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CommandSubmitLabel));
         var options = string.Join("; ", ModelQuestionChoices.Select(choice => choice.DisplayText));
         ShowInformation(
-            "Kora needs your direction.",
+            $"{AssistantName} needs your direction.",
             $"{question.Prompt}\n{options}\nChoose an option or provide your own answer by voice or typing. This is not an action approval. Say “cancel question” to dismiss.");
         WindowActionRequested?.Invoke(this, WindowAction.Show);
     }
@@ -3794,7 +3792,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (audioPlaybackSettings.VolumeState is { AllowsSpeech: false })
         {
             ShowInformation("Voice preview is unavailable.",
-                "Kora playback volume is zero or unavailable. Inspect volume status in Settings; changing it never replays stopped speech.");
+                $"{AssistantName} playback volume is zero or unavailable. Inspect volume status in Settings; changing it never replays stopped speech.");
             return;
         }
         if (!await RefreshOutputEndpointsAsync() || !IsCallMutationHostEligible) { return; }
@@ -3824,7 +3822,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         catch (PlaybackVolumeUnavailableException exception)
         {
             ApplicationLog.Error(logger, exception, "Previewing with unavailable Kora playback volume");
-            PreserveSpokenResponseFailure("Kora playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
+            PreserveSpokenResponseFailure($"{AssistantName} playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
         }
         catch (WindowsSpeechRateUnavailableException exception)
         {
@@ -6183,7 +6181,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             readFailure = SpeechReadOutcome.Failed;
             LogSpokenResponseFailure(exception, "Playing a response with unavailable Kora playback volume", additionalEligibility is not null);
-            PreserveSpokenResponseFailure("Kora playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
+            PreserveSpokenResponseFailure($"{AssistantName} playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
         }
         catch (WindowsSpeechRateUnavailableException exception)
         {
@@ -6941,7 +6939,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private string[] GetRecognitionPhrases()
     {
-        var commands = commandCatalog.GetCommands(AssistantName)
+        var commands = commandCatalog.GetActivationCommands(AssistantName)
             .SelectMany(command => command.AllPhrases)
             .Concat([ReviewPendingActionPhrase])
             .Concat(ClipboardCommand.FixedPhrases)
@@ -7009,8 +7007,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
-        return commands
-            .SelectMany(phrase => new[] { phrase, $"{AssistantName} {phrase}" })
+        return AssistantNameRules.WithActivationNames(commands, AssistantName)
             .Concat(ModelApprovalSpeech.GetPhrases(AssistantName))
             .Concat(pendingModelQuestion is { } question
                 ? LocalModelQuestionSpeech.GetPhrases(question, AssistantName)
@@ -7030,7 +7027,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private void ApplyAssistantNameState(string value)
     {
         var normalizedName = AssistantNameRules.Normalize(value);
-        commandCatalog.GetCommands(normalizedName);
+        commandCatalog.GetActivationCommands(normalizedName);
         var previousDefaultCommand = $"{AssistantName}, what can you do?";
         var replaceDefaultCommand = string.Equals(
             CommandText,
@@ -7050,6 +7047,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             OnPropertyChanged(nameof(ResponseSettingsDescription));
             OnPropertyChanged(nameof(ReadinessSettingsDescription));
             OnPropertyChanged(nameof(CallVoiceActivationStatus));
+            OnPropertyChanged(nameof(CallVisualOverrideStatus));
+            OnPropertyChanged(nameof(ResponseOutputStatus));
+            OnPropertyChanged(nameof(VoiceConsentDescription));
             OnPropertyChanged(nameof(Commands));
             UpdateMicrophoneAvailability();
             UpdateOutputDeviceAvailability();

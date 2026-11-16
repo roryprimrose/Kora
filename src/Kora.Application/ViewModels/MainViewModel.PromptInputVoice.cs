@@ -16,7 +16,8 @@ public sealed partial class MainViewModel
     {
         if (promptInputVoice is not null) { throw new InvalidOperationException("The host already has a prompt input voice owner."); }
         if (voiceRecognition is not IQuestionVoiceRecognitionService capture) { return null; }
-        promptInputVoice = new(capture, uiDispatcher, ObservePromptInputVoice, IsPromptSourceCurrent, inputLogger, TimeProvider.System);
+        promptInputVoice = new(capture, uiDispatcher, ObservePromptInputVoice, IsPromptSourceCurrent, inputLogger, TimeProvider.System,
+            () => AssistantName);
         PropertyChanged += PromptInputVoiceReadinessChanged;
         return promptInputVoice;
     }

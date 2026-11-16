@@ -183,6 +183,47 @@ public sealed class NativeReviewTabsTests
     }
 
     [Fact]
+    public async Task ConversationSidePreferencePlacesTheReviewPaneOppositeTheConversation()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new NativeUxFixtureSession(Path.GetFullPath("."), silentCaption: true);
+            await f.InitializeAsync();
+            var window = new ResponseWindow(f.Main) { Width = 1120 };
+            window.Show();
+            window.Activate();
+            try
+            {
+                window.ShowNativeReview(new Border(), "Original review", new TextBox { IsReadOnly = true },
+                    static () => true, _ => { });
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                var host = window.FindControl<ContentControl>("NativeReviewContent")!;
+                var conversation = window.FindControl<Border>("CurrentInteractionContent")!;
+                host.Bounds.X.Should().BeGreaterThan(window.Width / 2, "the default places the conversation on the left");
+
+                f.Main.IsConversationOnRight = true;
+                await f.Main.AppearanceUpdate;
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                f.Main.IsConversationOnRight.Should().BeTrue();
+                Grid.GetColumn(host).Should().Be(1);
+                Grid.GetColumn(conversation).Should().Be(3);
+                host.Bounds.X.Should().BeLessThan(window.Width / 2);
+                host.Bounds.Width.Should().BeApproximately(400, 1);
+                window.FindControl<GridSplitter>("NativeReviewDivider")!.IsVisible.Should().BeTrue();
+
+                window.Width = 640;
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                Grid.GetColumn(host).Should().Be(3, "narrow mode overlays the review in the conversation column");
+                window.FindControl<GridSplitter>("NativeReviewDivider")!.IsVisible.Should().BeFalse();
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Fact]
     public async Task ReopeningAnOwnedReviewReplacesItsAdmissionAndPublicationBindingWithoutSubstitutingTheControl()
     {
         await HeadlessSession.RunAsync(async () =>

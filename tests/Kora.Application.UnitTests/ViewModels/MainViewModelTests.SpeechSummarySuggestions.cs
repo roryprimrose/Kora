@@ -39,6 +39,10 @@ public sealed partial class MainViewModelTests
             "review speech limit suggestion", name + " review speech limit suggestion",
             "confirm speech limit change", name + " confirm speech limit change",
             "cancel speech limit review", name + " cancel speech limit review",
+            .. string.Equals(name, "Kora", StringComparison.Ordinal) ? Array.Empty<string>() :
+            [
+                "Kora review speech limit suggestion", "Kora confirm speech limit change", "Kora cancel speech limit review",
+            ],
         ];
         f.Voice.StartedPhrases.Where(phrase => phrase.Contains("speech limit", StringComparison.OrdinalIgnoreCase))
             .Should().BeEquivalentTo(expected);

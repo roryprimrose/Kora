@@ -58,7 +58,7 @@ public sealed partial record SessionCommand(
     public static SessionCommand? Parse(string input, string assistantName)
     {
         var text = input.TrimStart();
-        var prefix = AssistantNameRules.Normalize(assistantName);
+        var prefix = AssistantNameRules.ResolveActivationName(text, assistantName);
         if (!text.StartsWith(prefix + ",", StringComparison.OrdinalIgnoreCase)
             && ParseForegroundRequest(text) is { } foreground)
         { return foreground; }

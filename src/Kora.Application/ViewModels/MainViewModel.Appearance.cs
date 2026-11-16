@@ -170,6 +170,8 @@ public sealed partial class MainViewModel
             {
                 case (AppearanceOption.ReducedMotion, AppearanceValue.Toggle boolean):
                     SetProperty(ref isReducedMotionEnabled, boolean.Value, nameof(IsReducedMotionEnabled)); break;
+                case (AppearanceOption.ConversationOnRight, AppearanceValue.Toggle boolean):
+                    SynchronizeConversationSide(boolean.Value); break;
                 case (AppearanceOption.NativePresenceRenderer, AppearanceValue.Toggle boolean):
                     nativePresenceRendererObserved = true;
                     if (isNativePresenceRenderer != boolean.Value)

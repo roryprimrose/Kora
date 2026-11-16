@@ -996,7 +996,7 @@ public sealed partial class MainViewModel
         {
             ApplicationLog.Error(logger, exception, operation);
             ShowFailure("Microphone cleanup needs attention.",
-                exception.Message + " Restart Kora before using voice again.");
+                exception.Message + $" Restart {AssistantName} before using voice again.");
             return false;
         }
     }
@@ -1156,7 +1156,7 @@ public sealed partial class MainViewModel
                 ? "Listening already disabled." : "Listening disabled."
                 : "Listening disabled; microphone release unconfirmed.",
             (released ? "Native microphone capture release is confirmed."
-                : "Native microphone release could not be confirmed. Restart Kora if native recovery remains unavailable.")
+                : $"Native microphone release could not be confirmed. Restart {AssistantName} if native recovery remains unavailable.")
             + " Saved voice consent is unchanged. A fresh deliberate Push to talk can capture one command after confirmed release. Native Enable listening restores readiness; capture will not reopen automatically."
             + (auditFailed ? " Required audit evidence is unavailable; this is not an audited success." : string.Empty));
     }

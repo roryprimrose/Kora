@@ -305,7 +305,7 @@
           "Kora.Core": "[0.1.0, )",
           "Kora.Definitions": "[0.1.0, )",
           "Kora.Windows": "[0.1.0, )",
-          "Markdig": "[1.4.0, )",
+          "Markdig": "[1.6.0, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.12, )",
           "Microsoft.Extensions.Logging": "[10.0.12, )",
           "Serilog": "[4.4.0, )",
@@ -342,7 +342,7 @@
         "type": "Project",
         "dependencies": {
           "Anthropic": "[13.6.0, )",
-          "GitHub.Copilot.SDK": "[1.0.26, )",
+          "GitHub.Copilot.SDK": "[1.0.29, )",
           "KokoroSharp": "[0.8.4, )",
           "Kora.Core": "[0.1.0, )",
           "Microsoft.Extensions.AI.Abstractions": "[10.11.0, )",
@@ -399,11 +399,11 @@
       },
       "GitHub.Copilot.SDK": {
         "type": "CentralTransitive",
-        "requested": "[1.0.26, )",
-        "resolved": "1.0.26",
-        "contentHash": "z5irU7ylg09KnZIE/82lbk08ZZ6S0mHc0RA+EzYrOxYrdBm+GEx+QDLM5dqOYE0xwvBxWRIkSKeGHeUcMkQGuA==",
+        "requested": "[1.0.29, )",
+        "resolved": "1.0.29",
+        "contentHash": "QKRUZR0L5lRx4mog85lnXS2nue89iGAizPMiogtwDudIMESqxuGHJpndcNolpRByA28U4Wes/CE5FoGGDk8QEg==",
         "dependencies": {
-          "Microsoft.Extensions.AI.Abstractions": "10.2.0"
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0"
         }
       },
       "KokoroSharp": {
@@ -422,9 +422,9 @@
       },
       "Markdig": {
         "type": "CentralTransitive",
-        "requested": "[1.4.0, )",
-        "resolved": "1.4.0",
-        "contentHash": "lLhaiI/mNDTNzgLqnmknhf4LjgTqOAyjx5+GNz0X3AxYMxUhmFppF2WVMdER+SDqwhE5wUF1pzs/cuLwFxs7xA=="
+        "requested": "[1.6.0, )",
+        "resolved": "1.6.0",
+        "contentHash": "rJEpDfPM8wrfXUgkNejjg2bJN9bciy44uVyRwKUI+92CnSmbaLeJTLPYcCdvgM4RFsKrhs8d2H2hO78yZpMl3g=="
       },
       "Microsoft.Data.Sqlite": {
         "type": "CentralTransitive",

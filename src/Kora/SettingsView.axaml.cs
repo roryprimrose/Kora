@@ -72,6 +72,7 @@ public sealed partial class SettingsView : UserControl, IDisposable
         callsTab = this.FindControl<SettingsPage>("CallsTab")
             ?? throw new InvalidOperationException("The call settings tab is unavailable.");
         DataContext = viewModel;
+        BindDevelopmentPreview();
         nativeLifetime = new(this, owner, () => model.CanRevealPrivatePresentation);
         nativeLifetime.PresentationChanged += OnNativePresentationChanged;
         nativeLifetime.ActivationChanged += OnNativeActivationChanged;

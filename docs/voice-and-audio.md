@@ -11,11 +11,18 @@ Use Preview to test speech; it does not open the microphone.
 
 ## Hands-free availability
 
-Hands-free activation is **unavailable**. Saying the assistant name alone does
+Hands-free activation is **unavailable in ordinary builds**. Saying the assistant name alone does
 not start listening. Use push-to-talk, typed input or the on-screen controls.
 The [optional conversational reply setting](settings.md#conversational-voice-replies)
 is a different feature: only an eligible clarification can offer a short reply
 capture after Kora finishes speaking. It never approves work.
+
+A marked **Development Preview** allows explicit wake opt-in through
+**Settings > Set up development preview capabilities**. Prepare the verified
+assets below, select the native wake profile and configured name **Kora**, then
+consent to listening through the existing voice controls. This tests incomplete
+acoustic quality; it is not production qualification and does not grant model
+submission or action permission. Opening setup never opens the microphone.
 
 A detected name is not permission to submit to a model. Destination review,
 model availability, original voice-channel restrictions, permissions and privacy

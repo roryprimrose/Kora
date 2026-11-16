@@ -76,6 +76,24 @@ public sealed partial class ClaudeMessagesRuntimeTests
     }
 
     [Fact]
+    public async Task NativeClaudePreviewRevocationAfterProvisionalOutputPreventsFinalSuccessAndJoins()
+    {
+        using var admission = new DevelopmentPreviewAdmission(true, TimeProvider.System, new ClaudeAccountBrokerTests.Fixture());
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
+        admission.Admit(DevelopmentPreviewCapability.Claude, () => true);
+        await using var f = await StreamFixture.CreateAsync([],
+            new ClaudeDeploymentApproval(admission.Resolve(DevelopmentPreviewCapability.Claude)!));
+        f.Respond(StreamStart + StreamText("provisional preview") + StreamEnd);
+        f.Publish = (_, _) => { admission.Revoke(); return ValueTask.CompletedTask; };
+        var result = await f.RunAsync(Token);
+        result.Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
+        result.Answer.Should().BeNull();
+        f.Updates.Should().HaveCount(1);
+        f.Stream!.Disposed.Should().BeTrue();
+        f.Runtime.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Sdk_stream_terminal_does_not_release_the_reader_before_physical_eof()
     {
         await using var f = await StreamFixture.CreateAsync();
@@ -241,6 +259,30 @@ public sealed partial class ClaudeMessagesRuntimeTests
         result.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
         f.Http.Requests.Should().OnlyContain(item => string.Equals(item.Method, "GET", StringComparison.Ordinal));
         f.Updates.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task NativeClaudePreviewStreamRequiresLiveOptInAndEachPhysicalSendReview(bool denySend, bool revoked)
+    {
+        using var admission = new DevelopmentPreviewAdmission(true, TimeProvider.System, new ClaudeAccountBrokerTests.Fixture());
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
+        admission.Admit(DevelopmentPreviewCapability.Claude, () => true);
+        var approval = new ClaudeDeploymentApproval(admission.Resolve(DevelopmentPreviewCapability.Claude)!);
+        await using var f = await StreamFixture.CreateAsync([], approval);
+        approval.TextStreams.Should().BeEmpty();
+        f.Approvals = denySend ? 0 : 2;
+        f.Respond(StreamStart + StreamText("preview answer") + StreamEnd);
+        if (revoked) { admission.Revoke(); }
+        var result = await f.RunAsync(Token);
+        result.Outcome.Should().Be(revoked ? ModelTurnOutcome.Unavailable
+            : denySend ? ModelTurnOutcome.DeniedEgress : ModelTurnOutcome.Succeeded);
+        f.Http.Requests.Count(item => item.Method is "POST").Should().Be(revoked || denySend ? 0 : 2);
+        if (revoked || denySend) { f.Updates.Should().BeEmpty(); result.Answer.Should().BeNull(); }
+        else { result.Answer.Should().Be("preview answer"); f.Reviews.Should().HaveCount(2); }
+        f.Runtime.IsQuiescent.Should().BeTrue();
     }
 
     [Theory]
@@ -421,15 +463,16 @@ public sealed partial class ClaudeMessagesRuntimeTests
         internal int Approvals { get; set; } = 2;
         internal Func<ModelAnswerUpdate, CancellationToken, ValueTask>? Publish { get; set; }
         internal ProgressiveStream? Stream { get; private set; }
-        private StreamFixture(IEnumerable<ClaudeTextStreamProfile> evidence)
+        private StreamFixture(IEnumerable<ClaudeTextStreamProfile> evidence, ClaudeDeploymentApproval? approval)
         {
-            Http = new() { Time = Time, Approval = new(DateTimeOffset.UtcNow.AddHours(1), evidence) };
+            Http = new() { Time = Time, Approval = approval ?? new(DateTimeOffset.UtcNow.AddHours(1), evidence) };
             Accounts = Http.Create();
             Runtime = new(Accounts, Time, NullLogger<ClaudeMessagesRuntime>.Instance, Http.CreateHttp);
         }
-        internal static async Task<StreamFixture> CreateAsync(IEnumerable<ClaudeTextStreamProfile>? evidence = null)
+        internal static async Task<StreamFixture> CreateAsync(IEnumerable<ClaudeTextStreamProfile>? evidence = null,
+            ClaudeDeploymentApproval? approval = null)
         {
-            var f = new StreamFixture(evidence ?? [new(new("exact-model"), new("disabled"), new("8192"), 8192, 4096)]);
+            var f = new StreamFixture(evidence ?? [new(new("exact-model"), new("disabled"), new("8192"), 8192, 4096)], approval);
             using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
             await f.Accounts.SignInAsync(ClaudeAccountBrokerTests.Fixture.Credential, () => true, Token);
             var catalogue = await f.Accounts.ObserveAsync(Token);

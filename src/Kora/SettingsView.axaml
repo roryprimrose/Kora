@@ -50,6 +50,10 @@
     </Border>
 
     <StackPanel Grid.Row="1" Margin="30,12,30,0" Spacing="8">
+      <TextBlock x:Name="DevelopmentPreviewStatus" IsVisible="False" TextWrapping="Wrap"
+                 Text="DEVELOPMENT PREVIEW - experimental workflows require explicit opt-in; this is not production qualification." />
+      <Button x:Name="DevelopmentPreviewSetup" IsVisible="False"
+              Content="Set up development preview capabilities" Click="OnDevelopmentPreviewSetup" />
       <TextBlock Text="{Binding SettingsUndoDescription}" TextWrapping="Wrap" />
       <StackPanel Orientation="Horizontal" Spacing="8">
         <Button x:Name="ReviewSettingsUndo" Content="Undo the last settings change"

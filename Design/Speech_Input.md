@@ -34,6 +34,14 @@ output/approval policy needs a separate product decision.
 
 ## Current Implementation Boundary
 
+The [explicit Development Preview](Acceptance_Criteria.md#explicit-development-preview-admission)
+can opt in to the prepared native Kora-name profile without claiming acoustic
+qualification. It uses the same compiled asset inventory, dictionary mapping,
+keyword threshold, WASAPI/command endpoint, generation/source fences and
+joined capture owner. Independent microphone consent and actual profile/name
+selection remain required. Revoking or replacing the preview lease cannot
+renew an earlier capture; ordinary builds retain the unavailable name set.
+
 The desktop [voice composition](../src/Kora/VoiceInputComposition.cs) shares one
 host lifecycle across recognition, activated input and profile switching. It
 borrows the DI-owned [Windows recognition service](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs)

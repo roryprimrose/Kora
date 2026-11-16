@@ -14,6 +14,7 @@ public sealed partial class WindowsBundledRuntimeSetup : IAsyncDisposable
     private readonly ISecurityAuditLog audit;
     private readonly ILogger<WindowsBundledRuntimeSetup> logger;
     private readonly TimeProvider clock;
+    private readonly DevelopmentBundledWorkerProfile? preview;
     private readonly SemaphoreSlim mutation = new(1, 1);
     private readonly Guid owner = Guid.NewGuid();
     private BundledRuntimeInspection? observed;
@@ -26,13 +27,22 @@ public sealed partial class WindowsBundledRuntimeSetup : IAsyncDisposable
         ISecurityAuditLog audit, ILogger<WindowsBundledRuntimeSetup> logger)
         : this(preferences, new WindowsBundledRuntimeInstallationInspector(), audit, logger, TimeProvider.System) { }
 
+    public WindowsBundledRuntimeSetup(IBundledRuntimeRegistrationPreferences preferences,
+        ISecurityAuditLog audit, ILogger<WindowsBundledRuntimeSetup> logger,
+        Kora.Windows.Dependencies.DevelopmentPreviewAdmission preview) : this(preferences, audit, logger)
+    { this.preview = new(preview); }
+
     internal WindowsBundledRuntimeSetup(IBundledRuntimeRegistrationPreferences preferences,
         IBundledRuntimeInstallationInspector inspector, ISecurityAuditLog audit,
         ILogger<WindowsBundledRuntimeSetup> logger, TimeProvider clock)
     { this.preferences = preferences; this.inspector = inspector; this.audit = audit; this.logger = logger; this.clock = clock; }
 
-    public string Description => Volatile.Read(ref observed)?.Description
-        ?? "Runtime registration has not been confirmed by current native inspection. " + BundledRuntimeQualification.Requirements;
+    public string Description => preview is not null && Volatile.Read(ref observed) is { } state
+        && preview.Resolve(state) is not null
+            ? "Development Preview: exact prepared protected runtime admitted for fixed contained scripts. "
+                + "Package/grant/action review and joins remain required. This is not W1-W4 production qualification."
+            : Volatile.Read(ref observed)?.Description
+                ?? "Runtime registration has not been confirmed by current native inspection. " + BundledRuntimeQualification.Requirements;
 
     public IBundledScriptWorker CreateWorker()
     {
@@ -41,7 +51,7 @@ public sealed partial class WindowsBundledRuntimeSetup : IAsyncDisposable
             ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
             if (worker is not null) { return worker; }
             worker = new(() => mutation.CurrentCount != 0 && Volatile.Read(ref observed) is { } state
-                ? BundledRuntimeQualification.Resolve(state) : null, ContainedPowerShellProcess.Create);
+                ? preview?.Resolve(state) ?? BundledRuntimeQualification.Resolve(state) : null, ContainedPowerShellProcess.Create);
             return worker;
         }
     }

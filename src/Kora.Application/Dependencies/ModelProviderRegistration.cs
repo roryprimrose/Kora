@@ -17,6 +17,22 @@ internal sealed record ModelProviderRegistration(
             _ => ModelQualificationGate.None,
         };
         var evaluation = (Evidence & ModelQualificationGate.UserReviewedCopilotEvaluation) != ModelQualificationGate.None;
+        var localPreview = (Evidence & ModelQualificationGate.UserReviewedLocalEvaluation) != ModelQualificationGate.None;
+        var claudePreview = (Evidence & ModelQualificationGate.UserReviewedClaudeEvaluation) != ModelQualificationGate.None;
+        if (claudePreview)
+        {
+            if (Selection.Provider != ModelProviderIdentity.Claude || evaluation || localPreview
+                || (Evidence & ModelQualificationGate.AllPathLifecycle) != ModelQualificationGate.None) { return false; }
+            required = ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.ExecutionAccount
+                | ModelQualificationGate.IntegratedHost;
+        }
+        if (localPreview)
+        {
+            if (Selection.Provider != ModelProviderIdentity.Ollama
+                || (Evidence & ModelQualificationGate.LocalCandidateSelection) != ModelQualificationGate.None || evaluation)
+            { return false; }
+            required &= ~ModelQualificationGate.LocalCandidateSelection;
+        }
         if (evaluation)
         {
             if (Selection.Provider != ModelProviderIdentity.Copilot
@@ -32,7 +48,8 @@ internal sealed record ModelProviderRegistration(
         }
         const ModelQualificationGate known = ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost
             | ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle | ModelQualificationGate.ExecutionAccount
-            | ModelQualificationGate.UserReviewedCopilotEvaluation | ModelQualificationGate.UserReviewedOllamaEvaluation;
+            | ModelQualificationGate.UserReviewedCopilotEvaluation | ModelQualificationGate.UserReviewedLocalEvaluation
+            | ModelQualificationGate.UserReviewedClaudeEvaluation | ModelQualificationGate.UserReviewedOllamaEvaluation;
         return Selection.IsValid && (Evidence & ~known) == ModelQualificationGate.None && (Evidence & required) == required
             && now < ExpiresAt && Adapter is not null && (RemainsQualified is null || RemainsQualified());
     }

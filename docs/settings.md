@@ -15,6 +15,14 @@ or [setup](#readiness). For named local folders, see [Knowledge sources](knowled
 [Copilot live evaluation](copilot-requests.md) can be admitted separately.
 A saved preference is not proof that its model or service can run.
 
+In a marked **Development Preview**, choose **Set up development preview
+capabilities** to opt in separately to local models, Claude, Kora-name wake or
+fixed bundled workers. These are real experimental workflows, not passing
+production evidence. Admission is memory-only for at most one hour and cannot
+survive restart or privacy/authority retirement. Installed runtime/assets,
+account setup, listening consent, physical-send review and exact action grants
+remain necessary. Opening this setup performs none of those operations.
+
 Open Settings by:
 
 - right-clicking the tray icon and selecting **Settings**;

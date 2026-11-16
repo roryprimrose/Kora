@@ -23,11 +23,17 @@ internal static class ProviderProfileComposition
         services.AddSingleton<IWindowsOllamaEvaluationObservation>(provider => provider.GetRequiredService<WindowsOllamaAdmissionObservation>());
         services.AddSingleton<WindowsOllamaEvaluationSource>();
         services.AddSingleton<WindowsOllamaAdmissionBroker>();
+        services.AddSingleton<DevelopmentPreviewAdmission>(provider => new(DevelopmentPreviewBuild.Enabled,
+            provider.GetRequiredService<TimeProvider>(), provider.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>()));
+        services.AddSingleton<DevelopmentOllamaAdmissionSource>();
+        services.AddSingleton<DevelopmentClaudeDeploymentSource>();
         services.AddSingleton<ILocalModelAdmissionBroker>(provider => provider.GetRequiredService<WindowsOllamaAdmissionBroker>());
         services.AddSingleton<LocalModelAdmissionPreferences>();
         services.AddSingleton<OllamaAdmissionWorkflow>();
         services.AddSingleton<IWindowsOllamaQualificationSource>(provider => new LocalAdmissionSource(
-            provider.GetRequiredService<WindowsOllamaEvaluationSource>(), provider.GetRequiredService<WindowsOllamaAdmissionBroker>()));
+            provider.GetRequiredService<WindowsOllamaEvaluationSource>(), DevelopmentPreviewBuild.Enabled
+                ? provider.GetRequiredService<DevelopmentOllamaAdmissionSource>()
+                : provider.GetRequiredService<WindowsOllamaAdmissionBroker>()));
         services.AddSingleton<WindowsOllamaRuntimeResolver>();
         services.AddSingleton<CopilotEvaluationDeploymentSource>();
         services.AddSingleton<ICopilotDeploymentApprovalSource>(provider => provider.GetRequiredService<CopilotEvaluationDeploymentSource>());
@@ -35,7 +41,9 @@ internal static class ProviderProfileComposition
         services.AddSingleton<ICopilotExecutionAccountSource>(provider => provider.GetRequiredService<CopilotAccountBroker>());
         services.AddSingleton<CopilotSdkTurnRuntime>();
         services.AddSingleton<Kora.Application.Dependencies.HostedTransmissionReviewService>();
-        services.AddSingleton<IClaudeDeploymentApprovalSource, UnavailableClaudeDeploymentApprovalSource>();
+        if (DevelopmentPreviewBuild.Enabled)
+        { services.AddSingleton<IClaudeDeploymentApprovalSource>(provider => provider.GetRequiredService<DevelopmentClaudeDeploymentSource>()); }
+        else { services.AddSingleton<IClaudeDeploymentApprovalSource, UnavailableClaudeDeploymentApprovalSource>(); }
         services.AddSingleton<ClaudeAccountBroker>();
         services.AddSingleton<ClaudeMessagesRuntime>();
         services.AddSingleton<ClaudeModelProviderFactory>();
@@ -50,9 +58,9 @@ internal static class ProviderProfileComposition
     }
 
     private sealed class LocalAdmissionSource(WindowsOllamaEvaluationSource evaluation,
-        WindowsOllamaAdmissionBroker qualified) : IWindowsOllamaQualificationSource
+        IWindowsOllamaQualificationSource fallback) : IWindowsOllamaQualificationSource
     {
         public Task<WindowsOllamaQualification?> ReadAsync(CancellationToken cancellationToken) =>
-            evaluation.HasAdmission ? evaluation.ReadAsync(cancellationToken) : qualified.ReadAsync(cancellationToken);
+            evaluation.HasAdmission ? evaluation.ReadAsync(cancellationToken) : fallback.ReadAsync(cancellationToken);
     }
 }

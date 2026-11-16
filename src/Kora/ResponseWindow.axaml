@@ -80,7 +80,10 @@
         Background="{DynamicResource KoraWindowBackgroundBrush}"
         chrome:WindowDecorationProperties.ElementRole="TitleBar">
       <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Text="{Binding AssistantName}" Margin="12,0" VerticalAlignment="Center" />
+        <StackPanel Orientation="Horizontal" Margin="12,0" Spacing="12" VerticalAlignment="Center">
+          <TextBlock Text="{Binding AssistantName}" />
+          <TextBlock x:Name="DevelopmentPreviewCaption" Text="DEVELOPMENT PREVIEW" IsVisible="False" />
+        </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal">
           <Button x:Name="ExpandSessions" Classes="caption" Click="OnExpandSessionsClicked"
               chrome:WindowDecorationProperties.ElementRole="User"

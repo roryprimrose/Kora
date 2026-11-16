@@ -453,7 +453,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Single(page => string.Equals(page.Id, "tools-and-built-in-skills", StringComparison.Ordinal));
 
         page.Title.Should().Be("Tools and built-in skills: current and planned");
-        page.Markdown.Should().Contain("The fixed bundled script executor is implemented but unavailable")
+        page.Markdown.Should().Contain("**In ordinary builds, the fixed bundled script executor is implemented but unavailable")
             .And.Contain("installed contained profile is qualified")
             .And.Contain("direct and model-proposed Lock share exact package review and grants")
             .And.Contain("without named-action permission reuse or a legacy native-lock fallback")
@@ -469,6 +469,28 @@ public sealed class EmbeddedUserDocumentationProviderTests
         page.Markdown.Should().Contain("retain")
             .And.Contain("applicable grants and selected policy during calls")
             .And.Contain("Off");
+    }
+
+    [Fact]
+    public void EmbeddedCapabilityGuideRequiresSeparatePreviewWorkerAdmissionWithoutProductionQualification()
+    {
+        var markdown = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "tools-and-built-in-skills", StringComparison.Ordinal)).Markdown;
+        var skills = markdown.Split("## 13. Built-in skills", StringSplitOptions.None)[1]
+            .Split("## 14. Persistent sessions, history, and shared questions", StringSplitOptions.None)[0];
+
+        skills.Should().Contain("**Development Preview:** separately opt in to fixed bundled workers")
+            .And.Contain("**Settings > Set up development preview capabilities**")
+            .And.Contain("memory-only for at most one hour")
+            .And.Contain("does not qualify the production profile")
+            .And.Contain("protected runtime preparation and AppContainer containment")
+            .And.Contain("package review, content-bound grants, action confirmation and resource joins remain mandatory")
+            .And.Contain("Model/wake opt-in does not admit worker execution")
+            .And.Contain("not arbitrary scripts or shell commands")
+            .And.Contain("Ordinary builds have no admitted contained execution")
+            .And.NotContain("This release has no admitted contained execution");
+        skills.Should().Contain("**No operating-system shutdown request is sent.**")
+            .And.Contain("**No operating-system restart request is sent.**");
     }
 
     [Fact]

@@ -60,7 +60,7 @@ public sealed class ReviewContents
         var primary = Slashes(skill.RelativeFile);
         var directory = primary[..(primary.LastIndexOf('/') + 1)];
         var captured = skill.ReferenceBundle?.References.Select(reference => directory + Slashes(reference.RelativePath))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new(StringComparer.OrdinalIgnoreCase);
         var unavailable = skill.UninspectedFiles.Where(file => !captured.Contains(Slashes(file)));
         if (skill.ReferenceDeclaration is { } declaration && skill.ReferenceBundle is null)
         { unavailable = unavailable.Concat(declaration.Paths.Select(path => path + " (reference not read)")); }

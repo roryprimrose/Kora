@@ -50,7 +50,7 @@ public sealed partial class SessionsConversationTests
                 var pending = await composed.Conversation.SubmitQueuedAsync(firstTarget, "private pending original", () => true, f.Token);
                 var other = await composed.Conversation.SubmitQueuedAsync(secondTarget, "private independently held original", () => true, f.Token);
                 TestContext.Current.TestOutputHelper!.WriteLine("Running and pending submitted work ready.");
-                var nativeParent = Path.GetFullPath(".net-test-artifacts");
+                var nativeParent = Path.Combine(OwnedStorageFixture.ScratchParent(), ".net-test-artifacts");
                 Directory.CreateDirectory(nativeParent);
                 using var native = new NativeUxFixtureSession(nativeParent);
                 await native.InitializeAsync();

@@ -9,7 +9,7 @@ execution admission policy.
 
 ## Project structure and definition types
 
-[Kora.Definitions.csproj](Kora.Definitions.csproj) targets `net10.0` and references
+[Kora.Definitions.csproj](Kora.Definitions.csproj) targets `net11.0` and references
 Core for portable validation/digest rules. It references neither Tools nor
 Application, Windows, desktop, Avalonia or provider SDKs. It is **not** one
 project per definition type, and it does not implement C# tool effects.

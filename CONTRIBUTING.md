@@ -150,6 +150,33 @@ authenticated exit command rather than requiring tray automation.
 
 ## Development checks
 
+### Downloadable Development Preview
+
+Use the explicit build profile for actual opted-in experiments inside Kora:
+
+```powershell
+.\eng\Publish-DevelopmentPreview.ps1
+```
+
+The output is a self-contained Windows x64 ZIP and a source/file-hash manifest,
+not a production-qualified installer. Open the included Kora executable and
+choose **Settings > Set up development preview capabilities**. Select only
+the capabilities being tested and accept their unqualified status. Local
+models must already be installed/running; hosted authentication and every
+content-bearing send retain their existing reviews. Prepared wake data still
+needs microphone consent/profile selection. Bundled fixed workers still need
+their protected runtime preparation, content-bound grant and action review.
+No setup action starts those operations automatically, and restart does not
+restore the volatile preview grant.
+
+The separate **Development Preview** Actions workflow publishes the same
+downloadable artifact when manually invoked on protected main. It does not
+publish a release, change queue admission or claim omitted physical/RC proof.
+Ordinary Debug/Release builds omit this build marker and setup entry unless
+`-p:KoraDevelopmentPreview=true` was explicitly supplied. Per-command optional
+`-PackageSource` overrides support machine-local feed routing without changing
+repository configuration.
+
 PR merge orchestration can run entirely on GitHub, without a local agent.
 See [GitHub-hosted merge admission](eng/merge-queue/README.md) for queue intent,
 failure/retry behaviour, the disabled-by-default rollout and administrator setup.
@@ -186,6 +213,34 @@ do not occupy a controller runner, while candidate/main lifecycle events retain
 their reconciliation path.
 
 Restore, build, and test with the pinned SDK and locked dependencies:
+
+The maintained solutions target .NET 11 using SDK 11.0.100 (latest patch
+roll-forward), with portable `net11.0` projects and
+`net11.0-windows10.0.19041.0` Windows projects. CI installs the SDK from
+`global.json`. Historical experiments and their recorded toolchains are not
+retargeted. .NET 11 is an STS release supported through November 14, 2028.
+Keep a supported .NET 10 runtime alongside .NET 11 for the pinned local tools
+(including ReportGenerator). CI explicitly installs the .NET 10 SDK in jobs
+that restore those tools; `global.json` still selects .NET 11 for all builds.
+The x86/x64 runtime now requires the x86-64-v2 instruction-set baseline;
+ReadyToRun code can fall back to JIT on supported CPUs below its v3 target.
+See the [.NET 11 announcement](https://devblogs.microsoft.com/dotnet/announcing-dotnet-11/)
+and [runtime hardware requirements](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-11/runtime#updated-minimum-hardware-requirements).
+
+Logging abstractions are supplied by the .NET 11 shared framework rather than
+explicit package references. Other package versions remain independently
+pinned; retargeting is not a blanket dependency update. Runtime/JIT and SDK
+startup improvements need no application rewrite. Preview Runtime Async,
+Native AOT publishing, C# union/closed-hierarchy refactors and process API
+replacements are not enabled by this migration: they need separate focused
+compatibility and behavioral evidence. MAUI/Blazor changes do not apply to
+Kora's Avalonia UI.
+
+The migration preserves canonical quiet-hours `HH:mm` values (including
+rejection of `24:00`) and the existing retained trace-flag allowlist. New
+framework parsing behavior and enum members must not widen saved-data admission.
+Fractional capture timing remains exact to a tick; tests assert integer ticks
+rather than relying on floating-point-to-decimal conversion.
 
 ```powershell
 dotnet restore .\Kora.slnx --locked-mode

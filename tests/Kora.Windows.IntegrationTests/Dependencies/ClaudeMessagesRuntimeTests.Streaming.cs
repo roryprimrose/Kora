@@ -62,7 +62,8 @@ public sealed partial class ClaudeMessagesRuntimeTests
             foreach (var field in new[] { "model", "system", "messages", "thinking" })
             { message.RootElement.GetProperty(field).GetRawText().Should().Be(count.RootElement.GetProperty(field).GetRawText()); }
             message.RootElement.TryGetProperty("tools", out _).Should().BeFalse();
-            message.RootElement.GetProperty("messages")[0].GetProperty("content").GetString().Should().Be(f.Context.UserRequest);
+            message.RootElement.GetProperty("messages")[0].GetProperty("content")[0].GetProperty("text").GetString()
+                .Should().Be(f.Context.UserRequest);
         }
         finally { stream.Release.TrySetResult(); }
         var result = await pending;
@@ -71,6 +72,86 @@ public sealed partial class ClaudeMessagesRuntimeTests
         result.TokenUsage.Should().Be(new ModelTokenUsage(25, 5, 25));
         f.Updates.Select(update => update.Answer).Should().Equal(text, text + " complete");
         stream.Disposed.Should().BeTrue();
+        f.Runtime.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task NativeClaudePreviewRevocationAfterProvisionalOutputPreventsFinalSuccessAndJoins()
+    {
+        using var admission = new DevelopmentPreviewAdmission(true, TimeProvider.System, new ClaudeAccountBrokerTests.Fixture());
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
+        admission.Admit(DevelopmentPreviewCapability.Claude, () => true);
+        await using var f = await StreamFixture.CreateAsync([],
+            new ClaudeDeploymentApproval(admission.Resolve(DevelopmentPreviewCapability.Claude)!));
+        f.Respond(StreamStart + StreamText("provisional preview") + StreamEnd);
+        f.Publish = (_, _) => { admission.Revoke(); return ValueTask.CompletedTask; };
+        var result = await f.RunAsync(Token);
+        result.Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
+        result.Answer.Should().BeNull();
+        f.Updates.Should().HaveCount(1);
+        f.Stream!.Disposed.Should().BeTrue();
+        f.Runtime.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Sdk_stream_terminal_does_not_release_the_reader_before_physical_eof()
+    {
+        await using var f = await StreamFixture.CreateAsync();
+        var wire = StreamStart + StreamText("answer") + StreamEnd;
+        var stream = f.Respond(wire, 1, Encoding.UTF8.GetByteCount(wire));
+        var pending = f.RunAsync(Token);
+        await stream.Paused.Task.WaitAsync(Token);
+        try
+        {
+            f.Updates.Should().ContainSingle().Which.Answer.Should().Be("answer");
+            pending.IsCompleted.Should().BeFalse();
+            f.Runtime.IsQuiescent.Should().BeFalse();
+            stream.Disposed.Should().BeFalse();
+        }
+        finally { stream.Release.TrySetResult(); }
+        var result = await pending;
+        result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        result.TokenUsage.Should().Be(new ModelTokenUsage(25, 5, 25));
+        stream.Disposed.Should().BeTrue();
+        f.Runtime.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Failed_sdk_preview_publication_closes_the_owned_reader_without_final_answer_or_retry()
+    {
+        await using var f = await StreamFixture.CreateAsync();
+        var stream = f.Respond(StreamStart + StreamText("preview") + StreamText(" forbidden late") + StreamEnd, 1);
+        f.Publish = (_, _) => ValueTask.FromException(new InvalidDataException("Synthetic unavailable publication."));
+        var result = await f.RunAsync(Token);
+        result.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+        result.Answer.Should().BeNull();
+        result.TokenUsage.Should().Be(new ModelTokenUsage(25, null, 25));
+        f.Updates.Should().ContainSingle().Which.Answer.Should().Be("preview");
+        f.Http.Requests.Count(request => request.Method is "POST").Should().Be(2);
+        stream.Disposed.Should().BeTrue();
+        f.Runtime.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(429)]
+    [InlineData(500)]
+    public async Task Official_sdk_stream_failure_never_retries_or_reuses_a_physical_send_review(int status)
+    {
+        await using var f = await StreamFixture.CreateAsync();
+        f.Http.Respond = request => request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
+            ? ClaudeAccountBrokerTests.Fixture.Json("{\"input_tokens\":25}")
+            : new HttpResponseMessage((HttpStatusCode)status)
+            {
+                Content = new StringContent("{\"error\":{\"type\":\"overloaded_error\",\"message\":\"synthetic failure\"}}"),
+                Headers = { { "Retry-After", "0" } },
+            };
+        var result = await f.RunAsync(Token);
+        result.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+        result.Answer.Should().BeNull();
+        result.TokenUsage.Should().BeNull();
+        f.Updates.Should().BeEmpty();
+        f.Reviews.Should().HaveCount(2);
+        f.Http.Requests.Count(request => request.Method is "POST").Should().Be(2);
         f.Runtime.IsQuiescent.Should().BeTrue();
     }
 
@@ -181,6 +262,30 @@ public sealed partial class ClaudeMessagesRuntimeTests
     }
 
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task NativeClaudePreviewStreamRequiresLiveOptInAndEachPhysicalSendReview(bool denySend, bool revoked)
+    {
+        using var admission = new DevelopmentPreviewAdmission(true, TimeProvider.System, new ClaudeAccountBrokerTests.Fixture());
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
+        admission.Admit(DevelopmentPreviewCapability.Claude, () => true);
+        var approval = new ClaudeDeploymentApproval(admission.Resolve(DevelopmentPreviewCapability.Claude)!);
+        await using var f = await StreamFixture.CreateAsync([], approval);
+        approval.TextStreams.Should().BeEmpty();
+        f.Approvals = denySend ? 0 : 2;
+        f.Respond(StreamStart + StreamText("preview answer") + StreamEnd);
+        if (revoked) { admission.Revoke(); }
+        var result = await f.RunAsync(Token);
+        result.Outcome.Should().Be(revoked ? ModelTurnOutcome.Unavailable
+            : denySend ? ModelTurnOutcome.DeniedEgress : ModelTurnOutcome.Succeeded);
+        f.Http.Requests.Count(item => item.Method is "POST").Should().Be(revoked || denySend ? 0 : 2);
+        if (revoked || denySend) { f.Updates.Should().BeEmpty(); result.Answer.Should().BeNull(); }
+        else { result.Answer.Should().Be("preview answer"); f.Reviews.Should().HaveCount(2); }
+        f.Runtime.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData("source")]
     [InlineData("account")]
     [InlineData("approval")]
@@ -239,6 +344,35 @@ public sealed partial class ClaudeMessagesRuntimeTests
     }
 
     [Theory]
+    [InlineData("cancel")]
+    [InlineData("account")]
+    [InlineData("source")]
+    public async Task Sdk_stream_revalidates_authority_after_awaited_physical_disposal(string change)
+    {
+        await using var f = await StreamFixture.CreateAsync();
+        var stream = f.Respond(StreamStart + StreamText("answer") + StreamEnd);
+        stream.PauseDisposal = true;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var pending = f.RunAsync(cancellation.Token);
+        await stream.DisposalEntered.Task.WaitAsync(Token);
+        try
+        {
+            pending.IsCompleted.Should().BeFalse();
+            f.Runtime.IsQuiescent.Should().BeFalse();
+            if (change is "cancel") { await cancellation.CancelAsync(); }
+            else if (change is "account") { f.Accounts.Revoke(); }
+            else { f.Live = false; }
+        }
+        finally { stream.DisposalRelease.TrySetResult(); }
+
+        var result = await pending;
+        result.Outcome.Should().Be(change is "cancel" or "account" ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.DeniedEgress);
+        result.Answer.Should().BeNull();
+        stream.Disposed.Should().BeTrue();
+        f.Runtime.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(-1, ModelTurnOutcome.Succeeded)]
     [InlineData(0, ModelTurnOutcome.Succeeded)]
     [InlineData(1, ModelTurnOutcome.Unknown)]
@@ -264,9 +398,10 @@ public sealed partial class ClaudeMessagesRuntimeTests
         {
             var profile = new Kora.Core.Providers.ProviderProfileTuple(Kora.Core.Providers.ProviderService.Claude,
                 new("account"), new(1), new("exact-model"), new("disabled"), new("8192"));
-            Task<byte[]> Read() => ClaudeAnswerStream.ReadAsync(content, profile, 8192, 4096, 16384,
-                _ => ValueTask.CompletedTask, () => throw new InvalidOperationException("No failed disposal expected."), Token);
-            if (valid) { ClaudeMessagesRuntime.ParseAnswer(await Read(), profile, 4096, 8192).Should().Be("answer"); }
+            await using var reader = new ClaudeAnswerStream(await content.ReadAsStreamAsync(Token), profile, 8192, 4096, 16384,
+                () => throw new InvalidOperationException("No failed disposal expected."));
+            Task Read() => reader.CopyToAsync(Stream.Null, Token);
+            if (valid) { await Read(); reader.Completed.Should().BeTrue(); }
             else { await Assert.ThrowsAsync<InvalidDataException>(Read); }
         }
     }
@@ -326,16 +461,18 @@ public sealed partial class ClaudeMessagesRuntimeTests
         internal List<ClaudeTransmission> Reviews { get; } = [];
         internal bool Live { get; set; } = true;
         internal int Approvals { get; set; } = 2;
+        internal Func<ModelAnswerUpdate, CancellationToken, ValueTask>? Publish { get; set; }
         internal ProgressiveStream? Stream { get; private set; }
-        private StreamFixture(IEnumerable<ClaudeTextStreamProfile> evidence)
+        private StreamFixture(IEnumerable<ClaudeTextStreamProfile> evidence, ClaudeDeploymentApproval? approval)
         {
-            Http = new() { Time = Time, Approval = new(DateTimeOffset.UtcNow.AddHours(1), evidence) };
+            Http = new() { Time = Time, Approval = approval ?? new(DateTimeOffset.UtcNow.AddHours(1), evidence) };
             Accounts = Http.Create();
             Runtime = new(Accounts, Time, NullLogger<ClaudeMessagesRuntime>.Instance, Http.CreateHttp);
         }
-        internal static async Task<StreamFixture> CreateAsync(IEnumerable<ClaudeTextStreamProfile>? evidence = null)
+        internal static async Task<StreamFixture> CreateAsync(IEnumerable<ClaudeTextStreamProfile>? evidence = null,
+            ClaudeDeploymentApproval? approval = null)
         {
-            var f = new StreamFixture(evidence ?? [new(new("exact-model"), new("disabled"), new("8192"), 8192, 4096)]);
+            var f = new StreamFixture(evidence ?? [new(new("exact-model"), new("disabled"), new("8192"), 8192, 4096)], approval);
             using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
             await f.Accounts.SignInAsync(ClaudeAccountBrokerTests.Fixture.Credential, () => true, Token);
             var catalogue = await f.Accounts.ObserveAsync(Token);
@@ -357,7 +494,11 @@ public sealed partial class ClaudeMessagesRuntimeTests
                 Http.Requests.Count(item => item.Method is "POST").Should().Be(Reviews.Count);
                 Reviews.Add(transmission);
                 return ValueTask.FromResult(Reviews.Count <= Approvals);
-            }, _ => ValueTask.FromResult(Live), (update, _) => { Updates.Add(update); return ValueTask.CompletedTask; },
+            }, _ => ValueTask.FromResult(Live), (update, ct) =>
+            {
+                Updates.Add(update);
+                return Publish?.Invoke(update, ct) ?? ValueTask.CompletedTask;
+            },
                 token);
         public async ValueTask DisposeAsync() { await Runtime.DisposeAsync(); await Accounts.DisposeAsync(); }
     }
@@ -378,6 +519,9 @@ public sealed partial class ClaudeMessagesRuntimeTests
         internal TaskCompletionSource Paused { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource StopRequested { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource DisposalEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource DisposalRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal bool PauseDisposal { get; set; }
         internal bool Disposed { get; private set; }
         internal bool FailDisposal { get; set; }
         internal bool FailStop { get; set; }
@@ -410,6 +554,11 @@ public sealed partial class ClaudeMessagesRuntimeTests
         }
         public override async ValueTask DisposeAsync()
         {
+            if (PauseDisposal)
+            {
+                DisposalEntered.TrySetResult();
+                await DisposalRelease.Task.ConfigureAwait(false);
+            }
             Disposed = true;
             await stopRegistration.DisposeAsync().ConfigureAwait(false);
             await base.DisposeAsync().ConfigureAwait(false);

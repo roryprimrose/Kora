@@ -11,12 +11,19 @@ namespace Kora.Windows.Audio;
 /// <summary>Compiled host metadata, never a user/model-authored manifest or recording authority.</summary>
 internal sealed class HandsFreeNativeProfile
 {
+    private readonly bool releaseQualified;
+    private readonly Func<bool>? previewAdmission;
     public HandsFreeNativeProfile(string nativeLibraryPath, string modelDirectory, string dictionaryPath,
         string vadPath, IEnumerable<HandsFreeNativeAsset> assets, IEnumerable<string> names, string? qualification,
-        IReadOnlyDictionary<string, string>? configurationFiles = null)
+        IReadOnlyDictionary<string, string>? configurationFiles = null, double keywordThreshold = 1e-30,
+        Func<bool>? previewAdmission = null)
     {
         if (qualification is not null) { ArgumentException.ThrowIfNullOrWhiteSpace(qualification); }
-        CaptureQualified = qualification is not null;
+        if (!double.IsFinite(keywordThreshold) || keywordThreshold <= 0)
+        { throw new ArgumentOutOfRangeException(nameof(keywordThreshold), "A finite positive keyword likelihood-ratio cutoff is required."); }
+        KeywordThreshold = keywordThreshold;
+        releaseQualified = qualification is not null;
+        this.previewAdmission = previewAdmission;
         NativeLibraryPath = RequireAbsolute(nativeLibraryPath);
         ModelDirectory = RequireAbsolute(modelDirectory);
         DictionaryPath = RequireAbsolute(dictionaryPath);
@@ -33,7 +40,7 @@ internal sealed class HandsFreeNativeProfile
         }
         Assets = Array.AsReadOnly(files);
         Names = names.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-        if ((CaptureQualified && Names.Count == 0) || Names.Any(name =>
+        if (((releaseQualified || previewAdmission is not null) && Names.Count == 0) || Names.Any(name =>
             !string.Equals(AssistantNameRules.Normalize(name), name, StringComparison.Ordinal)
             || name.Any(character => !char.IsAscii(character))))
         {
@@ -54,7 +61,8 @@ internal sealed class HandsFreeNativeProfile
     public string VadPath { get; }
     public IReadOnlyList<HandsFreeNativeAsset> Assets { get; }
     public FrozenSet<string> Names { get; }
-    public bool CaptureQualified { get; }
+    public bool CaptureQualified => releaseQualified || previewAdmission?.Invoke() == true;
+    public double KeywordThreshold { get; }
     public IReadOnlyDictionary<string, string> ConfigurationFiles { get; }
 
     internal string ObserveNativeIdentity()

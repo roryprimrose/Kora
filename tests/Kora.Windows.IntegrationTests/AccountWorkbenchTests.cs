@@ -6,6 +6,9 @@ using AwesomeAssertions;
 using Kora.Application.Infrastructure;
 using Kora.Application.Voice;
 using Kora.Core.Hosting;
+using Kora.Core.Providers;
+using Kora.Application.Dependencies;
+using Kora.Windows.Dependencies;
 using Kora.Windows.IntegrationTests.Dependencies;
 using Kora.Windows.IntegrationTests.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -15,6 +18,78 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class AccountWorkbenchTests
 {
+    [Fact]
+    public async Task Copilot_evaluation_requires_independent_runtime_and_account_consent_before_models_are_selectable()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var native = NativeUxTestFixture.Create(OwnedStorageFixture.ScratchParent());
+            await native.InitializeAsync();
+            using var paths = new OwnedStorageFixture();
+            var executable = Path.Combine(paths.LocalRoot, "copilot.exe");
+            await File.WriteAllTextAsync(executable, "synthetic-runtime-never-executed", native.Token);
+            var f = new CopilotAccountBrokerTests.Fixture();
+            using var evaluation = new CopilotEvaluationDeploymentSource(paths, f.Time, f,
+                NullLogger<CopilotEvaluationDeploymentSource>.Instance);
+            var starts = 0;
+            await using var broker = new CopilotAccountBroker(evaluation, f.Time, f,
+                _ => { starts++; return f.Client; }, NullLogger<CopilotAccountBroker>.Instance);
+            await using var admission = new AudioControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
+            using var controller = new CopilotAccountWindowController(native.Main, broker, admission,
+                NullLogger<CopilotAccountWindowController>.Instance, evaluation);
+            var shell = new ResponseWindow(native.Main);
+            controller.BindWorkbench(() => shell);
+            try
+            {
+                native.Main.ConfigureCopilotAccount();
+                await controller.Operation;
+                Dispatcher.UIThread.RunJobs();
+                var view = controller.PresentedView!;
+                var boxes = view.GetVisualDescendants().OfType<TextBox>().ToArray();
+                var secret = boxes.Single(box => box.PasswordChar == '*');
+                secret.IsEnabled.Should().BeFalse();
+                boxes.Single(box => box.PlaceholderText!.StartsWith("Installed Copilot", StringComparison.Ordinal)).Text = executable;
+                var buttons = view.GetVisualDescendants().OfType<Button>().ToArray();
+                var inspect = buttons.Single(button => button.Content is string caption && caption.StartsWith("Inspect installed", StringComparison.Ordinal));
+                await ((AsyncCommand)inspect.Command!).ExecuteAsync();
+                starts.Should().Be(0);
+                var enable = buttons.Single(button => button.Content is string caption && caption.StartsWith("Enable this reviewed", StringComparison.Ordinal));
+                var consents = view.GetVisualDescendants().OfType<CheckBox>().ToArray();
+                await ((AsyncCommand)enable.Command!).ExecuteAsync();
+                secret.IsEnabled.Should().BeFalse();
+                consents.Single(box => box.Content is string caption && caption.StartsWith("I approve executing", StringComparison.Ordinal)).IsChecked = true;
+                await ((AsyncCommand)enable.Command!).ExecuteAsync();
+                secret.IsEnabled.Should().BeTrue();
+                starts.Should().Be(0);
+                boxes.Single(box => string.Equals(box.PlaceholderText, "Exact GitHub login", StringComparison.Ordinal)).Text = "selected-user";
+                secret.Text = "synthetic-token";
+                var signIn = buttons.Single(button => button.Content is string caption && caption.StartsWith("Verify this account", StringComparison.Ordinal));
+                await ((AsyncCommand)signIn.Command!).ExecuteAsync();
+                starts.Should().Be(0);
+                consents.Single(box => box.Content is string caption && caption.StartsWith("Use this exact account", StringComparison.Ordinal)).IsChecked = true;
+                await ((AsyncCommand)signIn.Command!).ExecuteAsync();
+                starts.Should().Be(1);
+                secret.Text.Should().BeEmpty();
+                var catalogue = await broker.ObserveAsync(native.Token);
+                catalogue.Models.Should().ContainSingle();
+                var model = catalogue.Models.Single();
+                var profile = new ProviderProfileTuple(ProviderService.Copilot, catalogue.Account!, catalogue.Revision,
+                    model.Id, new("default"), new("default"));
+                (await broker.ResolveAsync(profile, native.Token))!.IsEvaluation.Should().BeTrue();
+                await using var runtime = new CopilotSdkTurnRuntime(broker, f.Time, NullLogger<CopilotSdkTurnRuntime>.Instance);
+                var factory = new CopilotModelProviderFactory(null!, broker, runtime,
+                    new HostedTransmissionReviewService(f, f.Time), f.Time);
+                var registration = (await factory.ResolveAsync(model.Selection, profile, native.Token))!;
+                registration.Evidence.Should().HaveFlag(ModelQualificationGate.UserReviewedCopilotEvaluation);
+                registration.Evidence.Should().NotHaveFlag(ModelQualificationGate.AllPathLifecycle);
+                registration.IsQualified(f.Time.GetUtcNow()).Should().BeTrue();
+                evaluation.Revoke();
+                (await broker.ResolveAsync(profile, native.Token)).Should().BeNull();
+            }
+            finally { shell.Close(); }
+        });
+    }
+
     [Theory]
     [InlineData("unavailable")]
     [InlineData("authenticate")]

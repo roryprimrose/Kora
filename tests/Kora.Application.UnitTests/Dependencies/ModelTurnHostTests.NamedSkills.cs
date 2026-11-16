@@ -218,7 +218,7 @@ public sealed partial class ModelTurnHostTests
     {
         public event EventHandler? Changed { add { } remove { } }
         public long Revision { get; set; }
-        internal HashSet<string> Disabled { get; } = [];
+        internal HashSet<string> Disabled { get; } = new(StringComparer.Ordinal);
         public bool IsDisabled(string identity) => Disabled.Contains(identity);
         public bool IsRevisionAllowed(string identity, string digest) => !IsDisabled(identity);
     }

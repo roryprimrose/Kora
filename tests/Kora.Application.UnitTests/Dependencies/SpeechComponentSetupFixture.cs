@@ -22,6 +22,8 @@ internal sealed class SpeechComponentSetupFixture
     internal bool Eligible { get; set; } = true;
     internal Func<bool>? AdmissionOverride { get; set; }
     internal List<string> ProgressMessages { get; } = [];
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Each fixture read intentionally creates an independent progress reporter.")]
     internal IProgress<string> Progress => new SynchronousProgress(ProgressMessages.Add);
     internal SpeechComponentSetupService Service { get; }
 

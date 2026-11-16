@@ -251,7 +251,7 @@ public sealed partial class SessionsConversationTests
                 model.ComposerBody = "running original in another session";
                 sessions.FindControl<Button>("SubmitConversation")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 first = sessions.ConversationOperation;
-                running = await adapter.NextAsync();
+                running = await adapter.NextAsync().WaitAsync(TimeSpan.FromSeconds(30), f.Token);
                 await WhenModelAsync(model, () => model.CanCompose && !model.ComposerDirty);
                 model.ComposerBody = "pending original in another session";
                 sessions.FindControl<Button>("SubmitConversation")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -259,7 +259,9 @@ public sealed partial class SessionsConversationTests
                 await model.SelectAsync(model.Sessions.Single(item => item.Authority.SessionId != original));
                 model.ComposerBody.Should().BeEmpty();
                 var exiting = native.Main.ExitAsync();
-                var question = await opened.Task.WaitAsync(f.Token);
+                (await Task.WhenAny(opened.Task, exiting).WaitAsync(TimeSpan.FromSeconds(30), f.Token))
+                    .Should().BeSameAs(opened.Task, "application exit must reach the native review before returning");
+                var question = await opened.Task;
                 question.Owner!.GetLogicalDescendants().OfType<TextBlock>().Select(item => item.Text)
                     .Should().Contain(item => item != null && item.Contains("running original in another session", StringComparison.Ordinal))
                     .And.Contain(item => item != null && item.Contains("pending original in another session", StringComparison.Ordinal));
@@ -278,8 +280,10 @@ public sealed partial class SessionsConversationTests
                 }
                 else
                 {
-                    question.GetLogicalDescendants().OfType<RadioButton>()
-                        .Single(item => item.Content is string text && text.StartsWith("Confirm:", StringComparison.Ordinal)).IsChecked = true;
+                    var choice = question.GetLogicalDescendants().OfType<RadioButton>()
+                        .Single(item => item.Content is string text && text.StartsWith("Confirm:", StringComparison.Ordinal));
+                    await AwaitSubmittedActivityChoiceAsync(question, choice, f.Token);
+                    choice.IsChecked = true;
                     var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                     void Changed(Kora.Core.Conversation.ConversationExecutionStatus status)
                     {
@@ -289,7 +293,8 @@ public sealed partial class SessionsConversationTests
                     try
                     {
                         question.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                        await stopped.Task.WaitAsync(f.Token);
+                        (await Task.WhenAny(stopped.Task, exiting).WaitAsync(TimeSpan.FromSeconds(30), f.Token))
+                            .Should().BeSameAs(stopped.Task, "confirmed exit must cancel accepted work before returning");
                     }
                     finally { composed.Conversation.RunningConversationChanged -= Changed; }
                     exiting.IsCompleted.Should().BeFalse();

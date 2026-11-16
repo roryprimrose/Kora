@@ -490,11 +490,12 @@ It must not respond by installing an SDK or switching to a source build.
 
 ### Launch Prerequisite Baseline
 
-For the inspected R01 win-x64 payload, `Kora.runtimeconfig.json` declares
-`Microsoft.NETCore.App` **10.0.0** and `Microsoft.WindowsDesktop.App` **10.0.0**.
+The current .NET 11 win-x64 payload must declare
+`Microsoft.NETCore.App` **11.0.0** and `Microsoft.WindowsDesktop.App` **11.0.0**
+in `Kora.runtimeconfig.json`; the historical R01 inspection used .NET 10.
 The Desktop dependency comes from NAudio.WinForms 3.1.0's WindowsForms framework
 reference, not an assumption based on Avalonia having a desktop UI.
-Use a supported, patched **.NET 10 x64 Desktop Runtime** installation providing
+Use a supported, patched **.NET 11 x64 Desktop Runtime** installation providing
 both frameworks. The declared minimum and the runtime patch actually selected
 on the test machine are separate evidence; registry presence alone is not
 launch success. Reinspect this contract after dependency changes.

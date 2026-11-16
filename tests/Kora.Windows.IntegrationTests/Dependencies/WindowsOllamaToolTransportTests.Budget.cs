@@ -54,26 +54,28 @@ public sealed partial class WindowsOllamaToolTransportTests
     }
 
     [Theory]
-    [InlineData(ModelToolMode.ReadOnly, 0, ModelTurnOutcome.Succeeded)]
-    [InlineData(ModelToolMode.ReadOnly, -1, ModelTurnOutcome.Denied)]
-    [InlineData(ModelToolMode.None, 0, ModelTurnOutcome.Succeeded)]
-    [InlineData(ModelToolMode.None, -1, ModelTurnOutcome.Denied)]
+    [InlineData(ModelToolMode.ReadOnly, 0, ModelTurnOutcome.Succeeded, ModelOutputFormat.Text)]
+    [InlineData(ModelToolMode.ReadOnly, -1, ModelTurnOutcome.Denied, ModelOutputFormat.Text)]
+    [InlineData(ModelToolMode.None, 0, ModelTurnOutcome.Succeeded, ModelOutputFormat.Text)]
+    [InlineData(ModelToolMode.None, -1, ModelTurnOutcome.Denied, ModelOutputFormat.Text)]
+    [InlineData(ModelToolMode.None, 0, ModelTurnOutcome.Succeeded, ModelOutputFormat.OwnedAgentProposal)]
+    [InlineData(ModelToolMode.None, -1, ModelTurnOutcome.Denied, ModelOutputFormat.OwnedAgentProposal)]
     public async Task Remaining_native_input_budget_is_enforced_at_the_exact_complete_frame_boundary_before_HTTP(
-        ModelToolMode mode, int adjustment, ModelTurnOutcome expected)
+        ModelToolMode mode, int adjustment, ModelTurnOutcome expected, ModelOutputFormat outputFormat)
     {
         await using var fixture = new Fixture();
         using var root = fixture.Root();
-        var initial = fixture.Request(toolMode: mode);
+        var initial = fixture.Request(toolMode: mode, outputFormat: outputFormat);
         var canonicalBytes = ModelToolProtocol.SerializeRequest(initial).Length;
-        var originalNativeBytes = OllamaToolWire.WriteRequest(initial, Model, []).Length;
+        var originalNativeBytes = await MeasureAsync(Model);
         fixture.BoundModel = Model + new string('m', Math.Max(1, canonicalBytes - originalNativeBytes + 1));
-        var nativeBytes = OllamaToolWire.WriteRequest(initial, fixture.BoundModel, []).Length;
+        var nativeBytes = await MeasureAsync(fixture.BoundModel);
         nativeBytes.Should().BeGreaterThan(canonicalBytes);
         var answer = NativeAnswer(fixture.BoundModel);
         Encoding.UTF8.GetByteCount(answer).Should().BeLessThan(ModelToolProtocol.MaximumOutputUtf8Bytes);
         fixture.Chat = (message, _) => Task.FromResult(Json(message, answer));
         var request = fixture.Request(budget: new(nativeBytes + adjustment, ModelToolProtocol.MaximumOutputUtf8Bytes),
-            toolMode: mode);
+            toolMode: mode, outputFormat: outputFormat);
         var reply = await fixture.Transport.CompleteAsync(request, Token);
         reply.Outcome.Should().Be(expected);
         reply.Provenance.Should().BeSameAs(request.Provenance);
@@ -90,6 +92,16 @@ public sealed partial class WindowsOllamaToolTransportTests
             fixture.Paths.Should().BeEmpty();
             reply.Message.Should().BeNull();
             reply.Usage.Should().BeNull();
+        }
+
+        async Task<int> MeasureAsync(string model)
+        {
+            await using var baseline = new Fixture { BoundModel = model };
+            using var baselineRoot = baseline.Root();
+            baseline.Chat = (message, _) => Task.FromResult(Json(message, NativeAnswer(model)));
+            (await baseline.Transport.CompleteAsync(baseline.Request(toolMode: mode, outputFormat: outputFormat), Token))
+                .Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            return baseline.Bodies.Single().Length;
         }
     }
 
@@ -117,10 +129,12 @@ public sealed partial class WindowsOllamaToolTransportTests
     }
 
     [Theory]
-    [InlineData(0, ModelTurnOutcome.Succeeded)]
-    [InlineData(1, ModelTurnOutcome.Denied)]
+    [InlineData(0, ModelTurnOutcome.Succeeded, ModelOutputFormat.Text)]
+    [InlineData(1, ModelTurnOutcome.Denied, ModelOutputFormat.Text)]
+    [InlineData(0, ModelTurnOutcome.Succeeded, ModelOutputFormat.OwnedAgentProposal)]
+    [InlineData(1, ModelTurnOutcome.Denied, ModelOutputFormat.OwnedAgentProposal)]
     public async Task Remaining_output_budget_bounds_the_complete_raw_response_not_the_global_maximum(
-        int extra, ModelTurnOutcome expected)
+        int extra, ModelTurnOutcome expected, ModelOutputFormat outputFormat)
     {
         const int remaining = 512;
         await using var fixture = new Fixture();
@@ -129,7 +143,9 @@ public sealed partial class WindowsOllamaToolTransportTests
         Encoding.UTF8.GetByteCount(text).Should().Be(remaining + extra);
         fixture.Chat = (message, _) => Task.FromResult(Json(message, text));
         var reply = await fixture.Transport.CompleteAsync(
-            fixture.Request(budget: new(ModelToolProtocol.MaximumInputUtf8Bytes, remaining)), Token);
+            fixture.Request(budget: new(ModelToolProtocol.MaximumInputUtf8Bytes, remaining),
+                toolMode: outputFormat == ModelOutputFormat.OwnedAgentProposal ? ModelToolMode.None : ModelToolMode.ReadOnly,
+                outputFormat: outputFormat), Token);
         reply.Outcome.Should().Be(expected);
         if (expected == ModelTurnOutcome.Succeeded)
         {

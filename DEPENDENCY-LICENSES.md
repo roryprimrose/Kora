@@ -5,6 +5,35 @@ dependencies remain under their respective licenses.
 
 ## Automated NuGet control
 
+The Claude adapter pins the official Apache-2.0 `Anthropic`
+13.6.0 package and MIT `Microsoft.Extensions.AI.Abstractions` 10.11.0. The
+Anthropic package records upstream source commit
+`a4c244aca0a692e4205b4ed4fefec9e021a6d8cc` in its NuGet metadata.
+These library licenses do not grant provider/account-use approval or enable
+Claude. SDK retries and content telemetry are disabled by the adapter.
+
+Ollama messages use community-maintained, MIT-licensed
+`OllamaSharp` 5.5.2, not an official Ollama or Microsoft SDK. Its restored
+package records source commit `a1ce0bd5f1021efd8d9dd1818a319575bb7b31a1`.
+It brings MIT `Microsoft.Extensions.AI` 10.8.0; the shared MEAI abstractions
+are centrally pinned to 10.11.0 for the MCP SDK. Kora uses `IChatClient` for buffered/streaming text and SDK-native `ChatAsync`
+for tool/clarification messages, preserving their admitted correlation and
+result shape without the lossy MEAI tool mapper. No automatic
+function-invocation, approval or telemetry middleware is used. Its source-generator
+analyzer is included in the package; no server or model assets are supplied.
+Kora retains the fixed endpoint/process gate, strict raw response policy,
+context-integrity controls and resource ownership. This dependency change
+does not qualify or enable any local model.
+
+External MCP uses the official Apache-2.0 `ModelContextProtocol.Core` 2.4.0
+package, whose restored metadata records source commit
+`4cbf42ef107763f0bc75c358af8cb2dfe47a769a`. It requires MIT MEAI abstractions
+10.11.0 and includes a managed analyzer, not a server executable. The SDK
+owns client protocol/session mechanics behind Kora's existing bounded HTTPS
+and raw admission gates. No OAuth, automatic tools, sampling, elicitation,
+roots, reconnects or content logging is enabled. This package admission
+does not qualify a delegated account or widen the supported text-only profile.
+
 The repository pins `nuget-license` as a local .NET tool. The license gate:
 
 1. reads the restored, locked dependency graph for every project in
@@ -82,9 +111,9 @@ after user consent under its MIT license and downloads the pinned Qwen3 1.7B
 model under Apache-2.0; neither is bundled into Kora's publish archives.
 
 The hosted adapter pins the MIT-licensed `GitHub.Copilot.SDK` **1.0.26**.
-Its managed .NET 10 dependency closure includes
-`Microsoft.Extensions.AI.Abstractions` 10.2.0 and the centrally pinned logging
-abstractions. The package's build/content assets are excluded: restoring,
+Its managed dependency closure includes
+`Microsoft.Extensions.AI.Abstractions` 10.2.0; logging abstractions are supplied
+by the .NET 11 shared framework. The package's build/content assets are excluded: restoring,
 building or publishing Kora must not implicitly download or redistribute the
 separate Copilot runtime. The package declares runtime **1.0.103**; that is
 dependency metadata, not installed-runtime or distribution approval.
@@ -102,8 +131,10 @@ stable upstream API guarantees.
 An approved explicit execution account, current account-bound catalogue,
 runtime provenance/terms, usage/cost approval and private host-owned runtime
 paths remain live enablement requirements. The default deployment-approval
-source returns unavailable, and token-entry controls stay disabled without
-that approval. The account broker stores an explicitly verified token only
+source remains unavailable until separate native live-evaluation runtime,
+terms and charges approval; this is not production qualification. See the
+[evaluation contract](docs/copilot-requests.md). Token-entry controls stay
+disabled without that approval. The account broker stores an explicitly verified token only
 in volatile managed memory and publishes a finite account-bound catalogue;
 it does not persist the token or securely zero immutable managed strings.
 Kora never treats the developer agent's Copilot login, `gh`

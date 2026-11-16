@@ -81,6 +81,19 @@ public sealed class HostContractTests
         action.Should().Throw<InvalidOperationException>();
     }
 
+    [Fact]
+    public void Dispatch_advances_once_and_terminal_or_undefined_transitions_cannot_reopen_work()
+    {
+        var intent = new HostTaskRecord(HostRequest.Create(RequestOrigin.LocalUi), new(1), HostTaskState.IntentRecorded);
+        var dispatched = intent.Next(HostTaskState.DispatchRecorded);
+        dispatched.State.Should().Be(HostTaskState.DispatchRecorded);
+        dispatched.Revision.Value.Should().Be(2);
+        dispatched.Request.Should().BeSameAs(intent.Request);
+        FluentActions.Invoking(() => intent.Next((HostTaskState)999)).Should().Throw<InvalidOperationException>();
+        FluentActions.Invoking(() => dispatched.Next(HostTaskState.Unknown).Next(HostTaskState.DispatchRecorded))
+            .Should().Throw<InvalidOperationException>();
+    }
+
     [Theory]
     [InlineData(ResourceAccess.SharedRead, true)]
     [InlineData(ResourceAccess.Exclusive, false)]

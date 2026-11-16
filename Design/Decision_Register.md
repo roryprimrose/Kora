@@ -16,6 +16,56 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Explicit native Ollama live evaluation
+
+The product owner explicitly selected "Add explicit, native-reviewed Ollama evaluation
+admission (recommended for agent authoring)" when requesting provider testing.
+This admits a separate, opt-in evaluation path for existing governed conversation
+and owned-agent proposal workflows. It does not accept release qualification,
+enable providers automatically, expand tool permissions or authorize publication.
+
+The host, not an extension or provider response, owns native review, separate
+confirmation, exact runtime/account/session/process/model binding, typed audit,
+one-hour volatile authority, revocation and physical quiescence. Inspection reads
+only supported fixed-loopback metadata; no process start, download or inference
+is part of setup. Unsupported profiles remain unavailable without fallback.
+The complete interaction is inspect, review limitations, explicitly consent and
+confirm, refresh/select/save the labelled evaluation profile, then use the existing
+governed request/proposal interaction. Proposal adoption and Save remain separate.
+
+Quality, latency, offline-egress, containment and integrated-host release proof
+remain incomplete. Evaluation uses its own admission gate and no release evidence;
+privacy/ownership loss, exact subject drift, expiry, revocation and restart close
+availability. Native controls disclose these residual assumptions before consent.
+See [the owning contract](Local_Inference.md#explicit-native-ollama-live-evaluation)
+and [complete user interaction](../docs/settings.md#optional-ollama-live-evaluation).
+
+## Explicit Copilot live evaluation - 2026-11-14
+
+The product owner explicitly authorized "Yes — implement opt-in live evaluation
+in Settings and chat" after distinguishing it from qualification-backed
+production admission. This admits Settings runtime review, independent private
+account verification, advertised-model selection and the existing explicit
+Copilot conversation route, not automatic hosted execution.
+
+The host captures and holds the exact local executable read-only, allocates
+private runtime paths, audits explicit native runtime/account-use approval and
+expires runtime admission after one hour. Tokens/catalogues remain volatile;
+every physical content-bearing request still requires its own existing final
+disclosure review and current account/profile/session/host authority.
+Evaluation registration is explicitly distinct from all-path lifecycle
+qualification. It cannot qualify another provider or create a hosted fallback.
+
+This is an explicit evaluation-only exception to the prerequisite for a
+production-qualified Copilot offering, not Gate 0 acceptance or permission to
+claim completed network/storage/lifecycle evidence. Runtime provenance,
+compatibility, terms, entitlement and possible charges require explicit user
+review; there is no enforced monetary cap or proven process containment.
+Normal releases remain unqualified, and evaluation stays unavailable until
+explicitly admitted in the current process. See the
+[complete user workflow](../docs/copilot-requests.md) and
+[admission source](../src/Kora.Windows/Dependencies/CopilotEvaluationDeploymentSource.cs).
+
 ## Exact opted-in Details presentation question - 2026-11-06
 
 The product/security decision explicitly approved P1 and end-to-end implementation and protected PR delivery: a separate durable, host-owned, non-executing presentation control for one newly finalized exact foreground result.
@@ -143,6 +193,20 @@ Original input and built-in implementation are not permission exemptions.
 Model-generated tool, skill, agent or script requests convey no execution authority;
 the host must validate applicable permission before execution, never execute a proposal as approval
 ([grant rules](Internal_Model_Tools.md#grant-and-feedback-rules)).
+
+## Downloadable Development Preview - 2026-11-13
+
+The product owner selected "Downloadable Development Preview builds with
+explicit per-capability opt-in" to make real workflows testable in Kora before
+production qualification. This admits development execution through existing
+host-owned routes with explicit unqualified status, not fabricated proof.
+Model quality/latency and final acoustic/installed RC evidence do not prevent
+an opted-in preview. Permissions, private source/account/device admission,
+independent physical-send review, audit, fixed-worker containment and actual
+resource joins remain authoritative. Nothing starts merely by opening setup;
+preview authority is volatile and never restored from saved preferences.
+Normal builds and production/release claims retain their independent
+qualification boundaries. See [the preview contract](Acceptance_Criteria.md#explicit-development-preview-admission).
 
 ## Decision inventory
 

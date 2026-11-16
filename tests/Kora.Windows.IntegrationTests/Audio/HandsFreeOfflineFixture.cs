@@ -133,7 +133,8 @@ internal sealed class HandsFreeOfflineFixture : IAsyncDisposable
         };
         var profile = new HandsFreeNativeProfile(nativePath, assetsRoot,
             Path.Combine(assetsRoot, "dictionary.data"), Path.Combine(assetsRoot, "silero.onnx"),
-            identities, ["Kora"], "EVALUATION ONLY: no acoustic qualification or production capture authority", configuration);
+            identities, ["Kora"], "EVALUATION ONLY: no acoustic qualification or production capture authority", configuration,
+            keywordThreshold: HandsFreeNativeProfileCatalogue.KoraKeywordThreshold);
         var pinnedRoots = new SpeechComponentFileBinding();
         HandsFreeAssetLease? assetLease = null;
         try
@@ -209,7 +210,7 @@ internal sealed class HandsFreeOfflineFixture : IAsyncDisposable
     internal FileMicrophone Microphone(string id)
     {
         var specification = Specification.Cases.Single(item => string.Equals(item.Id, id, StringComparison.Ordinal));
-        return new(Open(corpus[id].Name), specification.ChunkSamples);
+        return new(Open(Path.Combine(Specification.CorpusRoot, specification.File)), specification.ChunkSamples);
     }
 
     private static FileStream Open(string path)

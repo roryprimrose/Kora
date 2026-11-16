@@ -328,6 +328,8 @@ public sealed class EvidenceRequestNavigationTests
         internal bool Hold { get; set; }
         internal int Calls { get; private set; }
         internal EvidenceQuery? LastQuery { get; private set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+            Justification = "Each fixture read intentionally produces an independent batch and collection.")]
         private EvidenceReadBatch Batch => new(new(0, 0, 0, 0),
             [new(new(0, record.Reference.Source, record.Reference.Id.Value.ToString("D"), -1), record)], null, false, false);
         internal void Release() => completion.SetResult(Batch);

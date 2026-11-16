@@ -50,6 +50,8 @@ internal sealed partial class SessionsViewModel
     }
     public IReadOnlyList<ConversationTaskStateOption> ConversationTaskStates { get; } =
         [new(null), .. Enum.GetValues<HostTaskState>().Select(value => new ConversationTaskStateOption(value))];
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "The binding uses an immutable value-equal option reflecting the current filter, not stable object identity.")]
     public ConversationTaskStateOption ConversationTaskStateChoice
     {
         get => new(conversationTaskState);

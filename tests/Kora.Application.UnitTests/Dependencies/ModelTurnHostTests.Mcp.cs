@@ -646,10 +646,10 @@ public sealed partial class ModelTurnHostTests
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private sealed class McpBroker(McpAccountReference account) : IMcpConnectionBroker, IMcpConnection
+    private sealed class McpBroker(McpAccountReference account) : McpWireTestConnection, IMcpConnectionBroker
     {
         internal CancellationToken Withdrawal { get; init; } = new(canceled: true);
-        public CancellationToken AdmissionWithdrawn => Withdrawal;
+        public override CancellationToken AdmissionWithdrawn => Withdrawal;
         internal string? Fault { get; set; }
         internal IReadOnlyList<McpAccountChoice>? Accounts { get; set; }
         internal Action<string>? AfterExchange { get; set; }
@@ -666,10 +666,10 @@ public sealed partial class ModelTurnHostTests
         internal bool Disposed { get; private set; }
         internal int DisposeCalls { get; private set; }
         internal Action? AfterDispose { get; set; }
-        public McpAccountReference Account => Fault is "account-swap"
+        public override McpAccountReference Account => Fault is "account-swap"
             ? new(Guid.NewGuid(), new(1), Guid.NewGuid(), account.Destination) : account;
-        public McpEndpoint Endpoint => Fault is "redirect" ? new(new("https://other.example.com/mcp")) : account.Destination;
-        public IReadOnlyList<IPAddress> RemoteAddresses => Fault switch
+        public override McpEndpoint Endpoint => Fault is "redirect" ? new(new("https://other.example.com/mcp")) : account.Destination;
+        public override IReadOnlyList<IPAddress> RemoteAddresses => Fault switch
         { "private-dns" => [IPAddress.Loopback], "unknown-dns" => [], _ => [IPAddress.Parse("8.8.8.8")] };
         public Task<IReadOnlyList<McpAccountChoice>> ReadAccountsAsync(CancellationToken token)
         {
@@ -687,16 +687,16 @@ public sealed partial class ModelTurnHostTests
             Connected = true;
             return Task.FromResult<IMcpConnection>(this);
         }
-        public Task<bool> IsCurrentAsync(CancellationToken token) => Fault is "withdrawn-connection"
+        public override Task<bool> IsCurrentAsync(CancellationToken token) => Fault is "withdrawn-connection"
             ? throw new OperationCanceledException("synthetic connection withdrawal")
             : Task.FromResult(Fault is not "expired-account");
-        public Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token)
+        public override Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token)
         {
             Encoding.UTF8.GetString(notification.AsSpan()).Should().Contain("notifications/initialized");
             Notifications++;
             return Task.CompletedTask;
         }
-        public Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token)
+        public override Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token)
         {
             string method;
             using (var document = System.Text.Json.JsonDocument.Parse(request.AsMemory()))
@@ -733,7 +733,7 @@ public sealed partial class ModelTurnHostTests
             AfterExchange?.Invoke(method);
             return Task.FromResult(ImmutableArray.CreateRange(Encoding.UTF8.GetBytes(response)));
         }
-        public async ValueTask DisposeAsync()
+        public override async ValueTask DisposeAsync()
         {
             DisposeCalls++;
             EnteredDispose?.TrySetResult();

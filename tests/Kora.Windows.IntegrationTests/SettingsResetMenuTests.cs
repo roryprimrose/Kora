@@ -28,6 +28,8 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SettingsResetMenuTests
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Theory discovery intentionally receives independent mutable test data.")]
     public static TheoryData<string, string, string?, string> MigratedRefreshes => new()
     {
         { "RefreshCommand", "Speech and audio", null, "Refresh devices and readiness" },
@@ -50,6 +52,8 @@ public sealed class SettingsResetMenuTests
         { "RefreshCommand", "Readiness", null, "Refresh readiness" },
     };
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Theory discovery intentionally receives independent mutable test data.")]
     public static TheoryData<string, string, string?> MigratedResets => new()
     {
         { "ResetVoiceTimingCommand", "Review reset capture timing", "CanReviewVoiceTiming" },

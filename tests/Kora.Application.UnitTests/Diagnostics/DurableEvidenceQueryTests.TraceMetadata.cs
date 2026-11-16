@@ -46,7 +46,7 @@ public sealed partial class DurableEvidenceQueryTests
         foreach (var source in Enum.GetValues<EvidenceSource>())
         foreach (var availability in Enum.GetValues<TraceSourceVersionAvailability>())
         foreach (var kind in Enum.GetValues<ActivityKind>())
-        foreach (var flags in Enum.GetValues<ActivityTraceFlags>())
+        foreach (var flags in new[] { ActivityTraceFlags.None, ActivityTraceFlags.Recorded })
         foreach (var parentKind in Enum.GetValues<TraceParentKind>())
         {
             DurableEvidenceQuery.Validate(query with

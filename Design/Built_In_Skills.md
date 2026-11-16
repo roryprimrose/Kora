@@ -5,6 +5,16 @@ All bundled execution remains unavailable because the [production worker](../src
 Direct Lock and model-proposed Lock use the same exact host gate, preserving the original request channel; a model cannot grant or self-confirm it. Direct shutdown/restart retain that gate; model power suggestions still open inspection only and require a subsequent original-user execution gesture. There is no legacy native-lock fallback.
 The [hosted source inspector](../src/Kora/SkillPackagesView.axaml.cs) retains every original manifest, instruction, fixture, entry and shared-helper tab. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 
+The separately approved [Development Preview](Acceptance_Criteria.md#explicit-development-preview-admission)
+can admit the exact prepared protected runtime for these fixed script-backed
+actions without a release qualification entry. This is opt-in, volatile and
+explicitly unqualified. It derives a fresh AppContainer identity without
+network capabilities, retains the existing reviewed in-memory script snapshot,
+grants and deferred native-effect bridge, and requires physical process/tree
+join before admitting the final effect. A missing/unprepared runtime is still
+unavailable; this does not enable arbitrary scripts or agents. Ordinary builds
+retain the unavailable production worker.
+
 The structural migration preserves all 13 resource IDs/bytes and package
 digest golden vectors. `Kora.Definitions.Skills` owns the explicit embedded
 catalogue; Core retains the package validation/digest rules and desktop

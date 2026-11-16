@@ -236,7 +236,7 @@ if ($TestModuleDirectory) {
     }
 }
 else {
-    $localModules = Join-Path $repositoryRoot 'tests\Kora.Windows.IntegrationTests\bin\Release\net10.0-windows10.0.19041.0\win-x64'
+    $localModules = Join-Path $repositoryRoot 'tests\Kora.Windows.IntegrationTests\bin\Release\net11.0-windows10.0.19041.0\win-x64'
     $catalog = Get-WindowsTestCatalog $dotnetPath $localModules
 }
 $resultsRoot = Join-Path $resultsRoot ([guid]::NewGuid().ToString('N'))

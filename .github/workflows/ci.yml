@@ -196,6 +196,11 @@ jobs:
       - name: Restore locked dependencies
         run: dotnet restore Kora.slnx --locked-mode
 
+      - name: Install .NET 10 SDK for pinned local tools
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 10.0.x
+
       - name: Restore local tools
         run: dotnet tool restore
 
@@ -357,6 +362,11 @@ jobs:
           cache-dependency-path: |
             **/packages.lock.json
 
+      - name: Install .NET 10 SDK for pinned local tools
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 10.0.x
+
       - name: Restore local tools
         run: dotnet tool restore
 
@@ -425,6 +435,11 @@ jobs:
       - name: Restore locked dependencies
         run: dotnet restore Kora.UnitTests.slnx --locked-mode
 
+      - name: Install .NET 10 SDK for pinned local tools
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 10.0.x
+
       - name: Restore local tools
         run: dotnet tool restore
 
@@ -469,14 +484,14 @@ jobs:
           path: |
             .net-test-artifacts/**/*.trx
             .net-test-artifacts/**/*.coverage.cobertura.*.xml
-            src/Kora.Core/bin/Release/net10.0/Kora.Core.dll
-            src/Kora.Core/bin/Release/net10.0/Kora.Core.pdb
-            src/Kora.Application/bin/Release/net10.0/Kora.Application.dll
-            src/Kora.Application/bin/Release/net10.0/Kora.Application.pdb
-            src/Kora.Tools/bin/Release/net10.0/Kora.Tools.dll
-            src/Kora.Tools/bin/Release/net10.0/Kora.Tools.pdb
-            src/Kora.Definitions/bin/Release/net10.0/Kora.Definitions.dll
-            src/Kora.Definitions/bin/Release/net10.0/Kora.Definitions.pdb
+            src/Kora.Core/bin/Release/net11.0/Kora.Core.dll
+            src/Kora.Core/bin/Release/net11.0/Kora.Core.pdb
+            src/Kora.Application/bin/Release/net11.0/Kora.Application.dll
+            src/Kora.Application/bin/Release/net11.0/Kora.Application.pdb
+            src/Kora.Tools/bin/Release/net11.0/Kora.Tools.dll
+            src/Kora.Tools/bin/Release/net11.0/Kora.Tools.pdb
+            src/Kora.Definitions/bin/Release/net11.0/Kora.Definitions.dll
+            src/Kora.Definitions/bin/Release/net11.0/Kora.Definitions.pdb
           if-no-files-found: error
           include-hidden-files: true
 
@@ -747,11 +762,11 @@ jobs:
 
       - name: Expand runnable test modules
         shell: pwsh
-        run: Expand-Archive -LiteralPath '.net-test-artifacts\windows-build\test-modules.zip' -DestinationPath 'tests\Kora.Windows.IntegrationTests\bin\Release\net10.0-windows10.0.19041.0\win-x64'
+        run: Expand-Archive -LiteralPath '.net-test-artifacts\windows-build\test-modules.zip' -DestinationPath 'tests\Kora.Windows.IntegrationTests\bin\Release\net11.0-windows10.0.19041.0\win-x64'
 
       - name: Run Windows integration tests
         shell: pwsh
-        run: .\eng\Run-WindowsIntegrationTests.ps1 -Partition '${{ matrix.partition }}' -TestModuleDirectory 'tests\Kora.Windows.IntegrationTests\bin\Release\net10.0-windows10.0.19041.0\win-x64' -ExpectedSourceRevision '${{ needs.version.outputs.source-revision }}'
+        run: .\eng\Run-WindowsIntegrationTests.ps1 -Partition '${{ matrix.partition }}' -TestModuleDirectory 'tests\Kora.Windows.IntegrationTests\bin\Release\net11.0-windows10.0.19041.0\win-x64' -ExpectedSourceRevision '${{ needs.version.outputs.source-revision }}'
 
       - name: Upload Windows test results
         if: always()

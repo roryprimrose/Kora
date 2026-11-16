@@ -66,6 +66,7 @@ public sealed class EvidenceAnswerTests
     [InlineData("empty")]
     [InlineData("many")]
     [InlineData("unavailable")]
+    [InlineData("daily-report")]
     [InlineData("partial")]
     [InlineData("omitted")]
     [InlineData("expired")]
@@ -86,6 +87,7 @@ public sealed class EvidenceAnswerTests
             "empty" => page with { Records = [] },
             "many" => page with { Records = Enumerable.Range(0, 51).Select(_ => Record()).ToArray() },
             "unavailable" => page with { UnavailableSources = [EvidenceSource.Conversation] },
+            "daily-report" => page with { DailyReport = new(null, 1, 1, 1, 0, 0, 0) },
             "partial" => page with { Status = EvidencePageStatus.Partial },
             "omitted" => page with { Records = [first with { ContentOmitted = true }] },
             "expired" => page with { Records = [first with { Retention = EvidenceSegmentStatus.ExpiredButPresent }] },

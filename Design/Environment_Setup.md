@@ -29,7 +29,7 @@ build tool. Standard SQLite remains a pinned launch-critical managed/native
 publish payload, not a setup checkbox or post-launch acquisition.
 
 R02 inspection established concrete pre-launch requirements for the current
-framework-dependent win-x64 bootstrap: a supported patched .NET 10 x64 Desktop
+framework-dependent win-x64 bootstrap (now targeting .NET 11): a supported patched .NET 11 x64 Desktop
 Runtime providing both declared .NET shared frameworks, plus external VC++ v14
 x64 runtime DLLs imported by ONNX. See the canonical
 [launch prerequisite baseline](Distribution_And_Updates.md#launch-prerequisite-baseline)

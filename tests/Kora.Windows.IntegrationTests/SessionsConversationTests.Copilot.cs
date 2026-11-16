@@ -1,4 +1,6 @@
 using System.Text;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
 using Kora.Core.Dependencies;
@@ -13,6 +15,85 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Theory]
+    [InlineData("complete")]
+    [InlineData("cancel")]
+    [InlineData("deny")]
+    public async Task Native_copilot_text_stream_action_preserves_review_previews_and_final_only_retention(string terminal)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var sdk = new CopilotSdkTurnRuntimeTests.Fixture(profile: CopilotCatalogue.Profile, time: f.Time);
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            sdk.Client.Stream = async (publish, token) =>
+            {
+                await publish("safe preview", token);
+                entered.TrySetResult();
+                await release.Task;
+                return "safe preview complete";
+            };
+            await using var runtime = sdk.Runtime;
+            await using var composed = new Composition(f, copilot: runtime);
+            composed.Reviews.Offered += review =>
+            {
+                using var presentation = review.Presentation();
+                composed.Reviews.Confirm(review, terminal is not "deny", RequestOrigin.LocalUi).Should().BeTrue();
+                presentation.Complete(HostOperationOutcome.Completed);
+            };
+            var model = composed.Model;
+            var owner = new SessionsPresentationOwner(model);
+            var window = new SessionsWindow(model, owner);
+            window.Show();
+            Task operation = Task.CompletedTask;
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                await model.ReadConversationAsync();
+                model.ComposerBody = "original native Copilot stream";
+                window.FindControl<Button>("SubmitCopilotAnswerStream")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                operation = window.ConversationOperation;
+                if (terminal is not "deny")
+                {
+                    (await Task.WhenAny(entered.Task, operation).WaitAsync(f.Token)).Should().BeSameAs(entered.Task,
+                        model.ConversationStatus);
+                    model.ProvisionalAnswer.Should().Be("safe preview");
+                    operation.IsCompleted.Should().BeFalse();
+                    if (terminal is "cancel")
+                    {
+                        await model.CancelRunningConversationAsync();
+                        model.ProvisionalAnswer.Should().BeEmpty();
+                        operation.IsCompleted.Should().BeFalse();
+                        runtime.IsQuiescent.Should().BeFalse();
+                    }
+                    release.TrySetResult();
+                }
+                await operation;
+                model.ProvisionalAnswer.Should().BeEmpty();
+                var stored = (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Single();
+                stored.Body.Should().Be("original native Copilot stream");
+                stored.AssistantResponse?.Body.Should().Be(terminal is "complete" ? "safe preview complete" : null);
+                stored.Outcome.Should().Be(terminal is "complete" ? ModelTurnOutcome.Succeeded
+                    : terminal is "cancel" ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.DeniedEgress);
+                sdk.Network.Sends.Should().Be(terminal is "deny" ? 0 : 1);
+                sdk.Client.Configuration!.Streaming.Should().BeTrue();
+                composed.Turns.IsQuiescent.Should().BeTrue();
+                runtime.IsQuiescent.Should().BeTrue();
+            }
+            finally
+            {
+                release.TrySetResult();
+                await operation;
+                owner.Revoke();
+                window.Close();
+            }
+        });
+    }
+
     [Theory]
     [InlineData(61, true, ModelTurnOutcome.Succeeded)]
     [InlineData(119, true, ModelTurnOutcome.Succeeded)]

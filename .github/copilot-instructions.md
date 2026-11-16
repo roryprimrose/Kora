@@ -2,7 +2,7 @@
 
 ## Product and architecture
 
-- Kora is a Windows-only, local-first Avalonia desktop assistant targeting .NET 10.
+- Kora is a Windows-only, local-first Avalonia desktop assistant targeting .NET 11.
 - Preserve the dependency direction: `Kora.Core` contains portable contracts and domain rules; `Kora.Tools` contains host-owned C# actions; `Kora.Definitions` contains bundled behavior definitions/resources; `Kora.Application` contains orchestration and presentation state; `Kora.Windows` contains Windows integrations; `Kora` composes the desktop. Tools and Definitions reference Core, never Application/Windows/desktop. Keep Windows APIs, handles, registry/device APIs and OS-specific exceptions out of Core, Tools, Definitions and Application.
 - Before proposing or starting a feature, apply [product admission](../Design/MVP_Scope.md#product-admission-and-realignment): name the approved outcome, concrete scenario, host-versus-extension rationale and complete interaction. Source layout, dependencies, tests and spare capacity are not product approval. Repairs, accessibility, reliability and proportionate usability within approved outcomes do not need a new decision; material expansion or retired-work revival does.
 - Prefer bounded increments toward approved voice/model interaction, shared settings proposals, governed tools/MCP/skills/agents/instructions, presence/readable results and permissioned session conversations. An unavailable provider is not permission to invent unrelated utilities. Do not recreate retired features or fill slots with variants; report a shortage of approved work.
@@ -31,9 +31,11 @@
 
 ## Delivery, readiness and proof
 
+- The separately approved [Development Preview](../Design/Acceptance_Criteria.md#explicit-development-preview-admission) exposes real experimental workflows only in explicitly marked `KoraDevelopmentPreview=true` builds with volatile original-user per-capability opt-in. Model/acoustic quality and final RC proof are not preview setup prerequisites. Do not fabricate release evidence; preserve actual permissions, source/account/device admission, final-send reviews, containment, audit and resource joins. Ordinary builds retain production admission.
 - Apply the [I - Implementation / E - Enablement / Q - RC policy](../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy). Determine the minimum consumed implementation subset; an Rxx label or its remaining completion gap is not a monolithic prerequisite.
 - Retired, historical, optional, physical, lab, hardware, acoustic, provider, containment, installed-native, accessibility or experiment evidence is not an implementation prerequisite. Require it only when enabling, advertising, packaging or materially changing the exact capability/profile and its owning contract requires it.
 - E/Q gates do not block bounded fail-closed implementation, deterministic tests, PR creation or merge. Missing/unknown runtime readiness remains explicitly disabled or unavailable, with deterministic fakes at the platform seam; no speculative enablement, success fallback, real hardware/network substitute or open-ended proof harness.
+- Ollama/model answer-quality failures are candidate qualification outcomes, not Kora feature-delivery blockers. Continue implementation under maintained deterministic checks; investigate genuine host defects separately and keep the affected profile unavailable until its own enablement evidence passes. See [implementation versus model qualification](../Design/Local_Inference.md#implementation-is-not-model-qualification).
 - Claim implementation-blocked only for a concrete missing consumed production contract/service, directly applicable failing maintained check, unresolved material security/consent/authority decision or conflicting live ownership. Cite the exact symbol, test, decision or owner. Delegated owners retain implementation, tests, documentation, PR, CI/review repair and merge without waiting for unrelated proofs.
 
 ## Instrumentation and correlation

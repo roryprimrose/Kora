@@ -136,7 +136,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             {
                 result = Finish(ModelTurnOutcome.Denied, reason, provenance);
             }
-            else if (context!.ToolMode == ModelToolMode.HostedClarification
+            else if (context!.OutputFormat != ModelOutputFormat.Text && selection.Provider != ModelProviderIdentity.Ollama)
+            { result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.InvalidPolicy, provenance); }
+            else if (context.ToolMode == ModelToolMode.HostedClarification
                 && selection.Provider != ModelProviderIdentity.Claude)
             { result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.InvalidPolicy, provenance); }
             else if (context.ToolMode is ModelToolMode.ProviderSettings or ModelToolMode.ApplicationMaintenance

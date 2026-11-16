@@ -20,6 +20,8 @@ public sealed partial class WindowsProfileInstructionReaderTests : IDisposable
         ".net-test-artifacts", "pf", Guid.NewGuid().ToString("N")[..8]));
     private string Roaming => Path.Combine(root, "profile");
     private string Source => Path.Combine(Roaming, "Code", "User", "prompts", "example.instructions.md");
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Each test operation intentionally receives an independent reader.")]
     private WindowsProfileInstructionReader Reader => new(new WindowsLocalFileInspector(new Paths(root)), Roaming);
     private static byte[] Bytes => ArtifactFileDocument.Encode("---\r\nkora-format: 1\r\nname: example\r\ndescription: Test\r\n---\r\nBody\r\n", true);
     private readonly ActivityListener listener = new()

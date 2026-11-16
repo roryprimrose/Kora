@@ -43,6 +43,7 @@ public sealed class CopilotTransmissionTests
 
     [Theory]
     [InlineData("http://api.githubcopilot.com/chat/completions")]
+    [InlineData("/chat/completions")]
     [InlineData("https://user:password@api.githubcopilot.com/chat/completions")]
     [InlineData("https://api.githubcopilot.com/chat/completions#hidden")]
     public void Non_https_or_hidden_destination_components_are_not_reviewable_transmissions(string destination)
@@ -53,5 +54,6 @@ public sealed class CopilotTransmissionTests
 
     private static CopilotTransmission Create(byte[] body, string destination = "https://api.githubcopilot.com/chat/completions") =>
         new(new(new(Guid.NewGuid()), HostRequest.Create(RequestOrigin.LocalUi), ModelProviderSelection.CopilotCandidate),
-            new(ProviderService.Copilot, new("account"), new(1), new("model"), new("default"), new("default")), new(destination), body);
+            new(ProviderService.Copilot, new("account"), new(1), new("model"), new("default"), new("default")),
+            new(destination, UriKind.RelativeOrAbsolute), body);
 }

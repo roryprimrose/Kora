@@ -100,7 +100,6 @@ internal sealed class LocalPreferenceStore(IApplicationDataPaths paths) : IPrefe
         if (fileName.Contains('/')
             || fileName.Contains('\\')
             || fileName.Contains(':')
-            || !string.Equals(fileName, Path.GetFileName(fileName), StringComparison.Ordinal)
             || fileName is "." or "..")
         {
             throw new ArgumentException(

@@ -244,7 +244,7 @@ public sealed partial class DurableEvidenceQuery(
             || query.AuditOutcome is { } outcome && !Enum.IsDefined(outcome)
             || query.Outcome is { } operationOutcome && !Enum.IsDefined(operationOutcome)
             || query.ActivityKind is { } kind && !Enum.IsDefined(kind)
-            || query.TraceFlags is { } flags && !Enum.IsDefined(flags)
+            || query.TraceFlags is { } flags && !TraceSnapshot.IsValidFlags(flags)
             || !Enum.IsDefined(query.TraceSourceVersionAvailability)
             || !Enum.IsDefined(query.TraceParentKind)
             || !Enum.IsDefined(query.ContentAvailability))

@@ -58,6 +58,44 @@ public sealed class RegisteredSettingUndoTests
     }
 
     [Theory]
+    [InlineData("stopped")]
+    [InlineData("invocation")]
+    public async Task UndoReviewRejectsStoppedAmbientActivityAndToolAuthorityBeforeEffects(string fault)
+    {
+        await using var f = new Fixture();
+        await f.Set(RegisteredSetting.Theme, true);
+        var writes = f.Store.Writes;
+        var audits = f.Audit.Events.Count;
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        if (fault is "invocation")
+        { request = new(request.RequestId, request.SessionId, request.TaskId, request.Origin, new(Guid.NewGuid())); }
+        using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        Exception? rejection = null;
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => string.Equals(source.Name, "Kora.Application", StringComparison.Ordinal),
+            ActivityStopped = activity =>
+            {
+                if (fault is "stopped" && ReferenceEquals(activity, host.Activity))
+                { rejection = Record.Exception(() => f.Undo.ReviewLast(SecurityAuditInitiator.LocalUser, () => f.Eligible)); }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+        if (fault is "stopped")
+        {
+            host.Activity!.Stop();
+        }
+        else { rejection = Record.Exception(() => f.Undo.ReviewLast(SecurityAuditInitiator.LocalUser, () => f.Eligible)); }
+
+        rejection.Should().BeOfType<InvalidOperationException>();
+
+        f.Undo.CanConfirm.Should().BeFalse();
+        f.Store.Writes.Should().Be(writes);
+        f.Audit.Events.Should().HaveCount(audits);
+        f.Playback.SpeechCalls.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData(SpeechOption.SummaryWords)]
     [InlineData(SpeechOption.SummarySentences)]
     public async Task SummaryUndoPreservesBothCompanionCapsAndSelection(SpeechOption option)

@@ -34,6 +34,14 @@ output/approval policy needs a separate product decision.
 
 ## Current Implementation Boundary
 
+The [explicit Development Preview](Acceptance_Criteria.md#explicit-development-preview-admission)
+can opt in to the prepared native Kora-name profile without claiming acoustic
+qualification. It uses the same compiled asset inventory, dictionary mapping,
+keyword threshold, WASAPI/command endpoint, generation/source fences and
+joined capture owner. Independent microphone consent and actual profile/name
+selection remain required. Revoking or replacing the preview lease cannot
+renew an earlier capture; ordinary builds retain the unavailable name set.
+
 The desktop [voice composition](../src/Kora/VoiceInputComposition.cs) shares one
 host lifecycle across recognition, activated input and profile switching. It
 borrows the DI-owned [Windows recognition service](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs)
@@ -70,6 +78,14 @@ model. The profile has **no qualified configured names**, so production capture
 remains unavailable pending name/acoustic and conservative playback-exclusion
 qualification. No microphone consent, profile selection or capture readiness
 is inferred from preparation.
+
+The keyword likelihood-ratio cutoff is compiled per-profile host metadata.
+The [native adapter](../src/Kora.Windows/Audio/PocketSphinxKeywordDetector.cs)
+sets it explicitly and rejects an effective-value mismatch. It is finite and
+positive, not a probability capped at one. The default-name candidate and
+separately selected [offline evaluation](../tests/Kora.Windows.IntegrationTests/Audio/README.md)
+share `1e30`; source inclusion and a small generated corpus do not qualify
+physical recall, false-activation rate, playback safety or production capture.
 
 ### Admitted wake utterance routing (source-only)
 

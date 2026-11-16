@@ -47,6 +47,18 @@ validated by this runtime branch.
 
 ## Implementation Direction
 
+The [Development Preview](Acceptance_Criteria.md#explicit-development-preview-admission)
+reuses these maintained SDK/host paths. Copilot keeps its existing exact
+installed-runtime evaluation controls. Claude preview opt-in creates only a
+volatile deployment scope and credential-bound lease; native credential entry,
+account-bound model discovery and every physical-send review remain independent.
+The same live preview lease permits the implemented native text-only stream
+without inventing exact-profile release evidence; account/model/token bounds,
+each physical-send review and provisional-publication revalidation still apply.
+No account is inferred from ambient sign-in and no preview grant proves
+all-path lifecycle or production qualification. Ordinary builds retain the
+unavailable Claude deployment source.
+
 ### Qualification scope and maintained-test migration
 
 Apply [I/E/Q](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy):
@@ -68,6 +80,87 @@ retry, session-I/O, lifecycle, resource or account evidence. Retain the
 rejected hook-only witness, unique native procedures and live shared consumers
 until the [retirement conditions](Implementation_Roadmap.md#experiment-disposition-inventory)
 are met. This cleanup retires no runtime experiment or qualification gate.
+
+### Maintained external MCP SDK boundary
+
+The Windows [external client](../src/Kora.Windows/Mcp/McpHttpConnection.Sdk.cs)
+uses official `ModelContextProtocol.Core` 2.4.0 for initialization, correlation,
+page requests, tools, resources and prompt retrieval. Core exposes
+[typed connection operations](../src/Kora.Core/Mcp/IMcpConnection.cs);
+Application no longer constructs external JSON-RPC requests or assigns IDs.
+The private in-process Kora MCP projection retains its separate implementation.
+
+The bounded private-server assessment against the same pinned SDK retains
+[the stateless dispatcher](../src/Kora.Application/Mcp/KoraMcpServer.cs).
+`McpServer.Create` requires an established `ITransport` session, `RunAsync`
+and owned disposal; it is not a stateless request-to-response handler.
+Replacing this private projection would add transport/session workers,
+caller-context binding and shutdown coordination while still requiring raw
+envelope admission, canonical schemas/receipts, preference/currentness checks
+and complete response-byte bounds. SDK DTO serialization alone would be a
+cosmetic facade, not removal of protocol infrastructure. No network listener,
+external access or automatically executable tools are introduced.
+
+The SDK does not own host authority. Original bounded response bytes pass
+Core's strict parsers before SDK decoding; typed agreement checks return
+the original schema/text/structured-JSON evidence and actual response-byte
+charge. They do not reserialize SDK content to enforce wire limits. Native
+reviews, effect mappings, source freshness, pagination/inventory bounds,
+grants, audit and separate result-continuation consent remain host-owned.
+
+The [request gate](../src/Kora.Windows/Mcp/McpSdkRequestHandler.cs) permits
+one exact admitted request and the empty initialized notification. SDK
+`Mcp-Method`/`Mcp-Name` headers must agree with the body and are not forwarded
+physically. Unknown headers, extra parameters (including trace `_meta`),
+automatic continuation, cancellation notifications and extra sends are
+rejected before egress. Protocol `2025-06-18`, explicit Streamable HTTP,
+no standalone GET, no session ownership/DELETE, zero reconnects and no OAuth,
+sampling, roots or elicitation preserve the existing stateless JSON profile.
+No SDK logger factory is supplied; Kora's evidence listener subscribes only
+to its four named layer sources, not `Experimental.ModelContextProtocol`.
+Do not enable SDK content-bearing diagnostics through a wildcard listener.
+SDK completion is treated as unavailable, not inferred successful from the
+completion task's status. Physical work and response disposal precede final
+account/currentness checks and resource release.
+
+The [SDK regressions](../tests/Kora.Windows.IntegrationTests/McpSdkTransportTests.cs)
+exercise exact wire-byte thresholds, supplementary Unicode, raw hostility,
+no retry/continuation, routing-header nondisclosure, cleanup-time authority
+withdrawal and cancellation-ignoring physical work. These fake-backed
+implementation checks do not qualify an account or enable an unavailable
+profile; [the existing MCP restrictions](../docs/mcp-transport.md#supported-profile)
+remain in force.
+
+### Explicit live-evaluation admission - 2026-11-14
+
+The separately approved [evaluation decision](Decision_Register.md#explicit-copilot-live-evaluation---2026-11-14)
+adds native Settings runtime review and admission before the existing private
+account/model/chat workflow. The shipped
+[evaluation source](../src/Kora.Windows/Dependencies/CopilotEvaluationDeploymentSource.cs)
+returns unavailable until explicit review of an installed local executable and
+acceptance of runtime/account-use terms and possible charges. It holds the
+reviewed executable read-only, verifies private runtime directories and issues
+a volatile one-hour lease revoked on privacy/host changes. Every physical
+content-bearing send still needs independent final review.
+
+Evaluation registrations do not claim `AllPathLifecycle` evidence; they use an
+explicit Copilot-only host evaluation gate alongside final-request, account and
+integrated-host admission. Production qualification and Gate 0 remain open.
+There is no automatic install, ambient sign-in, monetary cap, proven
+containment or general hosted fallback. The
+[user guide](../docs/copilot-requests.md) owns the complete setup and limitations.
+The older unavailable-source descriptions below record the prior implementation
+baseline, not the new opt-in evaluation workflow.
+
+### Explicit native Ollama live evaluation
+
+The additional explicit native Ollama evaluation route is governed separately in
+[Local Inference](Local_Inference.md#explicit-native-ollama-live-evaluation).
+It accepts no release attestations: a current user separately reviews and confirms
+the supported running runtime and pinned model, producing a volatile labelled
+evaluation profile. Existing host authority, canonical validation, physical byte
+bounds and quiescence remain mandatory. Claude/Codex remain unavailable; no provider
+is automatically enabled. Follow [the complete native setup interaction](../docs/settings.md#optional-ollama-live-evaluation).
 
 ### Maintained Copilot SDK boundary - 2026-10-23
 
@@ -106,6 +199,20 @@ egress. The outgoing body and headers are captured before review; changing
 the SDK's original request during review cannot change the approved send.
 An answer cannot succeed without at least one approved, successful physical
 HTTP transmission in that exact SDK turn.
+
+Tool-free conversation turns consume the pinned SDK's answer-delta events through
+[`ICopilotAnswerTurnRuntime`](../src/Kora.Core/Dependencies/ICopilotAnswerTurnRuntime.cs)
+and the existing host provisional-answer owner. A bounded
+[`CopilotAnswerStream`](../src/Kora.Windows/Dependencies/CopilotAnswerStream.cs)
+coalesces complete prefixes, rejects foreign message/agent/tool metadata and
+invalid Unicode/content, and checks final text against accumulated deltas.
+Each publication revalidates the reviewed physical send, current account and
+host continuation; previews are never independently retained. Publication
+failure cancels the owned send and still joins its completion. Tool-bearing
+turns remain buffered, and runtimes without the optional streaming seam retain
+their existing buffered behavior. HTTP interception still buffers responses;
+SDK event publication is not evidence of progressive network delivery or live
+provider qualification.
 
 Cancellation closes callback authority, then joins owned process stop, the
 outstanding send and admitted callbacks. Late output is discarded. A failed
@@ -172,6 +279,53 @@ provider substitution. The shared hosted authorization and final-review owner
 preserves Copilot's public preparation/confirmation semantics. Claude requires
 private native-only credential entry and final physical-send consent.
 
+Buffered, separately qualified streaming, observation and clarification paths use official `Anthropic` **13.6.0** and its
+MEAI `IChatClient` adapter, with `Microsoft.Extensions.AI.Abstractions`
+**10.8.0**. The SDK owns message serialization and typed response projection,
+not tool iteration or Kora authority. The
+[`ClaudeSdkRequestHandler`](../src/Kora.Windows/Dependencies/ClaudeSdkRequestHandler.cs)
+derives Count Tokens from the actual serialized SDK input before either
+disclosure, then routes both physical POSTs through the existing immutable
+final-request gate. Host-selected physical headers exclude SDK metadata,
+ambient credentials and incoming trace propagation. Strict raw-response
+policy is checked before SDK normalization; valid usage survives a rejected
+answer. SDK retry and telemetry defaults are explicitly disabled.
+For streaming, the SDK owns SSE decoding and MEAI text projection. The host's
+raw-byte guard retains the stricter qualified framing/schema/order/token policy
+before SDK normalization, including events the SDK would skip. No synthetic
+buffered provider message is reconstructed. Physical EOF and asynchronous
+reader/response disposal remain required even after a normal SDK terminal or
+failed publication.
+Observation and clarification use inert MEAI function-call/result messages and
+SDK tool declarations, not function-invocation middleware. The host still
+validates the entire batch through the canonical protocol before execution,
+retains exact native tool input and call correlation, and owns serial
+continuation and cumulative physical/protocol byte accounting. SDK schema
+rewriting cannot broaden the advertised domain schemas.
+The pinned SDK's generic tool validator requires a newer `caller` field that
+the qualified four-field `2023-06-01` client-tool envelope does not admit.
+Tool exchanges therefore use the existing stricter raw host validator rather
+than that incompatible SDK validator; no caller identity is invented or
+authority inferred. Text and streaming retain SDK response validation as well
+as host policy. Supporting the newer provider envelope requires independent
+profile review, not permissive unknown-field acceptance.
+Models discovery uses SDK `ModelListParams`, `ModelListPage.Next` and typed
+model/capability metadata behind
+[`ClaudeSdkModelsHandler`](../src/Kora.Windows/Dependencies/ClaudeSdkModelsHandler.cs).
+The host validates the complete raw page and cursor before SDK normalization,
+then drives the next page only from validated `has_more`, never the SDK's
+`HasNext()` fallback for malformed metadata. Requests remain active-only,
+64 records/pages at most, bounded to 262144 response bytes per page, with
+fresh approval/credential/workspace checks before every GET and no partial
+catalogue publication. Generic SDK catalogue validation is not used to invent
+newer unconsumed required metadata; existing consumed-field policy remains
+authoritative. SDK retries, credentials/destination and telemetry configuration
+are shared in one [factory](../src/Kora.Windows/Dependencies/ClaudeSdkClient.cs).
+Account admission, audit, retention and volatile credential ownership remain
+host responsibilities.
+The deployment adapter identity is `anthropic-messages-meai-sdk-v5`.
+This does not qualify or enable it.
+
 Independent deployment/account-use terms/cost approval and an actual
 credential/workspace lease precede read-only account-bound Models pagination.
 Unknown/incomplete/duplicate/oversized capability data fails closed. The first
@@ -196,7 +350,7 @@ Claude or turn it into a Copilot/local fallback. See the
 
 The separately selected [Claude observation transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs) now translates only an explicit bounded subset of the original six host-owned read-only tools for the [existing host loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs).
 The default text operation remains tool-free. Each round separately reviews Count Tokens and Messages; provider names, call IDs, unknown fields and native blocks confer no host authority.
-Strict client-tool-only proposal messages, exact schemas, cumulative physical byte accounting and same-account/catalogue lifetime are deterministic implementation boundaries, not account/provider qualification ([wire translation](../src/Kora.Windows/Dependencies/ClaudeObservationWire.cs), [portable schemas](../src/Kora.Core/Tools/ReadOnlyCapabilitySchema.cs)).
+Strict client-tool-only proposal messages, exact schemas, cumulative physical byte accounting and same-account/catalogue lifetime are deterministic implementation boundaries, not account/provider qualification ([MEAI mapping](../src/Kora.Windows/Dependencies/ClaudeToolMessages.cs), [portable schemas](../src/Kora.Core/Tools/ReadOnlyCapabilitySchema.cs)).
 
 The separately approved [hosted clarification operation](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29) uses the same account-bound native transport and independent physical-send review, but only in host-selected `HostedClarification` mode.
 One isolated `ask_user` response may resume with the canonical stored user answer; observation tools and source evidence are absent ([transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
@@ -204,7 +358,7 @@ Deterministic host/native tests are implementation evidence, not provider/accoun
 
 #### Native text-stream implementation, not enablement
 
-The explicit native text-only stream is separately admitted by exact deployment model/reasoning/context/token-ceiling evidence, in addition to the current credential/workspace lease. An existing buffered profile, unknown stream evidence or the shipped unavailable approval source cannot enable it ([evidence](../src/Kora.Windows/Dependencies/ClaudeDeploymentApproval.cs), [runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs)).
+In ordinary builds, the explicit native text-only stream requires exact deployment model/reasoning/context/token-ceiling evidence in addition to the current credential/workspace lease. Buffered approval or unknown stream evidence cannot enable it. In an explicitly opted-in Development Preview, the current preview lease admits experimentation without claiming that evidence; the exact account/catalogue profile, bounds and final-send reviews still apply ([admission](../src/Kora.Windows/Dependencies/ClaudeDeploymentApproval.cs), [runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs)).
 
 It preserves `anthropic-version: 2023-06-01`, independently reviewed Count Tokens and `stream:true` Messages POSTs, and the canonical typed provisional conversation presentation. The strict SSE state machine admits only ordered text blocks, cumulative bounded usage and a unique normal terminal followed by EOF; buffered and observation paths remain separate ([decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [official sequence](https://platform.claude.com/docs/en/build-with-claude/streaming), [version policy](https://platform.claude.com/docs/en/api/versioning)).
 
@@ -262,8 +416,59 @@ Codex is permanently incapable. Existing provider contracts are unchanged.
 ### RT1 .NET outcome: selected source-built profile passes
 
 The separately implemented [native Ollama tool transport](Local_Inference.md#native-tool-message-transport-boundary)
-consumes the host-owned portable tool protocol, not the Copilot SDK. Its
-strict native JSON, fake HTTP/lifecycle tests and unavailable candidate
+consumes the host-owned portable tool protocol, not the Copilot SDK. Buffered and
+streaming tool-free requests now use community-maintained `OllamaSharp` **5.5.2** through
+MEAI `IChatClient`; this is not an official Ollama/Microsoft SDK. The
+[SDK path](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.Sdk.cs)
+uses typed message/response mapping with the shared physical host gate. The
+[final request handler](../src/Kora.Windows/Dependencies/OllamaSdkRequestHandler.cs)
+adds mandatory `truncate=false`/`shift=false` controls missing from the package,
+rejects extra options/headers, and strips only empty SDK header/options objects.
+Strict raw response validation runs before SDK decoding, so permissive field
+handling, generated defaults and response normalization cannot admit an answer.
+SDK and raw text must agree exactly; only observed raw usage is reported.
+
+Streaming uses SDK NDJSON decoding and MEAI text projection through the
+[raw stream guard](../src/Kora.Windows/Dependencies/OllamaAnswerStream.cs),
+not bespoke decoding or a synthetic final provider message. The guard preserves
+strict native field/Unicode/order/usage policy, cumulative bytes, a unique
+normal terminal and physical EOF. It binds physical reads to the host token
+despite the SDK's uncancellable line reads. Synchronous SDK disposal cannot
+release the physical source; the host awaits actual disposal and rechecks
+authority before committing success. Failure to publish or dispose cannot
+produce a final answer or authorize reuse.
+
+Tool/clarification continuations use SDK-native `ChatAsync`, `ChatRequest`,
+`Message` and typed `ChatDoneResponseStream`, with
+[canonical projection](../src/Kora.Windows/Dependencies/OllamaChatMessages.cs).
+They deliberately do not use the package's MEAI tool mapper, which generates
+call IDs and wraps tool-result content instead of preserving the admitted
+native correlation/result envelope. SDK serialization replaces the bespoke
+request writer. Inert Core schemas remain exact; optional call type metadata
+is not authority, and null optional SDK fields are omitted. The final request
+gate fills the SDK's missing `tool_call_id` field from admitted correlation.
+Observation calls with no native ID remain without IDs on the wire; `ask_user`
+retains its existing canonical question correlation. Original tool names,
+ordered results and exact result strings are preserved. SDK projection must
+match whole-batch raw/canonical admission before the host may execute or
+continue. There is no automatic function loop or new permission authority.
+Turn-time and admission runtime/model probes now share SDK `GetVersionAsync`
+and `ListLocalModelsAsync` through the
+[metadata gate](../src/Kora.Windows/Dependencies/OllamaSdkMetadata.cs).
+Only one exact `GET /api/version` followed by `GET /api/tags` is admitted,
+without headers, retries or fallback. Physical host reads remain bounded and
+await disposal; strict raw validation precedes SDK decoding, and typed
+version/selected digest must agree with the exact host-owned profile.
+The SDK's unused `Model.ModifiedAt` property is excluded from typed decoding:
+the existing contract validates `modified_at` as an optional string without
+interpreting dates. No bytes are rewritten and raw optional-field policy is
+unchanged. Process/currentness checks still run before each physical probe
+and before chat or admission success. SDK catalogue observations do not grant
+selection, tool, process-start or provider-qualification authority.
+See released
+[client](https://github.com/awaescher/OllamaSharp/blob/a1ce0bd5f1021efd8d9dd1818a319575bb7b31a1/src/OllamaSharp/OllamaApiClient.cs)
+and [MEAI mapper](https://github.com/awaescher/OllamaSharp/blob/a1ce0bd5f1021efd8d9dd1818a319575bb7b31a1/src/OllamaSharp/MicrosoftAi/AbstractionMapper.cs).
+Strict native JSON, fake HTTP/lifecycle tests and unavailable candidate
 composition do not qualify a local runtime or migrate any RT1/RT2/MG1/Node
 experiment assertion. Exact-profile enablement remains a separate gate.
 

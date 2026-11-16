@@ -24,7 +24,7 @@ public sealed class EvidenceTracePredicateTests
         foreach (var source in new[] { "Kora.Core", "Kora.Application", "Kora.Windows", "Kora.Desktop" })
         foreach (var name in new[] { "request", "Request" })
         foreach (var kind in Enum.GetValues<ActivityKind>())
-        foreach (var flags in Enum.GetValues<ActivityTraceFlags>())
+        foreach (var flags in new[] { ActivityTraceFlags.None, ActivityTraceFlags.Recorded })
         foreach (var availability in Enum.GetValues<TraceSourceVersionAvailability>())
         foreach (var parent in new[] { null, new string('c', 16) })
         foreach (var parentKind in Enum.GetValues<TraceParentKind>())
@@ -73,6 +73,22 @@ public sealed class EvidenceTracePredicateTests
         invalidParentKind.Should().Throw<InvalidOperationException>();
         new EvidenceQuery { TraceSourceVersionAvailability = TraceSourceVersionAvailability.Exact, TraceSourceVersion = "1" }
             .MatchesRetainedMetadata(Record(Trace with { SourceVersion = "1" })).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(0, ActivityTraceFlags.None)]
+    [InlineData(1, ActivityTraceFlags.Recorded)]
+    [InlineData(2, ActivityTraceFlags.None)]
+    [InlineData(3, ActivityTraceFlags.Recorded)]
+    public void CaptureProjectsFrameworkFlagsIntoTheRetainedContract(int flags, ActivityTraceFlags expected)
+    {
+        using var standalone = new Activity("request").SetIdFormat(ActivityIdFormat.W3C).Start();
+        standalone.ActivityTraceFlags = (ActivityTraceFlags)flags;
+        var snapshot = TraceSnapshot.Capture(standalone)!;
+
+        snapshot.Flags.Should().Be(expected);
+        snapshot.TraceId.Should().Be(standalone.TraceId.ToHexString());
+        snapshot.SpanId.Should().Be(standalone.SpanId.ToHexString());
     }
 
     public static TheoryData<string?> InvalidText => new()

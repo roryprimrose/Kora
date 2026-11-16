@@ -77,9 +77,9 @@ Keep portable domain logic and shared Avalonia presentation separate from first-
 - Desktop presentation: native question models, captions, answer/navigation UI, and shared rendering orchestration.
 - Windows integration: actual device/session/clipboard APIs, native UI hooks, known folders, credential storage, containment, computer controls, startup, browser backend, and installer/maintenance execution.
 
-The shared core initially targets portable `net10.0`, not `net10.0-windows`, and references no Windows-only API assemblies.
+The shared core targets portable `net11.0`, not `net11.0-windows`, and references no Windows-only API assemblies.
 Windows-specific targets/dependencies belong in integration modules or the platform composition/launch layer.
-The exact .NET 10 SDK/runtime versions are pinned during implementation; moving to .NET 11 is a deliberate tested dependency upgrade, not a portability strategy.
+The .NET 11 SDK is pinned in `global.json`; framework upgrades are deliberate tested dependency changes, not a portability strategy.
 The logical separation may become projects when real dependencies justify it; do not create empty Linux/macOS projects or speculative backends.
 
 Use narrowly scoped host-owned contracts at real platform seams:
@@ -229,6 +229,16 @@ contain `TraceId`, `SpanId`, optional `ParentSpanId`, trace flags, activity
 source/name/kind, and host-owned session/task/invocation/approval/correlation
 IDs where applicable. `CorrelationId` remains the durable domain identity that
 pairs audit request/terminal records; it does not replace W3C trace identity.
+Retained trace flags and exact evidence filters admit only `None` and `Recorded`.
+Capture projects the framework flags onto the `Recorded` bit; the additional
+.NET 11 random-trace-ID bit does not expand this persisted-data contract.
+Retained values carrying unsupported bits remain invalid.
+
+.NET 11 compiler lowering exposes individual admission branches that older
+lowering merged. Regression fixtures exercise each reachable denial before
+effects. Equivalent guards avoid a synthesized null check after a task was
+already dereferenced during lookup; preference names retain separator, volume
+and dot-directory rejection without a redundant basename comparison.
 
 Persist completed local span metadata in private-profile `activity_spans` and
 `activity_links` projections under diagnostic retention: trace/span/parent,

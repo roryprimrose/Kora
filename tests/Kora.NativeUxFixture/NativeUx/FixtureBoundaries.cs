@@ -22,6 +22,8 @@ internal static class FixtureBoundaries
         public bool IsCurrentHost => Open;
         public long ControlRevision { get; private set; }
         internal Action? BeforePrivacyObservation { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+            Justification = "The fixture must observe current mutable privacy state on every read.")]
         public WindowsPrivacySnapshot Current
         {
             get

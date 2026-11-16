@@ -24,6 +24,8 @@ public static partial class ModelToolProtocol
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(messages);
         ValidateProvenance(provenance);
+        if (context.OutputFormat != ModelOutputFormat.Text && clarificationAllowed)
+        { throw new InvalidDataException("Agent proposal output cannot admit clarification or continuation."); }
         if (context.Provenance != provenance)
         { throw new InvalidDataException("A context cannot be reused by another host turn."); }
         if (context.ToolMode is ModelToolMode.LocalWebPage or ModelToolMode.McpReadOnly or ModelToolMode.SessionDiscovery or ModelToolMode.SessionMetadata

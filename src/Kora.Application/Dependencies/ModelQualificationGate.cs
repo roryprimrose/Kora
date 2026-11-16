@@ -9,4 +9,8 @@ internal enum ModelQualificationGate
     DotNetFinalRequest = 4,
     AllPathLifecycle = 8,
     ExecutionAccount = 16,
+    UserReviewedCopilotEvaluation = 32,
+    UserReviewedLocalEvaluation = 64,
+    UserReviewedClaudeEvaluation = 128,
+    UserReviewedOllamaEvaluation = 256,
 }

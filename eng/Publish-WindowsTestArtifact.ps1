@@ -5,7 +5,7 @@ param(
     [string] $SourceRevision,
 
     [Parameter()]
-    [string] $ModuleDirectory = 'tests\Kora.Windows.IntegrationTests\bin\Release\net10.0-windows10.0.19041.0\win-x64',
+    [string] $ModuleDirectory = 'tests\Kora.Windows.IntegrationTests\bin\Release\net11.0-windows10.0.19041.0\win-x64',
 
     [Parameter(Mandatory)]
     [string] $OutputArchive

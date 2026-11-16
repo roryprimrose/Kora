@@ -102,7 +102,8 @@ public sealed partial class AuthorityLocalEventSource(
             var task = snapshot.Tasks.SingleOrDefault(item => item.Task.Request.TaskId == question.Key.Request.TaskId);
             if (question.Status != QuestionStatus.Pending || question.ExpiresAt <= now
                 || question.Generation != session.Generation || question.Key.Request.SessionId != session.SessionId
-                || task is not { CurrentSource: true, Source: LocalVersionWait.Source, Task.State: HostTaskState.IntentRecorded }
+                || task is not { CurrentSource: true, Source: LocalVersionWait.Source }
+                || task.Task.State != HostTaskState.IntentRecorded
                 || task.Question?.Key != question.Key
                 || question.Key.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
             { continue; }

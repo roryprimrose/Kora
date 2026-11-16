@@ -20,6 +20,8 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class LocalEventBrokerWindowTests
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Theory discovery intentionally receives independent mutable test data.")]
     public static TheoryData<SessionQueueEligibility> QueueReasons => new(Enum.GetValues<SessionQueueEligibility>());
 
     [WindowsFact]

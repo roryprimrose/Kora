@@ -24,25 +24,31 @@ public sealed partial class ClaudeMessagesRuntimeTests
         var now = f.Time.GetUtcNow();
         ModelContextEnvelope Context(string body) => new(root.Request, "policy", body, [], now, now.AddMinutes(1), ModelToolMode.None);
         var original = Context("body");
-        var originalBytes = ClaudeMessagesRuntime.Serialize(original, profile, null).Length
-            + ClaudeMessagesRuntime.Serialize(original, profile, 4096).Length;
-        var body = "body" + new string('x', (ModelContextEnvelope.MaximumInputUtf8Bytes - originalBytes) / 2 + (overflow ? 1 : 0));
-        var context = Context(body);
-        context.RequireCompleteInputLimit();
-        var physicalBytes = ClaudeMessagesRuntime.Serialize(context, profile, null).Length
-            + ClaudeMessagesRuntime.Serialize(context, profile, 4096).Length;
-        if (overflow) { physicalBytes.Should().BeGreaterThan(ModelContextEnvelope.MaximumInputUtf8Bytes); }
-        else { physicalBytes.Should().BeInRange(ModelContextEnvelope.MaximumInputUtf8Bytes - 1, ModelContextEnvelope.MaximumInputUtf8Bytes); }
         f.Respond = message => ClaudeAccountBrokerTests.Fixture.Json(message.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
             ? "{\"input_tokens\":25}" : Answer);
         await using var runtime = new ClaudeMessagesRuntime(broker, f.Time, NullLogger<ClaudeMessagesRuntime>.Instance, f.CreateHttp);
         var reviews = new List<ClaudeTransmission>();
+        var baseline = await runtime.RunAsync(new(new(Guid.NewGuid()), root.Request, catalogue.Models[0].Selection),
+            profile, original, (review, _) => { reviews.Add(review); return ValueTask.FromResult(true); },
+            _ => ValueTask.FromResult(true), Token);
+        baseline.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        reviews.Should().HaveCount(2);
+        var originalBytes = reviews.Sum(review => review.Body.Length);
+        reviews.Clear();
+        f.Requests.Clear();
+        var body = "body" + new string('x', (ModelContextEnvelope.MaximumInputUtf8Bytes - originalBytes) / 2 + (overflow ? 1 : 0));
+        var context = Context(body);
+        context.RequireCompleteInputLimit();
+        var physicalBytes = originalBytes + 2 * (body.Length - original.UserRequest.Length);
+        if (overflow) { physicalBytes.Should().BeGreaterThan(ModelContextEnvelope.MaximumInputUtf8Bytes); }
+        else { physicalBytes.Should().BeInRange(ModelContextEnvelope.MaximumInputUtf8Bytes - 1, ModelContextEnvelope.MaximumInputUtf8Bytes); }
         var result = await runtime.RunAsync(new(new(Guid.NewGuid()), root.Request, catalogue.Models[0].Selection),
             profile, context, (review, _) => { reviews.Add(review); return ValueTask.FromResult(true); },
             _ => ValueTask.FromResult(true), Token);
         result.Outcome.Should().Be(overflow ? ModelTurnOutcome.DeniedEgress : ModelTurnOutcome.Succeeded);
         result.Answer.Should().Be(overflow ? null : "genuine exact answer");
         reviews.Count.Should().Be(overflow ? 0 : 2);
+        if (!overflow) { reviews.Sum(review => review.Body.Length).Should().Be(physicalBytes); }
         f.Requests.Count(request => request.Method is "POST").Should().Be(reviews.Count);
         runtime.IsQuiescent.Should().BeTrue();
     }

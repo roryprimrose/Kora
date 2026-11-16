@@ -95,12 +95,68 @@ public sealed partial class ModelTurnHostTests
         tools.Should().Be(fault is "after-tool" ? 1 : 0);
     }
 
-    private sealed class ProbeCopilotRuntime : ICopilotTurnRuntime
+    [Theory]
+    [InlineData("valid")]
+    [InlineData("foreign-turn")]
+    [InlineData("revoked")]
+    [InlineData("continuation")]
+    [InlineData("tools")]
+    public async Task Copilot_adapter_streams_only_exact_current_tool_free_answers(string fault)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var context = f.Context(toolMode: fault is "tools" ? ModelToolMode.ReadOnly : ModelToolMode.None);
+        var reviews = new HostedTransmissionReviewService(f, f.Time);
+        var runtime = new ProbeCopilotRuntime();
+        var profile = Profile(ProviderService.Copilot);
+        var live = true;
+        var adapter = new CopilotModelTurnAdapter(runtime, reviews).Bind(reviews.PrepareTurn(context, profile),
+            _ => ValueTask.FromResult(live));
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), f.Request, ModelProviderSelection.CopilotCandidate);
+        var answers = new List<string>();
+        runtime.Stream = async publish =>
+        {
+            if (fault is "revoked") { live = false; }
+            await publish(new(fault is "foreign-turn" ? provenance with { Turn = new(Guid.NewGuid()) } : provenance,
+                "safe preview"), Token);
+            return new(ModelTurnOutcome.Succeeded, "safe preview complete");
+        };
+        Task<ModelProviderReply> Run() => adapter.RunWithAnswerAsync(provenance, profile, context.Serialize(),
+            (_, _, _) => throw new InvalidOperationException("No tool is admitted"),
+            _ => ValueTask.FromResult(fault is "continuation" ? ModelTurnReason.HostAdmissionClosed : ModelTurnReason.None),
+            (update, _) =>
+            {
+                answers.Add(update.Answer);
+                return ValueTask.CompletedTask;
+            }, Token);
+        if (fault is "valid" or "tools")
+        {
+            var reply = await Run();
+            reply.Outcome.Should().Be(fault is "valid" ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.Denied);
+            answers.Should().Equal(fault is "valid" ? ["safe preview"] : []);
+        }
+        else
+        {
+            await Assert.ThrowsAsync<InvalidDataException>(Run);
+            answers.Should().BeEmpty();
+        }
+    }
+
+    private sealed class ProbeCopilotRuntime : ICopilotAnswerTurnRuntime
     {
         public bool IsQuiescent { get; set; } = true;
         internal int Calls { get; private set; }
         internal Func<Func<string, string, CancellationToken, ValueTask<CapabilityReply>>,
             Func<CopilotTransmission, CancellationToken, ValueTask<bool>>, Task<CopilotTurnReply>>? Run { get; set; }
+        internal Func<Func<ModelAnswerUpdate, CancellationToken, ValueTask>, Task<CopilotTurnReply>>? Stream { get; set; }
+        public Task<CopilotTurnReply> RunWithAnswerAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
+            ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
+            Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission,
+            Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Stream!(publish);
+        }
         public Task<CopilotTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
             ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
             Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission, CancellationToken cancellationToken)

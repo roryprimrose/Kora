@@ -21,7 +21,7 @@ public sealed partial class SessionsConversationTests
             owner.Show();
             try
             {
-                HeadlessSession.SetActivation(owner, true);
+                await ActivateOriginalRequestWindow(owner);
                 (await Task.Run(() => presentation.HasUniqueForegroundWindow, TestContext.Current.CancellationToken)).Should().BeTrue();
                 HeadlessSession.SetActivation(owner, false);
                 (await Task.Run(() => presentation.HasUniqueForegroundWindow, TestContext.Current.CancellationToken)).Should().BeFalse();

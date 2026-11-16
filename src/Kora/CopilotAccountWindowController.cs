@@ -17,6 +17,7 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
     private readonly CopilotAccountBroker accounts;
     private readonly AudioControlAdmission admission;
     private readonly ILogger<CopilotAccountWindowController> logger;
+    private readonly CopilotEvaluationDeploymentSource? evaluation;
     private PrivateReviewView? view;
     private Func<Window>? getWorkbench;
     internal PrivateReviewView? PresentedView => view;
@@ -30,12 +31,14 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
     internal Task Operation => work.WaitAsync(CancellationToken.None);
 
     internal CopilotAccountWindowController(MainViewModel main, CopilotAccountBroker accounts,
-        AudioControlAdmission admission, ILogger<CopilotAccountWindowController> logger)
+        AudioControlAdmission admission, ILogger<CopilotAccountWindowController> logger,
+        CopilotEvaluationDeploymentSource? evaluation = null)
     {
         this.main = main;
         this.accounts = accounts;
         this.admission = admission;
         this.logger = logger;
+        this.evaluation = evaluation;
         main.CopilotAccountSetupRequested += OnRequested;
         main.PrivacyClosureRequested += OnPrivacyClosed;
         main.BindCopilotSetupQuiescence(() => Volatile.Read(ref operations) == 0 && accounts.IsQuiescent);
@@ -97,10 +100,20 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
                 SetupFailed(logger, exception.GetType().Name);
                 main.ReportHostInteractionFailure("Account removal evidence is unconfirmed. The volatile account has been revoked.");
             }
-            finally { Close(); }
+            finally { evaluation?.Revoke(); Close(); }
         };
         var panel = new StackPanel { Margin = new Thickness(16), Spacing = 12,
             Orientation = Orientation.Vertical, Children = { status, login, credential, useAccount, signIn, signOut } };
+        if (evaluation is not null)
+        {
+            panel.Children.Insert(0, CreateEvaluationControls(Live,
+                () => !disposed && main.CanRevealPrivatePresentation && eligible(),
+                () =>
+                {
+                    login!.IsEnabled = credential!.IsEnabled = signIn.IsEnabled = true;
+                    status.Text = "Live evaluation admitted for one hour. Enter your exact GitHub login and a Copilot-capable token, then confirm account use. Every model request still requires separate disclosure review.";
+                }, cancellation.Token));
+        }
         var owner = getWorkbench?.Invoke() ?? new Window { Width = 650, Height = 400 };
         opened = new(owner, new ScrollViewer { Content = panel }, OriginalLive);
         view = opened;
@@ -132,10 +145,12 @@ internal sealed partial class CopilotAccountWindowController : IDisposable
     private void OnPrivacyClosed(object? sender, EventArgs args)
     {
         accounts.Revoke();
+        evaluation?.Revoke();
         Close();
     }
     private void Close()
     {
+        evaluation?.DiscardPendingReview();
         var opened = view;
         view = null;
         if (credential is not null) { credential.Text = string.Empty; credential = null; }

@@ -1,9 +1,11 @@
 # Local Inference Disposition and Future Qualification
 
-Status: the evaluated Ollama 0.35.1/qwen3:1.7b profile is rejected. The
-Ollama 0.40.2 comparison is also rejected. Automated quality failures are
-terminal for those candidates; no human scoring, reference-floor run or
-offline lab can qualify them.
+Development status: **UNBLOCKED**. Ollama model-conformance failures are
+candidate qualification results, not Kora implementation defects or general
+feature-delivery blockers. Local-model qualification remains unresolved; no
+evaluated profile is accepted. The earlier Ollama 0.35.1/qwen3:1.7b and Ollama
+0.40.2 profiles remain rejected. No human scoring, reference-floor run or
+offline lab can qualify a candidate that failed its automated quality gates.
 
 Production remains fail closed: local inference is unavailable unless the
 pinned runtime/model identity is present and healthy, and there is no automatic
@@ -31,6 +33,14 @@ Production pins were not changed.
 
 ## Three-Tier Admission Policy
 
+The separately approved [Development Preview](Acceptance_Criteria.md#explicit-development-preview-admission)
+uses explicit volatile native model selection and exact current runtime/model
+identity checks to exercise real Kora turns before release qualification.
+Its catalogue is labelled Development Preview and its receipt has no release
+attestation. Known model-quality failures remain recorded; the native host,
+tool/source admission, complete byte bounds and cancellation fences still
+apply. Ordinary builds retain the release-qualified broker.
+
 1. **Development:** deterministic production boundaries and unrelated features
    continue. No local-inference qualification evidence is required.
 2. **Capability:** a materially changed runtime/model/profile must pass the
@@ -43,6 +53,20 @@ Production pins were not changed.
 Environment evidence never grants installation, process, network, clipboard,
 audio or tool authority. Each consequential trial retains its own approval and
 ownership boundary.
+
+### Implementation Is Not Model Qualification
+
+Do not require an Ollama candidate to pass live answer-quality tests before
+implementing, testing, publishing or merging Kora features. Validate host
+behavior through its maintained deterministic contracts and platform seams;
+investigate a genuine Kora request, authority or lifecycle defect separately
+from a model's failure to follow an instruction.
+
+A rejected or unqualified profile remains unavailable, with no automatic
+remote fallback. Enabling or advertising that exact profile still requires its
+applicable qualification evidence. An RC that excludes local inference is not
+blocked by that candidate's failures. This distinction neither waives maintained
+Kora checks nor converts a failed model test into a pass.
 
 ## Outcomes and Their Consequences
 
@@ -90,11 +114,50 @@ bootstrap readiness cannot bypass exact host/session/task admission. Transport
 implementation is not candidate acceptance, qualification evidence, permission
 to start a server, or permission to install/download/select another model.
 
+Buffered and streaming tool-free requests use community-maintained `OllamaSharp` 5.5.2 through
+MEAI `IChatClient` for request serialization and typed response projection
+([implementation](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.Sdk.cs)).
+The [host request gate](../src/Kora.Windows/Dependencies/OllamaSdkRequestHandler.cs)
+admits one fixed-endpoint request with explicit disabled thinking and no tools,
+inherited headers or unapproved options. Kora adds `truncate=false`/`shift=false`
+because the package does not expose them. Both SDK and native paths share
+byte charging, exact runtime/model metadata checks and the final process-use
+recheck. Raw response policy is validated before SDK decoding; typed text must
+match exactly. Provider failures do not retry or fall back. The host awaits
+physical stream disposal before success and quarantines release failures.
+Streaming uses SDK NDJSON decoding and text projection behind an
+[owned raw stream guard](../src/Kora.Windows/Dependencies/OllamaAnswerStream.cs).
+The guard binds physical reads to host cancellation even when the SDK omits
+read cancellation, enforces cumulative raw limits and a unique normal terminal,
+and requires physical EOF. SDK synchronous disposal only releases its borrowed
+view; the host awaits actual asynchronous source disposal and then revalidates
+authority before final success. No synthetic provider response is reconstructed.
+Tool/clarification continuations use SDK-native `ChatRequest`/`Message` types
+and `ChatAsync`, rather than the package's lossy MEAI tool mapper. The SDK owns
+request serialization and typed response decoding. Kora retains inert exact
+Core schemas, validates the entire raw batch before SDK projection, and
+requires canonical agreement. The final gate supplies the admitted native
+`tool_call_id` missing from the SDK message type. Observation calls without
+provider IDs stay without IDs on the wire; native `ask_user` retains its
+existing canonical question-correlation behavior. Exact results remain
+native tool content, not wrapped result objects. Host tools/questions,
+continuation and replay/authority policy remain host-owned, without SDK
+automatic function invocation
+([compatibility rationale](Runtime_Provider_Feasibility.md#rt1-net-outcome-selected-source-built-profile-passes)).
+
 The catalogue parser accepts typed optional `capabilities`, `context_length`,
 `embedding_length` and `runner` observations from current Ollama metadata.
 These observations cannot expand the host-owned tool set, establish a usable
 context envelope, select a runner or qualify a profile. Malformed, duplicate
 or unknown fields and changed model/runtime identities still fail closed.
+Turn-time and admission probes share SDK `GetVersionAsync` and
+`ListLocalModelsAsync` behind an
+[exact read-only metadata gate](../src/Kora.Windows/Dependencies/OllamaSdkMetadata.cs).
+The host retains bounded physical reads, strict raw validation and asynchronous
+release before SDK decoding. Typed version/digest must match the admitted
+profile. The unused SDK date property is excluded from decoding to preserve
+the existing uninterpreted optional `modified_at` string contract. There is
+no automatic model selection, retry or broader discovery.
 Native responses also accept the nonnegative `prompt_eval_cached_count`
 observation without changing canonical input/output usage semantics or
 inferring a billing, context-capacity or qualification claim.
@@ -122,7 +185,7 @@ accepts any rejected candidate.
 
 Desktop composition now uses a [fresh runtime resolver](../src/Kora.Windows/Dependencies/WindowsOllamaRuntimeResolver.cs)
 for the local capability catalogue and exact-profile registration. It consumes
-an independently issued [qualification and process-use receipt](../src/Kora.Windows/Dependencies/WindowsOllamaQualification.cs),
+an independently issued [qualification or explicitly separate evaluation process-use receipt](../src/Kora.Windows/Dependencies/WindowsOllamaQualification.cs),
 not installation discovery, saved selections or model/provider text. The receipt
 pins one account/catalogue/model/reasoning/context tuple, runtime version, model
 digest, process ID/start/executable/hash, validity interval and revocation.
@@ -140,7 +203,7 @@ its existing task, original-channel, tool, result and physical-quiescence fences
 The native transport independently rechecks runtime version and selected model
 digest before chat dispatch, rejects redirects and never chooses another endpoint.
 
-**Enablement remains unavailable.** The shipped [release qualification authority](../src/Kora.Definitions/Qualifications/BundledLocalModelQualificationAuthority.cs)
+**Production enablement remains unavailable.** The shipped [release qualification authority](../src/Kora.Definitions/Qualifications/BundledLocalModelQualificationAuthority.cs)
 accepts no attestation pins, so the production catalogue offers no executable profile.
 The [host admission workflow](../src/Kora.Application/Dependencies/OllamaAdmissionWorkflow.cs) and
 [native receipt producer](../src/Kora.Windows/Dependencies/WindowsOllamaAdmissionBroker.cs) are implemented; they do not manufacture missing qualification.
@@ -174,7 +237,7 @@ The [persisted format](../src/Kora.Core/Providers/LocalModelAdmissionPreference.
 A [pending marker](../src/Kora.Application/Configuration/LocalModelAdmissionPreferences.cs), malformed choice or audit/persistence failure blocks publication and requires explicit recovery.
 Restart does not restore live authority; revocation closes Kora's receipt without stopping the external process.
 
-The [native Settings controls](../src/Kora/SettingsWindow.LocalModelAdmission.cs) expose Review, Allow and Revoke.
+The [native Settings controls](../src/Kora/SettingsView.LocalModelAdmission.cs) expose Review, Allow and Revoke.
 With this build's empty accepted set, Review reports the missing release-qualified profile and does not inspect or run Ollama.
 Equivalent original LocalUi/ActivatedVoice admission semantics and failed persistence/revocation are exercised by [portable workflow tests](../tests/Kora.Application.UnitTests/Dependencies/OllamaAdmissionWorkflowTests.cs).
 The [Windows integration tests](../tests/Kora.Windows.IntegrationTests/Dependencies/OllamaAdmissionWorkflowTests.cs) exercise real durable host admission with fake qualification/process observations, including source-read/replacement races.
@@ -190,6 +253,45 @@ retain a genuine bounded answer for separately admitted text/ActivatedVoice
 requests and suppress a cancelled late answer while awaiting quiescence.
 They do not execute an installed Ollama/model, validate physical containment,
 qualify a profile or prove user-visible backend availability.
+
+### Explicit native Ollama live evaluation
+
+The separately authorized evaluation route is an implementation aid for the existing
+governed model/agent-authoring outcomes, not acceptance of release qualification.
+The [volatile evaluation source](../src/Kora.Windows/Dependencies/WindowsOllamaEvaluationSource.cs)
+and [native controls](../src/Kora/SettingsView.OllamaEvaluation.cs) inspect only the supported
+per-user installed executable, exact supported runtime version and pinned model/digest
+owned by [setup](../src/Kora.Windows/Dependencies/WindowsOllamaSetupService.cs).
+The same native observer checks Windows account/session, PID/start/path/hash and
+fixed-loopback ownership; official SDK metadata reads remain strictly bounded.
+No setup observation starts a process, installs/downloads a model, authenticates or runs inference.
+Unsupported versions/models/endpoints are unavailable without fallback.
+
+Inspection issues only a five-minute private review. Separate original LocalUi
+confirmation revalidates the exact subject; a thirty-second verification window and
+the durable host-control commit fence precede typed requested/terminal audit and
+publication. No voice, model/tool-origin or persisted choice supplies this admission.
+Audit failure, stale/replaced review, cancellation or retired native controls cannot
+publish authority. Closing review controls discards pending review and joins setup
+work before instance handoff; privacy closure additionally revokes admitted evaluation.
+
+The resulting one-hour in-memory receipt is explicitly `IsEvaluation`, has no
+`QualificationEvidence`, and uses `UserReviewedOllamaEvaluation` rather than
+`LocalCandidateSelection`. It advertises a labelled evaluation-only exact profile
+with `off`/provider-managed `bounded` controls. Identity/model drift, privacy/ownership
+loss, expiry and explicit audited revocation close it; saving a profile and restart
+never renew authority. Selection and each turn still use the same resolver, adapter,
+host permissions, byte budgets, canonical result validation and physical quiescence.
+No new tools or automatic invocation routes are enabled.
+
+This does not establish model quality, latency, offline-egress, containment or
+integrated-host release qualification. Kora restricts its requests to the fixed
+loopback endpoint; it does not sandbox the external runtime's own network/storage.
+The [deterministic regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaEvaluationSourceTests.cs)
+prove native review/confirmation, factory admission, audit failure, revocation,
+subject drift and cancellation-ignoring cleanup with platform fakes, not a working
+installed runtime. The [user instructions](../docs/settings.md#optional-ollama-live-evaluation)
+own the complete opt-in interaction.
 
 ### Shared execution seam for original-request consumers
 
@@ -244,7 +346,7 @@ existing task invariant; do not wait by replaying or disposing the shared host.
 [ModelToolMode.None](../src/Kora.Core/Dependencies/ModelToolMode.cs) fixes the
 complete canonical catalogue to empty and rejects all tool history. Missing,
 unknown or mismatched wire mode/catalogue fails closed; text instructions alone
-never disable tools. The [native request](../src/Kora.Windows/Dependencies/OllamaToolWire.cs)
+never disable tools. The [SDK request mapping](../src/Kora.Windows/Dependencies/OllamaChatMessages.cs)
 omits the `tools` field, and [transport](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.cs)
 rejects unsolicited tool calls. The [bounded adapter](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs)
 refuses tool-call messages before callback dispatch, including fake transports.
@@ -407,7 +509,7 @@ Context consumers require `ModelToolMode.None`, nonempty exact-request evidence 
 The host refuses any tool callback for that envelope and rejects an attempted proposal even if the adapter later returns an answer. Action, grant and question outputs remain invalid.
 
 The local choice uses existing model admission and does not confer model qualification or hosted egress.
-The [protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Context.cs) and [native transport](../src/Kora.Windows/Dependencies/OllamaToolWire.cs) owner must add support for the empty tool catalogue; unsupported transports refuse rather than substituting the normal catalogue.
+The [protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Context.cs) and [SDK mapping](../src/Kora.Windows/Dependencies/OllamaChatMessages.cs) support the empty tool catalogue; unsupported transports refuse rather than substituting the normal catalogue.
 Production profiles remain unavailable until separately qualified. Synthetic success at the model seam is not runtime or containment evidence.
 
 Cancellation closes source authority immediately, but terminal task recording and disposal wait for actual adapter quiescence.

@@ -44,7 +44,7 @@
           <Border x:Name="RuntimeDetailsPanel" IsVisible="False">
           <StackPanel Spacing="8" Margin="12,8">
             <TextBlock x:Name="RuntimeDetails" TextWrapping="Wrap" FontSize="12" />
-            <TextBlock Text="Windows 11 x64; .NET 10.0.12+ x64 Desktop/base runtimes; Visual C++ 14.51.36247+ x64. Missing or older runtimes are obtained from Microsoft under Microsoft licence terms and retained on uninstall."
+            <TextBlock Text="Windows 11 x64; .NET 11.0.0+ x64 Desktop/base runtimes; Visual C++ 14.51.36247+ x64. Missing or older runtimes are obtained from Microsoft under Microsoft licence terms and retained on uninstall."
                        TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
           </StackPanel>
           </Border>

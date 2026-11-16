@@ -358,7 +358,7 @@ Installer repair/uninstall retain their native component ownership ([registratio
 
 ### Required prerequisites
 
-Burn detects the x64 .NET 10 desktop and base runtimes using the official
+Burn detects the x64 .NET 11 desktop and base runtimes using the official
 NetFx searches and the VC++ installed/version values in the x64 registry.
 Missing/older prerequisites are downloaded and installed **before Kora**,
 after interactive consent, using `/install /quiet /norestart`.
@@ -374,7 +374,7 @@ cases, without invoking install actions.
 
 | Prerequisite | Pinned package | Download size | Source and verification |
 |---|---|---|---|
-| .NET 10 x64 Desktop Runtime (includes base runtime) | 10.0.12 | 60,032,984 bytes | Immutable Microsoft builds URL; SHA-512 matches Microsoft's .NET 10 release metadata. |
+| .NET 11 x64 Desktop Runtime (includes base runtime) | 11.0.0 | 62,332,904 bytes | Immutable Microsoft builds URL; SHA-512 matches Microsoft's .NET 11 release metadata. |
 | VC++ v14 x64 Redistributable | 14.51.36247.0 | 18,731,856 bytes | Version-specific Microsoft Visual Studio download; SHA-256 matched the Microsoft winget manifest, and the full bytes were SHA-512-pinned for Burn. |
 
 The authoritative URLs, sizes, SHA-512 hashes, version conditions, and chain

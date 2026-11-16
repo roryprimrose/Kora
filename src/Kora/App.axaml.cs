@@ -115,6 +115,8 @@ public sealed partial class App : Avalonia.Application
                 viewModel,
                 Services.GetRequiredService<ILogger<SettingsWindowController>>(),
                 microphoneRecovery.Open, speechCaptionWindow);
+            settingsWindow.BindLocalEvaluation(Services.GetRequiredService<Kora.Windows.Dependencies.WindowsOllamaEvaluationSource>(),
+                Services.GetRequiredService<Kora.Application.Voice.AudioControlAdmission>());
             MarkdownDocumentRenderer.Renderer = new NativeDetailRenderer(
                 Services.GetRequiredService<ILogger<NativeDetailRenderer>>());
             detailWindow = new DetailWindowController(
@@ -429,7 +431,8 @@ public sealed partial class App : Avalonia.Application
             copilotAccountWindow = new CopilotAccountWindowController(viewModel,
                 Services.GetRequiredService<Kora.Windows.Dependencies.CopilotAccountBroker>(),
                 Services.GetRequiredService<Kora.Application.Voice.AudioControlAdmission>(),
-                Services.GetRequiredService<ILogger<CopilotAccountWindowController>>());
+                Services.GetRequiredService<ILogger<CopilotAccountWindowController>>(),
+                Services.GetRequiredService<Kora.Windows.Dependencies.CopilotEvaluationDeploymentSource>());
             copilotAccountWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner);
             viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>(), fileWindow,

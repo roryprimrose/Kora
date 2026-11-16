@@ -20,7 +20,7 @@ public sealed class ProjectGraphTests
             await File.WriteAllTextAsync(project, """
                 <Project Sdk="Microsoft.NET.Sdk">
                   <PropertyGroup>
-                    <TargetFramework>net10.0</TargetFramework>
+                    <TargetFramework>net11.0</TargetFramework>
                     <KoraArchitectureAnalyze>true</KoraArchitectureAnalyze>
                     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
                   </PropertyGroup>
@@ -71,7 +71,7 @@ public sealed class ProjectGraphTests
                 """, TestContext.Current.CancellationToken);
             await File.WriteAllTextAsync(project, $$"""
                 <Project Sdk="Microsoft.NET.Sdk">
-                  <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+                  <PropertyGroup><TargetFramework>net11.0</TargetFramework></PropertyGroup>
                   <Import Project="references.props" />
                 </Project>
                 """, TestContext.Current.CancellationToken);
@@ -109,7 +109,7 @@ public sealed class ProjectGraphTests
         {
             var reference = SecurityElement.Escape(Path.Combine(root, "src", dependency, dependency + ".csproj"));
             var project = Path.Combine(scratch, layer + ".csproj");
-            var framework = dependency.Length == 0 ? "net10.0-windows" : "net10.0";
+            var framework = dependency.Length == 0 ? "net11.0-windows" : "net11.0";
             var item = dependency.Length == 0 ? "" : $"""<ProjectReference Include="{reference}" />""";
             await File.WriteAllTextAsync(project, $$"""
                 <Project Sdk="Microsoft.NET.Sdk">
@@ -138,8 +138,8 @@ public sealed class ProjectGraphTests
         {
             var project = Path.Combine(scratch, "Kora.Core.csproj");
             var frameworks = multipleFrameworks
-                ? "<TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>"
-                : "<TargetFramework>net10.0</TargetFramework><TargetFramework Condition=\"'$(Configuration)' == 'Release'\">net10.0-windows</TargetFramework>";
+                ? "<TargetFrameworks>net11.0;net11.0-windows</TargetFrameworks>"
+                : "<TargetFramework>net11.0</TargetFramework><TargetFramework Condition=\"'$(Configuration)' == 'Release'\">net11.0-windows</TargetFramework>";
             await File.WriteAllTextAsync(project, $$"""
                 <Project Sdk="Microsoft.NET.Sdk">
                   <PropertyGroup>{{frameworks}}<EnableWindowsTargeting>true</EnableWindowsTargeting></PropertyGroup>

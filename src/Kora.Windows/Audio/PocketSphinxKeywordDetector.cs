@@ -43,6 +43,7 @@ internal sealed class PocketSphinxKeywordDetector : IHandsFreeKeywordDetector
             if (config == nint.Zero) { throw NativeFailure(); }
             var setString = Export<SetString>("ps_config_set_str");
             var setInt = Export<SetInt>("ps_config_set_int");
+            var setFloat = Export<SetFloat>("ps_config_set_float");
             Require(setString(config, "hmm", profile.ModelDirectory));
             Require(setString(config, "dict", profile.DictionaryPath));
             foreach (var pair in profile.ConfigurationFiles) { Require(setString(config, pair.Key, pair.Value)); }
@@ -54,6 +55,7 @@ internal sealed class PocketSphinxKeywordDetector : IHandsFreeKeywordDetector
             }
             Require(setInt(config, "samprate", 16000));
             Require(setInt(config, "frate", 100));
+            Require(setFloat(config, "kws_threshold", profile.KeywordThreshold));
             decoder = Export<UnaryPointer>("ps_init")(config);
             if (decoder == nint.Zero) { throw NativeFailure(); }
             var effective = Export<UnaryPointer>("ps_get_config")(decoder);
@@ -61,6 +63,7 @@ internal sealed class PocketSphinxKeywordDetector : IHandsFreeKeywordDetector
                     configuration.Keyphrase, StringComparison.Ordinal)
                 || Export<GetInt>("ps_config_int")(effective, "samprate") != 16000
                 || Export<GetInt>("ps_config_int")(effective, "frate") != 100
+                || Export<GetFloat>("ps_config_float")(effective, "kws_threshold") != profile.KeywordThreshold
                 || Export<UnaryInt>("ps_start_utt")(decoder) < 0)
             {
                 throw NativeFailure();
@@ -127,6 +130,8 @@ internal sealed class PocketSphinxKeywordDetector : IHandsFreeKeywordDetector
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate int ProcessRaw(nint decoder, nint samples, nuint count, int noSearch, int fullUtterance);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate nint SetString(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, [MarshalAs(UnmanagedType.LPUTF8Str)] string? value);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate nint SetInt(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, int value);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate nint SetFloat(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, double value);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate int GetInt(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate double GetFloat(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate nint GetString(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key);
 }

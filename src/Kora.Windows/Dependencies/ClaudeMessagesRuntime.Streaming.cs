@@ -1,6 +1,8 @@
+using System.Text;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
+using Microsoft.Extensions.AI;
 
 namespace Kora.Windows.Dependencies;
 
@@ -35,54 +37,66 @@ public sealed partial class ClaudeMessagesRuntime
             if (model?.Selection != provenance.Selection
                 || model.Context.Single(option => option.Id == profile.Context).InputTokenLimit is not { } inputLimit
                 || !account.OutputLimits.TryGetValue(profile.Model, out var outputLimit)
-                || !account.Approval.TextStreams.Contains(new(profile.Model, profile.Reasoning, profile.Context, inputLimit, outputLimit)))
+                || (!account.Approval.HasCurrentDevelopmentPreview
+                    && !account.Approval.TextStreams.Contains(new(profile.Model, profile.Reasoning, profile.Context, inputLimit, outputLimit))))
             { return new(ModelTurnOutcome.Unavailable); }
             async ValueTask<bool> Live(CancellationToken ct) => !disposed && !quarantined && !ct.IsCancellationRequested
+                && (!account.Approval.IsDevelopmentPreview || account.Approval.HasCurrentDevelopmentPreview)
                 && context.CreatedAt <= time.GetUtcNow() && context.ExpiresAt > time.GetUtcNow()
                 && await accounts.CurrentAsync(account, ct).ConfigureAwait(false)
                 && await current(ct).ConfigureAwait(false)
-                && !disposed && !ct.IsCancellationRequested && context.CreatedAt <= time.GetUtcNow()
+                && !disposed && !quarantined && !ct.IsCancellationRequested && context.CreatedAt <= time.GetUtcNow()
+                && (!account.Approval.IsDevelopmentPreview || account.Approval.HasCurrentDevelopmentPreview)
                 && context.ExpiresAt > time.GetUtcNow();
-            var countBody = Serialize(context, profile, null);
-            var messageBody = Serialize(context, profile, outputLimit, streamAnswer: true);
-            if (checked(countBody.Length + messageBody.Length) > ModelContextEnvelope.MaximumInputUtf8Bytes)
-            { return new(ModelTurnOutcome.DeniedEgress); }
             http = create();
             var sender = new ClaudeFinalRequestHandler(http, accounts);
-            var counted = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
-                "/v1/messages/count_tokens", countBody), account, admit, Live, token,
-                read: (content, ct) => ClaudeAnswerStream.ReadCountAsync(content, Quarantine, ct),
-                quarantine: Quarantine).ConfigureAwait(false);
-            if (counted is null) { return new(ModelTurnOutcome.DeniedEgress); }
-            using var count = Parse(counted);
-            if (count.RootElement.EnumerateObject().Count() != 1
-                || !count.RootElement.GetProperty("input_tokens").TryGetInt32(out var input)
-                || input <= 0 || input > inputLimit || counted.Length >= ModelContextEnvelope.MaximumOutputUtf8Bytes)
-            { return new(ModelTurnOutcome.DeniedEgress); }
-            var response = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
-                "/v1/messages", messageBody), account, admit, Live, token,
-                read: (content, ct) => ClaudeAnswerStream.ReadAsync(content, profile, inputLimit, outputLimit,
-                    ModelContextEnvelope.MaximumOutputUtf8Bytes - counted.Length, async answer =>
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        if (!await Live(ct).ConfigureAwait(false))
-                        { throw new InvalidDataException("Claude streaming authority changed before provisional publication."); }
-                        var update = new ModelAnswerUpdate(provenance, answer);
-                        update.Validate();
-                        await publish(update, ct).ConfigureAwait(false);
-                    }, Quarantine, ct, usage => tokenUsage = usage), quarantine: Quarantine).ConfigureAwait(false);
-            if (response is null) { return new(ModelTurnOutcome.DeniedEgress); }
-            var answer = ParseAnswer(response, profile, outputLimit, inputLimit);
-            token.ThrowIfCancellationRequested();
-            return await Live(token).ConfigureAwait(false)
-                ? new(ModelTurnOutcome.Succeeded, answer) { TokenUsage = tokenUsage }
-                : new(ModelTurnOutcome.DeniedEgress) { TokenUsage = tokenUsage };
+            using var handler = new ClaudeSdkRequestHandler(sender, account, provenance, profile, inputLimit,
+                outputLimit, admit, Live, Quarantine, usage => tokenUsage = usage, streamAnswer: true);
+            try
+            {
+                using var sdkHttp = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+                using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential);
+                using var chat = sdk.AsIChatClient(profile.Model.Value, outputLimit);
+                var answer = new StringBuilder();
+                ChatFinishReason? finishReason = null;
+                await foreach (var update in chat.GetStreamingResponseAsync(
+                    [new ChatMessage(ChatRole.System, context.SystemPolicy), new ChatMessage(ChatRole.User, context.UserRequest)],
+                    CreateChatOptions(profile, outputLimit), token).ConfigureAwait(false))
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (update.Role != ChatRole.Assistant
+                        || !string.Equals(update.ModelId, profile.Model.Value, StringComparison.Ordinal)
+                        || update.FinishReason is { } reason && reason != ChatFinishReason.Stop
+                        || update.Contents.Any(content => content is not (TextContent or UsageContent)))
+                    { throw new InvalidDataException("SDK returned unsupported streaming answer content."); }
+                    finishReason = update.FinishReason ?? finishReason;
+                    if (string.IsNullOrEmpty(update.Text)) { continue; }
+                    answer.Append(update.Text);
+                    if (Encoding.UTF8.GetByteCount(answer.ToString()) > ModelContextEnvelope.MaximumOutputUtf8Bytes)
+                    { throw new InvalidDataException("SDK answer exceeds its byte budget."); }
+                    if (!await Live(token).ConfigureAwait(false))
+                    { throw new InvalidDataException("Claude streaming authority changed before provisional publication."); }
+                    var publication = new ModelAnswerUpdate(provenance, answer.ToString());
+                    publication.Validate();
+                    await publish(publication, token).ConfigureAwait(false);
+                }
+                if (!handler.StreamCompleted || finishReason != ChatFinishReason.Stop
+                    || string.IsNullOrWhiteSpace(answer.ToString()))
+                { throw new InvalidDataException("SDK stream did not produce a complete normal text answer."); }
+                await handler.DisposeStreamAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                return await Live(token).ConfigureAwait(false)
+                    ? new(ModelTurnOutcome.Succeeded, answer.ToString()) { TokenUsage = tokenUsage }
+                    : new(ModelTurnOutcome.DeniedEgress) { TokenUsage = tokenUsage };
+            }
+            catch (Exception) when (handler.Denied) { return new(ModelTurnOutcome.DeniedEgress); }
+            finally { await handler.DisposeStreamAsync().ConfigureAwait(false); }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         { return new(ModelTurnOutcome.Cancelled) { TokenUsage = tokenUsage }; }
         catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException
             or System.Text.Json.JsonException or InvalidOperationException or KeyNotFoundException or FormatException
-            or System.Text.EncoderFallbackException or System.Text.DecoderFallbackException)
+            or EncoderFallbackException or DecoderFallbackException or Anthropic.Exceptions.AnthropicException)
         {
             RequestFailed(logger, exception.GetType().Name);
             return new(ModelTurnOutcome.Unknown) { TokenUsage = tokenUsage };

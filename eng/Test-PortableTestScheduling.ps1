@@ -42,6 +42,15 @@ foreach ($project in $expected) {
 $configuration = Get-Content -Raw -LiteralPath (Join-Path $root 'global.json') | ConvertFrom-Json
 Assert ($configuration.test.runner -ceq 'Microsoft.Testing.Platform') 'Solution test execution requires the MTP runner.'
 $workflow = Get-Content -Raw -LiteralPath (Join-Path $root '.github\workflows\ci.yml')
+foreach ($jobName in @('version', 'portable-policy', 'portable-tests')) {
+    $toolJob = [regex]::Match($workflow, "(?ms)^  ${jobName}:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)")
+    Assert $toolJob.Success "The tool-consuming CI job was not found: $jobName."
+    $toolSteps = $toolJob.Groups['job'].Value
+    Assert ($toolSteps.Contains('global-json-file: global.json', [StringComparison]::Ordinal)) "Build SDK selection must follow global.json in $jobName."
+    $runtime = $toolSteps.IndexOf('dotnet-version: 10.0.x', [StringComparison]::Ordinal)
+    $restore = $toolSteps.IndexOf('run: dotnet tool restore', [StringComparison]::Ordinal)
+    Assert ($runtime -ge 0 -and $restore -gt $runtime) "Provision the pinned tools' .NET 10 runtime before restoring them in $jobName."
+}
 $portable = [regex]::Match($workflow, '(?ms)^  portable-tests:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
 Assert $portable.Success 'The portable CI job was not found.'
 $job = $portable.Groups['job'].Value

@@ -117,6 +117,8 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "This immutable live snapshot must reflect the current playback position; caching would retain stale state.")]
     public SpeechPlaybackFrame PlaybackFrame
     {
         get

@@ -10,6 +10,8 @@ public sealed class WindowsReleaseInstallerLauncherTests : IDisposable
 {
     private readonly string root = Path.Combine(Environment.CurrentDirectory, ".net-test-artifacts", "installer-launch-" + Guid.NewGuid().ToString("N"));
     private static readonly byte[] Bytes = "fixture installer bytes, never executed"u8.ToArray();
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "WFO2000",
+        Justification = "Each test receives an independent value object describing the fixture bytes.")]
     private static ReleaseAsset Asset => new(42, "Kora-Setup-1.2.3-win-x64.exe", Bytes.Length, Convert.ToHexString(SHA256.HashData(Bytes)));
 
     [Fact]

@@ -163,6 +163,9 @@ public sealed class ConversationResponseTests
     [InlineData("missing-answer")]
     [InlineData("premature-answer")]
     [InlineData("legacy")]
+    [InlineData("legacy-metadata")]
+    [InlineData("legacy-answer")]
+    [InlineData("unsupported-provider")]
     [InlineData("revision")]
     [InlineData("invalid-execution-selection")]
     [InlineData("missing-execution-selection")]
@@ -184,6 +187,10 @@ public sealed class ConversationResponseTests
             "missing-answer" => message with { AssistantResponse = null },
             "premature-answer" => message with { Revision = 2, Outcome = null, Reason = null },
             "legacy" => message with { Version = 1 },
+            "legacy-metadata" => Original() with { ExecutionMetadataRevision = 0 },
+            "legacy-answer" => Original() with { AssistantResponse = response },
+            "unsupported-provider" => message with
+            { Execution = p with { Selection = p.Selection with { Provider = ModelProviderIdentity.Codex } } },
             "invalid-execution-selection" => message with
             { Execution = p with { Selection = p.Selection with { Model = default } } },
             "missing-execution-selection" => message with { Execution = p with { Selection = null! } },

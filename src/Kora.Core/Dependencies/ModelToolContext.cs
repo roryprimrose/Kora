@@ -6,7 +6,8 @@ public sealed class ModelToolContext
 {
     internal ModelToolContext(ModelTurnProvenance provenance, string systemPolicy, string userRequest,
         ImmutableArray<ModelContextEvidence> evidence, ModelToolMode toolMode, ImmutableArray<byte> wire,
-        ModelTurnConstraints? constraints = null, Mcp.McpModelTool? mcpTool = null, Network.LocalWebPageScope? webPages = null)
+        ModelTurnConstraints? constraints = null, Mcp.McpModelTool? mcpTool = null, Network.LocalWebPageScope? webPages = null,
+        ModelOutputFormat outputFormat = ModelOutputFormat.Text)
     {
         Provenance = provenance;
         SystemPolicy = systemPolicy;
@@ -17,6 +18,7 @@ public sealed class ModelToolContext
         Constraints = constraints;
         McpTool = mcpTool;
         WebPages = webPages;
+        OutputFormat = outputFormat;
     }
 
     internal ModelTurnProvenance Provenance { get; }
@@ -29,5 +31,6 @@ public sealed class ModelToolContext
         Constraints?.GetTools(ToolMode) ?? ModelToolProtocol.GetTools(ToolMode);
     public Mcp.McpModelTool? McpTool { get; }
     public Network.LocalWebPageScope? WebPages { get; }
+    public ModelOutputFormat OutputFormat { get; }
     public ImmutableArray<byte> Wire { get; }
 }

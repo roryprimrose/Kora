@@ -6,19 +6,19 @@ namespace Kora.Core.UnitTests.Voice;
 public sealed class VoiceCaptureTimingTests
 {
     [Theory]
-    [InlineData(VoiceCaptureTiming.CommandStartId, "2", 2, 15, 1)]
-    [InlineData(VoiceCaptureTiming.CommandStartId, "10", 10, 15, 1)]
-    [InlineData(VoiceCaptureTiming.ReplyStartId, "5", 5, 5, 1)]
-    [InlineData(VoiceCaptureTiming.ReplyStartId, "60", 5, 60, 1)]
-    [InlineData(VoiceCaptureTiming.TrailingSilenceId, "0.5", 5, 15, 0.5)]
-    [InlineData(VoiceCaptureTiming.TrailingSilenceId, "3", 5, 15, 3)]
-    [InlineData(VoiceCaptureTiming.TrailingSilenceId, "0.5000001", 5, 15, 0.5000001)]
-    public void ExactBoundsAndFractionalSecondsRoundTrip(string id, string value, double command, double reply, double silence)
+    [InlineData(VoiceCaptureTiming.CommandStartId, "2", 2, 15, 10000000L)]
+    [InlineData(VoiceCaptureTiming.CommandStartId, "10", 10, 15, 10000000L)]
+    [InlineData(VoiceCaptureTiming.ReplyStartId, "5", 5, 5, 10000000L)]
+    [InlineData(VoiceCaptureTiming.ReplyStartId, "60", 5, 60, 10000000L)]
+    [InlineData(VoiceCaptureTiming.TrailingSilenceId, "0.5", 5, 15, 5000000L)]
+    [InlineData(VoiceCaptureTiming.TrailingSilenceId, "3", 5, 15, 30000000L)]
+    [InlineData(VoiceCaptureTiming.TrailingSilenceId, "0.5000001", 5, 15, 5000001L)]
+    public void ExactBoundsAndFractionalSecondsRoundTrip(string id, string value, double command, double reply, long silenceTicks)
     {
         var timing = VoiceCaptureTiming.Default.With(id, value);
         timing.CommandStart.Should().Be(TimeSpan.FromSeconds(command));
         timing.ReplyStart.Should().Be(TimeSpan.FromSeconds(reply));
-        timing.TrailingSilence.Should().Be(TimeSpan.FromTicks(decimal.ToInt64((decimal)silence * TimeSpan.TicksPerSecond)));
+        timing.TrailingSilence.Should().Be(TimeSpan.FromTicks(silenceTicks));
         VoiceCaptureTiming.Parse(timing.Serialize()).Should().Be(timing);
         timing.Describe().Should().Contain(" s");
         timing.With(id, null).Should().Be(VoiceCaptureTiming.Default);

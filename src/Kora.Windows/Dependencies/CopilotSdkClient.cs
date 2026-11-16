@@ -23,6 +23,40 @@ internal sealed class CopilotSdkClient(CopilotClientOptions options) : ICopilotS
             using var subscription = session.On<AssistantUsageEvent>(usage.Observe);
             return (await session.SendAndWaitAsync(prompt, timeout, token).ConfigureAwait(false))?.Data.Content;
         }
+        public async Task<string?> SendWithAnswerAsync(string prompt, TimeSpan timeout,
+            Func<string, CancellationToken, ValueTask> publish, CancellationToken token)
+        {
+            using var sendCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+            var stream = new CopilotAnswerStream();
+            using var usageSubscription = session.On<AssistantUsageEvent>(usage.Observe);
+            using var answerSubscription = session.On<AssistantMessageDeltaEvent>(stream.Observe);
+            var publication = PublishAndCancelOnFailureAsync();
+            var send = SendAndCompleteAsync();
+            await Task.WhenAll(send, publication).ConfigureAwait(false);
+            var answer = await send.ConfigureAwait(false);
+            stream.RequireFinal(answer);
+            return answer;
+
+            async Task<string?> SendAndCompleteAsync()
+            {
+                try { return (await session.SendAndWaitAsync(prompt, timeout, sendCancellation.Token).ConfigureAwait(false))?.Data.Content; }
+                finally { stream.Complete(); }
+            }
+
+            async Task PublishAndCancelOnFailureAsync()
+            {
+                var completed = false;
+                try
+                {
+                    await stream.PublishAsync(publish, token).ConfigureAwait(false);
+                    completed = true;
+                }
+                finally
+                {
+                    if (!completed) { await sendCancellation.CancelAsync().ConfigureAwait(false); }
+                }
+            }
+        }
         public ModelTokenUsage? GetTokenUsage(int modelCalls) => usage.Snapshot(modelCalls);
     }
 

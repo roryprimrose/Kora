@@ -150,6 +150,13 @@ schedule a live trial or open an E/Q gate.
 
 ### R02 Local-Inference Continuation
 
+Development status: **UNBLOCKED**. The
+[local-model qualification policy](Local_Inference.md#implementation-is-not-model-qualification)
+does not make Ollama answer quality an implementation prerequisite. Continue
+Kora feature delivery under maintained deterministic checks; a rejected model
+does not establish a missing consumed production contract or a general feature
+hold. Exact-profile enablement and RC claims retain their applicable gates.
+
 Ollama 0.35.1/qwen3:1.7b and the Ollama 0.40.2 comparison are rejected.
 Do not repeat hardware/offline/human trials for unchanged rejected candidates.
 Continue host/UI/orchestration implementation with explicit unavailable behavior.

@@ -14,7 +14,7 @@ $passed = 0
 function Write-Inputs {
     param([string] $Directory, [switch] $Branchless, [switch] $PartialLine, [switch] $PartialBranch)
     foreach ($assembly in $assemblies) {
-        $destination = Join-Path $Directory "$assembly.UnitTests\net10.0_x64"
+        $destination = Join-Path $Directory "$assembly.UnitTests\net11.0_x64"
         $null = New-Item -ItemType Directory -Path $destination -Force
         $noBranches = $Branchless -or $assembly -eq 'Kora.Definitions'
         $lineCovered = if ($PartialLine -and $assembly -eq 'Kora.Core') { 0 } else { 1 }
@@ -86,7 +86,7 @@ Push-Location $root
 try {
     Write-Inputs (Join-Path $baseline 'raw')
     Merge-Inputs $baseline
-    $rawCore = Join-Path $working 'raw\Kora.Core.UnitTests\net10.0_x64\unit.coverage.cobertura.231026103225776.xml'
+    $rawCore = Join-Path $working 'raw\Kora.Core.UnitTests\net11.0_x64\unit.coverage.cobertura.231026103225776.xml'
     Test-Case 'complete actual ReportGenerator output' {}
     foreach ($assembly in $assemblies) {
         Test-Case "missing module $assembly" {

@@ -5,6 +5,7 @@ using Kora.Application.Hosting;
 using Kora.Application.Voice;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
@@ -25,6 +26,7 @@ public sealed class WindowsSqliteProviderProfileConfigurationTests
         var audit = new Audit();
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton<IApplicationDataPaths>(f.Paths);
         services.AddSingleton<IPreferenceStore>(new LocalPreferenceStore(f.Paths));
         services.AddSingleton(admission);
         services.AddSingleton<ISecurityAuditLog>(audit);

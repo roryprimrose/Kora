@@ -99,8 +99,11 @@ public sealed class CustomNameWakeCutoverTests
             host.Main.IsVoiceEnabled.Should().BeFalse();
             await host.Main.SetVoiceConsentAsync(true);
             if (!host.Main.IsVoiceEnabled) { await host.Main.ToggleListeningCommand.ExecuteAsync(); }
+            host.Main.HasVoiceConsent.Should().BeTrue("voice readiness must be admitted: {0}", host.Main.ResponseBody);
+            host.Main.IsVoiceEnabled.Should().BeTrue("listening must be admitted: {0}", host.Main.ResponseBody);
+            voice.State.Should().Be(HandsFreeVoiceState.WakeListening, "wake capture must open: {0}", host.Main.ResponseBody);
             var first = await factory.NextAsync();
-            await first.Microphone.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+            await first.Microphone.Started.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             host.Voice.StartCalls.Should().Be(0, "wake capture belongs to the supplied hands-free runtime, not the fixture default");
             first.Api.Strings["keyphrase"].Should().Be(name.ToLowerInvariant());
             first.Api.Strings["kws"].Should().BeNull();
@@ -111,20 +114,21 @@ public sealed class CustomNameWakeCutoverTests
             first.Command.Started.Task.IsCompleted.Should().BeFalse();
             first.Api.HasSegment = true;
             first.Microphone.Emit(Enumerable.Repeat((short)3, 320).ToArray());
-            await first.Command.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+            await first.Command.Started.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             var commandBytes = new byte[640];
-            await first.Stream!.ReadExactlyAsync(commandBytes, TestContext.Current.CancellationToken);
+            await first.Stream!.ReadExactlyAsync(commandBytes, TestContext.Current.CancellationToken)
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             MemoryMarshal.Cast<byte, short>(commandBytes).ToArray().Should().AllBeEquivalentTo((short)3);
             first.Microphone.Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
             var finalText = routeRequest ? "read a fixture" : "what version are you running";
             first.Command.Final(finalText);
-            await first.Microphone.Closing.Task.WaitAsync(TestContext.Current.CancellationToken);
+            await first.Microphone.Closing.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             host.Main.ResponseTitle.Should().NotBe(name + " version", "dispatch waits for physical join");
             routedText.Should().BeNull("no command reaches routing before physical join");
             first.Api.Disposed.Should().BeFalse();
             first.Microphone.Release.SetResult();
             var second = await factory.NextAsync();
-            await second.Microphone.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+            await second.Microphone.Started.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             if (routeRequest)
             {
                 routedText.Should().Be(finalText, "the separately admitted wake reaches existing routing without a reconstructed ASR prefix");
@@ -150,6 +154,7 @@ public sealed class CustomNameWakeCutoverTests
             }
             finally
             {
+                factory.Current?.Microphone.Release?.TrySetResult();
                 host.Main.Dispose();
                 await voice.StopAsync(TestContext.Current.CancellationToken);
                 await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.SystemIdle);
@@ -358,7 +363,8 @@ public sealed class CustomNameWakeCutoverTests
             Current!.Stream = stream;
             return Task.FromResult<IActivatedCapture>(Current.Command);
         }
-        internal async Task<Resources> NextAsync() => await opened.Reader.ReadAsync(TestContext.Current.CancellationToken);
+        internal async Task<Resources> NextAsync() => await opened.Reader.ReadAsync(TestContext.Current.CancellationToken)
+            .AsTask().WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
     }
 
     private sealed class Resources(Api api)
@@ -374,6 +380,7 @@ public sealed class CustomNameWakeCutoverTests
     {
         private readonly List<nint> strings = [];
         internal Dictionary<string, string?> Strings { get; } = new(StringComparer.Ordinal);
+        private double keywordThreshold;
         internal bool HasSegment { get; set; }
         internal bool LogDisabled { get; private set; }
         internal bool Disposed { get; private set; }
@@ -397,6 +404,17 @@ public sealed class CustomNameWakeCutoverTests
                     key.Should().BeOneOf("samprate", "frate");
                     value.Should().Be(key is "samprate" ? 16000 : 100);
                     return 1;
+                }),
+                "ps_config_set_float" => (SetFloat)((_, key, value) =>
+                {
+                    key.Should().Be("kws_threshold");
+                    keywordThreshold = value;
+                    return 1;
+                }),
+                "ps_config_float" => (GetFloat)((_, key) =>
+                {
+                    key.Should().Be("kws_threshold");
+                    return keywordThreshold;
                 }),
                 "ps_init" => (UnaryPointer)(_ => 2),
                 "ps_get_config" => (UnaryPointer)(_ => 1),

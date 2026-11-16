@@ -129,7 +129,7 @@ public sealed partial class SessionsConversationTests
             webPages: twoSources ? new([new("https://example.com/"), new("https://second.example/")]) : null);
         var context = ModelToolProtocol.ReadContext(envelope.Serialize(), provenance);
         var request = ModelToolProtocol.CreateRequest(provenance, null, context, [], 1);
-        using var wire = JsonDocument.Parse(OllamaToolWire.WriteRequest(request, "fake-model", []));
+        using var wire = JsonSerializer.SerializeToDocument(OllamaChatMessages.CreateRequest(request, "fake-model", []).Request);
         var tool = wire.RootElement.GetProperty("tools").EnumerateArray().Should().ContainSingle().Subject.GetProperty("function");
         tool.GetProperty("name").GetString().Should().Be(WebPageCapability.Id);
         var parameters = tool.GetProperty("parameters");

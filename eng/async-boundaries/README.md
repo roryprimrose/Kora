@@ -12,7 +12,7 @@ From the repository root, after the normal locked restore, run:
 ```powershell
 pwsh -NoProfile -File .\eng\Test-AsyncVoidAnalysis.ps1
 dotnet build .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-restore
-dotnet .\tests\Kora.Application.UnitTests\bin\Release\net10.0\Kora.Application.UnitTests.dll -method '*AsyncCommandTests.*'
+dotnet .\tests\Kora.Application.UnitTests\bin\Release\net11.0\Kora.Application.UnitTests.dll -method '*AsyncCommandTests.*'
 ```
 
 The check first rebuilds the real desktop and application event/command adapters.

@@ -167,7 +167,7 @@ public sealed partial class ModelTurnHostTests
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         receipt.Message.Body.Should().Be(body);
         receipt.Message.Request.Origin.Should().Be(origin);
-        receipt.Message.AssistantResponse!.Body.Should().Be(JsonDocument.Parse(ComparisonAnswer).RootElement.GetProperty("answer").GetString());
+        receipt.Message.AssistantResponse!.Body.Should().Be(JsonElement.Parse(ComparisonAnswer).GetProperty("answer").GetString());
         f.ExecutionCompletions.Should().Be(1);
         network.Sends.Should().Be(2);
         approvals.Shared.Presentations.Should().Be(2);

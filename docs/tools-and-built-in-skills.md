@@ -5,7 +5,7 @@ Use [Commands](commands.md) for exact phrases and parameters,
 workflows. This page explains capability boundaries rather than duplicating
 those references.
 
-**In ordinary builds, the fixed bundled script executor is unavailable until its installed contained profile is qualified.**
+**In ordinary builds, the fixed bundled script executor is implemented but unavailable until its installed contained profile is qualified.**
 See the [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 Exact commands run Kora's built-in actions. The reviewed AI workflows described
 below require an admitted model; **ordinary builds have no qualified local or Claude profile available**. Opening
@@ -306,9 +306,13 @@ See [maintenance commands](commands.md#exact-cached-release-maintenance).
 
 ## 13. Built-in skills
 
-The three bundled packages are inspectable and their instructions selectable, but every script action remains unavailable until its installed contained profile is qualified.
+In ordinary builds, the three bundled packages are inspectable and their instructions selectable, but every script action remains unavailable until its installed contained profile is qualified.
 The [fixed execution implementation](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) binds complete original multi-file packages, separate grants, current source authority and joined resources; a package name or model choice is not approval.
 Review includes the manifest, entry script, every shared helper and combined script-set hash; changing any declared source invalidates the exact binding.
+
+**Development Preview:** separately opt in to fixed bundled workers through **Settings > Set up development preview capabilities**. Admission is memory-only for at most one hour and does not qualify the production profile ([preview admission](../src/Kora.Windows/Dependencies/DevelopmentPreviewAdmission.cs)).
+Preview workers still require protected runtime preparation and AppContainer containment; package review, content-bound grants, action confirmation and resource joins remain mandatory. Model/wake opt-in does not admit worker execution ([worker gate](../src/Kora.Windows/Skills/RuntimeSetup/DevelopmentBundledWorkerProfile.cs), [runtime](../src/Kora.Windows/Skills/RuntimeSetup/WindowsBundledRuntimeSetup.cs)).
+The ordinary-build limits below remain the default; only the separately admitted preview can execute these fixed scripts, not arbitrary scripts or shell commands ([fixed worker](../src/Kora.Windows/Skills/WindowsBundledScriptWorker.cs)).
 
 ### Prepare an existing bundled runtime
 
@@ -320,8 +324,10 @@ licences/notices, source limitations, byte counts and local-record effects
 before approving **Prepare**.
 
 **Prepared** means the reviewed local inventory was re-read successfully,
-not that scripts can run. This release has no admitted contained execution
+not that scripts can run. Ordinary builds have no admitted contained execution
 profile: execution and grants stay unavailable, with no native fallback.
+Preview execution additionally requires the separate fixed-worker opt-in above
+([runtime gate](../src/Kora.Windows/Skills/RuntimeSetup/WindowsBundledRuntimeSetup.cs)).
 No runtime download or installation occurs; a missing/unsupported/protection
 failure is reported rather than silently choosing another executable.
 
@@ -338,28 +344,28 @@ power effect.
 
 ### Lock the machine
 
-**Current:** voluntary direct and model-proposed Lock share exact package review and grants, without named-action permission reuse or a legacy native-lock fallback. Execution reports unavailable while its runtime is unqualified. Fresh grants use mandatory native script review, preserving the original request channel. See [exact lock behavior](commands.md#lock-windows).
+**Current:** voluntary direct and model-proposed Lock share exact package review and grants, without named-action permission reuse or a legacy native-lock fallback. Ordinary builds report execution unavailable while the runtime is unqualified. Fresh grants use mandatory native script review, preserving the original request channel. See [exact lock behavior](commands.md#lock-windows).
 
-**Implemented, not enabled:** shared content-bound admission, a durable
+**Implemented, not enabled in ordinary builds:** shared content-bound admission, a durable
 control-session binding and a truthful request-accepted receipt. It targets the current
 Windows session only, not another user, remote computer, unlock or timer.
 
 ### Shut down the computer
 
-**Current:** source inspection and explicit unavailability under the [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+**Ordinary builds:** source inspection and explicit unavailability under the [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 **No operating-system shutdown request is sent.**
 
-**Implemented, not enabled:** exact script/grant review, active-work handling, fresh confirmation
+**Implemented, not enabled in ordinary builds:** exact script/grant review, active-work handling, fresh confirmation
 within 30 seconds and a 30-second host countdown with pre-effect revalidation.
 An OS-accepted request may no longer be cancellable; Kora cannot save other
 applications' documents or promise completed shutdown.
 
 ### Restart the computer
 
-**Current:** source inspection and explicit unavailability under the same [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+**Ordinary builds:** source inspection and explicit unavailability under the same [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 **No operating-system restart request is sent.**
 
-**Implemented, not enabled:** the same power safeguards with a distinct restart task/grant.
+**Implemented, not enabled in ordinary builds:** the same power safeguards with a distinct restart task/grant.
 This is not **restart Kora** and does not promise interrupted work will resume.
 
 ### Read-only integration skill

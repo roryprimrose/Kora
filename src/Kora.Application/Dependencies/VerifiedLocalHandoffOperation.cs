@@ -156,5 +156,5 @@ public sealed class VerifiedLocalHandoffOperation(ModelProviderHandoffWorkflow w
     private static ModelContextEnvelope Rebind(ModelContextEnvelope context, HostRequest request) =>
         new(request, context.SystemPolicy, context.UserRequest,
             context.Evidence.Select(item => item with { Request = request }), context.CreatedAt, context.ExpiresAt,
-            context.ToolMode, context.Constraints, context.McpTool, context.WebPages);
+            context.ToolMode, context.Constraints, context.McpTool, context.WebPages, context.OutputFormat);
 }

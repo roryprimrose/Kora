@@ -185,7 +185,7 @@ accepts any rejected candidate.
 
 Desktop composition now uses a [fresh runtime resolver](../src/Kora.Windows/Dependencies/WindowsOllamaRuntimeResolver.cs)
 for the local capability catalogue and exact-profile registration. It consumes
-an independently issued [qualification and process-use receipt](../src/Kora.Windows/Dependencies/WindowsOllamaQualification.cs),
+an independently issued [qualification or explicitly separate evaluation process-use receipt](../src/Kora.Windows/Dependencies/WindowsOllamaQualification.cs),
 not installation discovery, saved selections or model/provider text. The receipt
 pins one account/catalogue/model/reasoning/context tuple, runtime version, model
 digest, process ID/start/executable/hash, validity interval and revocation.
@@ -203,7 +203,7 @@ its existing task, original-channel, tool, result and physical-quiescence fences
 The native transport independently rechecks runtime version and selected model
 digest before chat dispatch, rejects redirects and never chooses another endpoint.
 
-**Enablement remains unavailable.** The shipped [release qualification authority](../src/Kora.Definitions/Qualifications/BundledLocalModelQualificationAuthority.cs)
+**Production enablement remains unavailable.** The shipped [release qualification authority](../src/Kora.Definitions/Qualifications/BundledLocalModelQualificationAuthority.cs)
 accepts no attestation pins, so the production catalogue offers no executable profile.
 The [host admission workflow](../src/Kora.Application/Dependencies/OllamaAdmissionWorkflow.cs) and
 [native receipt producer](../src/Kora.Windows/Dependencies/WindowsOllamaAdmissionBroker.cs) are implemented; they do not manufacture missing qualification.
@@ -237,7 +237,7 @@ The [persisted format](../src/Kora.Core/Providers/LocalModelAdmissionPreference.
 A [pending marker](../src/Kora.Application/Configuration/LocalModelAdmissionPreferences.cs), malformed choice or audit/persistence failure blocks publication and requires explicit recovery.
 Restart does not restore live authority; revocation closes Kora's receipt without stopping the external process.
 
-The [native Settings controls](../src/Kora/SettingsWindow.LocalModelAdmission.cs) expose Review, Allow and Revoke.
+The [native Settings controls](../src/Kora/SettingsView.LocalModelAdmission.cs) expose Review, Allow and Revoke.
 With this build's empty accepted set, Review reports the missing release-qualified profile and does not inspect or run Ollama.
 Equivalent original LocalUi/ActivatedVoice admission semantics and failed persistence/revocation are exercised by [portable workflow tests](../tests/Kora.Application.UnitTests/Dependencies/OllamaAdmissionWorkflowTests.cs).
 The [Windows integration tests](../tests/Kora.Windows.IntegrationTests/Dependencies/OllamaAdmissionWorkflowTests.cs) exercise real durable host admission with fake qualification/process observations, including source-read/replacement races.
@@ -253,6 +253,45 @@ retain a genuine bounded answer for separately admitted text/ActivatedVoice
 requests and suppress a cancelled late answer while awaiting quiescence.
 They do not execute an installed Ollama/model, validate physical containment,
 qualify a profile or prove user-visible backend availability.
+
+### Explicit native Ollama live evaluation
+
+The separately authorized evaluation route is an implementation aid for the existing
+governed model/agent-authoring outcomes, not acceptance of release qualification.
+The [volatile evaluation source](../src/Kora.Windows/Dependencies/WindowsOllamaEvaluationSource.cs)
+and [native controls](../src/Kora/SettingsView.OllamaEvaluation.cs) inspect only the supported
+per-user installed executable, exact supported runtime version and pinned model/digest
+owned by [setup](../src/Kora.Windows/Dependencies/WindowsOllamaSetupService.cs).
+The same native observer checks Windows account/session, PID/start/path/hash and
+fixed-loopback ownership; official SDK metadata reads remain strictly bounded.
+No setup observation starts a process, installs/downloads a model, authenticates or runs inference.
+Unsupported versions/models/endpoints are unavailable without fallback.
+
+Inspection issues only a five-minute private review. Separate original LocalUi
+confirmation revalidates the exact subject; a thirty-second verification window and
+the durable host-control commit fence precede typed requested/terminal audit and
+publication. No voice, model/tool-origin or persisted choice supplies this admission.
+Audit failure, stale/replaced review, cancellation or retired native controls cannot
+publish authority. Closing review controls discards pending review and joins setup
+work before instance handoff; privacy closure additionally revokes admitted evaluation.
+
+The resulting one-hour in-memory receipt is explicitly `IsEvaluation`, has no
+`QualificationEvidence`, and uses `UserReviewedOllamaEvaluation` rather than
+`LocalCandidateSelection`. It advertises a labelled evaluation-only exact profile
+with `off`/provider-managed `bounded` controls. Identity/model drift, privacy/ownership
+loss, expiry and explicit audited revocation close it; saving a profile and restart
+never renew authority. Selection and each turn still use the same resolver, adapter,
+host permissions, byte budgets, canonical result validation and physical quiescence.
+No new tools or automatic invocation routes are enabled.
+
+This does not establish model quality, latency, offline-egress, containment or
+integrated-host release qualification. Kora restricts its requests to the fixed
+loopback endpoint; it does not sandbox the external runtime's own network/storage.
+The [deterministic regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaEvaluationSourceTests.cs)
+prove native review/confirmation, factory admission, audit failure, revocation,
+subject drift and cancellation-ignoring cleanup with platform fakes, not a working
+installed runtime. The [user instructions](../docs/settings.md#optional-ollama-live-evaluation)
+own the complete opt-in interaction.
 
 ### Shared execution seam for original-request consumers
 

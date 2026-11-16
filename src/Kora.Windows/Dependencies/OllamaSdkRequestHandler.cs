@@ -5,7 +5,7 @@ namespace Kora.Windows.Dependencies;
 
 internal sealed class OllamaSdkRequestHandler(string model, bool streaming,
     Func<byte[], CancellationToken, Task<HttpResponseMessage>> exchange,
-    OllamaChatMessages.NativeRequest? nativeRequest = null) : HttpMessageHandler
+    OllamaChatMessages.NativeRequest? nativeRequest = null, JsonElement? outputSchema = null) : HttpMessageHandler
 {
     private int sent;
 
@@ -21,7 +21,8 @@ internal sealed class OllamaSdkRequestHandler(string model, bool streaming,
         var root = document.RootElement;
         if (root.EnumerateObject().Any(field => field.Name is not
                 ("model" or "messages" or "stream" or "think" or "options" or "CustomHeaders")
-                && !(nativeRequest is not null && field.Name is "tools" or "format"))
+                && !(nativeRequest is not null && field.Name is "tools" or "format")
+                && !(outputSchema is not null && field.Name is "format"))
             || !string.Equals(root.GetProperty("model").GetString(), model, StringComparison.Ordinal)
             || root.GetProperty("stream").ValueKind != (streaming ? JsonValueKind.True : JsonValueKind.False)
             || root.GetProperty("think").ValueKind != JsonValueKind.False
@@ -31,6 +32,9 @@ internal sealed class OllamaSdkRequestHandler(string model, bool streaming,
             || root.TryGetProperty("CustomHeaders", out var headers)
                 && (headers.ValueKind != JsonValueKind.Object || headers.EnumerateObject().Any()))
         { throw new InvalidDataException("SDK chat request exceeds its host-selected profile."); }
+        if (outputSchema is { } schema && (!root.TryGetProperty("format", out var format)
+            || !JsonElement.DeepEquals(format, schema)))
+        { throw new InvalidDataException("The SDK did not preserve the exact host-selected proposal schema. No fallback is admitted."); }
 
         using var memory = new MemoryStream();
         using (var writer = new Utf8JsonWriter(memory))

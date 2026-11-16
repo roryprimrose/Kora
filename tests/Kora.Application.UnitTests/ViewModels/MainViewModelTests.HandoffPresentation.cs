@@ -7,6 +7,20 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task Local_evaluation_metadata_must_physically_join_before_instance_handoff()
+    {
+        var f = new Fixture();
+        await f.ViewModel.InitializeAsync();
+        var joined = false;
+        f.ViewModel.BindOllamaEvaluationQuiescence(() => joined);
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
+        f.Reasoner.Requests.Should().BeEmpty();
+        joined = true;
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue();
+        f.ViewModel.Dispose();
+    }
+
+    [Fact]
     public async Task Copilot_account_setup_is_explicit_and_owns_instance_handoff_quiescence()
     {
         var f = new Fixture();

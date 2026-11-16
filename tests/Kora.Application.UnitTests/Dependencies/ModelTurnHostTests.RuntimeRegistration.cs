@@ -8,6 +8,36 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData("local", true)]
+    [InlineData("copilot", false)]
+    [InlineData("claims-production", false)]
+    [InlineData("foreign-evaluation", false)]
+    [InlineData("local-preview", false)]
+    [InlineData("claude-preview", false)]
+    [InlineData("hosted-gate", false)]
+    [InlineData("unknown-gate", false)]
+    [InlineData("missing-host", false)]
+    [InlineData("expired", false)]
+    [InlineData("revoked", false)]
+    public void Ollama_evaluation_is_separate_from_release_qualification_and_requires_current_host_admission(
+        string state, bool admitted)
+    {
+        using var f = new Fixture();
+        var evidence = ModelQualificationGate.UserReviewedOllamaEvaluation | ModelQualificationGate.IntegratedHost;
+        if (state is "claims-production") { evidence |= ModelQualificationGate.LocalCandidateSelection; }
+        if (state is "foreign-evaluation") { evidence |= ModelQualificationGate.UserReviewedCopilotEvaluation; }
+        if (state is "local-preview") { evidence |= ModelQualificationGate.UserReviewedLocalEvaluation; }
+        if (state is "claude-preview") { evidence |= ModelQualificationGate.UserReviewedClaudeEvaluation; }
+        if (state is "hosted-gate") { evidence |= ModelQualificationGate.AllPathLifecycle; }
+        if (state is "unknown-gate") { evidence |= (ModelQualificationGate)512; }
+        if (state is "missing-host") { evidence &= ~ModelQualificationGate.IntegratedHost; }
+        var registration = new ModelProviderRegistration(
+            state is "copilot" ? ModelProviderSelection.CopilotCandidate : ModelProviderSelection.OllamaCandidate,
+            evidence, state is "expired" ? f.Time.Now : f.Time.Now.AddMinutes(1), f.Adapter, () => state is not "revoked");
+        registration.IsQualified(f.Time.Now).Should().Be(admitted);
+    }
+
+    [Theory]
     [InlineData("current", true)]
     [InlineData("missing-account", false)]
     [InlineData("missing-send-review", false)]
@@ -29,16 +59,21 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData("admitted", ModelTurnOutcome.Succeeded)]
-    [InlineData("missing-host", ModelTurnOutcome.Unavailable)]
-    [InlineData("revoked", ModelTurnOutcome.Unavailable)]
-    public async Task Local_preview_uses_the_actual_host_without_claiming_candidate_qualification(string state, ModelTurnOutcome expected)
+    [InlineData(false, "admitted", ModelTurnOutcome.Succeeded)]
+    [InlineData(false, "missing-host", ModelTurnOutcome.Unavailable)]
+    [InlineData(false, "revoked", ModelTurnOutcome.Unavailable)]
+    [InlineData(true, "admitted", ModelTurnOutcome.Succeeded)]
+    [InlineData(true, "missing-host", ModelTurnOutcome.Unavailable)]
+    [InlineData(true, "revoked", ModelTurnOutcome.Unavailable)]
+    public async Task Local_evaluation_uses_the_actual_host_without_claiming_candidate_qualification(
+        bool nativeEvaluation, string state, ModelTurnOutcome expected)
     {
         using var f = new Fixture();
         using var root = f.Root();
         f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
         f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
-        var evidence = ModelQualificationGate.UserReviewedLocalEvaluation;
+        var evidence = nativeEvaluation ? ModelQualificationGate.UserReviewedOllamaEvaluation
+            : ModelQualificationGate.UserReviewedLocalEvaluation;
         if (state is not "missing-host") { evidence |= ModelQualificationGate.IntegratedHost; }
         var source = new RegistrationSource
         {

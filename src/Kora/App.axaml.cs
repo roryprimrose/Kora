@@ -112,6 +112,8 @@ public sealed partial class App : Avalonia.Application
                 viewModel,
                 Services.GetRequiredService<ILogger<SettingsWindowController>>(),
                 microphoneRecovery.Open, speechCaptionWindow);
+            settingsWindow.BindLocalEvaluation(Services.GetRequiredService<Kora.Windows.Dependencies.WindowsOllamaEvaluationSource>(),
+                Services.GetRequiredService<Kora.Application.Voice.AudioControlAdmission>());
             MarkdownDocumentRenderer.Renderer = new NativeDetailRenderer(
                 Services.GetRequiredService<ILogger<NativeDetailRenderer>>());
             detailWindow = new DetailWindowController(

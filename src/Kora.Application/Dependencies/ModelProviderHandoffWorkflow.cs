@@ -135,7 +135,7 @@ public sealed partial class ModelProviderHandoffWorkflow(
             var original = offer.Context;
             var reduced = new ModelContextEnvelope(original.Request, original.SystemPolicy, original.UserRequest,
                 original.Evidence.Where(item => !remove.Contains(item.Id)), original.CreatedAt, original.ExpiresAt,
-                original.ToolMode, original.Constraints, original.McpTool, original.WebPages);
+                original.ToolMode, original.Constraints, original.McpTool, original.WebPages, original.OutputFormat);
             var replacement = await OfferCoreAsync(offer.Policy, reduced, offer.Reason, token,
                 offer.LocalUnavailable, offer.Operation).ConfigureAwait(false);
             if (replacement.Offer is { } next)

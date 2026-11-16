@@ -1806,6 +1806,25 @@
             </WrapPanel>
             <TextBlock x:Name="LocalAdmissionStatus" Text="No local runtime has been admitted in this host lifetime. Review to inspect availability and recovery."
                        Classes="settings-description" TextWrapping="Wrap" />
+            <StackPanel x:Name="LocalEvaluationControls" IsEnabled="False" Spacing="8">
+              <TextBlock Text="Optional Ollama live evaluation" FontSize="20" FontWeight="SemiBold" />
+              <TextBlock Text="Separate from release qualification. Install and start the supported Ollama runtime and pinned model using the existing reviewed setup or separately from a trusted source. Review reads only bounded metadata at 127.0.0.1:11434; Kora does not start a process, download a model or run inference here. Other runtime versions, models and endpoints remain unavailable."
+                         Classes="settings-description" TextWrapping="Wrap" />
+              <Button x:Name="ReviewLocalEvaluation" Content="Inspect running runtime for evaluation"
+                      IsEnabled="{Binding CanChangeProviderProfile}" />
+              <CheckBox x:Name="LocalEvaluationConsent" IsChecked="False" IsEnabled="{Binding CanChangeProviderProfile}">
+                <TextBlock Text="I approve the exact reviewed runtime and pinned model for one hour of live evaluation. Quality, latency, offline-egress and integrated-host release qualification are incomplete. Kora does not sandbox the runtime's own network or storage. Existing host permissions, tool approvals and definition review still apply. This authority is memory-only and ends on privacy/ownership loss, expiry or revocation."
+                           TextWrapping="Wrap" />
+              </CheckBox>
+              <WrapPanel ItemSpacing="8" LineSpacing="6">
+                <Button x:Name="ConfirmLocalEvaluation" Content="Enable reviewed runtime for live evaluation"
+                        IsEnabled="{Binding CanChangeProviderProfile}" />
+                <Button x:Name="RevokeLocalEvaluation" Content="Revoke live evaluation"
+                        IsEnabled="{Binding CanChangeProviderProfile}" />
+              </WrapPanel>
+              <TextBlock x:Name="LocalEvaluationStatus" Text="Ollama evaluation unavailable: the native host has not supplied evaluation admission."
+                         Classes="settings-description" TextWrapping="Wrap" />
+            </StackPanel>
             <Button Content="Review pending service change" Click="OnReviewHandoffClicked"
                     AutomationProperties.Name="Review pending AI service change" />
             <TextBlock Text="Available only when Kora has a service change ready for your review. Opening the review does not send data or run a request."

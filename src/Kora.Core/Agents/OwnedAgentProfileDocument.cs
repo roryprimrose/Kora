@@ -1,10 +1,27 @@
 using Kora.Core.Artifacts;
+using System.Text.Json;
+using System.Text.Json.Schema;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Kora.Core.Agents;
 
 /// <summary>A validated inert owned original, not execution or selection authority.</summary>
 public sealed class OwnedAgentProfileDocument
 {
+    private static readonly JsonSerializerOptions ProposalJson = new()
+    {
+        AllowDuplicateProperties = false,
+        MaxDepth = 2,
+        RespectNullableAnnotations = true,
+        RespectRequiredConstructorParameters = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+    };
+
+    public static JsonElement ProposalSchema { get; } = JsonSerializer.SerializeToElement(
+        ProposalJson.GetJsonSchemaAsNode(typeof(ProposalContent), new() { TreatNullObliviousAsNonNullable = true }));
+
     private OwnedAgentProfileDocument(string name, BoundedAgentProfile profile)
     { Name = name; Profile = profile; }
 
@@ -28,6 +45,20 @@ public sealed class OwnedAgentProfileDocument
     public static OwnedAgentProfileDocument Parse(string name, string text) =>
         Parse(name, ArtifactFileDocument.Encode(text, false));
 
+    public static OwnedAgentProfileDocument ParseProposal(string name, string source, string answer)
+    {
+        if (ArtifactFileDocument.Encode(answer, false).Length > ArtifactDefinition.MaximumContentLength)
+        { throw new InvalidDataException("The complete agent proposal exceeds the source limit. Nothing was truncated or staged."); }
+        try
+        {
+            var proposal = JsonSerializer.Deserialize<ProposalContent>(answer, ProposalJson)
+                ?? throw new InvalidDataException("An agent proposal must contain only description and body.");
+            return ProposeToolFree(name, source, proposal.Description, proposal.Body);
+        }
+        catch (JsonException exception)
+        { throw new InvalidDataException("Invalid agent proposal JSON. No draft was changed.", exception); }
+    }
+
     public static OwnedAgentProfileDocument ProposeToolFree(string name, string source, string description, string body)
     {
         if (string.IsNullOrWhiteSpace(description) || description.Length > ArtifactDefinition.MaximumDescriptionLength
@@ -46,4 +77,8 @@ public sealed class OwnedAgentProfileDocument
                 field.Key + ": " + (string.Equals(field.Key, "description", StringComparison.Ordinal) ? description : field.Value) + "\n"));
         return Parse(name, header + "---\n" + body);
     }
+
+    private sealed record ProposalContent(
+        [property: JsonPropertyName("description")] string Description,
+        [property: JsonPropertyName("body")] string Body);
 }

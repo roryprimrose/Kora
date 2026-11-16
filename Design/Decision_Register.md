@@ -16,6 +16,30 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Explicit native Ollama live evaluation
+
+The product owner explicitly selected "Add explicit, native-reviewed Ollama evaluation
+admission (recommended for agent authoring)" when requesting provider testing.
+This admits a separate, opt-in evaluation path for existing governed conversation
+and owned-agent proposal workflows. It does not accept release qualification,
+enable providers automatically, expand tool permissions or authorize publication.
+
+The host, not an extension or provider response, owns native review, separate
+confirmation, exact runtime/account/session/process/model binding, typed audit,
+one-hour volatile authority, revocation and physical quiescence. Inspection reads
+only supported fixed-loopback metadata; no process start, download or inference
+is part of setup. Unsupported profiles remain unavailable without fallback.
+The complete interaction is inspect, review limitations, explicitly consent and
+confirm, refresh/select/save the labelled evaluation profile, then use the existing
+governed request/proposal interaction. Proposal adoption and Save remain separate.
+
+Quality, latency, offline-egress, containment and integrated-host release proof
+remain incomplete. Evaluation uses its own admission gate and no release evidence;
+privacy/ownership loss, exact subject drift, expiry, revocation and restart close
+availability. Native controls disclose these residual assumptions before consent.
+See [the owning contract](Local_Inference.md#explicit-native-ollama-live-evaluation)
+and [complete user interaction](../docs/settings.md#optional-ollama-live-evaluation).
+
 ## Explicit Copilot live evaluation - 2026-11-14
 
 The product owner explicitly authorized "Yes — implement opt-in live evaluation

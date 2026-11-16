@@ -10,6 +10,33 @@ namespace Kora.Core.UnitTests.Dependencies;
 
 public sealed partial class ModelToolProtocolTests
 {
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("tools")]
+    [InlineData("hosted")]
+    [InlineData("clarification")]
+    public void AgentProposalProtocolRejectsUnsupportedFormatProviderOrContinuation(string change)
+    {
+        var local = Provenance();
+        var envelope = new ModelContextEnvelope(local.Request, "policy", "input", [], DateTimeOffset.UnixEpoch,
+            DateTimeOffset.UnixEpoch.AddMinutes(1), ModelToolMode.None, outputFormat: ModelOutputFormat.OwnedAgentProposal);
+        var wire = Encoding.UTF8.GetString(envelope.Serialize());
+        if (change is "unknown") { wire = wire.Replace("\"OutputFormat\":1", "\"OutputFormat\":99", StringComparison.Ordinal); }
+        if (change is "tools")
+        {
+            var json = System.Text.Json.Nodes.JsonNode.Parse(wire)!;
+            json["ToolMode"] = (int)ModelToolMode.ReadOnly;
+            wire = json.ToJsonString();
+        }
+        var provenance = change is "hosted" ? local with { Selection = ModelProviderSelection.CopilotCandidate } : local;
+        Action operation = () =>
+        {
+            var context = ModelToolProtocol.ReadContext(Encoding.UTF8.GetBytes(wire), provenance);
+            _ = ModelToolProtocol.CreateRequest(provenance, null, context, [], 1, clarificationAllowed: change is "clarification");
+        };
+        operation.Should().Throw<InvalidDataException>();
+    }
+
     private static ModelTurnProvenance Provenance() =>
         new(new(Guid.NewGuid()), HostRequest.Create(RequestOrigin.LocalUi), ModelProviderSelection.OllamaCandidate);
 

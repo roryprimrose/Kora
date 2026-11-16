@@ -12,4 +12,5 @@ internal enum ModelQualificationGate
     UserReviewedCopilotEvaluation = 32,
     UserReviewedLocalEvaluation = 64,
     UserReviewedClaudeEvaluation = 128,
+    UserReviewedOllamaEvaluation = 256,
 }

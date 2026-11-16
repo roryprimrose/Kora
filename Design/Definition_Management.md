@@ -157,6 +157,23 @@ without YAML interpretation, stripping or truncation. No source resolution, hist
 tools, dependencies, grants, hosting, invocation or hosted fallback is introduced
 ([authoring and parser](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
 
+Tool-free v1 agent authoring requests the canonical two-field output schema
+through pinned MEAI `ChatResponseFormat.ForJsonSchema` and OllamaSharp 5.5.2,
+using the existing admitted native Ollama schema-format contract. The schema
+and typed JSON parser share the
+[Core proposal contract](../src/Kora.Core/Agents/OwnedAgentProfileDocument.cs).
+The exact local profile must still be release-admitted or separately
+[native-reviewed for live evaluation](Local_Inference.md#explicit-native-ollama-live-evaluation);
+schema support alone never enables a provider or qualifies a model.
+Required non-null strings, exact case, duplicate and unknown fields remain
+strict; canonical source/metadata validation is still authoritative. The
+final request gate rejects a missing or changed SDK schema before dispatch.
+Schema bytes count toward the complete physical request budget. Hosted and
+streaming proposal profiles are explicitly unavailable, without retry or
+fallback. This changes no provider enablement, disclosure, adoption or Save
+authority; other definition workflows and registered-setting command syntax
+remain unchanged.
+
 Complete before/after source and exact create-only destination review precedes explicit adoption into the volatile editor.
 Subsequent original refinements repeat disclosure and adoption against the captured v1 draft while preserving its host-owned metadata;
 manual v4 authoring and registered-source refinement remain unchanged. Adoption is neither Save nor enablement.

@@ -9,6 +9,36 @@ namespace Kora.Core.UnitTests.Dependencies;
 
 public sealed class ModelContextEnvelopeTests
 {
+    [Fact]
+    public void AgentProposalContextRetainsFormatAndCompleteInputBound()
+    {
+        var empty = new ModelContextEnvelope(Request, "", "", [], Now, Now.AddMinutes(1), ModelToolMode.None,
+            outputFormat: ModelOutputFormat.OwnedAgentProposal);
+        var exact = new ModelContextEnvelope(Request, "", new string('x', 32768 - empty.Serialize().Length), [],
+            Now, Now.AddMinutes(1), ModelToolMode.None, outputFormat: ModelOutputFormat.OwnedAgentProposal);
+        exact.RequireCompleteInputLimit();
+        exact.Serialize().Length.Should().Be(32768);
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), Request, ModelProviderSelection.OllamaCandidate);
+        var parsed = ModelToolProtocol.ReadContext(exact.Serialize(), provenance);
+        parsed.OutputFormat.Should().Be(ModelOutputFormat.OwnedAgentProposal);
+        parsed.Tools.Should().BeEmpty();
+        parsed.UserRequest.Should().Be(exact.UserRequest);
+        var overflow = new ModelContextEnvelope(Request, "", exact.UserRequest + "x", [], Now, Now.AddMinutes(1),
+            ModelToolMode.None, outputFormat: ModelOutputFormat.OwnedAgentProposal);
+        overflow.Invoking(value => value.RequireCompleteInputLimit()).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(ModelToolMode.ReadOnly, ModelOutputFormat.OwnedAgentProposal, false)]
+    [InlineData(ModelToolMode.None, (ModelOutputFormat)99, false)]
+    [InlineData(ModelToolMode.None, ModelOutputFormat.OwnedAgentProposal, true)]
+    public void AgentProposalFormatCannotWidenToolModeOrConstraints(ModelToolMode mode, ModelOutputFormat format, bool constrained)
+    {
+        var create = () => new ModelContextEnvelope(Request, "", "", [], Now, Now.AddMinutes(1), mode,
+            constrained ? new(1, [], 0, 1, 16000, 2000, 15000) : null, outputFormat: format);
+        create.Should().Throw<InvalidDataException>();
+    }
+
     private static readonly HostRequest Request = HostRequest.Create(RequestOrigin.LocalUi);
     private static readonly DateTimeOffset Now = DateTimeOffset.UnixEpoch;
 

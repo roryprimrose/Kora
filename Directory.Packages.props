@@ -32,8 +32,8 @@
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.0" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.Telemetry" Version="2.5.0" />
-    <PackageVersion Include="Microsoft.Testing.Platform.MSBuild" Version="2.5.0" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.Telemetry" Version="2.5.1" />
+    <PackageVersion Include="Microsoft.Testing.Platform.MSBuild" Version="2.5.1" />
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.12.1" />
     <PackageVersion Include="Microsoft.Win32.SystemEvents" Version="10.0.12" />
     <PackageVersion Include="MisakiSharp" Version="2.2.0" />
@@ -49,6 +49,6 @@
     <PackageVersion Include="WixToolset.BootstrapperApplicationApi" Version="7.0.0" />
     <PackageVersion Include="WixToolset.Netfx.wixext" Version="7.0.0" />
     <PackageVersion Include="WixToolset.Util.wixext" Version="7.0.0" />
-    <PackageVersion Include="xunit.v3" Version="4.0.1" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 </Project>

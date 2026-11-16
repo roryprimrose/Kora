@@ -5,6 +5,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AwesomeAssertions;
@@ -38,7 +39,20 @@ public sealed class ModelActionReviewNativeTests
             BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(responses)!;
         window.UpdateLayout();
         var controls = window.GetVisualDescendants().OfType<ModelActionReviewButton>().ToArray();
-        controls.Select(button => button.Content).Should().Equal("Once", "This session", "Always", "Reject");
+        controls.Select(button => button.Content is string text ? text : Avalonia.Automation.AutomationProperties.GetName(button)).Should()
+            .Equal("Reject and close", "Allow once", "Skip");
+        var optionsButton = window.GetVisualDescendants().OfType<Button>()
+            .Single(button => string.Equals(button.Name, "AllowOptionsButton", StringComparison.Ordinal));
+        optionsButton.Flyout!.ShowAt(optionsButton);
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        var options = optionsButton.Flyout is Flyout { Content: Control content }
+            ? content.GetLogicalDescendants().OfType<ModelActionReviewButton>().ToArray() : [];
+        options.Select(button => button.Content).Should().Equal("Allow for this session", "Always allow");
+        options.Should().OnlyContain(button => ReferenceEquals(button.DataContext, first) && button.IsEnabled);
+        optionsButton.Flyout.Hide();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        f.Main.ModelActionReviewCommand.Should().NotBeNullOrWhiteSpace();
+        f.Main.ModelActionReviewTitle.Should().StartWith("Allow Kora to ").And.EndWith("?");
         controls.Should().OnlyContain(button => ReferenceEquals(button.DataContext, first));
         controls[0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         f.Main.PendingModelActionReview.Should().BeSameAs(first, "a carried or synthetic click is not fresh confirmation");

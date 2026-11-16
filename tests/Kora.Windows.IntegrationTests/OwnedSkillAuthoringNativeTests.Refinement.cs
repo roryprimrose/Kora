@@ -143,7 +143,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             async Task Run(string command) { f.Main.CommandText = command; await f.Main.RunTypedCommand.ExecuteAsync(); }
             async Task<Window> Review(Task operation)
             {
-                (await Task.WhenAny(next.Task, operation)).Should().BeSameAs(next.Task,
+                (await Task.WhenAny(next.Task, operation).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken)).Should().BeSameAs(next.Task,
                     "native review must be reached: {0}", string.Join("\n", editor!.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text)));
                 var result = await next.Task;
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -186,7 +186,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var generating = Run(initialGeneration ? "owned skill generate" : "owned skill refine");
             if (scenario is "missing-input" or "missing-output")
             {
-                await generating;
+                await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 await Run("owned skill validate");
                 await Run("owned skill save");
                 next.Task.IsCompleted.Should().BeFalse();
@@ -243,7 +243,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 generating.IsCompleted.Should().BeFalse("the actual provider is still owned");
                 models.IsQuiescent.Should().BeFalse();
                 adapter.Pending!.SetResult(new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate, new("{\"body\":\"LATE\"}", null)));
-                await generating;
+                await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 models.IsQuiescent.Should().BeTrue();
                 (await store.List(f.Token)).Should().BeEmpty();
                 owned.Guidance.Text.Should().NotContain("LATE");
@@ -266,7 +266,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 sources.Should().OnlyContain(source => source.IsReadOnly);
                 Choose(comparison, scenario is "reject" ? "Reject proposal" : "Use proposal for next Save");
             }
-            await generating;
+            await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             owned.Guidance.Text.Should().Be(initial, "proposal acceptance does not edit or autosave the draft");
             owned.Critique.Text.Should().Be(critique);
             (await store.List(f.Token)).Should().BeEmpty();
@@ -352,7 +352,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 publication.Title.Should().Be("Confirm exact new skill publication");
                 (await store.List(f.Token)).Should().BeEmpty();
                 Choose(publication, scenario is "cancel-publication" ? "Cancel" : "Publish exact new version");
-                await saving;
+                await saving.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 if (scenario is "cancel-publication") { (await store.List(f.Token)).Should().BeEmpty(); }
                 else
                 {
@@ -423,7 +423,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             async Task Run(string command) { f.Main.CommandText = command; await f.Main.RunTypedCommand.ExecuteAsync(); }
             async Task<Window> Review(Task operation)
             {
-                (await Task.WhenAny(next.Task, operation)).Should().BeSameAs(next.Task,
+                (await Task.WhenAny(next.Task, operation).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken)).Should().BeSameAs(next.Task,
                     "native review must be reached: {0}", string.Join("\n", editor!.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text)));
                 var result = await next.Task;
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -531,7 +531,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             proposal.GetLogicalDescendants().OfType<TextBox>().Select(box => box.Text)
                 .Should().Equal(draft.ManifestText, adapter.Body);
             Choose(proposal, "Use proposal for next Save");
-            await generating;
+            await generating.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             owned.Guidance.Text.Should().Be(draft.Guidance);
             adapter.Calls.Should().Be(1);
             using var wire = JsonDocument.Parse(adapter.Wire!);

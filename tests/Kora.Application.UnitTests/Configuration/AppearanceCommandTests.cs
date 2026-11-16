@@ -15,7 +15,7 @@ public sealed class AppearanceCommandTests
         AppearanceCommand.Parse(transcript, name)!.Operation.Should().Be(AppearanceCommandOperation.List);
 
     [Theory]
-    [InlineData("Kora, list appearance settings", "Nova")]
+    [InlineData("Aria, list appearance settings", "Nova")]
     [InlineData("Novation, list appearance settings", "Nova")]
     [InlineData("Nova", "Nova")]
     [InlineData("what can you do", "Kora")]

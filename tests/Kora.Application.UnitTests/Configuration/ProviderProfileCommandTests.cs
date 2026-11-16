@@ -41,7 +41,8 @@ public sealed class ProviderProfileCommandTests
         command.Model.Should().BeNull();
         ProviderProfileCommand.Parse("get " + option, "Mira")!.Field.Should().Be(field);
         ProviderProfileCommand.Parse("status " + option, "Mira")!.Field.Should().Be(field);
-        ProviderProfileCommand.Parse("Kora, " + text, "Mira")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
+        ProviderProfileCommand.Parse("Kora, " + text, "Mira")!.Field.Should().Be(field);
+        ProviderProfileCommand.Parse("Aria, " + text, "Mira")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
     }
 
     [Theory]

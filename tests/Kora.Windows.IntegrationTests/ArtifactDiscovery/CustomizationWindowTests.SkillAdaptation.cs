@@ -87,7 +87,7 @@ public sealed partial class CustomizationWindowTests
                 .Single(button => Equals(button.Content, caption)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             async Task<Window> Review(Task operation)
             {
-                (await Task.WhenAny(next.Task, operation)).Should().BeSameAs(next.Task, editor?.Status.Text);
+                (await Task.WhenAny(next.Task, operation).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken)).Should().BeSameAs(next.Task, editor?.Status.Text);
                 var result = await next.Task;
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 return result;
@@ -158,7 +158,7 @@ public sealed partial class CustomizationWindowTests
                     if (confirm.IsVisible)
                     { Choose(confirm, state is "save-cancel" ? "Cancel" : "Save new disabled skill"); }
                 }
-                await saving;
+                await saving.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 if (state is "confirmed" or "edited")
                 {
                     editor.Status.Text.Should().Contain("reopened DISABLED");

@@ -99,8 +99,8 @@ public sealed partial class MainViewModel
     public bool CanEnableCallVisualProtection => !ShowVisualTextDuringCalls;
     public bool CanDisableCallVoiceActivation => AllowVoiceActivationDuringCalls;
     public string CallManualStatus => IsManualCallActive
-        ? "Manual call mode is on until you turn it off or restart Kora. Automatic detection is unchanged."
-        : "Manual call mode is off. It resets when Kora restarts.";
+        ? $"Manual call mode is on until you turn it off or restart {AssistantName}. Automatic detection is unchanged."
+        : $"Manual call mode is off. It resets when {AssistantName} restarts.";
     public string CallProtectionLimitations =>
         (communicationActivity is { IsQualified: true }
             ? "Optional Windows communications audio supplies supporting observations only, not actual-call identification. "

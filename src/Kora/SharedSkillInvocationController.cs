@@ -95,12 +95,16 @@ internal sealed partial class SharedSkillInvocationController(
             window.Instructions.Text = $"{snapshot.Name} | {snapshot.Version} | source {source.Id:D} | SHA256 {snapshot.RevisionDigest}\n\n"
                 + (toolCapable ? snapshot.Text : referenceConsent?.DeclarationText ?? review!.Text);
             window.SetReferenceConsent(referenceConsent is not null);
+            var contentsView = window;
+            window.ContentsLink.Offer(Kora.Core.Presentation.ReviewContents.FromSharedSkill(snapshot.Name ?? snapshot.RelativeFile, snapshot),
+                () => ReferenceEquals(window, contentsView) && Eligible());
             window.Closed += (_, _) => Close();
             if (getWorkbench is not null)
             {
                 window.PresentationLost += (_, _) =>
                 {
                     if (invoking) { return; }
+                    window?.ContentsLink.Retire();
                     RetireConfirmation();
                     review?.Dispose();
                     review = null;

@@ -122,7 +122,7 @@ public sealed partial class MainViewModel
                 var saved = await ConfirmPlaybackVolumeSuggestionAsync(review, CancellationToken.None, initiator);
                 RetireSpeechSummarySuggestions();
                 PresentResponse(saved ? AssistantState.Information : AssistantState.Failure,
-                    saved ? "Kora volume saved." : "Kora volume not confirmed.",
+                    saved ? $"{AssistantName} volume saved." : $"{AssistantName} volume not confirmed.",
                     saved ? audioPlaybackSettings.PlaybackVolumeStatus : "Volume was denied. Inspect Settings and audit receipts before a fresh review.",
                     refreshOutput: false, sourceAssigned: () => forceVisualResponse = true);
                 activity.Complete(saved ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);

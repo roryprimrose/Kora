@@ -244,7 +244,8 @@ public sealed class ExternalBrowserTests
     }
 
     private static Button Button(Window window, string label) => window.GetVisualDescendants().OfType<Button>()
-        .Single(button => string.Equals(button.Content as string, label, StringComparison.Ordinal));
+        .Single(button => string.Equals(button.Content as string, label, StringComparison.Ordinal)
+            || string.Equals(Avalonia.Automation.AutomationProperties.GetName(button), label, StringComparison.Ordinal));
     private static void Click(Button button)
     {
         button.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));

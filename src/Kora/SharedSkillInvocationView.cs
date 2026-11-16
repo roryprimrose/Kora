@@ -13,6 +13,7 @@ internal sealed class SharedSkillInvocationView : UserControl, IDisposable
     private bool disposed;
     internal Func<bool> CapturePresentation() => lifetime.Capture();
     internal event EventHandler? Closed;
+    internal ReviewContentsLink ContentsLink { get; } = new();
     internal event EventHandler? PresentationLost;
     internal TextBox Instructions { get; } = new() { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false, Height = 220, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
     internal TextBox Request { get; } = new() { AcceptsReturn = true, IsUndoEnabled = false, Height = 100 };
@@ -71,6 +72,7 @@ internal sealed class SharedSkillInvocationView : UserControl, IDisposable
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         panel.Children.Add(Instructions);
+        panel.Children.Add(ContentsLink.Button);
         panel.Children.Add(ReadReferences);
         ReadReferences.Click += (_, _) => run("Prepare");
         AddButton("Enable exact reviewed revision", "Enable");
@@ -189,6 +191,7 @@ internal sealed class SharedSkillInvocationView : UserControl, IDisposable
         if (disposed) { return; }
         disposed = true;
         Owner.Closed -= OwnerClosed;
+        ContentsLink.Dispose();
         lifetime.Dispose();
         Clear();
         Closed?.Invoke(this, EventArgs.Empty);

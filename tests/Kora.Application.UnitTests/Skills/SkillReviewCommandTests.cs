@@ -21,7 +21,7 @@ public sealed class SkillReviewCommandTests
     [InlineData("")]
     [InlineData(" ")]
     [InlineData("Nova Prime")]
-    [InlineData("Kora, open skill packages")]
+    [InlineData("Aria, open skill packages")]
     [InlineData("please open skill packages")]
     [InlineData("run skill packages")]
     [InlineData("use shared skill sources")]

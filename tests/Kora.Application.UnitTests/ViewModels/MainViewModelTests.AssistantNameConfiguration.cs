@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Kora.Application.Configuration;
+using Kora.Application.ViewModels;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -11,6 +12,23 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Assistant_rename_refreshes_name_bearing_status_text()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.ViewModel.SetShowVisualTextDuringCallsAsync(true);
+        var changed = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+        fixture.ViewModel.AssistantNameInput = "Nova";
+        await fixture.ViewModel.ApplyAssistantNameCommand.ExecuteAsync();
+
+        changed.Should().Contain([nameof(MainViewModel.CallVisualOverrideStatus), nameof(MainViewModel.ResponseOutputStatus),
+            nameof(MainViewModel.VoiceConsentDescription)]);
+        fixture.ViewModel.CallVisualOverrideStatus.Should().StartWith("On · Nova stays quiet");
+        fixture.ViewModel.VoiceConsentDescription.Should().Contain("Nova does not record").And.NotContain("Kora");
+    }
+
     [Fact]
     public async Task Assistant_reset_does_not_change_session_metadata_grants_or_original_question_targets()
     {
@@ -49,7 +67,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("set assistant name to Nova");
         await fixture.RunAsync("Nova, session status " + before.Authority.SessionId.Value.ToString("D"));
         fixture.ViewModel.ResponseBody.Should().Contain("Durable label");
-        await fixture.RunAsync("Kora, session help");
+        await fixture.RunAsync("Aria, session help");
         fixture.ViewModel.ResponseTitle.Should().Be("Model use is turned off.");
         fixture.Reasoner.Requests.Clear();
         await fixture.RunAsync("Kora, run lock");
@@ -155,7 +173,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.LocalModelsEnabled = false;
         var audits = fixture.Audit.Events.Count(item =>
             string.Equals(item.ActionId, "configuration.assistant-name", StringComparison.Ordinal));
-        await Run("Kora, reset your name");
+        await Run("Aria, reset your name");
         fixture.ViewModel.AssistantName.Should().Be("ノヴァ PrImE");
         fixture.Audit.Events.Count(item =>
             string.Equals(item.ActionId, "configuration.assistant-name", StringComparison.Ordinal)).Should().Be(audits);
@@ -329,7 +347,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.BeginPushToTalkAsync();
         fixture.Voice.StartCalls.Should().Be(2);
         fixture.Voice.StartedPhrases.Should().Contain("Nova get assistant name")
-            .And.Contain("Nova session help").And.NotContain("Kora session help");
+            .And.Contain("Nova session help").And.Contain("Kora session help").And.NotContain("Aria session help");
     }
 
     [Fact]

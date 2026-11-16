@@ -47,7 +47,7 @@ internal sealed partial class AllWorkViewModel
         var revision = access.ControlRevision;
         var nativeRevision = presentationRevision;
         var stop = stopAll!;
-        stopAllStatus = "Reviewing or stopping the complete host set, independent of this page. Awaiting separate original-channel confirmation or actual resource joining. Kora stays open.";
+        stopAllStatus = $"Reviewing or stopping the complete host set, independent of this page. Awaiting separate original-channel confirmation or actual resource joining. {AssistantNameDisplay.Current.Name} stays open.";
         NotifyStopAll();
         try
         {

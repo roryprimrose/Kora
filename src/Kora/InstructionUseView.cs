@@ -15,6 +15,7 @@ internal sealed class InstructionUseView : UserControl, IDisposable
     internal TextBox Review { get; } = new() { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false, MinHeight = 280 };
     internal TextBox Result { get; } = new() { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false, MinHeight = 140 };
     internal Button Confirm { get; } = new() { Content = "Submit this one reviewed local request" };
+    internal ReviewContentsLink ContentsLink { get; } = new();
     internal Button Cancel { get; } = new() { Content = "Cancel / stop and join owned work" };
     internal TextBlock Status { get; } = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
 
@@ -40,6 +41,7 @@ internal sealed class InstructionUseView : UserControl, IDisposable
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         panel.Children.Add(Review);
+        panel.Children.Add(ContentsLink.Button);
         panel.Children.Add(Confirm);
         panel.Children.Add(Cancel);
         panel.Children.Add(Status);
@@ -62,6 +64,7 @@ internal sealed class InstructionUseView : UserControl, IDisposable
         if (disposed) { return; }
         disposed = true;
         Clear();
+        ContentsLink.Dispose();
         Owner.Closed -= OwnerClosed;
         lifetime.Dispose();
         Closed?.Invoke(this, EventArgs.Empty);

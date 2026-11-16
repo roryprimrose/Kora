@@ -10,6 +10,7 @@ public sealed class NewRequestOpenCommandTests
     [InlineData("open new request", "Kora", false)]
     [InlineData("  OPEN NEW REQUEST  ", "Nova", false)]
     [InlineData("Nova, open new request", "Nova", true)]
+    [InlineData("Kora, open new request", "Nova", true)]
     [InlineData("North Star open new request", "North Star", true)]
     [InlineData("O'Brien: open new request", "O'Brien", true)]
     [InlineData("open new request", "Open", false)]
@@ -47,7 +48,8 @@ public sealed class NewRequestOpenCommandTests
     [InlineData("open sessions")]
     [InlineData("session create \"New request\"")]
     [InlineData("explain open new request")]
-    [InlineData("Kora, open new request")]
+    [InlineData("Aria, open new request")]
+    [InlineData("Nova, open sessions")]
     [InlineData("Novation open new request")]
     public void ParseDoesNotInventAliasesOrObsoletePrefixes(string input)
     {

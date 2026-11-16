@@ -7,6 +7,23 @@ public sealed class BuiltInCommandCatalog
     public IReadOnlyList<CommandDefinition> GetCommands() =>
         GetCommands(AssistantNameRules.DefaultName);
 
+    /// <summary>
+    /// Returns the configured-name commands followed, for a custom name, by the fixed-name commands that are
+    /// also accepted. Rejects a name whose phrases would route to a different action than a fixed-name phrase.
+    /// </summary>
+    public IReadOnlyList<CommandDefinition> GetActivationCommands(string assistantName)
+    {
+        var names = AssistantNameRules.GetActivationNames(assistantName);
+        if (names.Count == 1)
+        {
+            return GetCommands(names[0]);
+        }
+        var configured = GetCommands(assistantName);
+        var commands = configured.Concat(GetCommands(AssistantNameRules.DefaultName)).ToArray();
+        ThrowIfConflicting(commands, assistantName);
+        return commands;
+    }
+
     public IReadOnlyList<CommandDefinition> GetCommands(string assistantName)
     {
         var name = AssistantNameRules.Normalize(assistantName);
@@ -42,6 +59,20 @@ public sealed class BuiltInCommandCatalog
             Define(BuiltInAction.DisableHostedModels, "disable hosted models", $"Stop {name} from using hosted model providers.", "turn off hosted models", "stop using hosted models", "block hosted models", "disable cloud models"),
         ];
 
+        ThrowIfConflicting(commands, assistantName);
+
+        if (commands.SelectMany(command => command.AllPhrases)
+            .Any(phrase => WorkspaceSurfaceCommand.FixedPhrases.Contains(
+                BuiltInCommandRouter.Normalize(phrase), StringComparer.Ordinal)))
+        {
+            throw new ArgumentException("The assistant name conflicts with an exact workspace navigation phrase.",
+                nameof(assistantName));
+        }
+        return commands;
+    }
+
+    private static void ThrowIfConflicting(IEnumerable<CommandDefinition> commands, string assistantName)
+    {
         var conflict = commands
             .SelectMany(command => command.AllPhrases.Select(phrase => (
                 Phrase: BuiltInCommandRouter.Normalize(phrase),
@@ -54,15 +85,6 @@ public sealed class BuiltInCommandCatalog
                 $"The assistant name conflicts with the built-in command phrase “{conflict.Key}”.",
                 nameof(assistantName));
         }
-
-        if (commands.SelectMany(command => command.AllPhrases)
-            .Any(phrase => WorkspaceSurfaceCommand.FixedPhrases.Contains(
-                BuiltInCommandRouter.Normalize(phrase), StringComparer.Ordinal)))
-        {
-            throw new ArgumentException("The assistant name conflicts with an exact workspace navigation phrase.",
-                nameof(assistantName));
-        }
-        return commands;
     }
 
     private static CommandDefinition Define(

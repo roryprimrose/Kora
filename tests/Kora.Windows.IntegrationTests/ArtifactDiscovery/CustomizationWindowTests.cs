@@ -60,7 +60,7 @@ public sealed partial class CustomizationWindowTests
             await controller.WaitForOperation();
             windows.Should().ContainSingle();
             windows[0].IsVisible.Should().BeTrue();
-            windows[0].Title.Should().Be("Kora Customizations");
+            windows[0].Title.Should().Be("Customizations");
             navigation = new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
         ownsHost = false;

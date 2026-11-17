@@ -20,14 +20,34 @@ public sealed class AppearanceUiContractTests
         var undo = layout.Elements().Single(element =>
             string.Equals(element.Name.LocalName, "StackPanel", StringComparison.Ordinal));
         undo.Attribute("Grid.Row")!.Value.Should().Be("1");
-        undo.Elements().First().Attribute("Text")!.Value.Should().Be("{Binding SettingsUndoDescription}");
-        undo.Descendants().Where(element =>
+        undo.Elements().Single(element =>
+            string.Equals(element.Attribute("Text")?.Value, "{Binding SettingsUndoDescription}", StringComparison.Ordinal))
+            .Name.LocalName.Should().Be("TextBlock");
+        var undoActions = undo.Elements().Single(element =>
+            string.Equals(element.Name.LocalName, "StackPanel", StringComparison.Ordinal));
+        undoActions.Elements().Where(element =>
             string.Equals(element.Name.LocalName, "Button", StringComparison.Ordinal))
             .Select(element => element.Attribute("Content")!.Value)
             .Should().Equal("Undo the last settings change", "Confirm settings undo", "Cancel settings undo");
         layout.Elements().Single(element =>
             string.Equals(element.Name.LocalName, nameof(SettingsBrowser), StringComparison.Ordinal))
             .Attribute("Grid.Row")!.Value.Should().Be("2");
+    }
+
+    [Fact]
+    public void Settings_preview_notice_preserves_experimental_opt_in_and_non_production_warning()
+    {
+        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Kora", "SettingsView.axaml"));
+        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var warning = document.Descendants().Single(element =>
+            string.Equals(element.Attribute(xaml + "Name")?.Value, "DevelopmentPreviewStatus", StringComparison.Ordinal));
+        warning.Attribute("Text")!.Value.Should().Contain("DEVELOPMENT PREVIEW")
+            .And.Contain("experimental").And.Contain("explicit opt-in").And.Contain("not ready for production use");
+        warning.Attribute("IsVisible")!.Value.Should().Be("False");
+        var setup = document.Descendants().Single(element =>
+            string.Equals(element.Attribute(xaml + "Name")?.Value, "DevelopmentPreviewSetup", StringComparison.Ordinal));
+        setup.Attribute("IsVisible")!.Value.Should().Be("False");
+        setup.Attribute("Click")!.Value.Should().Be("OnDevelopmentPreviewSetup");
     }
 
     [Fact]

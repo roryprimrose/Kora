@@ -354,6 +354,9 @@ general package generation are not supported. The bounded initial v1 operation a
 6. Use the separate saved-revision review, enablement and invocation below.
    Proposal approval and publication are not consent to use the skill.
 
+Local guidance proposals use a host-selected native body-only JSON schema ([schemas](../src/Kora.Core/Dependencies/ModelOutputSchemas.cs)).
+Decoded output still passes complete package and required-input validation before comparison. Schema-constrained generation grants no Save approval ([proposal validation](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs)).
+
 Only the unchanged critique and complete current guidance go to the existing
 admitted **local tools-none** model route. No history, memory, attachments,
 reference execution, scripts, nested agents, hosted/bootstrap fallback or model

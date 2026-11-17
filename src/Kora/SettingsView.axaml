@@ -52,7 +52,7 @@
 
     <StackPanel Grid.Row="1" Margin="30,12,30,0" Spacing="8">
       <TextBlock x:Name="DevelopmentPreviewStatus" IsVisible="False" TextWrapping="Wrap"
-                 Text="DEVELOPMENT PREVIEW - experimental workflows require explicit opt-in; this is not production qualification." />
+                 Text="DEVELOPMENT PREVIEW - experimental workflows require explicit opt-in; this is not ready for production use." />
       <Button x:Name="DevelopmentPreviewSetup" IsVisible="False"
               Content="Set up development preview capabilities" Click="OnDevelopmentPreviewSetup" />
       <TextBlock Text="{Binding SettingsUndoDescription}" TextWrapping="Wrap" />
@@ -1834,12 +1834,12 @@
                        Classes="settings-description" TextWrapping="Wrap" />
             <StackPanel x:Name="LocalEvaluationControls" IsEnabled="False" Spacing="8">
               <TextBlock Text="Optional Ollama live evaluation" FontSize="20" FontWeight="SemiBold" />
-              <TextBlock Text="Separate from release qualification. Install and start the supported Ollama runtime and pinned model using the existing reviewed setup or separately from a trusted source. Review reads only bounded metadata at 127.0.0.1:11434; Kora does not start a process, download a model or run inference here. Other runtime versions, models and endpoints remain unavailable."
+              <TextBlock Text="This evaluation is not proof of readiness for production use. Install and start the supported Ollama runtime and pinned model using the existing reviewed setup or separately from a trusted source. Review reads only bounded metadata at 127.0.0.1:11434; Kora does not start a process, download a model or run inference here. Other runtime versions, models and endpoints remain unavailable."
                          Classes="settings-description" TextWrapping="Wrap" />
               <Button x:Name="ReviewLocalEvaluation" Content="Inspect running runtime for evaluation"
                       IsEnabled="{Binding CanChangeProviderProfile}" />
               <CheckBox x:Name="LocalEvaluationConsent" IsChecked="False" IsEnabled="{Binding CanChangeProviderProfile}">
-                <TextBlock Text="I approve the exact reviewed runtime and pinned model for one hour of live evaluation. Quality, latency, offline-egress and integrated-host release qualification are incomplete. Kora does not sandbox the runtime's own network or storage. Existing host permissions, tool approvals and definition review still apply. This authority is memory-only and ends on privacy/ownership loss, expiry or revocation."
+                <TextBlock Text="I approve the exact reviewed runtime and pinned model for one hour of live evaluation. Checks for answer quality, response speed, operation without external network access and use within Kora are incomplete. Kora does not sandbox the runtime's own network or storage. Existing host permissions, tool approvals and definition review still apply. This authority is memory-only and ends on privacy/ownership loss, expiry or revocation."
                            TextWrapping="Wrap" />
               </CheckBox>
               <WrapPanel ItemSpacing="8" LineSpacing="6">
@@ -1848,7 +1848,7 @@
                 <Button x:Name="RevokeLocalEvaluation" Content="Revoke live evaluation"
                         IsEnabled="{Binding CanChangeProviderProfile}" />
               </WrapPanel>
-              <TextBlock x:Name="LocalEvaluationStatus" Text="Ollama evaluation unavailable: the native host has not supplied evaluation admission."
+              <TextBlock x:Name="LocalEvaluationStatus" Text="Ollama evaluation is unavailable in this window."
                          Classes="settings-description" TextWrapping="Wrap" />
             </StackPanel>
             <Button Content="Review pending service change" Click="OnReviewHandoffClicked"

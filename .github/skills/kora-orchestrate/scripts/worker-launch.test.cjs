@@ -6,6 +6,7 @@ const { createState, applyEvent, digest, heldReservations } = require('./registr
 const fs = require('node:fs');
 const path = require('node:path');
 const { workerLaunch } = require('./worker-launch.cjs');
+const { incidentFixture, recoveryEvent, recoveryContext } = require('./incident-recovery-fixture.cjs');
 const { refinementFixture, refinementEvent, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
   supersessionBeneficiaryFixture } = require('./refinement-fixture.cjs');
@@ -17,6 +18,35 @@ const settings = {
   productionWorkspace: 'Q:\\Repos\\Kora',
   scratch: 'Q:\\Repos\\Kora.worktrees\\control\\.scratch\\run'
 };
+
+test('launch retains recovered owner exclusions, teaches distinct recovery and never relaunches that owner', () => {
+  const initial = incidentFixture();
+  const event = recoveryEvent(initial);
+  let state = applyEvent(initial, event, recoveryContext(event)).state;
+  assert.throws(() => workerLaunch(state, { type: 'launch', key: event.proof.key, pool: 'ready' }, settings),
+    /reservation/);
+  state = applyEvent(state, { id: 'incident-launch-planner', type: 'planner', owner: 'new-planner' }).state;
+  const result = applyEvent(state, { id: 'disjoint-after-recovery', type: 'candidate', owner: 'new-planner',
+    pass: 1, key: 'independent', outcome: 'Independent admitted operation', pool: 'ready', kind: 'feature',
+    head, scopes: ['src\\independent.cjs'], evidence: 'Synthetic disjoint complete outcome.' });
+  const prompt = workerLaunch(result.state, result.actions.find(action => action.type === 'launch'), settings).prompt;
+  assert.match(prompt, /Retained exclusion key=incident-owner, owner=synthetic-owner/);
+  assert.ok(prompt.includes('third-party-notices.md'));
+  assert.match(prompt, /all solution-project locks/);
+  assert.match(prompt, /UNKNOWN inbound pending\/processing counts stay UNKNOWN/);
+  assert.match(prompt, /validateRecoveryContinuation/);
+  assert.match(prompt, /never launches, resumes, clears blockers or retroauthorizes/);
+  for (const change of [
+    s => { delete s.recoveries; },
+    s => { s.items[0].scopeRecoveries = []; },
+    s => { s.recoveries[0].event.proof.workingTree.restored = []; }
+  ]) {
+    const altered = structuredClone(result.state);
+    change(altered);
+    assert.throws(() => workerLaunch(altered,
+      result.actions.find(action => action.type === 'launch'), settings));
+  }
+});
 
 test('supersession launch consumes effective exclusions and separately preserves immutable historical scope', () => {
   const state = supersessionFixture();

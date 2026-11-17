@@ -11,17 +11,25 @@ namespace Kora.Core.UnitTests.Dependencies;
 public sealed partial class ModelToolProtocolTests
 {
     [Theory]
-    [InlineData("unknown")]
-    [InlineData("tools")]
-    [InlineData("hosted")]
-    [InlineData("clarification")]
-    public void AgentProposalProtocolRejectsUnsupportedFormatProviderOrContinuation(string change)
+    [InlineData(ModelOutputFormat.OwnedAgentProposal, "unknown")]
+    [InlineData(ModelOutputFormat.OwnedAgentProposal, "tools")]
+    [InlineData(ModelOutputFormat.OwnedAgentProposal, "hosted")]
+    [InlineData(ModelOutputFormat.OwnedAgentProposal, "clarification")]
+    [InlineData(ModelOutputFormat.DefinitionBodyProposal, "unknown")]
+    [InlineData(ModelOutputFormat.DefinitionBodyProposal, "tools")]
+    [InlineData(ModelOutputFormat.DefinitionBodyProposal, "hosted")]
+    [InlineData(ModelOutputFormat.DefinitionBodyProposal, "clarification")]
+    [InlineData(ModelOutputFormat.PromptTemplateProposal, "unknown")]
+    [InlineData(ModelOutputFormat.PromptTemplateProposal, "tools")]
+    [InlineData(ModelOutputFormat.PromptTemplateProposal, "hosted")]
+    [InlineData(ModelOutputFormat.PromptTemplateProposal, "clarification")]
+    public void ProposalProtocolRejectsUnsupportedFormatProviderOrContinuation(ModelOutputFormat format, string change)
     {
         var local = Provenance();
         var envelope = new ModelContextEnvelope(local.Request, "policy", "input", [], DateTimeOffset.UnixEpoch,
-            DateTimeOffset.UnixEpoch.AddMinutes(1), ModelToolMode.None, outputFormat: ModelOutputFormat.OwnedAgentProposal);
+            DateTimeOffset.UnixEpoch.AddMinutes(1), ModelToolMode.None, outputFormat: format);
         var wire = Encoding.UTF8.GetString(envelope.Serialize());
-        if (change is "unknown") { wire = wire.Replace("\"OutputFormat\":1", "\"OutputFormat\":99", StringComparison.Ordinal); }
+        if (change is "unknown") { wire = wire.Replace("\"OutputFormat\":" + (int)format, "\"OutputFormat\":99", StringComparison.Ordinal); }
         if (change is "tools")
         {
             var json = System.Text.Json.Nodes.JsonNode.Parse(wire)!;

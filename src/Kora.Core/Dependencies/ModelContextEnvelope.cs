@@ -30,9 +30,10 @@ public sealed class ModelContextEnvelope
         ArgumentNullException.ThrowIfNull(evidence);
         _ = ModelToolProtocol.GetTools(toolMode);
         _ = constraints?.GetTools(toolMode);
+        _ = ModelOutputSchemas.GetSchema(outputFormat);
         if (outputFormat != ModelOutputFormat.Text
-            && (outputFormat != ModelOutputFormat.OwnedAgentProposal || toolMode != ModelToolMode.None || constraints is not null))
-        { throw new InvalidDataException("Agent proposal output requires an isolated tool-free authoring context."); }
+            && (toolMode != ModelToolMode.None || constraints is not null))
+        { throw new InvalidDataException("Structured proposal output requires an isolated tool-free authoring context."); }
         if (webPages is not null && toolMode != ModelToolMode.LocalWebPage)
         { throw new InvalidDataException("Explicit page destinations require the local web-page tool mode."); }
         if ((toolMode == ModelToolMode.McpReadOnly) != (mcpTool is not null))

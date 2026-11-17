@@ -62,7 +62,7 @@ public sealed class OwnedInstructionRefinementService(OwnedInstructionEditorActi
             var turnRequest = new HostRequest(new(Guid.NewGuid()), control.Session.SessionId, new(Guid.NewGuid()), control.Origin);
             var context = new ModelContextEnvelope(turnRequest, original is null ? InitialPolicy : Policy, critique,
                 [new(new(Guid.NewGuid()), turnRequest, new(1), original is null ? InitialContext : prepared.Body, ModelEvidenceDisclosure.LocalOnly)],
-                time.GetUtcNow(), expires, ModelToolMode.None);
+                time.GetUtcNow(), expires, ModelToolMode.None, outputFormat: ModelOutputFormat.DefinitionBodyProposal);
             context.RequireCompleteInputLimit();
             var candidate = await runner.AdmitAsync(LocalContextSessionTarget.Existing(sourceRequest, turnRequest, control.Session.Generation),
                 Current, token, cancellation => RequireSource(name, original, cancellation)).ConfigureAwait(false);

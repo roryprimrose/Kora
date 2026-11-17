@@ -172,7 +172,7 @@ public sealed class OwnedSkillGuidanceRefinementService(IOwnedDeclarativeSkillSt
             var request = new HostRequest(new(Guid.NewGuid()), control.Session.SessionId, new(Guid.NewGuid()), authority.Origin);
             var context = new ModelContextEnvelope(request, policy, critique,
                 [new(new(Guid.NewGuid()), request, new(1), evidence, ModelEvidenceDisclosure.LocalOnly)],
-                started, expires, ModelToolMode.None);
+                started, expires, ModelToolMode.None, outputFormat: ModelOutputFormat.DefinitionBodyProposal);
             context.RequireCompleteInputLimit();
             var candidate = await runner.AdmitAsync(LocalContextSessionTarget.Existing(sourceRequest, request, control.Session.Generation),
                 Current, token, RequireSources).ConfigureAwait(false);

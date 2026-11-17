@@ -9,22 +9,25 @@ namespace Kora.Core.UnitTests.Dependencies;
 
 public sealed class ModelContextEnvelopeTests
 {
-    [Fact]
-    public void AgentProposalContextRetainsFormatAndCompleteInputBound()
+    [Theory]
+    [InlineData(ModelOutputFormat.OwnedAgentProposal)]
+    [InlineData(ModelOutputFormat.DefinitionBodyProposal)]
+    [InlineData(ModelOutputFormat.PromptTemplateProposal)]
+    public void ProposalContextRetainsFormatAndCompleteInputBound(ModelOutputFormat format)
     {
         var empty = new ModelContextEnvelope(Request, "", "", [], Now, Now.AddMinutes(1), ModelToolMode.None,
-            outputFormat: ModelOutputFormat.OwnedAgentProposal);
+            outputFormat: format);
         var exact = new ModelContextEnvelope(Request, "", new string('x', 32768 - empty.Serialize().Length), [],
-            Now, Now.AddMinutes(1), ModelToolMode.None, outputFormat: ModelOutputFormat.OwnedAgentProposal);
+            Now, Now.AddMinutes(1), ModelToolMode.None, outputFormat: format);
         exact.RequireCompleteInputLimit();
         exact.Serialize().Length.Should().Be(32768);
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), Request, ModelProviderSelection.OllamaCandidate);
         var parsed = ModelToolProtocol.ReadContext(exact.Serialize(), provenance);
-        parsed.OutputFormat.Should().Be(ModelOutputFormat.OwnedAgentProposal);
+        parsed.OutputFormat.Should().Be(format);
         parsed.Tools.Should().BeEmpty();
         parsed.UserRequest.Should().Be(exact.UserRequest);
         var overflow = new ModelContextEnvelope(Request, "", exact.UserRequest + "x", [], Now, Now.AddMinutes(1),
-            ModelToolMode.None, outputFormat: ModelOutputFormat.OwnedAgentProposal);
+            ModelToolMode.None, outputFormat: format);
         overflow.Invoking(value => value.RequireCompleteInputLimit()).Should().Throw<InvalidDataException>();
     }
 
@@ -32,7 +35,11 @@ public sealed class ModelContextEnvelopeTests
     [InlineData(ModelToolMode.ReadOnly, ModelOutputFormat.OwnedAgentProposal, false)]
     [InlineData(ModelToolMode.None, (ModelOutputFormat)99, false)]
     [InlineData(ModelToolMode.None, ModelOutputFormat.OwnedAgentProposal, true)]
-    public void AgentProposalFormatCannotWidenToolModeOrConstraints(ModelToolMode mode, ModelOutputFormat format, bool constrained)
+    [InlineData(ModelToolMode.ReadOnly, ModelOutputFormat.DefinitionBodyProposal, false)]
+    [InlineData(ModelToolMode.None, ModelOutputFormat.DefinitionBodyProposal, true)]
+    [InlineData(ModelToolMode.ReadOnly, ModelOutputFormat.PromptTemplateProposal, false)]
+    [InlineData(ModelToolMode.None, ModelOutputFormat.PromptTemplateProposal, true)]
+    public void ProposalFormatCannotWidenToolModeOrConstraints(ModelToolMode mode, ModelOutputFormat format, bool constrained)
     {
         var create = () => new ModelContextEnvelope(Request, "", "", [], Now, Now.AddMinutes(1), mode,
             constrained ? new(1, [], 0, 1, 16000, 2000, 15000) : null, outputFormat: format);

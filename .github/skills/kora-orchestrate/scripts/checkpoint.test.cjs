@@ -6,6 +6,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { checkpoint } = require('./checkpoint.cjs');
 const { applyEvent, digest, heldReservations } = require('./registry.cjs');
+const { incidentFixture, recoveryEvent, recoveryEvidence } = require('./incident-recovery-fixture.cjs');
 const { refinementFixture, refinementEvent, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
   supersessionBeneficiaryFixture } = require('./refinement-fixture.cjs');
@@ -59,6 +60,72 @@ function supersessionCheckpoint() {
     state: supersessionFixture(), actions: [], events: [] }));
   return f;
 }
+
+function incidentCheckpoint() {
+  const f = fixture();
+  f.files.set(f.file, JSON.stringify({ version: 1, revision: 41,
+    state: incidentFixture(), actions: [], events: [] }));
+  return f;
+}
+
+test('incident recovery durably records whole event and host evidence, no actions, exact replay only', () => {
+  const f = incidentCheckpoint();
+  const event = recoveryEvent(f.run({ operation: 'read' }).state);
+  const value = f.run({ operation: 'apply', expectedRevision: 41, event,
+    recoveryEvidence: recoveryEvidence(event) });
+  assert.equal(value.revision, 42);
+  assert.deepEqual(value.actions, []);
+  assert.deepEqual(value.events[0].commands, []);
+  assert.equal(value.events[0].digest, digest(value.state.recoveries[0]));
+  const bytes = f.files.get(f.file);
+  f.run({ operation: 'apply', expectedRevision: 42, event });
+  assert.equal(f.files.get(f.file), bytes);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: 42,
+    event: { ...event, type: 'pause' } }), /replay/);
+  assert.equal(f.files.get(f.file), bytes);
+});
+
+test('incident lock contention, stale writer/proof, host readback and failed replacement preserve exact bytes', () => {
+  for (const failure of ['lock', 'revision', 'proof-revision', 'host-evidence', 'replace']) {
+    const f = incidentCheckpoint();
+    const event = recoveryEvent(f.run({ operation: 'read' }).state,
+      failure === 'proof-revision' ? 40 : 41);
+    const before = f.files.get(f.file);
+    if (failure === 'lock') f.files.set(`${f.file}.lock`, 'other live writer');
+    if (failure === 'replace') f.failReplacement();
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: failure === 'revision' ? 40 : 41,
+      event, ...(failure === 'host-evidence' ? {} : { recoveryEvidence: recoveryEvidence(event) }) }));
+    assert.equal(f.files.get(f.file), before);
+    assert.deepEqual([...f.files.keys()].sort(),
+      (failure === 'lock' ? [f.file, `${f.file}.lock`] : [f.file]).sort());
+  }
+});
+
+test('incident checkpoint rejects omitted or forged event, history, downgrade and implicit continuation journal', () => {
+  for (const change of [
+    v => { v.events = []; },
+    v => { v.events[0].digest = '0'.repeat(64); },
+    v => { v.events[0].commands = [{ type: 'resume' }]; },
+    v => { v.actions.push({ id: 'recover-synthetic-incident:0', status: 'pending', command: { type: 'resume' } }); },
+    v => { v.state.version = 5; },
+    v => { v.state.items[0].scopeRecoveries = []; },
+    v => { v.state.recoveries[0].event.proof.incident.command.command = 'altered'; },
+    v => { v.state.recoveries[0].hostEvidence.humanDecisionId = 'forged'; },
+    v => { v.state.recoveries = []; }
+  ]) {
+    const f = incidentCheckpoint();
+    const event = recoveryEvent(f.run({ operation: 'read' }).state);
+    const value = f.run({ operation: 'apply', expectedRevision: 41, event,
+      recoveryEvidence: recoveryEvidence(event) });
+    change(value);
+    f.files.set(f.file, JSON.stringify(value));
+    const before = f.files.get(f.file);
+    assert.throws(() => f.run({ operation: 'read' }));
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: 42,
+      event: { id: 'pause-invalid', type: 'pause' } }));
+    assert.equal(f.files.get(f.file), before);
+  }
+});
 
 test('supersession persists full journal binding before launch and exact replay is byte-idempotent', () => {
   const f = supersessionCheckpoint();

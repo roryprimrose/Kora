@@ -88,6 +88,8 @@ public sealed class PromptTemplateAuthoringTests
     [InlineData("{\"body\":\"Request\",\"tools\":[]}")]
     [InlineData("{\"files\":[]}")]
     [InlineData("{\"unsupported\":42}")]
+    [InlineData("{\"unsupported\":\"one\",\"unsupported\":\"two\"}")]
+    [InlineData("{\"unsupported\":\"reason\",\"body\":\"Request\"}")]
     [InlineData("```json\n{\"body\":\"Request\"}\n```")]
     public void InvalidResponseSchemasNeverControlMetadataFilesOrPaths(string answer) =>
         ((Action)(() => PromptTemplateAuthoring.Parse(Source, [File()], new(null, RequiredPromptInputs: ""), answer)))

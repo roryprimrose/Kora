@@ -4,7 +4,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Kora.Core.Dependencies;
-using Kora.Core.Agents;
 using Microsoft.Extensions.AI;
 using OllamaSharp;
 using OllamaSharp.Models.Chat;
@@ -24,8 +23,7 @@ public sealed partial class WindowsOllamaToolTransport
         var toolExchange = request.Context.ToolMode != ModelToolMode.None || request.ClarificationAllowed;
         var nativeRequest = toolExchange ? OllamaChatMessages.CreateRequest(request, selected.Model, exchanges) : null;
         var streaming = publish is not null && !toolExchange;
-        JsonElement? outputSchema = request.Context.OutputFormat == ModelOutputFormat.OwnedAgentProposal
-            ? OwnedAgentProfileDocument.ProposalSchema : null;
+        var outputSchema = ModelOutputSchemas.GetSchema(request.Context.OutputFormat);
         HttpResponseMessage? physicalResponse = null;
         OllamaAnswerStream? physicalStream = null;
         using var sdkHttp = new HttpClient(new OllamaSdkRequestHandler(selected.Model, streaming, SendAsync, nativeRequest, outputSchema))

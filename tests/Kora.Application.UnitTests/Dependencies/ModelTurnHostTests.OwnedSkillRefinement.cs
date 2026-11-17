@@ -109,6 +109,7 @@ public sealed partial class ModelTurnHostTests
         wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().Be(f.Draft.Guidance);
         wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
         wire.RootElement.GetProperty("ToolMode").GetInt32().Should().Be((int)ModelToolMode.None);
+        wire.RootElement.GetProperty("OutputFormat").GetInt32().Should().Be((int)ModelOutputFormat.DefinitionBodyProposal);
         var review = new SkillRefinementReview { Confirm = false };
         (await f.Service.Save(proposal, f.Authority, review, f.Eligible, Token)).Should().BeNull();
         f.Store.Writes.Should().Be(0);
@@ -206,6 +207,8 @@ public sealed partial class ModelTurnHostTests
 
     [Theory]
     [InlineData("{\"body\":\"NEW\",\"id\":\"other\"}", false)]
+    [InlineData("{\"body\":\"one\",\"body\":\"two\"}", false)]
+    [InlineData("{\"unsupported\":\"not a prompt\"}", false)]
     [InlineData("```json\n{\"body\":\"NEW\"}\n```", false)]
     [InlineData("{\"body\":\"\\uD800\"}", false)]
     [InlineData("{\"body\":\"  \"}", false)]

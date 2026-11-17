@@ -54,6 +54,7 @@ public sealed partial class ModelTurnHostTests
         evidence[0].GetProperty("Content").GetString().Should().Be(original.Document.Body.Replace("OLD_BODY", "CURRENT_DRAFT", StringComparison.Ordinal));
         wire.RootElement.GetProperty("SystemPolicy").GetString().Should().NotContain("CURRENT_DRAFT").And.NotContain(critique);
         wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
+        wire.RootElement.GetProperty("OutputFormat").GetInt32().Should().Be((int)ModelOutputFormat.DefinitionBodyProposal);
         f.Store.Writes.Should().Be(0);
         f.Model.RetainCalls.Should().Be(0);
         var review = new RefinementSaveReview { Confirmed = false };

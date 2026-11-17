@@ -207,13 +207,13 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
                 if (!Current()) { captured.Revoke(command.Number); return; }
                 var snapshot = captured.Read(command.Number)!;
                 presentations[command.Number - 1] = new(captured, panel, revision, target, snapshot.Review!);
-                if (ReadCurrentPresentation(command.Number, panel) is { } reviewed) { ShowReview(reviewed, panel); }
+                if (ReadCurrentPresentation(command.Number, panel) is { } reviewed) { ShowReview(reviewed, panel, command.Number); }
             }
             else if (command.Action is "Resolve")
             {
                 RequireCurrentPresentation(command.Number, panel);
                 await captured.ResolveAsync(command.Number, origin, CancellationToken.None);
-                if (Current() && ReadCurrentPresentation(command.Number, panel) is { } resolved) { ShowReview(resolved, panel); }
+                if (Current() && ReadCurrentPresentation(command.Number, panel) is { } resolved) { ShowReview(resolved, panel, command.Number); }
             }
             else if (command.Action is "Invoke")
             {
@@ -240,9 +240,12 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
         finally { invoking[indexRun] = false; }
     }
 
-    private static void ShowReview(AgentRunSet.AgentRunSnapshot snapshot, AgentRunSetView.RunPanel panel)
+    private void ShowReview(AgentRunSet.AgentRunSnapshot snapshot, AgentRunSetView.RunPanel panel, int number)
     {
         var review = snapshot.Review!;
+        panel.ContentsLink.Offer(
+            Kora.Core.Presentation.ReviewContents.FromAgent(review.Profile.Document.Definition.Name, review.Profile, review.References?.Bundle),
+            () => Eligible() && ReferenceEquals(ReadCurrentPresentation(number, panel)?.Review, review));
         panel.Review.Text = $"LOCAL TEXT -> TEXT; NO TOOLS\n{review.Profile.Document.Text}\n\nORIGINAL TASK\n{review.Input}\n\n"
             + string.Join("\n\n", review.References?.Bundle?.Instructions.Select(item => item.Document.Text) ?? []);
         panel.Resolve.IsEnabled = review.References is not null && !review.IsInvocationReady;

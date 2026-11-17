@@ -25,6 +25,7 @@ internal sealed class PromptParameterView : UserControl, IDisposable
     internal readonly Button Preview = new() { Content = "Preview complete expanded USER REQUEST" };
     internal readonly Button Use = new() { Content = "Use reviewed request (separate admission)", IsEnabled = false };
     internal readonly TextBlock Expanded = new() { TextWrapping = TextWrapping.Wrap };
+    internal ReviewContentsLink ContentsLink { get; } = new();
     internal readonly TextBlock Status = new() { TextWrapping = TextWrapping.Wrap };
     internal readonly ListBox Targets = new() { MinHeight = 80, MaxHeight = 180 };
     internal readonly Button RefreshTargets = new() { Content = "Refresh session metadata" };
@@ -77,6 +78,7 @@ internal sealed class PromptParameterView : UserControl, IDisposable
         top.Children.Add(buttons);
         top.Children.Add(Status);
         top.Children.Add(Expanded);
+        top.Children.Add(ContentsLink.Button);
         top.Children.Add(new TextBlock
         {
             Text = "Optional explicit retention: select ONE existing Active session. No default target, name/focus routing or implicit Resume. "
@@ -103,6 +105,7 @@ internal sealed class PromptParameterView : UserControl, IDisposable
 
     internal void RetirePreview()
     {
+        ContentsLink.Retire();
         Expanded.Text = string.Empty;
         Use.IsEnabled = false;
         RetireReview();
@@ -132,6 +135,7 @@ internal sealed class PromptParameterView : UserControl, IDisposable
         if (disposed) { return; }
         disposed = true;
         Owner.Closed -= OwnerClosed;
+        ContentsLink.Dispose();
         lifetime.Dispose();
         ClearPrivateText();
         Content = null;

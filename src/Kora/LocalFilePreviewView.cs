@@ -450,8 +450,8 @@ internal sealed partial class LocalFilePreviewView : UserControl, IDisposable
             + SessionFileAttachment.CopyInventory, button, null, AttachmentDisclosure);
     }
 
-    private const string AttachmentDisclosure =
-        "Explicit durable retention: Kora copies the exact original bytes into the existing private interaction database. "
+    private static string AttachmentDisclosure =>
+        $"Explicit durable retention: {AssistantNameDisplay.Current.Name} copies the exact original bytes into the existing private interaction database. "
         + "The historical snapshot follows this exact session's retention and deletion; it is readable locally after restart, including retained Done sessions. "
         + "Close only clears this native viewer, not durable content. Removal is a separate exact review and confirmation.\n"
         + "This is not a fresh filesystem observation, managed knowledge, model context, egress, execution, clipboard or history. "

@@ -74,7 +74,7 @@ public sealed class SessionQueueCancellationReviewCommandTests
     [InlineData("session conversation help")]
     [InlineData("queue cancel-selected-review")]
     [InlineData("sessionx queue cancellation help")]
-    [InlineData("Kora session queue cancellation help")]
+    [InlineData("Aria session queue cancellation help")]
     public void UnrelatedAndOldNameInputsDoNotStealExistingFamilies(string input) =>
         SessionQueueCancellationReviewCommand.Parse(input, "Nova").Should().BeNull();
 

@@ -1,5 +1,6 @@
 <UserControl x:Class="Kora.SessionInteractionView"
     xmlns="https://github.com/avaloniaui"
+    xmlns:assistant="using:Kora"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Kora"
     xmlns:controls="using:Kora.Controls">
@@ -12,7 +13,7 @@
           <TextBlock Text="{Binding SubmittedAt, StringFormat='You - {0:g}'}" Classes="eyebrow" />
           <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
           <StackPanel IsVisible="{Binding HasAssistantResponse}" Spacing="6">
-            <TextBlock Text="Kora" Classes="eyebrow" />
+            <TextBlock Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}}" Classes="eyebrow" />
             <TextBlock Text="{Binding AssistantResponse.Body, Converter={StaticResource BriefAnswer}}" TextWrapping="Wrap" />
             <Button Name="ReplyToAssistantAnswer" Content="_Reply to this answer"
                 IsEnabled="{Binding $parent[UserControl].DataContext.CanReplyToAnswer}"

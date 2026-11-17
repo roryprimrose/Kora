@@ -46,7 +46,7 @@ public sealed class WebResultDetailsBindingTests
                 window.UpdateLayout();
                 var source = fixture.Main.WebResultDetailsReference;
                 var prepare = window.GetVisualDescendants().OfType<Button>().Single(button =>
-                    string.Equals(button.Content as string, "Review local summary of this exact web result", StringComparison.Ordinal));
+                    string.Equals(Avalonia.Automation.AutomationProperties.GetName(button), "Review local summary of this exact web result", StringComparison.Ordinal));
                 prepare.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Dispatcher.UIThread.RunJobs();
                 window.UpdateLayout();
@@ -55,7 +55,7 @@ public sealed class WebResultDetailsBindingTests
                 window.IsVisible.Should().BeTrue();
                 fixture.Main.WebSummaryConfirmations.Should().ContainSingle();
                 var confirm = window.GetVisualDescendants().OfType<Button>().Single(button =>
-                    string.Equals(button.Content as string, "Use this exact web result with the local model", StringComparison.Ordinal));
+                    string.Equals(Avalonia.Automation.AutomationProperties.GetName(button), "Use this exact web result with the local model", StringComparison.Ordinal));
                 confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Dispatcher.UIThread.RunJobs();
                 window.UpdateLayout();
@@ -102,7 +102,7 @@ public sealed class WebResultDetailsBindingTests
                 Dispatcher.UIThread.RunJobs();
                 window.UpdateLayout();
                 var originalButton = window.GetVisualDescendants().OfType<Button>()
-                    .Single(button => string.Equals(button.Content as string, "Open exact web-result details", StringComparison.Ordinal));
+                    .Single(button => string.Equals(Avalonia.Automation.AutomationProperties.GetName(button), "Open exact web-result details", StringComparison.Ordinal));
                 var original = (DetailContentReference)originalButton.Tag!;
                 originalButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 originalButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -130,7 +130,7 @@ public sealed class WebResultDetailsBindingTests
                 fixture.Main.WebResultDetailStatus.Should().Contain("retired");
                 views.Should().ContainSingle();
                 var next = window.GetVisualDescendants().OfType<Button>()
-                    .Single(button => string.Equals(button.Content as string, "Open exact web-result details", StringComparison.Ordinal));
+                    .Single(button => string.Equals(Avalonia.Automation.AutomationProperties.GetName(button), "Open exact web-result details", StringComparison.Ordinal));
                 next.Should().NotBeSameAs(originalButton);
                 next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 views.Should().HaveCount(2);

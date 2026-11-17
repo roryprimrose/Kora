@@ -31,12 +31,14 @@ internal sealed class AgentRunSetView : UserControl, IDisposable
         internal TextBlock Status { get; } = new() { Text = "Not reviewed.", TextWrapping = Avalonia.Media.TextWrapping.Wrap };
         internal Button Resolve { get; } = new() { Content = "Consent to read declared instructions", IsEnabled = false };
         internal Button Confirm { get; } = new() { Content = "Confirm this exact invocation", IsEnabled = false };
+        internal ReviewContentsLink ContentsLink { get; } = new();
         internal long Revision { get; set; }
         internal Kora.Core.Hosting.RequestOrigin InputOrigin { get; set; } = Kora.Core.Hosting.RequestOrigin.LocalUi;
         internal Guid? Next { get; set; }
 
         internal void ClearReview()
         {
+            ContentsLink.Retire();
             Review.Text = Result.Text = string.Empty;
             Resolve.IsEnabled = Confirm.IsEnabled = false;
         }
@@ -88,6 +90,7 @@ internal sealed class AgentRunSetView : UserControl, IDisposable
             panel.Children.Add(run.Input);
             Add("Consent to read profile and review", "Review");
             panel.Children.Add(run.Review);
+            panel.Children.Add(run.ContentsLink.Button);
             panel.Children.Add(run.Resolve);
             run.Resolve.Click += (_, _) => execute(new("Resolve", number));
             panel.Children.Add(run.Confirm);

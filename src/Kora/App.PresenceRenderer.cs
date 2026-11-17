@@ -62,8 +62,8 @@ public sealed partial class App
             rendererSwitchContext = null;
             RendererSwitchFailed(logger, exception);
             activity.Complete(HostOperationOutcome.Failed);
-            const string message = "The saved animation mode could not be applied. Kora did not switch to another mode automatically. "
-                + "Choose the other animation mode to try again. If Kora could not close the old animation, exit Kora normally.";
+            var message = $"The saved animation mode could not be applied. {AssistantNameDisplay.Current.Name} did not switch to another mode automatically. "
+                + $"Choose the other animation mode to try again. If {AssistantNameDisplay.Current.Name} could not close the old animation, exit {AssistantNameDisplay.Current.Name} normally.";
             viewModel.ReportPresenceRendererStatus(message);
             viewModel.ReportHostInteractionFailure(message);
         }

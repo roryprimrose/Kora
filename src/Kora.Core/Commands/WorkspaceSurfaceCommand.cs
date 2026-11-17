@@ -45,6 +45,9 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int?
         ("show MCP servers", WorkspaceSurfaceTarget.McpServers),
         ("Is there an MCP server for WorkIQ?", WorkspaceSurfaceTarget.WorkIqMcp),
         ("Is there an MCP server for WorkIQ", WorkspaceSurfaceTarget.WorkIqMcp),
+        ("show contents", WorkspaceSurfaceTarget.ReviewContents),
+        ("view contents", WorkspaceSurfaceTarget.ReviewContents),
+        ("show the contents", WorkspaceSurfaceTarget.ReviewContents),
     ];
 
     public static IReadOnlyList<string> FixedPhrases { get; } =
@@ -104,6 +107,9 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int?
             && !normalized.StartsWith("show me the mcp servers", StringComparison.Ordinal)
             && !normalized.StartsWith("show mcp servers", StringComparison.Ordinal)
             && !normalized.StartsWith("is there an mcp server for workiq", StringComparison.Ordinal)
+            && !normalized.StartsWith("show contents", StringComparison.Ordinal)
+            && !normalized.StartsWith("view contents", StringComparison.Ordinal)
+            && !normalized.StartsWith("show the contents", StringComparison.Ordinal)
             && !(normalized.StartsWith("select the ", StringComparison.Ordinal)
                 && normalized.Contains(" session", StringComparison.Ordinal)))
         {

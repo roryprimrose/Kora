@@ -32,4 +32,6 @@ public enum WorkspaceSurfaceTarget
     WorkIqMcp,
     /// <summary>Read an explicitly application-wide bounded page of committed authority audit.</summary>
     AuditHistory,
+    /// <summary>Show the read-only contents of the most recent current item review; viewing is not approval.</summary>
+    ReviewContents,
 }

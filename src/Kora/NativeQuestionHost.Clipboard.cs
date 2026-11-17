@@ -10,7 +10,7 @@ internal sealed partial class NativeQuestionHost
 {
     private static readonly QuestionSpec ClipboardPermissionSpec = new(
         "Allow the built-in clipboard tool to explain explicitly reviewed snapshots using a local-only model? "
-        + "You are responsible for sensitive material you place in the clipboard. Kora does not classify or scan it. "
+        + $"You are responsible for sensitive material you place in the clipboard. {AssistantNameDisplay.Current.Name} does not classify or scan it. "
         + "Once permits this request; This session and Always permit subsequent explicitly reviewed requests within that scope. "
         + "Cancel question denies this request without creating a grant. "
         + "Each explanation still requires its own exact-snapshot model confirmation. No hosted model, tools, speech or history.",
@@ -19,7 +19,7 @@ internal sealed partial class NativeQuestionHost
 
     private static readonly QuestionSpec ClipboardReadPermissionSpec = new(
         "Allow the built-in clipboard tool to read one current plain-text snapshot into a volatile native preview? "
-        + "You are responsible for sensitive material you place in the clipboard. Kora does not classify or scan it. "
+        + $"You are responsible for sensitive material you place in the clipboard. {AssistantNameDisplay.Current.Name} does not classify or scan it. "
         + "Once permits this read; This session and Always permit subsequent explicitly requested reads within that scope. "
         + "Cancel question denies this request without reading the clipboard or creating a grant. "
         + "This does not authorize model use, writing, speech or history.",

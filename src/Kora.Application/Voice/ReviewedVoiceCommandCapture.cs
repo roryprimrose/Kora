@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Kora.Core.Configuration;
 using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -13,8 +14,10 @@ public sealed partial class ReviewedVoiceCommandCapture(
     IUiDispatcher dispatcher,
     Func<ReviewedVoiceCommandTarget?> observe,
     ILogger<ReviewedVoiceCommandCapture> logger,
-    TimeProvider time) : IAsyncDisposable
+    TimeProvider time,
+    Func<string>? assistantName = null) : IAsyncDisposable
 {
+    private readonly Func<string> assistantName = assistantName ?? (static () => AssistantNameRules.DefaultName);
     private readonly Lock gate = new();
     private Turn? turn;
     private Task retirement = Task.CompletedTask;
@@ -292,7 +295,7 @@ public sealed partial class ReviewedVoiceCommandCapture(
         catch (Exception exception)
         {
             Failed(logger, exception.GetType().Name);
-            lock (gate) { status = "Microphone release unconfirmed. Restart Kora before capturing again."; }
+            lock (gate) { status = $"Microphone release unconfirmed. Restart {assistantName()} before capturing again."; }
             Publish();
             throw;
         }

@@ -143,7 +143,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync("Nova, " + phrase, 1);
         observed.Should().Equal((target, RequestOrigin.LocalUi), (target, RequestOrigin.ActivatedVoice));
         f.Voice.StartedPhrases.Should().Contain(phrase).And.Contain("Nova " + phrase)
-            .And.NotContain("Kora " + phrase);
+            .And.Contain("Kora " + phrase).And.NotContain("Aria " + phrase);
         await f.RaiseActivatedTranscriptAsync(phrase, 1);
         observed.Should().HaveCount(2);
         f.ViewModel.ResponseBody.Should().Contain("current available assistant-name prefix");

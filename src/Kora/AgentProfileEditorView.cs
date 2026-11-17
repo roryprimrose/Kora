@@ -66,7 +66,7 @@ internal sealed class AgentProfileEditorView : UserControl, IDisposable
         AutomationProperties.SetName(DescriptionRequest, "Original agent description or refinement");
         DescriptionRequest.PlaceholderText = "Describe a local text-only role, or refine this draft";
         panel.Children.Add(DescriptionRequest);
-        Add("Ask Kora: review local authoring disclosure", "Ask");
+        Add($"Ask {AssistantNameDisplay.Current.Name}: review local authoring disclosure", "Ask");
         panel.Children.Add(Source);
         Add("Validate complete v1 or v4 source", "Validate");
         Add("Review Save (new or existing original)", "Review");

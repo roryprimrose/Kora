@@ -1,5 +1,6 @@
 <UserControl x:Class="Kora.SessionsManagementView"
     xmlns="https://github.com/avaloniaui"
+    xmlns:assistant="using:Kora"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Kora"
     xmlns:controls="using:Kora.Controls"
@@ -586,7 +587,7 @@
                                   AutomationProperties.Name="Run-only routine quiet status; Work and Maintenance only, failures and required questions unchanged" />
           <WrapPanel>
             <Button x:Name="QuietRoutineNotices" Content="Quiet routine notices for this run" IsEnabled="{Binding CanChangeRoutineQuiet}"
-                    AutomationProperties.Name="Enable quiet for Work and Maintenance notices and rows until explicitly cleared or Kora restarts; no speech or work changes" />
+                    AutomationProperties.Name="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='Enable quiet for Work and Maintenance notices and rows until explicitly cleared or {0} restarts; no speech or work changes'}" />
             <Button x:Name="ClearRoutineQuiet" Content="Turn routine quiet off" IsEnabled="{Binding CanChangeRoutineQuiet}"
                     AutomationProperties.Name="Clear run-only routine quiet; future new notices only, no suppressed backlog replay" />
             <Button x:Name="ResetRoutineQuiet" Content="Reset routine quiet to Off" IsEnabled="{Binding CanChangeRoutineQuiet}"

@@ -6,6 +6,7 @@ using Kora.Core.Voice;
 using Microsoft.Extensions.Logging;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
+using Kora.Core.Configuration;
 using Kora.Core.Hosting;
 
 namespace Kora.Application.ViewModels;
@@ -26,7 +27,7 @@ public sealed partial class MainViewModel
         if (voiceRecognition is not IQuestionVoiceRecognitionService capture) { return null; }
         questionVoiceReplies = new(questions, capture, time, uiDispatcher, ObserveQuestionVoiceAdmission,
             SpeakExactQuestionAsync, replyLogger, TryStopQuestionListeningAsync, GetListeningStopPhrases,
-            () => conversationalReplies?.Get());
+            () => conversationalReplies?.Get(), () => AssistantName);
         questionVoiceReplies.Changed += OnDetailPresentationDecisionChanged;
         PropertyChanged += OnQuestionVoiceReadinessChanged;
         dictationQuestions = questions;
@@ -34,9 +35,10 @@ public sealed partial class MainViewModel
         return questionVoiceReplies;
     }
 
-    private IEnumerable<string> GetListeningStopPhrases() => commandCatalog.GetCommands(AssistantName)
-        .Single(command => command.Action == BuiltInAction.DisableListening).AllPhrases
-        .SelectMany(phrase => new[] { phrase, $"{AssistantName} {phrase}" });
+    private IEnumerable<string> GetListeningStopPhrases() => AssistantNameRules.WithActivationNames(
+        commandCatalog.GetCommands(AssistantName)
+            .Single(command => command.Action == BuiltInAction.DisableListening).AllPhrases,
+        AssistantName);
 
     private async Task<bool> TryStopQuestionListeningAsync(string transcript)
     {

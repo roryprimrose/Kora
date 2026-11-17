@@ -15,6 +15,7 @@ internal sealed class NamedSkillInvocationView : UserControl, IDisposable
     internal event EventHandler? PresentationLost;
     internal ComboBox Choices { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     internal TextBox Instructions { get; } = ReadOnly("Complete exact selected skill source and instructions", 200);
+    internal ReviewContentsLink ContentsLink { get; } = new();
     internal ComboBox Targets { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     internal TextBox Request { get; } = new() { AcceptsReturn = true, IsUndoEnabled = false, Height = 100 };
     internal TextBox Confirmation { get; } = ReadOnly("Exact named skill invocation preview", 180);
@@ -55,6 +56,7 @@ internal sealed class NamedSkillInvocationView : UserControl, IDisposable
         panel.Children.Add(Choices);
         Add("Review exactly the selected source choice", "ReviewChoice");
         panel.Children.Add(Instructions);
+        panel.Children.Add(ContentsLink.Button);
         Add("Authorize only the selected owned package's declared Markdown reads", "ReadOwnedReferences");
         panel.Children.Add(LiteralInputs);
         panel.Children.Add(new TextBlock
@@ -128,6 +130,7 @@ internal sealed class NamedSkillInvocationView : UserControl, IDisposable
         if (disposed) { return; }
         disposed = true;
         Owner.Closed -= OwnerClosed;
+        ContentsLink.Dispose();
         lifetime.Dispose();
         Clear();
         Closed?.Invoke(this, EventArgs.Empty);

@@ -151,24 +151,39 @@ public sealed class BuiltInCommandRouterTests
     }
 
     [Fact]
-    public void Match_uses_the_configured_name_without_retaining_the_default_alias()
+    public void Match_accepts_the_configured_name_and_the_fixed_default_name()
     {
         var router = new BuiltInCommandRouter(catalog);
 
         var customMatch = router.Match("Nova, what can you do?", "Nova");
-        var oldNameMatch = router.Match("Kora, what can you do?", "Nova");
+        var defaultNameMatch = router.Match("Kora, what can you do?", "Nova");
+        var formerCustomNameMatch = router.Match("Aria, what can you do?", "Nova");
 
         customMatch.Command?.Action.Should().Be(BuiltInAction.ShowHelp);
         customMatch.NormalizedTranscript.Should().Be("what can you do");
-        oldNameMatch.IsMatch.Should().BeFalse();
+        defaultNameMatch.Command?.Action.Should().Be(BuiltInAction.ShowHelp);
+        defaultNameMatch.NormalizedTranscript.Should().Be("what can you do");
+        formerCustomNameMatch.IsMatch.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Match_prefers_the_longest_accepted_name_when_the_custom_name_starts_with_the_default()
+    {
+        var router = new BuiltInCommandRouter(catalog);
+
+        router.Match("Kora Bot, open settings", "Kora Bot").NormalizedTranscript.Should().Be("open settings");
+        router.Match("Kora, open settings", "Kora Bot").NormalizedTranscript.Should().Be("open settings");
+        router.Match("Kora Bot", "Kora Bot").NormalizedTranscript.Should().BeEmpty();
+        router.Match("Kora", "Kora Bot").NormalizedTranscript.Should().BeEmpty();
     }
 
     [Theory]
     [InlineData("Nova, stop listening", true)]
     [InlineData("NOVA, DISABLE LISTENING!", true)]
-    [InlineData("Kora, stop listening", false)]
+    [InlineData("Kora, stop listening", true)]
+    [InlineData("Aria, stop listening", false)]
     [InlineData("Nova, please stop listening", false)]
-    public void Listening_stop_uses_only_the_exact_current_prefix(string text, bool matched)
+    public void Listening_stop_uses_only_an_exact_accepted_prefix(string text, bool matched)
     {
         var result = new BuiltInCommandRouter(catalog).Match(text, "Nova");
 
@@ -214,7 +229,27 @@ public sealed class BuiltInCommandRouterTests
             .Should().Be(BuiltInAction.ExitApplication);
         router.Match("Nova, which version of Nova is this?", "Nova").Command?.Action
             .Should().Be(BuiltInAction.ShowVersion);
-        router.Match("Nova, close Kora", "Nova").IsMatch.Should().BeFalse();
+        router.Match("Nova, close Kora", "Nova").Command?.Action
+            .Should().Be(BuiltInAction.ExitApplication);
+        router.Match("Nova, close Aria", "Nova").IsMatch.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Activation_commands_reject_a_custom_name_that_conflicts_with_a_default_name_phrase()
+    {
+        catalog.GetCommands("Kora settings").Should().NotBeEmpty();
+
+        var action = () => catalog.GetActivationCommands("Kora settings");
+
+        action.Should().Throw<ArgumentException>()
+            .WithMessage("*conflicts*show kora settings*");
+    }
+
+    [Fact]
+    public void Activation_commands_for_the_default_name_are_the_default_catalogue()
+    {
+        catalog.GetActivationCommands("KORA").Select(command => command.CanonicalPhrase)
+            .Should().Equal(catalog.GetCommands("KORA").Select(command => command.CanonicalPhrase));
     }
 
     [Theory]
@@ -258,6 +293,9 @@ public sealed class BuiltInCommandRouterTests
     [InlineData("stop speaking", "Kora", false)]
     [InlineData("Koral, stop speaking", "Kora", false)]
     [InlineData("Kora", "Kora", false)]
+    [InlineData("Kora, stop speaking", "Nova", true)]
+    [InlineData("Aria, stop speaking", "Nova", false)]
+    [InlineData("Kora", "Nova", false)]
     public void IsActivationPrefixed_detects_a_complete_configured_name_prefix(
         string transcript,
         string assistantName,

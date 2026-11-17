@@ -31,11 +31,11 @@ public sealed class WindowsSpeechRateCommandTests
     }
 
     [Theory]
-    [InlineData("Kora, list rate settings")]
+    [InlineData("Aria, list rate settings")]
     [InlineData("NovaX list rate settings")]
     [InlineData("Nova")]
     [InlineData("make speech faster")]
-    [InlineData("Kora, speak faster")]
+    [InlineData("Aria, speak faster")]
     [InlineData("NovaX speak slower")]
     [InlineData("please speak faster")]
     [InlineData("speak louder")]

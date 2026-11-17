@@ -14,7 +14,7 @@ public sealed record ClipboardSnapshotStatusCommand(bool IsActivated, bool IsHel
     public static ClipboardSnapshotStatusCommand? Parse(string input, string assistantName)
     {
         var text = input.AsSpan();
-        var name = AssistantNameRules.Normalize(assistantName);
+        var name = AssistantNameRules.ResolveActivationName(input, assistantName);
         var activated = text.StartsWith(name, StringComparison.OrdinalIgnoreCase)
             && text.Length > name.Length && (text[name.Length] == ',' || text[name.Length] == ' ');
         if (activated) { text = text[name.Length..].TrimStart(" ,"); }

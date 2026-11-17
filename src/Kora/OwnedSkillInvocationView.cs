@@ -13,6 +13,7 @@ internal sealed class OwnedSkillInvocationView : UserControl, IDisposable
     internal Func<bool> CapturePresentation() => lifetime.Capture();
     internal event EventHandler? Closed;
     internal event EventHandler? PresentationLost;
+    internal ReviewContentsLink ContentsLink { get; } = new();
     internal TextBox Instructions { get; } = ReadOnly("Complete exact saved owned skill package", 200);
     internal TextBox Request { get; } = new() { AcceptsReturn = true, IsUndoEnabled = false, Height = 100 };
     internal TextBox Address { get; } = new() { IsUndoEnabled = false };
@@ -47,6 +48,7 @@ internal sealed class OwnedSkillInvocationView : UserControl, IDisposable
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(Instructions);
+        panel.Children.Add(ContentsLink.Button);
         Add("Authorize only the exact declared owned Markdown reads", "read-references");
         panel.Children.Add(LiteralInputs);
         Add("Enable exact reviewed revision once", "enable");
@@ -112,6 +114,7 @@ internal sealed class OwnedSkillInvocationView : UserControl, IDisposable
         if (disposed) { return; }
         disposed = true;
         Owner.Closed -= OwnerClosed;
+        ContentsLink.Dispose();
         lifetime.Dispose();
         Clear();
         Closed?.Invoke(this, EventArgs.Empty);

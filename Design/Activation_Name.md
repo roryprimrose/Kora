@@ -23,10 +23,16 @@ consistently for:
   prefix.
 - Visual responses, spoken responses, listening guidance, and voice preview.
 
-A committed custom name is custom-only. The previous name, including "Kora",
-is retired as a command prefix and is not retained as a hidden recovery alias.
-Tray and mouse controls remain available if the user cannot use the configured
-name.
+The fixed product name "Kora" is always accepted alongside a committed custom
+name for every command, prefix and name-activation check, including voice
+approvals and name-gated settings (user decision, superseding the earlier
+custom-only rule). Matching is case-insensitive with the same delimiters as
+the configured name, and the longest accepted name wins when a custom name
+begins with "Kora". Only "Kora" is added: any other previous custom name is
+retired as a command prefix and is not retained as an alias. A custom name
+whose phrases would route to a different action than a "Kora" phrase is
+rejected before persistence. Tray and mouse controls remain available if the
+user cannot use either name.
 
 The active name is required to begin an unsolicited spoken turn, not to answer
 every host-owned question. While the host question service has opened a
@@ -80,8 +86,9 @@ Before a changed name is persisted, capture is retired and confirmed quiescent;
 stale transcripts/completions and queued callbacks cannot route or replay.
 Listening remains held until explicit **Enable listening** recovery and a new
 PTT. A rename/reset never opens the microphone or clears an existing run hold.
-The next activation generates grammar from the new name, including session
-discovery and artifact routing. The old prefix is absent and is no hidden alias.
+The next activation generates grammar from the new name and "Kora", including
+session discovery and artifact routing. A previous custom prefix is absent and
+is no hidden alias.
 
 Until persistence and terminal audit succeed, the previous name remains effective.
 After replacement with unconfirmed audit/application completion, prefix routing
@@ -106,7 +113,10 @@ or calibration utterance is not a task command or action approval.
 ## Production Wake-Word Requirements
 
 Supporting a custom name in the current exact Windows command grammar does not
-prove support for an always-on custom wake detector. A production detector must
+prove support for an always-on custom wake detector. The current PocketSphinx
+wake stage binds one exact `keyphrase` per profile, so the "Kora" command
+alias does not extend hands-free wake detection; a custom wake name still
+requires its own qualified profile. A production detector must
 advertise and validate the names/languages it actually supports and satisfy the
 quality, false-activation, playback-rejection, privacy, and resource gates in
 [Acceptance Criteria](Acceptance_Criteria.md).

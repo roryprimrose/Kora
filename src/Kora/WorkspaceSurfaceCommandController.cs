@@ -119,6 +119,15 @@ internal sealed class WorkspaceSurfaceCommandController(
                         ?? throw new InvalidOperationException("An exact presented observation name is required."),
                         () => Admitted() && SourceAdmitted());
                     break;
+                case WorkspaceSurfaceTarget.ReviewContents:
+                    if (!ReviewContentsPresentation.TryShowLatest())
+                    {
+                        navigation.Outcome = WorkspaceSurfaceNavigationOutcome.Unavailable;
+                        main.ReportHostInteractionFailure("No open review has viewable contents. Open a skill, agent, package, instruction or prompt review first.");
+                        activity.Complete(HostOperationOutcome.Failed);
+                        return;
+                    }
+                    break;
                 default: throw new InvalidOperationException("The native navigation target is unavailable.");
             }
             activity.Complete(HostOperationOutcome.Completed);

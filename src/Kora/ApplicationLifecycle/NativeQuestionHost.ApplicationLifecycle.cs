@@ -33,7 +33,7 @@ internal sealed partial class NativeQuestionHost
             var spec = new QuestionSpec(prompt, QuestionKind.SingleChoice,
                 [new("confirm", operation switch
                 {
-                    ApplicationLifecycleOperation.StopAllWork => "Confirm: stop reviewed requests, join resources, keep Kora open",
+                    ApplicationLifecycleOperation.StopAllWork => $"Confirm: stop reviewed requests, join resources, keep {AssistantNameDisplay.Current.Name} open",
                     ApplicationLifecycleOperation.ComputerShutdown => "Confirm shutdown",
                     ApplicationLifecycleOperation.ComputerRestart => "Confirm computer restart",
                     _ => "Confirm: stop reviewed requests, join resources, then continue",

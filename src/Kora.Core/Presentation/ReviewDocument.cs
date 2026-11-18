@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kora.Core.Presentation;
 
-/// <summary>One exact file in a <see cref="ReviewContents"/> set, addressed by a relative forward-slash path.</summary>
+/// <summary>One exact file in a <see cref="ReviewContents"/> set, addressed by a platform-independent relative forward-slash path.</summary>
 public sealed class ReviewDocument
 {
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false);
@@ -37,7 +37,7 @@ public sealed class ReviewDocument
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         var segments = path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 0 || System.IO.Path.IsPathRooted(path) || path.Contains(':', StringComparison.Ordinal)
+        if (segments.Length == 0 || path[0] is '/' or '\\' || path.Contains(':', StringComparison.Ordinal)
             || segments.Any(segment => segment is "." or ".." || segment.Any(char.IsControl)))
         {
             throw new ArgumentException("Review document paths must be relative and contained.", nameof(path));

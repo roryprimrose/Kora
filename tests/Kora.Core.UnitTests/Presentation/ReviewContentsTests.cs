@@ -30,6 +30,11 @@ public sealed class ReviewContentsTests
     [InlineData("scripts/../../x")]
     [InlineData("C:/Windows/x")]
     [InlineData(@"\\server\share\x")]
+    [InlineData("//server/share/x")]
+    [InlineData(@"\x")]
+    [InlineData("/x")]
+    [InlineData(@"\")]
+    [InlineData("/")]
     [InlineData("./")]
     [InlineData(" ")]
     public void PathsMustStayRelativeAndContained(string path) =>

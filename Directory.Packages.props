@@ -18,6 +18,8 @@
     <PackageVersion Include="KokoroSharp" Version="0.8.4" />
     <PackageVersion Include="Markdig" Version="1.6.0" />
     <PackageVersion Include="Meziantou.Analyzer" Version="3.0.320" />
+    <PackageVersion Include="Microsoft.Agents.AI" Version="1.28.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.11.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.11.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.12" />

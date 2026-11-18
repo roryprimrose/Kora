@@ -372,6 +372,22 @@ affect later turns, not the captured tuple. Deterministic
 cover retained original input through the real bounded loop and registry, plus
 authority loss before and after a tool; this is not provider qualification.
 
+Only existing Version-1 constrained Ollama agent turns use
+[`ChatClientAgent` with MEAI function continuation](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.AgentFramework.cs).
+Each invocation creates one volatile package session; no package persistence,
+source discovery, nested agent or new authority is configured. The
+[typed chat bridge](../src/Kora.Application/Dependencies/AgentFrameworkModelChatClient.cs)
+keeps the original immutable context, exact reviewed tool descriptors and call
+IDs. It validates complete batches before any callback and checks package
+history against the canonical host exchange history. Kora retains all
+continuation admission, serial call/round/physical-and-logical byte charges,
+token accounting, the profile deadline and actual transport/callback joins.
+Already-consented instruction and shared-skill evidence stays inert LocalOnly
+context; ordinary conversations, authoring, standalone skills and hosted
+providers keep their existing execution paths. These
+[deterministic package regressions](../tests/Kora.Application.UnitTests/Dependencies/AgentFrameworkExecutionTests.cs)
+do not qualify a model or enable concurrent execution.
+
 A future enablement owner must supply an exact, unexpired host-created binding
 for the admitted provenance and complete account/catalogue/model/options
 profile. The native profile implemented here fixes `stream=false` and

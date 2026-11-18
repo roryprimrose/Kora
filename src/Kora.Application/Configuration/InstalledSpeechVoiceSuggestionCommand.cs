@@ -11,7 +11,7 @@ public static class InstalledSpeechVoiceSuggestionCommand
     public static RegisteredSettingSuggestionOperation? Parse(string input, string assistantName)
     {
         var text = input.Trim();
-        var name = AssistantNameRules.Normalize(assistantName);
+        var name = AssistantNameRules.ResolveActivationName(text, assistantName);
         if (text.StartsWith(name, StringComparison.OrdinalIgnoreCase) && text.Length > name.Length
             && (char.IsWhiteSpace(text[name.Length]) || text[name.Length] == ','))
         { text = text[name.Length..].TrimStart(' ', ',', '\t'); }

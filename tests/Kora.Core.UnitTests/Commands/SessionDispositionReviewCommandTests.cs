@@ -39,7 +39,7 @@ public sealed class SessionDispositionReviewCommandTests
     [InlineData("Kora")]
     [InlineData("KoraX, " + Valid)]
     [InlineData("Kora:" + Valid)]
-    [InlineData("Kora, " + Valid)]
+    [InlineData("Aria, " + Valid)]
     [InlineData("session delete selected")]
     [InlineData("review session retention")]
     [InlineData("confirm session retention")]

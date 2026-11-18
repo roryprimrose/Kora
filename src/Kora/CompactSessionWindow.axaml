@@ -3,7 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Kora"
     xmlns:controls="using:Kora.Controls"
-    Title="Kora - selected session conversation" Icon="/Assets/Kora.ico"
+    Title="Selected session conversation" Icon="/Assets/Kora.ico"
     Width="620" Height="740" MinWidth="420" MinHeight="420"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">

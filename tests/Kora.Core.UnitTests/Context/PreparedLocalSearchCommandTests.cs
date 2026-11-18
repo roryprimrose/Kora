@@ -25,7 +25,7 @@ public sealed class PreparedLocalSearchCommandTests
     [InlineData("search file for \"private\"")]
     [InlineData("inspect folder")]
     [InlineData("prepared file search for \"query\"")]
-    [InlineData("Kora, prepare file search for \"query\"")]
+    [InlineData("Aria, prepare file search for \"query\"")]
     [InlineData("Nova-PrimeX prepare file search for \"query\"")]
     [InlineData("Nova, prepare file search for \"query\"")]
     [InlineData("Nova-Prime")]

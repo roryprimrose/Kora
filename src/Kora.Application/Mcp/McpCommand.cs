@@ -18,7 +18,7 @@ public sealed record McpCommand(string? Body, bool Stop, string? Error = null, b
     {
         ArgumentNullException.ThrowIfNull(input);
         var text = input.Trim();
-        var name = AssistantNameRules.Normalize(assistantName);
+        var name = AssistantNameRules.ResolveActivationName(text, assistantName);
         if (text.StartsWith(name, StringComparison.OrdinalIgnoreCase) && text.Length > name.Length
             && (char.IsWhiteSpace(text[name.Length]) || text[name.Length] == ','))
         { text = text[name.Length..].TrimStart(' ', ',', '\t'); }

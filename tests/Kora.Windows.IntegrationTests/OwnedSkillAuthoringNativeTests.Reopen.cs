@@ -106,7 +106,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                         .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 }
                 store.Release.TrySetResult();
-                await operation;
+                await operation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 if (change is "unchanged")
                 {
                     window.Document().ManifestText.Should().Be(target.ManifestText);
@@ -158,7 +158,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             {
                 store.Release.TrySetResult();
                 consent?.Close();
-                await operation;
+                await operation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             }
         });
     }

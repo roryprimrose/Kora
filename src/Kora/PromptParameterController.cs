@@ -165,6 +165,9 @@ internal sealed partial class PromptParameterController(
                 var expanded = await captured.Preview(main.IsPromptSourceCurrent, token);
                 if (!Eligible(captured)) { return; }
                 opened.Expanded.Text = expanded.UserRequest;
+                opened.ContentsLink.Offer(
+                    Kora.Core.Presentation.ReviewContents.FromText(expanded.Source.Name, "request.md", expanded.UserRequest, expanded.Digest),
+                    () => Eligible(captured) && ReferenceEquals(window, opened));
                 opened.Use.IsEnabled = captured.CanUse;
                 opened.Status.Text = $"Complete expanded USER REQUEST; digest {expanded.Digest}. Preview is not model/tool approval. Use is separate.";
             }

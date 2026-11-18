@@ -42,6 +42,5 @@ public sealed partial class ResponseWindow
         SessionWorkspace.HideDetails();
         viewModel.RetireCurrentResponseSpeech();
         pushToTalk.Release();
-        OnReviewedCommandUnavailable(this, EventArgs.Empty);
     }
 }

@@ -167,11 +167,11 @@ internal sealed class ExternalBrowserReviewWindow : Window
                 outcome = await model.ConfirmExternalBrowserAsync(review.Id));
             Report(outcome switch
             {
-                ExternalBrowserLaunchOutcome.Accepted => "Windows accepted the external-browser request. Page loading is not verified; Kora cannot stop or close its lifecycle.",
+                ExternalBrowserLaunchOutcome.Accepted => $"Windows accepted the external-browser request. Page loading is not verified; {AssistantNameDisplay.Current.Name} cannot stop or close its lifecycle.",
                 ExternalBrowserLaunchOutcome.Failed => "Windows declined the external-browser request. No page load was verified.",
                 ExternalBrowserLaunchOutcome.Denied => "External-browser opening denied: review, source, privacy or network admission changed.",
                 ExternalBrowserLaunchOutcome.Cancelled => "External-browser opening cancelled before launch.",
-                _ => "External-browser launch outcome unknown. It may have opened; Kora cannot stop or close it. No automatic retry.",
+                _ => $"External-browser launch outcome unknown. It may have opened; {AssistantNameDisplay.Current.Name} cannot stop or close it. No automatic retry.",
             });
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)

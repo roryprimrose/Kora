@@ -12,9 +12,9 @@ public sealed partial class MainWindow
             windowActionFailed = true;
             DesktopLog.Error(logger, exception, "Following the Windows animation preference");
             HidePresenceWindow();
-            viewModel.ReportPresenceRendererStatus("Animation preference unavailable. Choose another animation mode in Settings or restart Kora.");
+            viewModel.ReportPresenceRendererStatus($"Animation preference unavailable. Choose another animation mode in Settings or restart {AssistantNameDisplay.Current.Name}.");
             viewModel.ReportHostInteractionFailure(
                 "The Windows animation preference is unavailable. The presence was hidden rather than enabling unknown motion. "
-                + "Choose another animation mode in Settings or restart Kora. Other presentation and audio services remain independent.");
+                + $"Choose another animation mode in Settings or restart {AssistantNameDisplay.Current.Name}. Other presentation and audio services remain independent.");
         }, HostActivityLayer.Desktop, HostOperation.Presentation);
 }

@@ -23,6 +23,16 @@ public sealed partial class MainViewModel
     public ModelActionReviewTarget? PendingModelActionReview => pendingModelActionReview;
     public IReadOnlyList<ModelActionReviewTarget> ModelActionReviews =>
         pendingModelActionReview is { } target ? [target] : [];
+    public string ModelActionReviewTitle => pendingModelAction is null ? string.Empty
+        : $"Allow {AssistantName} to {char.ToLowerInvariant(PendingModelActionCommandDescription[0])}{PendingModelActionCommandDescription[1..].TrimEnd('.')}?";
+    public string ModelActionReviewDetail => pendingModelActionArtifact is { } artifact
+        ? $"Proposed by artifact revision {artifact.Digest[..12]}; only a single-use approval is valid."
+        : string.Empty;
+    /// <summary>The exact built-in command the approval would run, shown as the review input.</summary>
+    public string ModelActionReviewCommand => pendingModelAction is null ? string.Empty
+        : commandCatalog.GetCommands(AssistantName).Single(item => item.Action == pendingModelAction.Value).CanonicalPhrase;
+    private string PendingModelActionCommandDescription =>
+        commandCatalog.GetCommands(AssistantName).Single(item => item.Action == pendingModelAction!.Value).Description;
     public AssistantState PresenceState => IsModelActionApprovalPending ? AssistantState.Waiting : State;
     public bool CanConfirmModelActionReview => ApproveModelActionCommand.CanExecute(null);
     public bool CanConfirmReusableModelActionReview => ApproveModelActionForSessionCommand.CanExecute(null);
@@ -145,6 +155,9 @@ public sealed partial class MainViewModel
     {
         OnPropertyChanged(nameof(PendingModelActionReview));
         OnPropertyChanged(nameof(ModelActionReviews));
+        OnPropertyChanged(nameof(ModelActionReviewTitle));
+        OnPropertyChanged(nameof(ModelActionReviewDetail));
+        OnPropertyChanged(nameof(ModelActionReviewCommand));
         OnPropertyChanged(nameof(PresenceState));
         NotifyModelActionReviewAvailability();
     }

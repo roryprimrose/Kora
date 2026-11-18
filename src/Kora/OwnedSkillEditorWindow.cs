@@ -33,7 +33,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IO
 
     internal OwnedSkillEditorWindow(Action<string> run, Func<bool> eligible)
     {
-        Title = "New Kora-owned declarative skill";
+        Title = "New owned declarative skill";
         Width = 900;
         Height = 700;
         View = new(this, run, eligible, static () => true);

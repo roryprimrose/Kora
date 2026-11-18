@@ -451,7 +451,7 @@ internal sealed partial class CustomizationWindowController(
         var opened = window!;
         var name = opened.NewName.Text?.Trim() ?? string.Empty;
         if (name.Length == 0)
-        { throw new InvalidDataException("Choose a new lowercase artifact ID and destination, then select Add. You can discuss its behavior with Kora before saving."); }
+        { throw new InvalidDataException($"Choose a new lowercase artifact ID and destination, then select Add. You can discuss its behavior with {AssistantNameDisplay.Current.Name} before saving."); }
         if (opened.Kind == CustomizationKind.Agent && scope == CustomizationScope.Kora && addOwnedAgent is not null)
         {
             var channel = main.CaptureInstructionRefinementEligibility();
@@ -524,7 +524,7 @@ internal sealed partial class CustomizationWindowController(
             var artifact = source is null ? null : management.ObservedArtifact(source);
             opened.Details.Text = source is null ? "Select an artifact"
                 : source.Name + " | " + (source.Scope == CustomizationScope.BuiltIn ? "Built-in (read-only)" : source.Scope.ToString())
-                    + " | " + (management.IsDisabled(source) ? "Disabled in Kora" : "Not excluded")
+                    + " | " + (management.IsDisabled(source) ? $"Disabled in {AssistantNameDisplay.Current.Name}" : "Not excluded")
                     + "\n" + source.Location + "\n"
                     + (artifact?.IsUseEnabled == true ? "Available through its existing admitted runtime route."
                         : "Use may still require source registration, revision review, compatibility, authentication or a qualified runtime.")
@@ -588,7 +588,7 @@ internal sealed partial class CustomizationWindowController(
     {
         if (source?.Kind == CustomizationKind.McpServer) { return McpReviewText(); }
         var result = new StringBuilder("Destination: " + source!.Scope + " | " + source.Location
-            + "\nSaving leaves this artifact disabled in Kora and grants no execution or connection authority.\n"
+            + $"\nSaving leaves this artifact disabled in {AssistantNameDisplay.Current.Name} and grants no execution or connection authority.\n"
             + "Multi-file updates are recoverable, not atomic; other applications may observe intermediate files.\n\n");
         if (IsInstructionOriginal(source))
         {
@@ -598,7 +598,7 @@ internal sealed partial class CustomizationWindowController(
                 + "\nComplete strict UTF-8 native v1 source is atomically replaced with its BOM, exact proposed newlines/metadata, owner/group/DACL and ordinary file attributes."
                 + "\nThe host compares the complete current identity and bytes immediately before replacement."
                 + "\nThis is optimistic conflict detection, not content compare-and-swap; a final same-name external edit can race replacement."
-                + "\nChanged bytes remain disabled in Kora and require a separate current-content use review. No grants or model authority are inherited.\n");
+                + $"\nChanged bytes remain disabled in {AssistantNameDisplay.Current.Name} and require a separate current-content use review. No grants or model authority are inherited.\n");
         }
         if (baseline?.RecoveryDetails is { } recovery) { result.AppendLine(recovery); }
         foreach (var name in draft.Select(file => file.Name).Union(baseline?.Files.Select(file => file.Name) ?? [], StringComparer.Ordinal).Order(StringComparer.Ordinal))
@@ -638,7 +638,7 @@ internal sealed partial class CustomizationWindowController(
     {
         var selected = source ?? window!.SelectedSource ?? throw new InvalidOperationException("Select one exact artifact.");
         if (await management.SetDisabled(selected, disabled, async (snapshot, admitted) =>
-            await window!.Review(disabled ? "Disable in Kora" : "Allow Kora use", selected.Name + "\n" + selected.Location
+            await window!.Review(disabled ? $"Disable in {AssistantNameDisplay.Current.Name}" : $"Allow {AssistantNameDisplay.Current.Name} use", selected.Name + "\n" + selected.Location
                 + (disabled ? "\nExclude from new model context, options, capabilities and invocation; keep files."
                     : "\nAllow only this reviewed primary definition revision on this machine. Separate instruction, skill, agent and MCP checks still apply; no tools, authentication or connection are approved.")
                 + (snapshot is null ? string.Empty : "\n\n" + string.Join("\n\n", snapshot.Files.Select(file => file.Name + "\n" + file.Text))),
@@ -849,7 +849,7 @@ internal sealed partial class CustomizationWindowController(
             window.Request.Text = command.Text;
             if (command.Name is not null && await LeaveDraft(current, token))
             { await Create(command.Kind == CustomizationKind.McpServer ? CustomizationScope.Kora : window.Scope, current, token); }
-            else { window.Status.Text = "Choose the new artifact ID and Kora/User destination, then Add. Describe its behavior in Ask Kora before saving."; }
+            else { window.Status.Text = $"Choose the new artifact ID and Kora/User destination, then Add. Describe its behavior in Ask {AssistantNameDisplay.Current.Name} before saving."; }
             return;
         }
         var matches = sources.Where(item => item.Kind == command.Kind

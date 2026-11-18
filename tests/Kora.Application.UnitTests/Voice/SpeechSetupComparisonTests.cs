@@ -4,9 +4,14 @@ using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Application.Voice;
+using Kora.Core.Auditing;
+using Kora.Core.Commands;
+using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
+
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Voice;
 
@@ -162,15 +167,19 @@ public sealed class SpeechSetupComparisonTests : IDisposable
     }
 
     [Theory]
-    [InlineData("cancel")]
-    [InlineData("close")]
-    [InlineData("host")]
-    [InlineData("phrase")]
-    [InlineData("dispose")]
-    public async Task CancellationCallbackFailureClearsPrivateResultsAndStillJoinsNativeCapture(string reason)
+    [InlineData("cancel", null)]
+    [InlineData("close", null)]
+    [InlineData("host", null)]
+    [InlineData("phrase", null)]
+    [InlineData("dispose", null)]
+    [InlineData("cancel", "Nova")]
+    public async Task CancellationCallbackFailureClearsPrivateResultsAndStillJoinsNativeCapture(string reason, string? assistantName)
     {
         using var root = Root();
         var runtime = new Runtime();
+        var settings = new ReadOnlyNameSettings(assistantName ?? "Kora");
+        using var names = assistantName is null ? null : new AssistantNameConfigurationService(
+            settings, new BuiltInCommandCatalog(), settings, NullLogger<AssistantNameConfigurationService>.Instance);
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource<SpeechComparisonObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
         var callbackFailure = new InvalidOperationException("Synthetic cancellation callback failure");
@@ -182,7 +191,7 @@ public sealed class SpeechSetupComparisonTests : IDisposable
             entered.SetResult();
             return release.Task;
         };
-        var comparison = new SpeechSetupComparison(runtime, runtime);
+        var comparison = new SpeechSetupComparison(runtime, runtime, names);
         var admitted = true;
         comparison.Review(Microphone, () => admitted);
         var work = comparison.TestAsync(true);
@@ -222,6 +231,7 @@ public sealed class SpeechSetupComparisonTests : IDisposable
             failureResult.Which.InnerExceptions.Should().Contain(callbackFailure);
             comparison.Results.Should().BeEmpty();
             comparison.Status.Should().Contain("cancellation failed").And.Contain("No success");
+            comparison.Status.Should().Contain($"restart {assistantName ?? "Kora"} before another comparison");
             comparison.IsRunning.Should().BeFalse();
             runtime.Captures.Should().Be(2);
             runtime.Disposals.Should().Be(1);
@@ -234,6 +244,13 @@ public sealed class SpeechSetupComparisonTests : IDisposable
             _ = await Record.ExceptionAsync(() => comparison.DisposeAsync().AsTask());
             registration.Dispose();
         }
+    }
+
+    private sealed class ReadOnlyNameSettings(string name) : IAssistantNamePreferences, ISecurityAuditLog
+    {
+        public string? LoadName() => name;
+        public void SaveName(string value) => throw new InvalidOperationException("Comparison must not save the assistant name.");
+        public void Write(SecurityAuditEvent audit) => throw new InvalidOperationException("Comparison must not write configuration audit events.");
     }
 
     [Theory]

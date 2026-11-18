@@ -281,11 +281,13 @@ configuration and successful tests are not a real signed-in account.
 
 ## Supported profile
 
-The official C# MCP SDK handles external initialization, discovery, tool calls
+The official C# MCP SDK is the sole production request-construction path for external initialization, discovery, tool calls
 and text reads. Kora still owns connection permission, exact source/account
 selection, bounded content admission, native reviews and result consent.
 Using the SDK does not enable external accounts or additional transports
 ([SDK boundary](../src/Kora.Windows/Mcp/McpHttpConnection.Sdk.cs)).
+
+Strict raw response validation and physical HTTPS policy remain host-owned; SDK projection does not replace byte, identity, schema, deadline or account checks ([request admission](../src/Kora.Windows/Mcp/McpSdkRequestHandler.cs), [physical transport](../src/Kora.Windows/Mcp/McpHttpConnection.cs)).
 
 Responses must use `application/json`, with either no charset parameter or one
 UTF-8 charset parameter. Media type and charset matching are case-insensitive;

@@ -96,21 +96,19 @@ public sealed class McpCapabilityProtocolBoundariesTests
         })
         { FluentActions.Invoking(() => McpCapabilityProtocol.ReadPage(Rpc(result), McpCapabilityKind.Tool, 2)).Should().Throw<InvalidDataException>(); }
         foreach (var cursor in new[] { "", new string('a', 2049), "control\n" })
-        { FluentActions.Invoking(() => McpCapabilityProtocol.ListRequest(McpCapabilityKind.Tool, 2, cursor)).Should().Throw<InvalidDataException>(); }
+        { FluentActions.Invoking(() => McpCapabilityProtocol.ValidateCursor(cursor)).Should().Throw<InvalidDataException>(); }
         FluentActions.Invoking(() => McpCapabilityProtocol.ReadPage(Rpc("""{"tools":[]}"""), (McpCapabilityKind)99, 2))
             .Should().Throw<ArgumentOutOfRangeException>();
         foreach (var kind in Enum.GetValues<McpCapabilityKind>())
         { new McpServerCapabilities(false, false, false).Supports(kind).Should().BeFalse(); }
-        var hugePrompt = new McpCapability(McpCapabilityKind.Prompt, new string('a', 17000), "x", """{"name":"x"}""");
-        FluentActions.Invoking(() => McpCapabilityProtocol.PromptRequest(hugePrompt, "{}", 2)).Should().Throw<InvalidDataException>();
         var tooMany = new McpCapability(McpCapabilityKind.Prompt, "x", "x", "{\"name\":\"x\",\"arguments\":["
             + string.Join(",", Enumerable.Range(0, 9).Select(index => "{\"name\":\"p" + index + "\"}")) + "]}");
-        FluentActions.Invoking(() => McpCapabilityProtocol.PromptRequest(tooMany, "{}", 2)).Should().Throw<InvalidDataException>();
+        FluentActions.Invoking(() => McpCapabilityProtocol.ReadPromptArguments(tooMany, "{}")).Should().Throw<InvalidDataException>();
         var unsupported = tooMany with { UnavailableReason = "unsupported" };
-        FluentActions.Invoking(() => McpCapabilityProtocol.PromptRequest(unsupported, "{}", 2)).Should().Throw<InvalidDataException>();
-        using var request = JsonDocument.Parse(McpCapabilityProtocol.PromptRequest(
-            new(McpCapabilityKind.Prompt, "x", "x", """{"name":"x","arguments":[{"name":"optional","required":false}]}"""), "{}", 2));
-        request.RootElement.GetProperty("params").GetProperty("arguments").GetRawText().Should().Be("{}");
+        FluentActions.Invoking(() => McpCapabilityProtocol.ReadPromptArguments(unsupported, "{}")).Should().Throw<InvalidDataException>();
+        var request = McpCapabilityProtocol.ReadPromptArguments(
+            new(McpCapabilityKind.Prompt, "x", "x", """{"name":"x","arguments":[{"name":"optional","required":false}]}"""), "{}");
+        request.GetRawText().Should().Be("{}");
     }
 
     [Fact]

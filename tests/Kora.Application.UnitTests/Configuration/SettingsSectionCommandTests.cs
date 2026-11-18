@@ -77,7 +77,7 @@ public sealed class SettingsSectionCommandTests
     [InlineData("open audio0")]
     [InlineData("opening speech settings")]
     [InlineData("please open audio settings")]
-    [InlineData("Kora, open audio settings")]
+    [InlineData("Aria, open audio settings")]
     [InlineData("Nova Primeval open audio settings")]
     [InlineData("show weather")]
     [InlineData("show settings")]

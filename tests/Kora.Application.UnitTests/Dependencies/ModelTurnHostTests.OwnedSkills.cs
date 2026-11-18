@@ -29,6 +29,12 @@ public sealed partial class ModelTurnHostTests
         await using var skill = new OwnedSkillHarness(f, origin);
         using var review = await skill.Review();
         review.Text.Should().Contain(skill.Store.Snapshot!.Document.ManifestText).And.Contain(skill.Store.Snapshot.Document.Guidance);
+        var contents = review.Contents;
+        contents.Should().NotBeNull();
+        contents!.Revision.Should().Be(skill.Store.Snapshot.Document.RevisionDigest);
+        contents.Documents.Select(document => document.Path).Should().Equal("manifest.yaml", "instructions.md");
+        contents.Documents[0].Text.Should().Be(skill.Store.Snapshot.Document.ManifestText);
+        contents.Documents[1].Text.Should().Be(skill.Store.Snapshot.Document.Guidance);
         review.RequiredNames.Should().BeEmpty();
         review.IsEnabled.Should().BeFalse();
         skill.Store.Snapshot.Document.IsAvailableForInvocation.Should().BeFalse();
@@ -65,6 +71,7 @@ public sealed partial class ModelTurnHostTests
         wire.RootElement.GetProperty("ToolMode").GetInt32().Should().Be((int)ModelToolMode.None);
         wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
         review.Text.Should().BeEmpty();
+        review.Contents.Should().BeNull();
         review.IsEnabled.Should().BeFalse();
         invocation.Body.Should().BeEmpty();
         invocation.Preview.Should().BeEmpty();

@@ -28,6 +28,10 @@ public static class QuestionVoiceAnswer
         var spoken = transcript.Trim();
         var matches = MatchingOptions(spec, spoken);
         // Even ambiguous bare labels retain their meaning; only an unmatched choice may use a prefix.
+        if (matches.Length == 0 && name is not null)
+        {
+            name = AssistantNameRules.ResolveActivationName(spoken, name);
+        }
         if (matches.Length == 0 && name is not null && spoken.StartsWith(name, StringComparison.OrdinalIgnoreCase)
             && spoken.Length > name.Length && (char.IsWhiteSpace(spoken[name.Length]) || spoken[name.Length] == ','))
         {

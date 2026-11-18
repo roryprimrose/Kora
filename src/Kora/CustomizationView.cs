@@ -46,7 +46,7 @@ internal sealed partial class CustomizationView : UserControl, IDisposable
         HorizontalAlignment = HorizontalAlignment.Stretch,
         VerticalAlignment = VerticalAlignment.Stretch,
     };
-    internal readonly TextBox Request = new() { PlaceholderText = "Describe or discuss a change with Kora...", AcceptsReturn = true, MinHeight = 64, MaxHeight = 120 };
+    internal readonly TextBox Request = new() { PlaceholderText = $"Describe or discuss a change with {AssistantNameDisplay.Current.Name}...", AcceptsReturn = true, MinHeight = 64, MaxHeight = 120 };
     internal readonly TextBox RequiredPromptInputs = new()
     {
         PlaceholderText = "Required literal names, e.g. topic,audience; empty means none",
@@ -133,7 +133,7 @@ internal sealed partial class CustomizationView : UserControl, IDisposable
         bottom.Children.Add(RequiredPromptInputs);
         bottom.Children.Add(Request);
         var authoring = new WrapPanel();
-        AddButton(authoring, "Ask Kora (review local disclosure)", "Refine", run);
+        AddButton(authoring, $"Ask {AssistantNameDisplay.Current.Name} (review local disclosure)", "Refine", run);
         AddButton(authoring, "Cancel prompt authoring", "Cancel prompt authoring", run);
         bottom.Children.Add(authoring); bottom.Children.Add(Status);
         DockPanel.SetDock(bottom, Dock.Bottom); detail.Children.Add(bottom);

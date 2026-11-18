@@ -40,7 +40,7 @@ public sealed class ClipboardSnapshotStatusTests
     [InlineData("clipboardx snapshot help")]
     [InlineData("Nova Prime")]
     [InlineData("Nova Primex, clipboard snapshot help")]
-    [InlineData("Kora, clipboard snapshot help")]
+    [InlineData("Aria, clipboard snapshot help")]
     [InlineData("ordinary question")]
     public void Unrelated_commands_are_not_claimed(string input) =>
         ClipboardSnapshotStatusCommand.Parse(input, "Nova Prime").Should().BeNull();

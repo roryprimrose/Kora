@@ -12,6 +12,41 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task ConversationSideSelectionSharesAuditedAppearanceAndKeepsTheConfirmedChoiceAfterSaveFailure()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.ConversationSides.Select(choice => choice.Name).Should().Equal("Left", "Right");
+        fixture.ViewModel.SelectedConversationSide.IsRight.Should().BeFalse();
+        var notifications = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
+
+        fixture.ViewModel.SelectedConversationSide = fixture.ViewModel.ConversationSides[1];
+        await fixture.ViewModel.AppearanceUpdate;
+
+        fixture.ViewModel.IsConversationOnRight.Should().BeTrue();
+        fixture.ViewModel.SelectedConversationSide.IsRight.Should().BeTrue();
+        fixture.AppearancePreferences.ConversationOnRight.Should().BeTrue();
+        fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.conversation-on-right"
+            && item.Outcome == SecurityAuditOutcome.Succeeded);
+        notifications.Should().Contain(nameof(MainViewModel.IsConversationOnRight))
+            .And.Contain(nameof(MainViewModel.SelectedConversationSide));
+
+        await fixture.ViewModel.ResetConversationSideCommand.ExecuteAsync();
+        fixture.ViewModel.SelectedConversationSide.IsRight.Should().BeFalse();
+        fixture.AppearancePreferences.ConversationOnRight.Should().BeFalse();
+        fixture.AppearancePreferences.SaveException = new IOException("Conversation side save denied.");
+        fixture.ViewModel.SelectedConversationSide = fixture.ViewModel.ConversationSides[1];
+        await fixture.ViewModel.AppearanceUpdate;
+
+        fixture.ViewModel.SelectedConversationSide.IsRight.Should().BeFalse();
+        fixture.AppearancePreferences.ConversationOnRight.Should().BeFalse();
+        fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.conversation-on-right"
+            && item.Outcome == SecurityAuditOutcome.Failed);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        await fixture.ViewModel.DisposeAsync();
+    }
+
     [Theory]
     [InlineData(SecurityAuditOutcome.Requested)]
     [InlineData(SecurityAuditOutcome.Succeeded)]
@@ -140,6 +175,7 @@ public sealed partial class MainViewModelTests
             [AppearanceOption.MovementSpeed] = fixture.ViewModel.ResetPresenceMovementSpeedCommand,
             [AppearanceOption.SpeechScaling] = fixture.ViewModel.ResetPresenceSpeechScalingCommand,
             [AppearanceOption.SpeechScaleAmount] = fixture.ViewModel.ResetPresenceSpeechScaleAmountCommand,
+            [AppearanceOption.ConversationOnRight] = fixture.ViewModel.ResetConversationSideCommand,
         };
         foreach (var descriptor in fixture.ViewModel.AppearanceOptions)
         {
@@ -166,7 +202,11 @@ public sealed partial class MainViewModelTests
             .And.Contain(nameof(fixture.ViewModel.PresenceDotDensityPercent))
             .And.Contain(nameof(fixture.ViewModel.PresenceMovementSpeedPercent))
             .And.Contain(nameof(fixture.ViewModel.IsPresenceSpeechScalingEnabled))
-            .And.Contain(nameof(fixture.ViewModel.PresenceSpeechScaleAmountPercent));
+            .And.Contain(nameof(fixture.ViewModel.PresenceSpeechScaleAmountPercent))
+            .And.Contain(nameof(fixture.ViewModel.IsConversationOnRight))
+            .And.Contain(nameof(fixture.ViewModel.SelectedConversationSide));
+        fixture.ViewModel.IsConversationOnRight.Should().BeFalse();
+        fixture.AppearancePreferences.ConversationOnRight.Should().BeFalse("reset saves the left default");
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
         fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeTrue();
         fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();

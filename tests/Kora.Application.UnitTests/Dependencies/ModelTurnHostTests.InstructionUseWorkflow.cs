@@ -65,6 +65,9 @@ public sealed partial class ModelTurnHostTests
                 var review = await workflow.ReviewAsync("EXAMPLE", "WORK", body, origin, () => true, Token);
                 review.Text.Should().Contain(source.Snapshot!.Document.Text).And.Contain(body).And.Contain("Work")
                     .And.Contain(origin.ToString()).And.Contain("no tools, hosted transfer").And.Contain("COMPLETE");
+                var document = review.Contents.Documents.Should().ContainSingle().Which;
+                document.Path.Should().Be("instruction.md");
+                document.Text.Should().Be(source.Snapshot.Document.Text);
                 review.ExpiresAt.Should().Be(f.Time.Now.AddMinutes(2));
                 review.CanConfirm.Should().BeTrue();
                 f.RetainCalls.Should().Be(0);

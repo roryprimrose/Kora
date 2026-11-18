@@ -37,7 +37,7 @@ internal sealed class DesktopLifetimeController : IDisposable
             activity.Complete(HostOperationOutcome.Failed);
             DesktopLog.Error(logger, exception, "Shutting down the desktop application");
             main.ReportHostInteractionFailure(
-                "Desktop shutdown failed. Kora has not confirmed a clean exit. " + exception.Message);
+                $"Desktop shutdown failed. {AssistantNameDisplay.Current.Name} has not confirmed a clean exit. " + exception.Message);
         }
     }
 

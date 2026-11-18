@@ -55,7 +55,7 @@ public sealed partial class MainViewModelTests
         fixture.Audit.Events.Clear();
         await fixture.RaiseActivatedTranscriptAsync("Nova, " + alias, 1);
         AssertAdjustment(expected, expected + expected - current);
-        fixture.Voice.StartedPhrases.Should().Contain(alias).And.Contain("Nova " + alias).And.NotContain("Kora " + alias);
+        fixture.Voice.StartedPhrases.Should().Contain(alias).And.Contain("Nova " + alias).And.Contain("Kora " + alias).And.NotContain("Aria " + alias);
         if (rate) { fixture.RatePreferences.Value.Should().Be(new WindowsSpeechRate(expected + expected - current)); }
         else { fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(expected + expected - current)); }
         fixture.Audit.Events.Where(item => item.Category == SecurityAuditCategory.ConfigurationWrite)

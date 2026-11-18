@@ -51,7 +51,7 @@ public sealed partial class MainViewModel
         sessionRetentionPlanner?.Retire("Future-policy control or refresh requested; preview retired.");
         if (!CanChangeSessionRetentionNative)
         {
-            SessionRetentionStatus = "Open Settings in the active, unlocked Kora window to change these limits.";
+            SessionRetentionStatus = $"Open Settings in the active, unlocked {AssistantName} window to change these limits.";
             return;
         }
         var lifetime = sessionRetentionNativeLifetime;

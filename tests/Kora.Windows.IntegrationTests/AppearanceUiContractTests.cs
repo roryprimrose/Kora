@@ -88,7 +88,7 @@ public sealed class AppearanceUiContractTests
         var headings = tab.Descendants(avalonia + "TextBlock")
             .Where(element => string.Equals(element.Attribute("FontSize")?.Value, "18", StringComparison.Ordinal)
                 || string.Equals(element.Attribute("Classes")?.Value, "settings-title", StringComparison.Ordinal))
-            .Select(element => element.Attribute("Text")?.Value);
+            .Select(element => AssistantNameXaml.Resolve(element.Attribute("Text")?.Value));
 
         headings.Should().Equal(
             "Start Kora at Windows user logon",
@@ -99,6 +99,7 @@ public sealed class AppearanceUiContractTests
             "Reduced motion",
             "Always show responses",
             "Keep responses on top",
+            "Conversation side",
             "Response timeout",
             "Presence",
             "Show presence",
@@ -145,6 +146,7 @@ public sealed class AppearanceUiContractTests
     [InlineData("Reduced motion", "ResetReducedMotionCommand", "IsChecked", "IsReducedMotionEnabled")]
     [InlineData("Always show responses", "ResetResponseAlwaysVisibleCommand", "IsChecked", "IsResponseAlwaysVisible")]
     [InlineData("Keep responses on top", "ResetResponseWindowTopmostCommand", "IsChecked", "IsResponseWindowTopmost")]
+    [InlineData("Conversation side", "ResetConversationSideCommand", "SelectedItem", "SelectedConversationSide")]
     [InlineData("Response timeout", "ResetResponseTimeoutCommand", "Value", "ResponseTimeoutSeconds")]
     [InlineData("Show presence", "ResetPresenceDisplayCommand", "IsChecked", "IsPresenceDisplayEnabled")]
     [InlineData("Animation mode", "ResetPresenceRendererCommand", "SelectedItem", "SelectedPresenceRenderer")]

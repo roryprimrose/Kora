@@ -121,7 +121,7 @@ public sealed partial class MainViewModelTests
         fixture.Audit.Events.Where(item => string.Equals(item.ActionId, "configuration.response-window", StringComparison.Ordinal))
             .Should().HaveCount(2).And.OnlyContain(item => item.Initiator == SecurityAuditInitiator.VoiceCommand);
         fixture.Voice.StartedPhrases.Should().Contain("Nova keep responses visible")
-            .And.NotContain("Kora keep responses visible");
+            .And.Contain("Kora keep responses visible").And.NotContain("Aria keep responses visible");
         fixture.Reasoner.Requests.Should().BeEmpty();
         activity.Complete(HostOperationOutcome.Completed);
     }

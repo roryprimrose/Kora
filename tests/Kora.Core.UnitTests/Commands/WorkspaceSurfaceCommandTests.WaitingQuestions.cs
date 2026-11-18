@@ -16,7 +16,8 @@ public sealed partial class WorkspaceSurfaceCommandTests
         result.SessionPosition.Should().BeNull();
         result.ConversationName.Should().BeNull();
         WorkspaceSurfaceCommand.FixedPhrases.Should().Contain("show sessions needing an answer");
-        WorkspaceSurfaceCommand.Parse("Kora, show sessions needing an answer", "Nova").Should().BeNull();
+        WorkspaceSurfaceCommand.Parse("Kora, show sessions needing an answer", "Nova")!.Target.Should().Be(WorkspaceSurfaceTarget.WaitingQuestions);
+        WorkspaceSurfaceCommand.Parse("Aria, show sessions needing an answer", "Nova").Should().BeNull();
         WorkspaceSurfaceCommand.Parse("open all work", "Nova")!.Target.Should().Be(WorkspaceSurfaceTarget.AllWork);
     }
 

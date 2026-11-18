@@ -69,7 +69,8 @@ public sealed partial class WorkspaceSurfaceCommandTests
     {
         WorkspaceSurfaceCommand.Parse(phrase, "Nova Prime")!.Target.Should().Be(target);
         WorkspaceSurfaceCommand.Parse(" Nova Prime, " + phrase.ToUpperInvariant() + " ", "Nova Prime")!.Target.Should().Be(target);
-        WorkspaceSurfaceCommand.Parse("Kora, " + phrase, "Nova Prime").Should().BeNull();
+        WorkspaceSurfaceCommand.Parse("Kora, " + phrase, "Nova Prime")!.Target.Should().Be(target);
+        WorkspaceSurfaceCommand.Parse("Aria, " + phrase, "Nova Prime").Should().BeNull();
         WorkspaceSurfaceCommand.Parse(phrase, "Open")!.Target.Should().Be(target);
         new BuiltInCommandRouter(new()).Match(phrase, "Nova Prime").IsMatch.Should().BeFalse();
         WorkspaceSurfaceCommand.FixedPhrases.Should().Contain(phrase);

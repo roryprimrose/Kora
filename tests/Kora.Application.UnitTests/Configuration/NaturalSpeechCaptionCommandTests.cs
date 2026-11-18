@@ -43,7 +43,8 @@ public sealed class NaturalSpeechCaptionCommandTests
             SpeechTextCommand.Parse(input, "Nova").Should().Be(expected);
         }
         SpeechTextCommand.FixedPhrases.Should().Contain(natural);
-        SpeechTextCommand.Parse("Kora, " + natural, "Nova").Should().BeNull();
+        SpeechTextCommand.Parse("Kora, " + natural, "Nova").Should().Be(SpeechTextCommand.Parse(natural, "Nova"));
+        SpeechTextCommand.Parse("Aria, " + natural, "Nova").Should().BeNull();
     }
 
     [Fact]
@@ -85,7 +86,8 @@ public sealed class NaturalSpeechCaptionCommandTests
                 }
                 expected!.CaptionValue.Should().Be(new SpeechCaptionValue.Delay(seconds));
                 SpeechTextCommand.FixedPhrases.Should().Contain(phrase);
-                SpeechTextCommand.Parse("Kora, " + phrase, "Nova").Should().BeNull();
+                SpeechTextCommand.Parse("Kora, " + phrase, "Nova").Should().Be(SpeechTextCommand.Parse(phrase, "Nova"));
+        SpeechTextCommand.Parse("Aria, " + phrase, "Nova").Should().BeNull();
                 var wrongUnits = "keep speech text visible for " + word + (seconds == 1 ? " seconds" : " second");
                 SpeechTextCommand.Parse(wrongUnits, "Nova")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
             }

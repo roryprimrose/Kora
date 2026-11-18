@@ -196,7 +196,7 @@ internal sealed class ApplicationLifecycleController : IDisposable
                 });
                 content.Children.Add(new TextBlock
                 {
-                    Text = (power ? "After the reviewed resources physically join, Kora requests the exact graceful Windows "
+                    Text = (power ? $"After the reviewed resources physically join, {AssistantNameDisplay.Current.Name} requests the exact graceful Windows "
                             + (operation == ApplicationLifecycleOperation.ComputerShutdown ? "shutdown" : "restart")
                             + ". Windows acceptance is not proof of physical completion. No forced closure or retry is performed. " : "")
                         + "These are already submitted requests, separate from unsent text and editor changes. "

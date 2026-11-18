@@ -14,7 +14,8 @@ public sealed partial class MainViewModel
     {
         if (composerDictation is null)
         {
-            composerDictation = new(voiceRecognition, uiDispatcher, ObserveComposerDictation, dictationLogger);
+            composerDictation = new(voiceRecognition, uiDispatcher, ObserveComposerDictation, dictationLogger,
+            assistantName: () => AssistantName);
             composerDictation.Changed += OnDetailPresentationDecisionChanged;
             PropertyChanged += ComposerVoiceReadinessChanged;
         }

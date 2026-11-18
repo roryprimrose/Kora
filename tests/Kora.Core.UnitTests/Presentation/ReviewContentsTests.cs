@@ -53,6 +53,34 @@ public sealed class ReviewContentsTests
     }
 
     [Fact]
+    public void DocumentLimitAcceptsTheCompleteBoundedSetAndRejectsOverflow()
+    {
+        var documents = Enumerable.Range(0, ReviewContents.MaximumDocuments + 1)
+            .Select(index => ReviewDocument.FromText($"document-{index}.md", "Exact source")).ToArray();
+
+        var bounded = new ReviewContents("Skill", "rev", documents[..^1]);
+
+        bounded.Documents.Should().Equal(documents[..^1]);
+        FluentActions.Invoking(() => new ReviewContents("Skill", "rev", documents))
+            .Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void SingleFileSharedSkillDoesNotInventMissingReferences()
+    {
+        const string text = "---\nname: example\nversion: 1.0.0\ndescription: Explain prose\n---\nExact guidance.";
+        var skill = SharedSkillSnapshot.Parse(Guid.NewGuid(), @"example\SKILL.md", Encoding.UTF8.GetBytes(text), false);
+
+        var contents = ReviewContents.FromSharedSkill("Example", skill);
+
+        var document = contents.Documents.Should().ContainSingle().Which;
+        document.Path.Should().Be("SKILL.md");
+        document.Text.Should().Be(text);
+        contents.Unavailable.Should().BeEmpty();
+        skill.IsAvailableForInvocation.Should().BeFalse();
+    }
+
+    [Fact]
     public void SingleTextContentsUseTheTextDigestUnlessARevisionIsSupplied()
     {
         var plain = ReviewContents.FromText("Prompt", "request.md", "hello");
@@ -159,5 +187,15 @@ public sealed class ReviewContentsTests
         resolved.Documents[0].Text.Should().Be(profile.Document.Text);
         resolved.Revision.Should().Be(profile.Document.Definition.Digest);
         resolved.Unavailable.Should().BeEmpty();
+
+        var standaloneProfile = BoundedAgentProfile.Parse(ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            profile.Document.Text.Replace("kora-agent-format: 2", "kora-agent-format: 1", StringComparison.Ordinal)
+                .Replace("references: disk.kora-profile.instruction.example", "references: none", StringComparison.Ordinal),
+            false), ArtifactKind.Agent, "selected-user-source", "agent"));
+
+        var standalone = ReviewContents.FromAgent("agent", standaloneProfile, null);
+
+        standalone.Documents.Should().ContainSingle().Which.Text.Should().Be(standaloneProfile.Document.Text);
+        standalone.Unavailable.Should().BeEmpty();
     }
 }

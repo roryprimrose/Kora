@@ -21,7 +21,14 @@ public sealed partial class AssistantNameConfigurationService(
     public event EventHandler? Changed;
 
     /// <summary>The confirmed assistant name for display text, or the default while the saved name needs recovery.</summary>
-    public string DisplayName => Get() is { IsAvailable: true, Name: { } name } ? name : AssistantNameRules.DefaultName;
+    public string DisplayName
+    {
+        get
+        {
+            var current = Get();
+            return current.IsAvailable ? current.Name! : AssistantNameRules.DefaultName;
+        }
+    }
 
     public AssistantNameConfigurationState Get()
     {

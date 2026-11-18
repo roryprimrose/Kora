@@ -101,5 +101,5 @@ public sealed class ReviewContents
     private static string Slashes(string path) => path.Replace('\\', '/');
 
     private static string FileName(string relativeFile) =>
-        relativeFile.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? relativeFile;
+        relativeFile.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries).Last();
 }

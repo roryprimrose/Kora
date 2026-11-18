@@ -27,7 +27,7 @@ public sealed class PreparedLocalSearchCommand
     public static PreparedLocalSearchCommand? Parse(string input, string assistantName)
     {
         var text = input.Trim();
-        var name = AssistantNameRules.Normalize(assistantName);
+        var name = AssistantNameRules.ResolveActivationName(text, assistantName);
         var activated = text.StartsWith(name, StringComparison.OrdinalIgnoreCase)
             && text.Length > name.Length && (text[name.Length] == ',' || char.IsWhiteSpace(text[name.Length]));
         if (activated) { text = text[name.Length..].TrimStart(' ', ',', '\t'); }

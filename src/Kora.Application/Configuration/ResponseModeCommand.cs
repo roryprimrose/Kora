@@ -33,7 +33,7 @@ public sealed record ResponseModeCommand(AppearanceCommandOperation Operation, R
     {
         var text = input.Trim();
         var original = text;
-        var name = AssistantNameRules.Normalize(assistantName);
+        var name = AssistantNameRules.ResolveActivationName(text, assistantName);
         // An alias may itself begin with, or equal, the current assistant name.
         if (!NaturalCommands.ContainsKey(text) && text.StartsWith(name, StringComparison.OrdinalIgnoreCase) && text.Length > name.Length
             && (char.IsWhiteSpace(text[name.Length]) || text[name.Length] == ','))

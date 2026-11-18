@@ -22,11 +22,8 @@ public static class ModelApprovalSpeech
         ("do not allow", ModelApprovalReply.Reject),
     ];
 
-    public static IEnumerable<string> GetPhrases(string assistantName)
-    {
-        var name = AssistantNameRules.Normalize(assistantName);
-        return Phrases.SelectMany(item => new[] { item.Phrase, $"{name} {item.Phrase}" });
-    }
+    public static IEnumerable<string> GetPhrases(string assistantName) =>
+        AssistantNameRules.WithActivationNames(Phrases.Select(item => item.Phrase), assistantName);
 
     public static bool TryMatch(
         string transcript,
@@ -35,17 +32,14 @@ public static class ModelApprovalSpeech
         out ModelApprovalReply reply)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(transcript);
-        var name = BuiltInCommandRouter.Normalize(AssistantNameRules.Normalize(assistantName));
-        var normalized = BuiltInCommandRouter.Normalize(transcript);
-        var prefix = $"{name} ";
-        var prefixed = normalized.StartsWith(prefix, StringComparison.Ordinal);
+        var prefixed = BuiltInCommandRouter.TryRemoveNormalizedActivationName(
+            BuiltInCommandRouter.Normalize(transcript), assistantName, out var phrase);
         if (requireAssistantName && !prefixed)
         {
             reply = default;
             return false;
         }
 
-        var phrase = prefixed ? normalized[prefix.Length..] : normalized;
         foreach (var item in Phrases)
         {
             if (string.Equals(

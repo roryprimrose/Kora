@@ -38,6 +38,7 @@ public sealed class SystemTrayController : IDisposable
     private readonly ILogger<SystemTrayController> logger;
     private bool disposed;
     private NativeMenuItem? modelActionReviewItem;
+    private readonly NativeMenuItem? customizationsItem;
 
     public SystemTrayController(
         MainViewModel viewModel,
@@ -82,7 +83,7 @@ public sealed class SystemTrayController : IDisposable
         }
         if (manageCustomizations is not null)
         {
-            var customizationsItem = new NativeMenuItem("Kora Customizations");
+            customizationsItem = new NativeMenuItem($"{viewModel.AssistantName} Customizations");
             customizationsItem.Click += (_, _) => RunAfterNativeMenuCloses(manageCustomizations);
             menu.Add(customizationsItem);
         }
@@ -195,6 +196,7 @@ public sealed class SystemTrayController : IDisposable
         showItem.Header = $"Show {viewModel.AssistantName}";
         settingsItem.Header = "Settings";
         exitItem.Header = $"Exit {viewModel.AssistantName}";
+        if (customizationsItem is not null) { customizationsItem.Header = $"{viewModel.AssistantName} Customizations"; }
     }
 
     private void UpdateModelActionReview()

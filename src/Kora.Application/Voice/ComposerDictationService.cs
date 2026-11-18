@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 
 using Kora.Application.Hosting;
+using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
@@ -19,19 +20,22 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
     private readonly Func<ComposerDictationAdmission?> observe;
     private readonly ILogger<ComposerDictationService> logger;
     private readonly TimeProvider time;
+    private readonly Func<string> assistantName;
     private Turn? turn;
     private Task retirement = Task.CompletedTask;
     private bool closed;
     private string status = "Microphone closed. Hold Dictate explicitly; literal dictation requires qualified capture and current consented PTT readiness.";
 
     public ComposerDictationService(IActivatedVoiceRecognitionService capture, IUiDispatcher dispatcher,
-        Func<ComposerDictationAdmission?> observe, ILogger<ComposerDictationService> logger, TimeProvider? time = null)
+        Func<ComposerDictationAdmission?> observe, ILogger<ComposerDictationService> logger, TimeProvider? time = null,
+        Func<string>? assistantName = null)
     {
         this.capture = capture;
         this.dispatcher = dispatcher;
         this.observe = observe;
         this.logger = logger;
         this.time = time ?? TimeProvider.System;
+        this.assistantName = assistantName ?? (static () => AssistantNameRules.DefaultName);
         if (!capture.IsLiteralDictationAvailable)
         {
             status = "Microphone closed. Literal dictation unavailable: this capture/transcriber is not qualified. No consent, device or listening change was made.";
@@ -270,7 +274,7 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
         catch (Exception exception)
         {
             Failure(logger, exception.GetType().Name);
-            lock (gate) { status = "Dictation microphone cleanup unconfirmed. Restart Kora before trying voice again."; }
+            lock (gate) { status = $"Dictation microphone cleanup unconfirmed. Restart {assistantName()} before trying voice again."; }
             activity.Complete(HostOperationOutcome.Failed);
             Publish();
             throw;

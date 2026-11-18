@@ -31,7 +31,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
     private long displayRevision;
     private IReadOnlyList<CaptionDisplayChoice> choices = [];
     private CaptionDisplayChoice? selectedChoice;
-    private string displayStatus = "Main screen (default until Kora restarts).";
+    private string displayStatus = $"Main screen (default until {AssistantNameDisplay.Current.Name} restarts).";
 
     public SpeechCaptionWindowController(ISpeechCaptionPresentation presentation, SpeechCaptionWindow window,
         ICaptionDisplaySource displays)
@@ -229,8 +229,8 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
                 selectionRevision = checked(selectionRevision + 1);
                 observedRevision = -1;
                 targetUnavailable = false;
-                SetProperty(ref displayStatus, reset ? "Main screen (default until Kora restarts)."
-                    : "Selected screen will be used until Kora restarts. Caption mode and display time are unchanged.", nameof(DisplayStatus));
+                SetProperty(ref displayStatus, reset ? $"Main screen (default until {AssistantNameDisplay.Current.Name} restarts)."
+                    : $"Selected screen will be used until {AssistantNameDisplay.Current.Name} restarts. Caption mode and display time are unchanged.", nameof(DisplayStatus));
                 Refresh();
             }, HostActivityLayer.Desktop, HostOperation.Presentation);
         }

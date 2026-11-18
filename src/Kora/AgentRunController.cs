@@ -204,6 +204,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         if (window is not null)
         {
             window.Confirm.IsEnabled = window.Resolve.IsEnabled = false;
+            window.ContentsLink.Retire();
             window.RetireSharedSkills();
             window.Review.Text = string.Empty;
             window.Result.Text = string.Empty;
@@ -283,6 +284,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                     opened.Status.Text = "No instruction source was read. Separately consent to read only these candidates; this is not invocation consent.";
                 }
                 else { ShowInvocation(opened, review); }
+                OfferContents(opened, review);
             }
             else if (action is "Resolve")
             {
@@ -291,6 +293,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 await workflow.ResolveAsync(captured, origin, token);
                 if (!Current()) { await workflow.RevokeAsync(captured); review = null; return; }
                 ShowInvocation(opened, captured);
+                OfferContents(opened, captured);
             }
             else if (await RunSharedSkillActionAsync(action, opened, Current,
                 () => Eligible() && eligible() && ReferenceEquals(window, opened), token)) { }
@@ -318,6 +321,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             if (window is { } opened)
             {
                 opened.Confirm.IsEnabled = opened.Resolve.IsEnabled = false;
+                opened.ContentsLink.Retire();
                 opened.RetireSharedSkills();
                 opened.Result.Text = string.Empty;
                 opened.Status.Text = "Unavailable, revoked, cancelled or unconfirmed. Inspect Sessions before any fresh review. No success or rollback claimed.";
@@ -325,6 +329,12 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         }
         finally { invoking = false; }
     }
+
+    private void OfferContents(AgentRunView opened, BoundedAgentReview captured) =>
+        opened.ContentsLink.Offer(
+            Kora.Core.Presentation.ReviewContents.FromAgent(captured.Profile.Document.Definition.Name, captured.Profile,
+                captured.References?.Bundle),
+            () => ReferenceEquals(review, captured) && ReferenceEquals(window, opened) && Eligible());
 
     private static void ShowInvocation(AgentRunView opened, BoundedAgentReview captured)
     {

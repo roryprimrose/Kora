@@ -57,6 +57,7 @@ public sealed partial class App : Avalonia.Application
     private readonly DispatcherTimer presenceRendererTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private Func<HostActivity>? rendererSwitchContext;
 
+    private static AssistantWindowTitles? assistantWindowTitles;
     internal static ServiceProvider Services { get; set; } = null!;
     internal static Task DetailPreferenceQuiescence { get; private set; } = Task.CompletedTask;
     internal static bool IsManualStartup { get; set; }
@@ -82,6 +83,8 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindExternalBrowserWorkflow(Services.GetRequiredService<Kora.Application.Network.ExternalBrowser.ExternalBrowserWorkflow>());
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
+            AssistantNameDisplay.Current.Update(viewModel.AssistantName);
+            assistantWindowTitles ??= AssistantWindowTitles.Install(() => desktop.Windows, AssistantNameDisplay.Current);
             ApplyThemeMode(viewModel.ThemeMode);
             logger = Services.GetRequiredService<ILogger<App>>();
             BindHandoffPresentation(viewModel);
@@ -607,6 +610,11 @@ public sealed partial class App : Avalonia.Application
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.AssistantName), StringComparison.Ordinal)
+            && viewModel is not null)
+        {
+            AssistantNameDisplay.Current.Update(viewModel.AssistantName);
+        }
         if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.IsNativePresenceRenderer), StringComparison.Ordinal)
             && viewModel is not null && presenceWindows is not null)
         {

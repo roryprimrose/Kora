@@ -1,7 +1,7 @@
 <Window x:Class="Kora.QuestionWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Kora - exact host question" Width="760" Height="720"
+    Title="Exact host question" Width="760" Height="720"
     MinWidth="480" MinHeight="480" Topmost="False" WindowStartupLocation="CenterOwner"
     Background="{DynamicResource KoraWindowBackgroundBrush}">
 </Window>

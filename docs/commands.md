@@ -340,6 +340,7 @@ remain available in Sessions when the bounded lookup has more results.
 | `select the top session`, `select the first session`, `select the third session`, `select the last session` | Select one exact row from the displayed session page; first through twenty-fifth supported |
 | `show me the detailed results`, `show detailed results`, `show details` | Accept the exact current-response details offer, or open the selected session's eligible last detail / native chooser |
 | `hide details` | Hide Details without closing the conversation or discarding input |
+| `show contents`, `view contents`, `show the contents` | Open the read-only files of the most recent open skill, agent, bundled package, instruction or prompt review beside the conversation, with a file tree for multi-file items. Viewing is not approval; the review keeps its own confirmation |
 | `show session logs`, `show session audit` | Explicit bounded diagnostic-log / typed committed-audit query for the selected session; original local UI only |
 
 Generic Details phrases accept the current response only while its exact offer
@@ -432,8 +433,8 @@ free-form voice requests must start with the active assistant name.
 The alternatives below are explicit phrases, not fuzzy matching: additional
 words beyond the phrase do not trigger a built-in action.
 
-If the assistant is renamed, replace Kora with the configured name. The old
-name is not retained as a hidden alias.
+If the assistant is renamed, you can use either the configured name or Kora
+as the prefix. Any other previous name is not retained as a hidden alias.
 
 For the full design-defined catalogue, including capabilities not yet shipped,
 see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
@@ -981,7 +982,8 @@ Empty proposals or malformed recognized grammar clarify locally; invalid domain 
 
 The spoken target **assistant name** is equivalent to `assistant.name`.
 The active configured prefix is optional: **Kora, set assistant name to Nova**.
-After success use **Nova, get assistant name**; Kora is no hidden alias.
+After success use **Nova, get assistant name** or **Kora, get assistant name**;
+Kora is always accepted, but other previous names are not aliases.
 Input is bounded to 320 characters after prefix removal, and names retain
 their existing exact case/Unicode validation with whitespace trimming/collapse.
 Unknown targets and malformed grammar clarify locally; invalid names are

@@ -20,6 +20,16 @@ public sealed partial class AssistantNameConfigurationService(
 
     public event EventHandler? Changed;
 
+    /// <summary>The confirmed assistant name for display text, or the default while the saved name needs recovery.</summary>
+    public string DisplayName
+    {
+        get
+        {
+            var current = Get();
+            return current.IsAvailable ? current.Name! : AssistantNameRules.DefaultName;
+        }
+    }
+
     public AssistantNameConfigurationState Get()
     {
         lock (gate)
@@ -215,7 +225,7 @@ public sealed partial class AssistantNameConfigurationService(
     private string Normalize(string value)
     {
         var name = AssistantNameRules.Normalize(value);
-        _ = commands.GetCommands(name);
+        _ = commands.GetActivationCommands(name);
         return name;
     }
 

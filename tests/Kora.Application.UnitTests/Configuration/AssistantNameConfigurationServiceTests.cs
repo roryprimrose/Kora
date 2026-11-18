@@ -52,6 +52,7 @@ public sealed class AssistantNameConfigurationServiceTests(ITestOutputHelper out
         initial.Name.Should().Be("Kora");
         initial.IsSaved.Should().BeFalse();
         initial.IsAvailable.Should().BeTrue();
+        fixture.Service.DisplayName.Should().Be("Kora");
         fixture.Service.Reload();
         fixture.Service.Get().Should().Be(initial);
         var notifications = 0;
@@ -67,6 +68,7 @@ public sealed class AssistantNameConfigurationServiceTests(ITestOutputHelper out
         result.Changed.Should().BeTrue();
         result.State.Name.Should().Be("ノヴァ Prime");
         result.State.IsSaved.Should().BeTrue();
+        fixture.Service.DisplayName.Should().Be("ノヴァ Prime");
         fixture.Preferences.Name.Should().Be("ノヴァ Prime");
         using var restarted = fixture.CreateService();
         restarted.Get().Name.Should().Be("ノヴァ Prime");
@@ -127,11 +129,13 @@ public sealed class AssistantNameConfigurationServiceTests(ITestOutputHelper out
         bad.IsAvailable.Should().BeFalse();
         bad.IsSaved.Should().BeTrue();
         bad.Recovery.Should().Contain("explicitly set/reset");
+        fixture.Service.DisplayName.Should().Be("Kora");
         fixture.Preferences.Writes.Should().Be(0);
         var result = await fixture.ApplyAsync(fixture.Service.ProposeReset(bad.Revision, 0,
             RequestOrigin.LocalUi, SecurityAuditInitiator.LocalUser));
         result.Succeeded.Should().BeTrue();
         result.State.Name.Should().Be("Kora");
+        fixture.Service.DisplayName.Should().Be("Kora");
         result.State.Revision.Should().BeGreaterThan(bad.Revision);
     }
 

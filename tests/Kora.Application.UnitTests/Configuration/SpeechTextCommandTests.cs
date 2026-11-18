@@ -33,7 +33,8 @@ public sealed class SpeechTextCommandTests
         {
             SpeechTextCommand.Parse(text, "Nova").Should().Be(new SpeechTextCommand(operation, value));
         }
-        SpeechTextCommand.Parse("Kora, " + input, "Nova").Should().BeNull();
+        SpeechTextCommand.Parse("Kora, " + input, "Nova").Should().Be(new SpeechTextCommand(operation, value));
+        SpeechTextCommand.Parse("Aria, " + input, "Nova").Should().BeNull();
         SpeechTextCommand.FixedPhrases.Should().Contain(input);
     }
 

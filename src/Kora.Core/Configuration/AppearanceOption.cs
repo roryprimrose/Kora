@@ -15,4 +15,5 @@ public enum AppearanceOption
     ReaderTextScale,
     NativePresenceRenderer,
     ReducedMotion,
+    ConversationOnRight,
 }

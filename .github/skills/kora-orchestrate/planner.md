@@ -61,6 +61,13 @@ instructions without queue enumeration. Acceptance emits no actions or blocker
 clearance. Later exact continuation must revalidate the current grant/fence;
 unestablished pause/join/fence withholds continuation, never invents pending zero.
 
+Unrelated compatible main advancement does not retire or replace a retained
+recovered owner. Report the changed source; only the coordinator's explicit
+[same-owner renewal](./README.md#same-owner-continuation-renewal) with fresh
+independent compatibility/current source/held guards and owner acknowledgment
+can support version-2 continuation. Do not edit the original grant, infer
+compatibility from disjoint paths alone, expand scopes or supply execution authority.
+
 Before the first candidate at a new head, report SOURCE_CHANGED so the coordinator
 can refresh the registry. Candidates cannot silently change source freshness.
 Product/authority blockers are parked, not converted into imagined contracts.

@@ -6,9 +6,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { createState, applyEvent, validate, digest, heldReservations,
-  supersessionAcknowledgmentDigest, validateRecoveryContinuation } = require('./registry.cjs');
+  supersessionAcknowledgmentDigest, validateRecoveryContinuation, recoveryContinuationDigest } = require('./registry.cjs');
 const { incidentFixture, recoveryEvent, rebindRecovery, recoveryContext, continuation,
-  paths: incidentPaths } = require('./incident-recovery-fixture.cjs');
+  paths: incidentPaths, renewalFixture, renewalEvent, renewalContext, rebindRenewal } = require('./incident-recovery-fixture.cjs');
 const { refinementFixture, refinementEvent, rebind, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
   rebindSupersession, supersessionBeneficiaryFixture } = require('./refinement-fixture.cjs');
@@ -17,6 +17,230 @@ const sha = number => number.toString(16).padStart(40, '0');
 const coordinator = 'agent-host-session://coordinator';
 const planner = 'agent-host-session://coordinator?chat=planner';
 const owner = key => `agent-host-session://coordinator?chat=${key}`;
+
+test('explicit renewal permits compatible main advancement without mutating original grant, source, scopes or fence', () => {
+  for (const mode of ['enumerated-pending-zero', 'human-approved-source-fence']) {
+    const state = renewalFixture(mode);
+    state.planner = { owner: 'waiting-planner', active: false, requested: true, notified: false, pass: 0 };
+    const before = structuredClone(state);
+    const stale = continuation(state, 43);
+    assert.throws(() => validateRecoveryContinuation(state, stale, { revision: 43 }), /current grant/);
+    const event = renewalEvent(state);
+    const result = applyEvent(state, event, renewalContext(event));
+    assert.equal(result.state.version, 7);
+    assert.deepEqual(result.actions, []);
+    assert.deepEqual(state, before);
+    assert.deepEqual(result.state.items, before.items);
+    assert.deepEqual(result.state.planner, before.planner);
+    assert.deepEqual(result.state.recoveries, before.recoveries);
+    assert.equal(result.state.recoveries[0].event.proof.head, '1'.repeat(40));
+    assert.equal(result.state.head, '2'.repeat(40));
+    assert.equal(result.state.recoveries[0].event.proof.source.head, '1'.repeat(40));
+    assert.equal(result.state.recoveryRenewals[0].event.proof.quiescence.pendingInstructions,
+      mode === 'enumerated-pending-zero' ? 0 : 'UNKNOWN');
+    assert.deepEqual(heldReservations(result.state, 'incident-owner'), heldReservations(before, 'incident-owner'));
+    const request = continuation(result.state, 44, true);
+    assert.deepEqual(validateRecoveryContinuation(result.state, request, { revision: 44 }),
+      { coverageVerified: true, blockers: before.items[0].blocker, sourceExecutionAuthorized: false });
+    assert.throws(() => validateRecoveryContinuation(result.state, continuation(result.state, 44),
+      { revision: 44 }), /current grant/);
+    assert.throws(() => applyEvent(result.state, event, renewalContext(event)), /cannot be replayed/);
+    assert.throws(() => applyEvent(result.state, { id: event.id, type: 'pause' }), /cannot be replayed/);
+    assert.throws(() => validateRecoveryContinuation(result.state, request, { revision: 45 }), /current-revision/);
+  }
+});
+
+test('renewal rejects stale, foreign, conflicting or missing compatibility/owner/host evidence without mutation', () => {
+  const state = renewalFixture();
+  for (const change of [
+    e => { e.proof.repository = 'other/repository'; },
+    e => { e.proof.coordinator = 'different'; },
+    e => { e.proof.checkpointRevision--; },
+    e => { e.proof.head = '3'.repeat(40); },
+    e => { e.proof.grantDigest = '0'.repeat(64); },
+    e => { e.proof.previousRenewalDigest = '0'.repeat(64); },
+    e => { e.proof.expectedItemDigest = '0'.repeat(64); },
+    e => { e.proof.key = 'held'; },
+    e => { e.proof.owner = 'other-owner'; },
+    e => { e.proof.scopeRevision++; },
+    e => { e.proof.scopes.push('src\\additional.cs'); },
+    e => { e.proof.source.head = '3'.repeat(40); },
+    e => { e.proof.source.branch = 'replacement'; },
+    e => { e.proof.source.worktree = 'Q:\\Replacement'; },
+    e => { e.proof.source.owner = 'replacement'; },
+    e => { e.proof.fence.epoch++; },
+    e => { e.proof.fence.nonce = 'replacement'; },
+    e => { e.proof.fence = null; },
+    e => { e.proof.quiescence.pendingInstructions = 0; },
+    e => { e.proof.quiescence.processingInstructions = 0; },
+    e => { e.proof.quiescence.sourcePaused = false; },
+    e => { e.proof.quiescence.workJoined = false; },
+    e => { e.proof.quiescence.commandsRunning = true; },
+    e => { e.proof.compatibility.baseHead = '3'.repeat(40); },
+    e => { e.proof.compatibility.fromHead = '3'.repeat(40); },
+    e => { e.proof.compatibility.toHead = '3'.repeat(40); },
+    e => { e.proof.compatibility.complete = false; },
+    e => { e.proof.compatibility.ancestorVerified = false; },
+    e => { e.proof.compatibility.scopeReviewCompatible = false; },
+    e => { e.proof.compatibility.sourceReviewCompatible = false; },
+    e => { e.proof.compatibility.changedPaths.push('src\\windows\\packages.lock.json'); },
+    e => { e.proof.compatibility.changedPaths = ['src']; },
+    e => { e.proof.compatibility.receipt = ''; },
+    e => { e.proof.exclusivity.reservations = []; },
+    e => { e.proof.exclusivity.reservations[0].scopes = ['src']; },
+    e => { e.proof.exclusivity.complete = false; },
+    e => { e.acknowledgment.owner = 'other-owner'; },
+    e => { e.acknowledgment.fence = null; },
+    e => { e.acknowledgment.workJoined = false; },
+    e => { e.acknowledgment.staleAuthorityRejected = false; },
+    e => { e.acknowledgment.id = state.recoveries[0].event.acknowledgment.id; },
+    e => { e.acknowledgment.receipt = ''; }
+  ]) {
+    const event = renewalEvent(state);
+    change(event);
+    rebindRenewal(event);
+    const before = JSON.stringify(state);
+    assert.throws(() => applyEvent(state, event, { ...renewalContext(event), revision: 43 }),
+      undefined, change.toString());
+    assert.equal(JSON.stringify(state), before);
+  }
+  const event = renewalEvent(state);
+  assert.throws(() => applyEvent(state, event, { revision: 43 }));
+  for (const change of [
+    c => { c.renewalEvidence.kind = 'receipt-only'; },
+    c => { c.renewalEvidence.coordinator = 'foreign'; },
+    c => { c.renewalEvidence.checkpointRevision--; },
+    c => { c.renewalEvidence.proofDigest = '0'.repeat(64); },
+    c => { c.renewalEvidence.compatibilityDigest = '0'.repeat(64); },
+    c => { c.renewalEvidence.ownerResponseId = 'stale'; },
+    c => { c.renewalEvidence.sourceIdentityVerified = false; },
+    c => { c.renewalEvidence.sourcePauseVerified = false; },
+    c => { c.renewalEvidence.commandsJoinedVerified = false; },
+    c => { c.renewalEvidence.instructionAuthorityVerified = false; },
+    c => { c.renewalEvidence.compatibilityVerified = false; }
+  ]) {
+    const context = renewalContext(event);
+    change(context);
+    assert.throws(() => applyEvent(state, event, context), /Independent current host readback/);
+  }
+  event.acknowledgment.proofDigest = '0'.repeat(64);
+  assert.throws(() => applyEvent(state, event, renewalContext(event)), /acknowledgment/);
+});
+
+test('renewed continuation binds latest grant, exact source/item/scope/fence/exclusivity and separate fresh response', () => {
+  const before = renewalFixture();
+  const event = renewalEvent(before);
+  const state = applyEvent(before, event, renewalContext(event)).state;
+  for (const change of [
+    r => { r.renewalDigest = '0'.repeat(64); },
+    r => { r.grantDigest = '0'.repeat(64); },
+    r => { r.head = '3'.repeat(40); },
+    r => { r.sourceHead = '3'.repeat(40); },
+    r => { r.owner = 'other-owner'; },
+    r => { r.scopeRevision++; },
+    r => { r.expectedItemDigest = '0'.repeat(64); },
+    r => { r.fence.epoch++; },
+    r => { r.acknowledgment.fence.nonce = 'old'; },
+    r => { r.acknowledgment.workJoined = false; },
+    r => { r.acknowledgment.staleAuthorityRejected = false; },
+    r => { r.acknowledgment.id = event.acknowledgment.id; },
+    r => { r.acknowledgment.id = state.recoveries[0].event.acknowledgment.id; }
+  ]) {
+    const request = continuation(state, 44, true);
+    change(request);
+    request.acknowledgment.requestDigest = recoveryContinuationDigest(request);
+    assert.throws(() => validateRecoveryContinuation(state, request, { revision: 44 }));
+  }
+  const changedItem = applyEvent(state, { id: 'later-blocker', type: 'blocked', key: 'incident-owner',
+    owner: 'synthetic-owner', reason: 'Different live blocker.' }).state;
+  assert.throws(() => validateRecoveryContinuation(changedItem, continuation(changedItem, 44, true),
+    { revision: 44 }), /current-revision\/item/);
+  const changedGuards = applyEvent(state, { id: 'new-disjoint-holder', type: 'adopt', key: 'another',
+    owner: 'another-owner', head: state.head, scopes: ['src\\another.cs'], evidence: 'Synthetic new guard.',
+    outcome: 'Another retained operation', pool: 'ready', kind: 'feature' }).state;
+  assert.throws(() => validateRecoveryContinuation(changedGuards, continuation(changedGuards, 44, true),
+    { revision: 44 }), /exclusivity/);
+  const staleAcknowledgment = continuation(state, 44, true);
+  staleAcknowledgment.acknowledgment.requestDigest = '0'.repeat(64);
+  assert.throws(() => validateRecoveryContinuation(state, staleAcknowledgment, { revision: 44 }), /current grant/);
+  for (const change of [
+    s => { s.enabled = false; },
+    s => { s.mode = 'observe'; },
+    s => { s.coordinator = 'other-coordinator'; }
+  ]) {
+    const altered = structuredClone(state);
+    change(altered);
+    assert.throws(() => validateRecoveryContinuation(altered, continuation(altered, 44, true), { revision: 44 }));
+    const next = renewalEvent(altered, 45);
+    assert.throws(() => applyEvent(altered, next, renewalContext(next)));
+  }
+});
+
+test('successive renewal binds the previous record and rejects stale ack, old head, omitted histories and downgrade', () => {
+  const before = renewalFixture();
+  const first = renewalEvent(before);
+  const accepted = applyEvent(before, first, renewalContext(first)).state;
+  const state = applyEvent(accepted, { id: 'later-main', type: 'refresh', head: '3'.repeat(40) }).state;
+  const second = renewalEvent(state, 45);
+  const result = applyEvent(state, second, renewalContext(second));
+  assert.deepEqual(result.state.recoveries, before.recoveries);
+  assert.deepEqual(result.state.recoveryRenewals[0], accepted.recoveryRenewals[0]);
+  assert.deepEqual(result.actions, []);
+  assert.equal(validateRecoveryContinuation(result.state, continuation(result.state, 46, true),
+    { revision: 46 }).sourceExecutionAuthorized, false);
+  const reused = continuation(result.state, 46, true);
+  reused.acknowledgment.id = first.acknowledgment.id;
+  assert.throws(() => validateRecoveryContinuation(result.state, reused, { revision: 46 }), /fresh acknowledgment/);
+  assert.throws(() => validateRecoveryContinuation(result.state, continuation(accepted, 44, true),
+    { revision: 46 }));
+  for (const change of [
+    e => { e.proof.previousRenewalDigest = null; },
+    e => { e.proof.compatibility.fromHead = e.proof.compatibility.baseHead; },
+    e => { e.acknowledgment.id = first.acknowledgment.id; }
+  ]) {
+    const stale = renewalEvent(state, 45);
+    change(stale);
+    rebindRenewal(stale);
+    assert.throws(() => applyEvent(state, stale, renewalContext(stale)));
+  }
+  for (const change of [
+    s => { delete s.recoveryRenewals; },
+    s => { s.recoveryRenewals = []; },
+    s => { s.version = 6; },
+    s => { s.recoveryRenewals[0].event.proof.compatibility.receipt = 'altered'; },
+    s => { s.recoveryRenewals[0].before.blocker = null; },
+    s => { s.recoveryRenewals[0].commands = [{ type: 'resume' }]; },
+    s => { s.seen = s.seen.filter(id => id !== first.id); },
+    s => { s.recoveryRenewals[1].event.acknowledgment.id = first.acknowledgment.id; }
+  ]) {
+    const altered = structuredClone(result.state);
+    change(altered);
+    assert.throws(() => validate(altered));
+  }
+  let published = applyEvent(result.state, { id: 'renewed-publication', type: 'published',
+    key: 'incident-owner', owner: 'synthetic-owner', proof: { pushedHead: sha(9), remoteHead: sha(9),
+      pr: 92, ready: true, enrolled: true } }).state;
+  assert.deepEqual(published.recoveryRenewals, result.state.recoveryRenewals);
+  published = applyEvent(published, { id: 'renewed-cleanup', type: 'completed', key: 'incident-owner',
+    owner: 'synthetic-owner', proof: { remoteHead: sha(9), stoppedWriting: true, worktreeAbsent: true,
+      branchAbsent: true, pendingInstructions: 0 } }).state;
+  assert.deepEqual(published.recoveryRenewals, result.state.recoveryRenewals);
+  assert.deepEqual(published.recoveries, before.recoveries);
+  assert.throws(() => validateRecoveryContinuation(published, continuation(published, 48, true), { revision: 48 }));
+});
+
+test('documented renewal example executes with only synthetic compatibility and leaves original grant main unchanged', () => {
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  const section = readme.split('#### Runnable synthetic renewal example')[1].split('## Shrink-only reservation protocol')[0];
+  const expression = section.match(/```javascript\r?\n([\s\S]*?)```/)[1];
+  const cli = spawnSync(process.execPath, ['-e', expression], { encoding: 'utf8' });
+  assert.equal(cli.status, 0, cli.stderr);
+  const result = JSON.parse(cli.stdout);
+  assert.deepEqual(result.actions, []);
+  assert.equal(result.checked.coverageVerified, true);
+  assert.equal(result.checked.sourceExecutionAuthorized, false);
+  assert.ok(result.checked.blockers.includes('unrelated'));
+});
 
 test('incident recovery is prospective only, retains same owner, blockers, restored history and all held guards', () => {
   for (const mode of ['enumerated-pending-zero', 'human-approved-source-fence']) {

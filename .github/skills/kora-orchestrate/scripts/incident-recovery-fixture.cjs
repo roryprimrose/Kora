@@ -89,12 +89,12 @@ function recoveryContext(event) {
   return { revision: event.proof.checkpointRevision, recoveryEvidence: recoveryEvidence(event) };
 }
 
-function continuation(state, revision = 42) {
+function continuation(state, revision = 42, renewed = false) {
   const record = state.recoveries.at(-1);
   const item = state.items.find(value => value.key === record.event.proof.key);
   const grantDigest = digest(record);
   const fence = structuredClone(record.event.proof.reconciliation.fence ?? null);
-  const request = { version: 1, kind: 'exact-recovered-owner-continuation', coordinator: state.coordinator,
+  const request = { version: renewed ? 2 : 1, kind: 'exact-recovered-owner-continuation', coordinator: state.coordinator,
     head: state.head, sourceHead: record.event.proof.source.head,
     checkpointRevision: revision, key: item.key, owner: item.owner,
     expectedItemDigest: digest(item), scopeRevision: item.scopeRevision, grantDigest, fence,
@@ -102,11 +102,71 @@ function continuation(state, revision = 42) {
       requestDigest: '', fence: structuredClone(fence), workJoined: true, staleAuthorityRejected: true,
       receipt: 'SYNTHETIC separate later exact continuation response; not blocker resolution.' } };
   request.acknowledgment.requestDigest = recoveryContinuationDigest(request);
+  if (renewed) {
+    request.renewalDigest = digest(state.recoveryRenewals.at(-1));
+    request.acknowledgment.id = `synthetic-renewed-continuation-${revision}`;
+    request.acknowledgment.requestDigest = recoveryContinuationDigest(request);
+  }
   return request;
 }
 
+function renewalFixture(mode = 'human-approved-source-fence') {
+  const initial = incidentFixture();
+  const recovery = recoveryEvent(initial, 41, mode);
+  const accepted = applyEvent(initial, recovery, recoveryContext(recovery)).state;
+  return applyEvent(accepted, { id: 'synthetic-new-main', type: 'refresh', head: '2'.repeat(40) }).state;
+}
+
+function rebindRenewal(event) {
+  event.acknowledgment.proofDigest = digest(event.proof);
+  return event;
+}
+
+function renewalEvent(state, revision = 43) {
+  const grant = state.recoveries.at(-1);
+  const original = grant.event.proof;
+  const item = state.items.find(value => value.key === original.key);
+  const previous = (state.recoveryRenewals ?? []).filter(record =>
+    record.event.proof.grantDigest === digest(grant)).at(-1);
+  const proof = { version: 1, repository: original.repository, coordinator: state.coordinator,
+    checkpointRevision: revision, head: state.head, key: item.key, owner: item.owner,
+    grantDigest: digest(grant), previousRenewalDigest: previous ? digest(previous) : null,
+    expectedItemDigest: digest(item), scopeRevision: item.scopeRevision, scopes: [...item.scopes],
+    source: { ...original.source, receipt: 'SYNTHETIC fresh unchanged source identity readback.' },
+    fence: structuredClone(original.reconciliation.fence ?? null),
+    quiescence: { sourcePaused: true, commandsRunning: false, workJoined: true,
+      pendingInstructions: original.reconciliation.pendingInstructions,
+      processingInstructions: original.reconciliation.processingInstructions,
+      receipt: 'SYNTHETIC fresh live pause/join and exact instruction authority readback.' },
+    exclusivity: { complete: true, reservations: heldReservations(state, item.key),
+      receipt: 'SYNTHETIC current complete exclusive reservation inventory.' },
+    compatibility: { baseHead: original.head, fromHead: previous?.event.proof.head ?? original.head,
+      toHead: state.head, ancestorVerified: true, complete: true,
+      changedPaths: ['docs\\unrelated.md'], scopeReviewCompatible: true, sourceReviewCompatible: true,
+      receipt: 'SYNTHETIC complete original-main to current-main diff, ancestry and source/contract review; not a Git query.' } };
+  return rebindRenewal({ id: `synthetic-renewal-${revision}`, type: 'renew-recovery-continuation', proof,
+    acknowledgment: { id: `synthetic-renewal-owner-response-${revision}`, owner: item.owner, key: item.key,
+      scopeRevision: item.scopeRevision, proofDigest: '', fence: structuredClone(proof.fence),
+      workJoined: true, staleAuthorityRejected: true,
+      receipt: 'SYNTHETIC fresh exact owner whole-renewal compatibility response.' } });
+}
+
+function renewalEvidence(event) {
+  const p = event.proof;
+  return { kind: 'host-verified-recovery-renewal', coordinator: p.coordinator,
+    checkpointRevision: p.checkpointRevision, proofDigest: digest(p),
+    ownerResponseId: event.acknowledgment.id, compatibilityDigest: digest(p.compatibility),
+    sourceIdentityVerified: true, sourcePauseVerified: true, commandsJoinedVerified: true,
+    instructionAuthorityVerified: true, compatibilityVerified: true,
+    receipt: 'SYNTHETIC independent host observations; not real compatibility, authentication or execution authority.' };
+}
+
+function renewalContext(event) {
+  return { revision: event.proof.checkpointRevision, renewalEvidence: renewalEvidence(event) };
+}
+
 module.exports = { incidentFixture, recoveryEvent, rebindRecovery, recoveryEvidence, recoveryContext,
-  continuation, paths };
+  continuation, paths, renewalFixture, renewalEvent, rebindRenewal, renewalEvidence, renewalContext };
 
 if (require.main === module) {
   const state = incidentFixture();

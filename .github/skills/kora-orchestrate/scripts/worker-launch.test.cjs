@@ -6,7 +6,8 @@ const { createState, applyEvent, digest, heldReservations } = require('./registr
 const fs = require('node:fs');
 const path = require('node:path');
 const { workerLaunch } = require('./worker-launch.cjs');
-const { incidentFixture, recoveryEvent, recoveryContext } = require('./incident-recovery-fixture.cjs');
+const { incidentFixture, recoveryEvent, recoveryContext,
+  renewalFixture, renewalEvent, renewalContext } = require('./incident-recovery-fixture.cjs');
 const { refinementFixture, refinementEvent, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
   supersessionBeneficiaryFixture } = require('./refinement-fixture.cjs');
@@ -18,6 +19,34 @@ const settings = {
   productionWorkspace: 'Q:\\Repos\\Kora',
   scratch: 'Q:\\Repos\\Kora.worktrees\\control\\.scratch\\run'
 };
+
+test('launch validates renewal history, retains exact recovered exclusions and never converts renewal into launch', () => {
+  const initial = renewalFixture();
+  const event = renewalEvent(initial);
+  const renewed = applyEvent(initial, event, renewalContext(event));
+  assert.deepEqual(renewed.actions, []);
+  assert.throws(() => workerLaunch(renewed.state,
+    { type: 'launch', key: event.proof.key, pool: 'ready' }, settings), /reservation/);
+  let state = applyEvent(renewed.state, { id: 'renewal-planner', type: 'planner', owner: 'new-planner' }).state;
+  const result = applyEvent(state, { id: 'renewal-disjoint-candidate', type: 'candidate', owner: 'new-planner',
+    pass: 1, key: 'independent', outcome: 'Independent operation after renewal', pool: 'ready', kind: 'feature',
+    head: state.head, scopes: ['src\\independent.cjs'], evidence: 'Synthetic disjoint admitted work.' });
+  const action = result.actions.find(action => action.type === 'launch');
+  const prompt = workerLaunch(result.state, action, settings).prompt;
+  assert.match(prompt, /renew-recovery-continuation/);
+  assert.match(prompt, /Never rewrite the original grant, source base, scopes or fence/);
+  assert.match(prompt, /Retained exclusion key=incident-owner, owner=synthetic-owner/);
+  assert.ok(prompt.includes('third-party-notices.md'));
+  for (const change of [
+    s => { delete s.recoveryRenewals; },
+    s => { s.version = 6; },
+    s => { s.recoveryRenewals[0].event.proof.compatibility.complete = false; }
+  ]) {
+    state = structuredClone(result.state);
+    change(state);
+    assert.throws(() => workerLaunch(state, action, settings));
+  }
+});
 
 test('launch retains recovered owner exclusions, teaches distinct recovery and never relaunches that owner', () => {
   const initial = incidentFixture();

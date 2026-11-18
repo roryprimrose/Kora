@@ -124,6 +124,18 @@ acknowledgment; use the [continuation verifier](./README.md#separate-exact-conti
 Reject stale queued broad instructions before any write. Actual host enforcement,
 human authentication and incident-specific blocker resolution remain external.
 
+If compatible unrelated main advancement invalidates an accepted grant's
+continuation, remain paused and use the explicit
+[same-owner renewal](./README.md#same-owner-continuation-renewal).
+Reverify the preserved source identity, original recovered scopes and fence,
+fresh live pause/join and current complete held guards. Acknowledge the whole
+renewal including independently reviewed main-change/source-contract compatibility;
+disjoint paths alone or the old source HEAD is insufficient.
+Do not rebase dirty work, rewrite the grant, expand scopes or replace UNKNOWN.
+After durable renewal, separately acknowledge the current version-2 continuation
+request with its renewal digest. Reject stale acknowledgments/messages; host
+delivery deduplication and actual execution authority remain separate.
+
 ## Superseded exact-file write identity
 
 For [exact-path supersession](./README.md#exact-path-write-reservation-supersession), verify the exact beneficiary, current source and durable accepted reservation before writing. A prepared external proposal is never a grant. Historical scopes remain on old items; use coordinator-supplied shared effective exclusions, not ad hoc ancestor subtraction or the old retirement flag alone.

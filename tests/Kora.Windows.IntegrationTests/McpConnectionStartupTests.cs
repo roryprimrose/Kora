@@ -197,7 +197,7 @@ public sealed class McpConnectionStartupTests
             await caller.CancelAsync();
             clock.Advance(TimeSpan.FromSeconds(30));
             connection.AdmissionWithdrawn.IsCancellationRequested.Should().BeFalse();
-            pending = connection.ExchangeAsync(McpTransportFixture.Wire(McpProtocol.InitializeRequest()), 16384, Token);
+            pending = connection.InitializeAsync(Token);
             var actualToken = await entered.Task.WaitAsync(Token);
             clock.Advance(TimeSpan.FromSeconds(29));
             actualToken.IsCancellationRequested.Should().BeFalse();
@@ -216,7 +216,7 @@ public sealed class McpConnectionStartupTests
             f.Acquisitions.Should().Be(1);
             f.HandlerCreations.Should().Be(1);
             f.Requests.Should().ContainSingle();
-            clock.Timers.Should().HaveCount(2).And.OnlyContain(timer => timer.Disposed);
+            clock.Timers.Should().HaveCount(3).And.OnlyContain(timer => timer.Disposed);
         }
         finally
         {

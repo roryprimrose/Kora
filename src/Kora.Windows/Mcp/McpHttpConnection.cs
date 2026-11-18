@@ -44,16 +44,6 @@ internal sealed partial class McpHttpConnection : IMcpConnection
         return valid;
     }, token);
 
-    internal Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token)
-    {
-        if (maximumResponseBytes is < 1 or > McpProtocol.MaximumDiscoveryUtf8Bytes)
-        { throw new ArgumentOutOfRangeException(nameof(maximumResponseBytes)); }
-        return RunAsync(current => PostAsync(request, maximumResponseBytes, notification: false, current), token);
-    }
-
-    internal async Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token) =>
-        await RunAsync(current => PostAsync(notification, 0, notification: true, current), token).ConfigureAwait(false);
-
     private async Task<ImmutableArray<byte>> PostAsync(ImmutableArray<byte> wire, int limit, bool notification, CancellationToken token)
     {
         if (wire.IsDefaultOrEmpty || wire.Length > McpProtocol.MaximumDiscoveryUtf8Bytes)

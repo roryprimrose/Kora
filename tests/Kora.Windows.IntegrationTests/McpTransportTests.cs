@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Core.Mcp;
 using Kora.Windows.Mcp;
@@ -38,19 +39,16 @@ public sealed class McpTransportTests
             connection.Endpoint.Should().Be(f.Account.Destination);
             connection.RemoteAddresses.Should().Equal(IPAddress.Parse("8.8.8.8"));
             (await connection.IsCurrentAsync(Token)).Should().BeTrue();
-            var initialized = await connection.ExchangeAsync(McpTransportFixture.Wire(McpProtocol.InitializeRequest()), 16384, Token);
-            McpProtocol.ValidateInitialization(initialized.AsSpan());
-            await connection.NotifyAsync(McpTransportFixture.Wire(McpProtocol.InitializedNotification()), Token);
-            var discovered = await connection.ExchangeAsync(McpTransportFixture.Wire(McpProtocol.DiscoveryRequest()), 16384, Token);
-            var tool = McpProtocol.ReadDiscovery(discovered.AsSpan()).Should().ContainSingle().Subject;
-            var invocation = McpProtocol.InvocationRequest(tool.Name, tool.Schema, """{"query":"référence"}""");
-            var result = await connection.ExchangeAsync(McpTransportFixture.Wire(invocation), 1536, Token);
-            result.Should().Equal(Encoding.UTF8.GetBytes(McpTransportFixture.Result));
-            McpProtocol.ReadInvocationResult(result.AsSpan()).Text.Should().Be("reference 42");
-            f.Requests.Select(request => request.Bytes).Should().BeEquivalentTo(new[]
-            {
-                McpProtocol.InitializeRequest(), McpProtocol.InitializedNotification(), McpProtocol.DiscoveryRequest(), invocation,
-            }, options => options.WithStrictOrdering());
+            (await connection.InitializeAsync(Token)).Value.Tools.Should().BeTrue();
+            var tool = (await connection.ListAsync(McpCapabilityKind.Tool, null, Token)).Value.Items.Should().ContainSingle().Subject;
+            using var definition = JsonDocument.Parse(tool.DefinitionJson);
+            var schema = new McpToolSchema(definition.RootElement.GetProperty("inputSchema").GetRawText());
+            var result = await connection.InvokeAsync(tool.Id, schema, """{"query":"référence"}""", Token);
+            result.Utf8Bytes.Should().Be(Encoding.UTF8.GetByteCount(McpTransportFixture.Result));
+            result.Value.Text.Should().Be("reference 42");
+            f.Methods.Should().Equal("initialize", "notifications/initialized", "tools/list", "tools/call");
+            using var invocation = JsonDocument.Parse(f.Requests[^1].Bytes);
+            invocation.RootElement.GetProperty("params").GetProperty("arguments").GetProperty("query").GetString().Should().Be("référence");
             f.Requests.Should().OnlyContain(request => request.Address == f.Account.Destination.Address
                 && request.Method == HttpMethod.Post && request.Authorization == "Bearer fake-delegated-token"
                 && request.ContentType == "application/json" && request.Accept == "application/json, text/event-stream"
@@ -159,29 +157,41 @@ public sealed class McpTransportTests
     [InlineData(16384)]
     public async Task Complete_utf8_byte_bounds_accept_exact_limit_and_refuse_one_more(int limit)
     {
-        using var f = new McpTransportFixture { ResponseContentType = "application/json; charset=\"utf-8\"" };
-        var bytes = Encoding.UTF8.GetBytes(new string('é', limit / 2));
-        f.Send = (_, _) => Task.FromResult(JsonBytes(bytes));
-        await using var connection = await f.Broker.ConnectAsync(f.Account, Token);
-        (await connection.ExchangeAsync(McpTransportFixture.Wire(McpProtocol.InitializeRequest()), limit, Token))
-            .Should().Equal(bytes);
-        f.Send = (_, _) => Task.FromResult(JsonBytes([.. bytes, 32]));
-        await FluentActions.Awaiting(() => connection.ExchangeAsync(
-            McpTransportFixture.Wire(McpProtocol.InitializeRequest()), limit, Token)).Should().ThrowAsync<InvalidDataException>();
+        foreach (var overflow in new[] { false, true })
+        {
+            using var f = new McpTransportFixture { ResponseContentType = "application/json; charset=\"utf-8\"" };
+            await using var connection = await f.Broker.ConnectAsync(f.Account, Token);
+            if (limit == 1536) { await connection.InitializeAsync(Token); }
+            var wire = limit == 1536
+                ? """{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"é"}]}}"""
+                : McpTransportFixture.Initialization;
+            var bytes = Encoding.UTF8.GetBytes(wire + new string(' ', limit - Encoding.UTF8.GetByteCount(wire) + (overflow ? 1 : 0)));
+            f.Send = (sent, _) =>
+            {
+                using var request = JsonDocument.Parse(sent.Bytes);
+                return Task.FromResult(request.RootElement.GetProperty("method").GetString() is "notifications/initialized"
+                    ? new HttpResponseMessage(HttpStatusCode.Accepted) { Content = new ByteArrayContent([]) }
+                    : JsonBytes(bytes));
+            };
+            Task<int> Read() => ReadCore();
+            async Task<int> ReadCore() => limit == 1536
+                ? (await connection.InvokeAsync("search", new(McpTransportFixture.Schema), """{"query":"reference"}""", Token)).Utf8Bytes
+                : (await connection.InitializeAsync(Token)).Utf8Bytes;
+            if (overflow) { await FluentActions.Awaiting(Read).Should().ThrowAsync<InvalidDataException>(); }
+            else { (await Read()).Should().Be(limit); }
+        }
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(16385)]
-    public async Task Invalid_request_bounds_do_not_send(int limit)
+    [Fact]
+    public async Task Invalid_typed_requests_do_not_send()
     {
         using var f = new McpTransportFixture();
         await using var connection = await f.Broker.ConnectAsync(f.Account, Token);
-        await FluentActions.Awaiting(() => connection.ExchangeAsync(
-            McpTransportFixture.Wire(McpProtocol.InitializeRequest()), limit, Token)).Should().ThrowAsync<ArgumentOutOfRangeException>();
-        await FluentActions.Awaiting(() => connection.ExchangeAsync([], 1536, Token)).Should().ThrowAsync<InvalidDataException>();
-        await FluentActions.Awaiting(() => connection.ExchangeAsync(
-            ImmutableArray.Create(new byte[16385]), 1536, Token)).Should().ThrowAsync<InvalidDataException>();
+        await FluentActions.Awaiting(() => connection.ListAsync((McpCapabilityKind)99, null, Token)).Should().ThrowAsync<ArgumentOutOfRangeException>();
+        await FluentActions.Awaiting(() => connection.ListAsync(McpCapabilityKind.Tool, new string('x', 2049), Token)).Should().ThrowAsync<InvalidDataException>();
+        await FluentActions.Awaiting(() => connection.ReadResourceAsync("relative", Token)).Should().ThrowAsync<InvalidDataException>();
+        await FluentActions.Awaiting(() => connection.InvokeAsync("search", new(McpTransportFixture.Schema),
+            "{\"query\":\"" + new string('x', 16385) + "\"}", Token)).Should().ThrowAsync<InvalidDataException>();
         f.Requests.Should().BeEmpty();
     }
 
@@ -263,12 +273,13 @@ public sealed class McpTransportTests
         await FluentActions.Awaiting(() => Initialize(connection)).Should().ThrowAsync<InvalidOperationException>();
         f.Requests.Should().BeEmpty();
         f.Lease.Current = true;
+        await using var recovered = await f.Broker.ConnectAsync(f.Account, Token);
         f.Send = (_, _) =>
         {
             f.Lease.Current = false;
             return Task.FromResult(McpTransportFixture.Json(McpTransportFixture.Initialization));
         };
-        await FluentActions.Awaiting(() => Initialize(connection)).Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => Initialize(recovered)).Should().ThrowAsync<InvalidOperationException>();
         f.Requests.Should().ContainSingle();
     }
 
@@ -289,11 +300,11 @@ public sealed class McpTransportTests
             return McpTransportFixture.Json(McpTransportFixture.Initialization);
         };
         var connection = await f.Broker.ConnectAsync(f.Account, Token);
-        var pending = connection.ExchangeAsync(McpTransportFixture.Wire(McpProtocol.InitializeRequest()), 16384, caller.Token);
+        var pending = connection.InitializeAsync(caller.Token);
         var actualToken = await entered.Task.WaitAsync(Token);
         var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var registration = actualToken.Register(() => cancelled.TrySetResult());
-        var queued = Initialize(connection);
+        var queued = connection.IsCurrentAsync(Token);
         if (string.Equals(reason, "caller", StringComparison.Ordinal)) { await caller.CancelAsync(); }
         if (string.Equals(reason, "withdrawal", StringComparison.Ordinal)) { await f.Lease.Withdrawn.CancelAsync(); }
         var disposal = connection.DisposeAsync().AsTask();
@@ -343,8 +354,8 @@ public sealed class McpTransportTests
             return McpTransportFixture.Json(McpTransportFixture.Initialization);
         };
         var connection = await f.Broker.ConnectAsync(f.Account, Token);
-        var pending = connection.ExchangeAsync(McpTransportFixture.Wire(McpProtocol.InitializeRequest()), 16384, caller.Token);
-        var queued = Initialize(connection);
+        var pending = connection.InitializeAsync(caller.Token);
+        var queued = connection.IsCurrentAsync(Token);
         try
         {
             await entered.Task.WaitAsync(Token);
@@ -356,9 +367,9 @@ public sealed class McpTransportTests
             f.HandlerDisposed.Should().BeFalse();
             release.SetResult();
             await FluentActions.Awaiting(() => pending).Should().ThrowAsync<OperationCanceledException>();
-            McpProtocol.ValidateInitialization((await queued.WaitAsync(Token)).AsSpan());
-            sends.Should().Be(2);
-            f.Requests.Should().HaveCount(2);
+            (await queued.WaitAsync(Token)).Should().BeTrue();
+            sends.Should().Be(1);
+            f.Requests.Should().ContainSingle();
             f.Disposed.Should().BeFalse();
             f.HandlerDisposed.Should().BeFalse();
         }
@@ -396,12 +407,12 @@ public sealed class McpTransportTests
         var actualToken = await entered.Task.WaitAsync(Token);
         var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var registration = actualToken.Register(() => cancelled.TrySetResult());
-        var queued = Initialize(connection);
+        var queued = connection.IsCurrentAsync(Token);
         try
         {
             if (timeout)
             {
-                clock.Timers.Should().HaveCount(2);
+                clock.Timers.Count(timer => !timer.Disposed).Should().Be(3);
                 clock.Timers.Should().OnlyContain(timer => timer.Due == TimeSpan.FromSeconds(30) && !timer.Disposed);
                 clock.Fire();
             }
@@ -470,8 +481,8 @@ public sealed class McpTransportTests
         await FluentActions.Awaiting(() => Initialize(connection)).Should().ThrowAsync<ObjectDisposedException>();
     }
 
-    private static Task<ImmutableArray<byte>> Initialize(IMcpConnection connection) =>
-        connection.ExchangeAsync(McpTransportFixture.Wire(McpProtocol.InitializeRequest()), 16384, Token);
+    private static Task<McpConnectionReply<McpServerCapabilities>> Initialize(IMcpConnection connection) =>
+        connection.InitializeAsync(Token);
 
     [Fact]
     public async Task Unqualified_source_does_not_acquire_a_credential_or_resolve_dns()
@@ -503,10 +514,11 @@ public sealed class McpTransportTests
     public async Task Declared_oversize_and_empty_exchange_bodies_are_refused(bool empty)
     {
         using var f = new McpTransportFixture();
-        f.Send = (_, _) => Task.FromResult(McpTransportFixture.Json(empty ? string.Empty : new string('x', 1537)));
         await using var connection = await f.Broker.ConnectAsync(f.Account, Token);
-        await FluentActions.Awaiting(() => connection.ExchangeAsync(
-            McpTransportFixture.Wire(McpProtocol.InitializeRequest()), 1536, Token)).Should().ThrowAsync<InvalidDataException>();
+        await connection.InitializeAsync(Token);
+        f.Send = (_, _) => Task.FromResult(McpTransportFixture.Json(empty ? string.Empty : new string('x', 1537)));
+        await FluentActions.Awaiting(() => connection.InvokeAsync("search", new(McpTransportFixture.Schema),
+            """{"query":"reference"}""", Token)).Should().ThrowAsync<InvalidDataException>();
     }
 
     [Theory]
@@ -515,11 +527,16 @@ public sealed class McpTransportTests
     public async Task Initialized_notification_requires_202_without_response_bytes(int status, string body)
     {
         using var f = new McpTransportFixture();
-        f.Send = (_, _) => Task.FromResult(McpTransportFixture.Json(body, (HttpStatusCode)status));
+        f.Send = (sent, _) =>
+        {
+            using var request = JsonDocument.Parse(sent.Bytes);
+            return Task.FromResult(request.RootElement.GetProperty("method").GetString() is "initialize"
+                ? McpTransportFixture.Json(McpTransportFixture.Initialization)
+                : McpTransportFixture.Json(body, (HttpStatusCode)status));
+        };
         await using var connection = await f.Broker.ConnectAsync(f.Account, Token);
-        await FluentActions.Awaiting(() => connection.NotifyAsync(
-            McpTransportFixture.Wire(McpProtocol.InitializedNotification()), Token)).Should().ThrowAsync<InvalidDataException>();
-        f.Requests.Should().ContainSingle();
+        await FluentActions.Awaiting(() => connection.InitializeAsync(Token)).Should().ThrowAsync<InvalidDataException>();
+        f.Methods.Should().Equal("initialize", "notifications/initialized");
     }
 
     [Fact]

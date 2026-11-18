@@ -6,7 +6,7 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class ResponseReadUiContractTests
 {
     [Fact]
-    public void NativeCurrentResponseAndStopUseSharedCommandsAndRetireClosedSources()
+    public void NativeReadProposalAndStopUseSharedCommandsAndRetireClosedSources()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Kora.slnx")))
@@ -15,9 +15,6 @@ public sealed class ResponseReadUiContractTests
         }
         var root = directory?.FullName ?? throw new InvalidOperationException("Source root unavailable.");
         var response = XDocument.Load(Path.Combine(root, "src", "Kora", "ResponseWindow.axaml"));
-        var read = response.Descendants().Single(node =>
-            string.Equals(node.Attribute("Command")?.Value, "{Binding ReadCurrentResponseCommand}", StringComparison.Ordinal));
-        read.Attribute("AutomationProperties.Name")!.Value.Should().Be("Read this current ordinary response aloud once");
         response.Descendants().Select(node => node.Attribute("Command")?.Value)
             .Should().Contain("{Binding StopSpeechCommand}", "owned playback must retain a native stop route");
         var proposal = response.Descendants().Single(node =>

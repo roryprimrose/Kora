@@ -37,7 +37,7 @@ internal sealed class CustomizationWindow : Window
 
     internal CustomizationWindow(Action<string> run, MainViewModel main)
     {
-        Title = "Kora Customizations";
+        Title = "Customizations";
         Width = 1240;
         Height = 840;
         MinWidth = 900;

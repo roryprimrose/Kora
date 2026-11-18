@@ -28,8 +28,8 @@ public sealed class LocalModelQuestionSpeechTests
 
         var phrases = LocalModelQuestionSpeech.GetPhrases(question, Assistant).ToArray();
 
-        phrases.Should().Contain(["1", "option one", "Alpha", "Nova Alpha", "2",
-            "second option", "cancel question", "Nova cancel question", "accept", "Nova deny"]);
+        phrases.Should().Contain(["1", "option one", "Alpha", "Nova Alpha", "Kora Alpha", "2",
+            "second option", "cancel question", "Nova cancel question", "Kora cancel question", "accept", "Nova deny"]);
         phrases.Should().NotContain("Use /tmp");
         phrases.Should().NotContain("Nova Use /tmp");
         var nullQuestion = () => LocalModelQuestionSpeech.GetPhrases(null!, Assistant).ToArray();
@@ -41,6 +41,8 @@ public sealed class LocalModelQuestionSpeechTests
     [InlineData("Nova, ALPHA!", 0)]
     [InlineData("2", 1)]
     [InlineData("Nova option two", 1)]
+    [InlineData("Kora, option two", 1)]
+    [InlineData("Aria alpha", -1)]
     [InlineData("second option", 1)]
     [InlineData("not an option", -1)]
     [InlineData("Other alpha", -1)]
@@ -90,6 +92,8 @@ public sealed class LocalModelQuestionSpeechTests
     [InlineData("A different answer", "A different answer")]
     [InlineData("Nova, use the kitchen display", "use the kitchen display")]
     [InlineData("Nova: keep both", "keep both")]
+    [InlineData("Kora, keep both", "keep both")]
+    [InlineData("Aria, keep both", "Aria, keep both")]
     [InlineData("Novator can answer", "Novator can answer")]
     public void GetFreeTextAnswer_preserves_custom_feedback_and_removes_the_activation_name(
         string transcript, string expected)

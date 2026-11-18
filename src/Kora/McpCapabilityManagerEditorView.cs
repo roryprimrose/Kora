@@ -18,7 +18,7 @@ internal sealed class McpCapabilityManagerEditorView : UserControl
     private readonly TaskCompletionSource<McpCapabilityChange?> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool closed;
     private readonly McpCapabilityManagerView inventory;
-    private readonly CheckBox server = new() { Content = "Server enabled in Kora", IsChecked = true };
+    private readonly CheckBox server = new() { Content = $"Server enabled in {AssistantNameDisplay.Current.Name}", IsChecked = true };
     private readonly StackPanel editor = new() { Spacing = 12 };
     private readonly StackPanel review = new() { Spacing = 12, IsVisible = false };
     private readonly Dictionary<McpCapability, CheckBox> items = [];
@@ -91,7 +91,7 @@ internal sealed class McpCapabilityManagerEditorView : UserControl
                 Content = capability.Kind + ": " + capability.Name
                     + (capability.UnavailableReason is { } reason ? " - Unavailable: " + reason : string.Empty),
             };
-            AutomationProperties.SetName(check, capability.Kind + " " + capability.Name + " considered by Kora");
+            AutomationProperties.SetName(check, capability.Kind + " " + capability.Name + $" considered by {AssistantNameDisplay.Current.Name}");
             check.IsCheckedChanged += (_, _) =>
             {
                 if (updating) { return; }

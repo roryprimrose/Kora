@@ -54,6 +54,18 @@ public sealed class OwnedSkillUseReview : IDisposable
     }
     public bool IsEnabled { get { lock (gate) { return IsCurrent && enabled && !consumed; } } }
     public bool RequiresReferenceConsent { get { lock (gate) { return IsCurrent && !snapshot!.Document.IsComplete; } } }
+    /// <summary>Read-only copy of the exact captured files; null once the review is no longer current.</summary>
+    public Kora.Core.Presentation.ReviewContents? Contents
+    {
+        get
+        {
+            lock (gate)
+            {
+                return IsCurrent ? Kora.Core.Presentation.ReviewContents.FromOwnedSkill(snapshot!.Document.Name, snapshot) : null;
+            }
+        }
+    }
+
     public string Text
     {
         get

@@ -31,6 +31,8 @@ internal sealed partial class OwnedSkillInvocationController
         }
         mcpWindow = opened;
         opened.Instructions.Text = source.Text;
+        if (source.Contents is { } contents)
+        { opened.ContentsLink.Offer(contents, () => ReferenceEquals(mcpWindow, opened) && source.IsCurrent && Eligible()); }
         opened.Request.PropertyChanged += (_, args) =>
         {
             if (args.Property == Avalonia.Controls.TextBox.TextProperty)

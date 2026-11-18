@@ -28,6 +28,7 @@ internal sealed partial class SkillPackagesView : UserControl, IDisposable
     private bool updatingResults;
     private bool closed;
     internal event Action<SkillPackageSnapshot?>? PackageChanged;
+    internal ReviewContentsLink ContentsLink { get; } = new();
 
     public SkillPackagesView() => throw new InvalidOperationException("Use the host-owned immutable skill inspection route.");
 
@@ -74,6 +75,8 @@ internal sealed partial class SkillPackagesView : UserControl, IDisposable
             if (!closed && this.current() && SelectedPackage is { } selected) { executeBound?.Invoke(selected); }
         };
         this.FindControl<Button>("SharedSources")!.Click += (_, _) => { if (!closed) { sharedSources?.Invoke(); } };
+        if (this.FindControl<Button>("ReviewBundledExecution")!.Parent is Panel actions)
+        { actions.Children.Insert(actions.Children.IndexOf(this.FindControl<Button>("ReviewBundledExecution")!), ContentsLink.Button); }
         this.FindControl<Button>("SharedSources")!.IsEnabled = sharedSources is not null;
         var selector = this.FindControl<ComboBox>("PackageSelector")!;
         var filter = this.FindControl<ComboBox>("PackageFilter")!;
@@ -208,6 +211,7 @@ internal sealed partial class SkillPackagesView : UserControl, IDisposable
 
     private void ClearSelection()
     {
+        ContentsLink.Retire();
         PackageChanged?.Invoke(null);
         IdentityFinder.Retire();
         this.FindControl<TextBlock>("PackageIdentity")!.Text = string.Empty;
@@ -237,6 +241,8 @@ internal sealed partial class SkillPackagesView : UserControl, IDisposable
             + $"{SkillPackageSnapshot.UnavailableReason}\n{SkillPackageSnapshot.TransitiveGaps}\n{SkillPackageSnapshot.TransitiveDisclosure}";
         this.FindControl<TabControl>("SourceTabs")!.ItemsSource = CreateSourceTabs(catalogue, package, renderer);
         PackageChanged?.Invoke(package);
+        ContentsLink.Offer(Kora.Core.Presentation.ReviewContents.FromPackage(package.Manifest.Name, package),
+            () => !closed && current() && ReferenceEquals(SelectedPackage, package));
         IdentityFinder.Admit(this.FindControl<TextBlock>("PackageIdentity")!.Text!,
             () => !closed && current() && ReferenceEquals(SelectedPackage, package));
     }

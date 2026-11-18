@@ -248,7 +248,7 @@ public sealed partial class MainViewModel
                 new(source.Id, source.Revision, call), text, output! with { IsSystemDefault = false }, Eligible);
             var description = $"Speak ONE current response during call protection. Output: {output!.Name}; "
                 + $"voice: {speech.EffectiveVoice!.Name} ({speech.EffectiveVoice.ProviderId}); "
-                + $"Kora volume: {(volume is null ? "existing engine setting" : volume.Effective!.Value.Percent.ToString(System.Globalization.CultureInfo.InvariantCulture))}; "
+                + $"{AssistantName} volume: {(volume is null ? "existing engine setting" : volume.Effective!.Value.Percent.ToString(System.Globalization.CultureInfo.InvariantCulture))}; "
                 + $"Windows rate: {rate?.Effective?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "existing engine setting"}. "
                 + $"Ordinary mode: {ordinaryMode}; call feedback: {DesiredInCallFeedback}. "
                 + "Only the exact text below is eligible. Review it and separately Confirm speak once, or Cancel. "

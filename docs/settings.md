@@ -839,7 +839,7 @@ The tab groups **Appearance** controls first (theme, reader text scale, reduced 
 
 The existing controls and exact typed/activated-voice commands share one
 host-owned, typed appearance service. No model or network is needed. Enter
-**list appearance settings** to inspect the thirteen admitted options, units,
+**list appearance settings** to inspect the fourteen admitted options, units,
 defaults, bounds, scope and application timing ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)).
 
 | ID | Default | Values / units |
@@ -857,6 +857,7 @@ defaults, bounds, scope and application timing ([registry](../src/Kora.Core/Conf
 | `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail and complete serialized Evidence bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
 | `appearance.native-presence-renderer` | `false` | `false` = Avalonia; `true` = Native (experimental); an environment startup default applies only without a saved choice |
 | `appearance.reduced-motion` | `false` | `true` freezes presence particles; `false` follows Windows, never overrides Windows reduced motion ([precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs)) |
+| `appearance.conversation-on-right` | `false` | `false` = conversation left of reviews and contents in the expanded window; `true` = conversation on the right (**Conversation side** in Settings) |
 
 Use **get appearance.theme**, **set appearance.theme to dark**, or
 **reset appearance.theme**; substitute another listed ID and its typed value.
@@ -1033,7 +1034,8 @@ is explicitly saved.
 
 The name updates window titles, tray labels, command/help prefixes, visual
 responses, spoken identity and voice preview. The next explicitly activated
-PTT uses the new grammar; the old prefix is not an alias, including session
+PTT uses the new grammar, which also accepts Kora; any other previous prefix is
+not an alias, including session
 and artifact commands. A mutation retires capture and queued transcript/
 completion generations and leaves listening held. Use **Enable listening**
 explicitly before a new PTT; rename/reset never opens the microphone or clears

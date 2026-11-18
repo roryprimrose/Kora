@@ -21,7 +21,7 @@ internal sealed class ObservationWorkflowWindow : Window, IOwnedSkillSaveReview
 
     internal ObservationWorkflowWindow(Func<string, Task> run, Func<bool> eligible)
     {
-        Title = "Kora-owned observation workflow";
+        Title = "Owned observation workflow";
         Width = 900;
         Height = 800;
         View = new(this, run, eligible, static () => true);

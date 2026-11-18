@@ -56,7 +56,7 @@ public sealed class PlaybackVolumeCommandTests
     }
 
     [Theory]
-    [InlineData("Kora, get speech.playback-volume")]
+    [InlineData("Aria, get speech.playback-volume")]
     [InlineData("ordinary speech")]
     [InlineData("get speech.provider")]
     public void Old_name_and_unrelated_grammars_are_not_volume_aliases(string text) =>
@@ -78,7 +78,7 @@ public sealed class PlaybackVolumeCommandTests
     }
 
     [Theory]
-    [InlineData("Kora, speak louder")]
+    [InlineData("Aria, speak louder")]
     [InlineData("NovaX speak quieter")]
     [InlineData("please speak louder")]
     [InlineData("speak faster")]

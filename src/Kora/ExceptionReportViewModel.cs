@@ -102,7 +102,7 @@ internal sealed partial class ExceptionReportViewModel(
             {
                 ExternalBrowserLaunchOutcome.Accepted => "Windows accepted the GitHub browser handoff. No issue submission is verified. "
                     + "Sign in, review or edit the report, then select Create on GitHub to post.",
-                ExternalBrowserLaunchOutcome.Denied => "Browser handoff denied by current review, privacy or network policy. Nothing was posted by Kora.",
+                ExternalBrowserLaunchOutcome.Denied => $"Browser handoff denied by current review, privacy or network policy. Nothing was posted by {AssistantNameDisplay.Current.Name}.",
                 ExternalBrowserLaunchOutcome.Cancelled => "Browser handoff cancelled. No issue submission is verified.",
                 ExternalBrowserLaunchOutcome.Failed => "Browser handoff failed. No issue submission is verified.",
                 _ => "Browser handoff outcome unknown. It may have opened; do not retry without checking the browser. No issue submission is verified.",

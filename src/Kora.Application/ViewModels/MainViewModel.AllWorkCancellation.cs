@@ -92,7 +92,7 @@ public sealed partial class MainViewModel
     }
 
     public void PresentAllWorkJoining() => ShowInformation("Stopping reviewed submitted work.",
-        "Waiting for actual provider, question, voice, worker and finite-read resources and retained terminal readback. A cancellation request is not completion. Kora stays open.");
+        $"Waiting for actual provider, question, voice, worker and finite-read resources and retained terminal readback. A cancellation request is not completion. {AssistantName} stays open.");
 
     public void ReportAllWorkStopFailure(Exception exception) =>
         ApplicationLog.Error(logger, exception, "Reviewing or joining Stop All submitted work");

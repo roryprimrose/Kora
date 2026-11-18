@@ -104,7 +104,7 @@ public sealed partial class MainViewModel
                 Transcript = result;
                 PreserveSpokenResponseFailure("Volume preference result is in status; the complete interrupted response remains visual.");
             }
-            else { PresentResponse(AssistantState.Information, "Kora playback volume.", result, refreshOutput: false); }
+            else { PresentResponse(AssistantState.Information, $"{AssistantName} playback volume.", result, refreshOutput: false); }
         }
         catch (ArgumentOutOfRangeException exception)
         {

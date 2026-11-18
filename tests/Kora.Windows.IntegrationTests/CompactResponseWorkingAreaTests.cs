@@ -139,7 +139,35 @@ public sealed class CompactResponseWorkingAreaTests
     }
 
     [Fact]
-    public async Task IdleCompactResponseHasOnlyCoreGlyphActionsAndExplicitOverflow()
+    public async Task IdleCompactResponseHasNoGapsFromHiddenSections()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(ScratchParent(), silentCaption: true);
+            await fixture.InitializeAsync();
+            fixture.Main.ReportHostInteractionFailure("Short response");
+            var window = new ResponseWindow(fixture.Main);
+            try
+            {
+                window.ShowResponse();
+                window.UpdateLayout();
+                var content = window.FindControl<Border>("CurrentInteractionContent")!;
+                var body = window.FindControl<ScrollViewer>("ResponseBodyViewport")!;
+                var input = window.FindControl<TextBox>("CommandInput")!;
+                window.FindControl<TextBlock>("CompactLayoutStatus")!.IsVisible.Should().BeFalse();
+                content.TranslatePoint(default, window)!.Value.Y
+                    .Should().BeLessThanOrEqualTo(window.FindControl<ScrollViewer>("ResponseViewport")!.TranslatePoint(default, window)!.Value.Y + 0.5,
+                        "an empty compact status row must not push the response down");
+                var bodyBottom = body.TranslatePoint(new Point(0, body.Bounds.Height), window)!.Value.Y;
+                var inputTop = input.TranslatePoint(default, window)!.Value.Y;
+                (inputTop - bodyBottom).Should().BeApproximately(12, 0.5, "hidden question, approval and grant sections add no spacing");
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Fact]
+    public async Task IdleCompactResponseHasOnlyCoreGlyphActions()
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -156,7 +184,7 @@ public sealed class CompactResponseWorkingAreaTests
                         && !button.GetVisualAncestors().OfType<Avalonia.Controls.Primitives.ScrollBar>().Any()).ToArray();
                 buttons.Select(button => button.Name).Should().BeEquivalentTo(
                     ["ExpandSessions", "MinimizeWorkbench", "MaximizeWorkbench", "CloseWorkbench",
-                        "ResponseMoreActions", "PushToTalkButton", "SubmitResponseCommand"]);
+                        "PushToTalkButton", "SubmitResponseCommand"]);
                 foreach (var button in buttons)
                 {
                     if (button.Classes.Contains("caption")) { continue; }
@@ -170,20 +198,6 @@ public sealed class CompactResponseWorkingAreaTests
                 window.FindControl<TextBlock>("SubmittedActivityStatus")!.IsEffectivelyVisible.Should().BeFalse();
                 window.FindControl<Button>("CancelResponseTask")!.IsEffectivelyVisible.Should().BeFalse();
                 window.FindControl<Button>("StopResponseSpeech")!.IsEffectivelyVisible.Should().BeFalse();
-                var more = window.FindControl<Button>("ResponseMoreActions")!;
-                var morePosition = more.TranslatePoint(default, window)!.Value;
-                morePosition.X.Should().BeGreaterThan(window.ClientSize.Width / 2);
-                more.BringIntoView();
-                window.UpdateLayout();
-                more.Focus().Should().BeTrue();
-                window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
-                window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
-                Dispatcher.UIThread.RunJobs();
-                var menu = (MenuFlyout)more.Flyout!;
-                menu.IsOpen.Should().BeTrue();
-                menu.Items.OfType<MenuItem>().Select(item => item.Header).Should().Contain("Current response details");
-                menu.Items.OfType<MenuItem>().Select(item => item.Header).Should().Contain("Dismiss response");
-                menu.Hide();
                 fixture.Voice.StartCalls.Should().Be(0);
                 fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
                 window.ShowSessions(true, activate: false);

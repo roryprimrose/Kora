@@ -13,6 +13,7 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
     private const string FileName = "appearance-theme.txt";
     private const string NativePresenceRendererFileName = "presence-native-renderer-enabled.txt";
     private const string ReducedMotionFileName = "appearance-reduced-motion-enabled.txt";
+    private const string ConversationOnRightFileName = "appearance-conversation-on-right.txt";
     private const string PresenceDisplayEnabledFileName = "presence-display-enabled.txt";
     private const string PresenceTimeoutFileName = "presence-inactivity-timeout-seconds.txt";
     private const string ResponseTimeoutFileName = "response-timeout-seconds.txt";
@@ -54,6 +55,12 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
 
     public bool? LoadNativePresenceRendererEnabled() =>
         LoadBooleanPreference(NativePresenceRendererFileName, "native presence renderer");
+
+    public bool? LoadConversationOnRight() =>
+        LoadBooleanPreference(ConversationOnRightFileName, "conversation side");
+
+    public void SaveConversationOnRight(bool value) =>
+        store.WriteText(ConversationOnRightFileName, value.ToString(CultureInfo.InvariantCulture));
 
     public void SaveNativePresenceRendererEnabled(bool value) =>
         store.WriteText(NativePresenceRendererFileName, value.ToString(CultureInfo.InvariantCulture));

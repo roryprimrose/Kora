@@ -14,7 +14,8 @@ namespace Kora.Application.Dependencies;
 internal sealed partial class OllamaAdmissionWorkflow(
     ILocalModelQualificationAuthority authority, ILocalModelAdmissionBroker broker,
     LocalModelAdmissionPreferences preferences, AudioControlAdmission admission, ISecurityAuditLog audit,
-    TimeProvider time, ILogger<OllamaAdmissionWorkflow> logger) : IAsyncDisposable
+    TimeProvider time, ILogger<OllamaAdmissionWorkflow> logger,
+    AssistantNameConfigurationService? names = null) : IAsyncDisposable
 {
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
@@ -50,7 +51,7 @@ internal sealed partial class OllamaAdmissionWorkflow(
                     RevokeCurrent();
                     Status = result.Evidence is null
                         ? "Unavailable: this build has no single current release-qualified profile. A reviewed release must include exact qualification evidence; consent cannot qualify a model."
-                        : "Unavailable: start the exact approved runtime yourself, verify its local model and account/session, then review again. Kora will not install or start it.";
+                        : $"Unavailable: start the exact approved runtime yourself, verify its local model and account/session, then review again. {names?.DisplayName ?? Kora.Core.Configuration.AssistantNameRules.DefaultName} will not install or start it.";
                     Unavailable(logger, "qualification-or-current-subject-missing");
                     return null;
                 }

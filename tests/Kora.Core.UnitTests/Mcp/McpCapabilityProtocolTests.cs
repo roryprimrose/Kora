@@ -40,6 +40,24 @@ public sealed class McpCapabilityProtocolTests
         page.NextCursor.Should().Be("next");
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("opaque")]
+    public void InitialAndContinuationCursorsAreAdmitted(string? cursor)
+    {
+        var validate = () => McpCapabilityProtocol.ValidateCursor(cursor);
+        validate.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ParameterlessPromptsAcceptOnlyEmptyArguments()
+    {
+        var prompt = new McpCapability(McpCapabilityKind.Prompt, "review", "Review", """{"name":"review"}""");
+        McpCapabilityProtocol.ReadPromptArguments(prompt, "{}").EnumerateObject().Should().BeEmpty();
+        FluentActions.Invoking(() => McpCapabilityProtocol.ReadPromptArguments(prompt, """{"extra":"value"}"""))
+            .Should().Throw<InvalidDataException>();
+    }
+
     [Fact]
     public void UnsupportedToolDoesNotHideSupportedSiblingsOrEmptyInventories()
     {

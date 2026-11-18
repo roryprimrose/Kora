@@ -115,6 +115,11 @@ internal sealed partial class BoundedModelTurnAdapter(
         { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
         if (ask is not null && !ModelToolProtocol.AllowsClarification(context.ToolMode, provenance.Selection.Provider))
         { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted); }
+        if (context.Constraints is { Version: 1 } && provenance.Selection.Provider == ModelProviderIdentity.Ollama)
+        {
+            return await RunAgentFrameworkAsync(provenance, profile, context, invokeTool,
+                validateContinuation, tokens, token).ConfigureAwait(false);
+        }
         var history = new List<ModelToolMessage>();
         var questionAsked = false;
         var callIds = new HashSet<string>(StringComparer.Ordinal);

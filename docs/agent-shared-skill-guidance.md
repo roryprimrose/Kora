@@ -70,6 +70,11 @@ the stricter complete serialized model input and profile budgets also apply,
 including metadata. All profile, primary and reference evidence is separate,
 inert and LocalOnly. Retained text is not new authority.
 
+The agent session receives only this already-consented evidence through the
+existing bounded local transport. It does not discover more skill files,
+execute scripts or grant additional tools
+([execution contract](../Design/Local_Inference.md)).
+
 ## Retirement and unavailable states
 
 Each review expires after at most two minutes. **Stop / revoke and join owned

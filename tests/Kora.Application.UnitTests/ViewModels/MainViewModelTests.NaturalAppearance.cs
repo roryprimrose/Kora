@@ -78,10 +78,27 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData("Kora, use dark mode")]
+    [InlineData("KORA use dark mode")]
+    [InlineData("Nova, use dark mode")]
+    public async Task NaturalAppearanceVoiceAcceptsTheFixedNameAlongsideACustomName(string transcript)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.AssistantNameInput = "Nova";
+        await fixture.ViewModel.ApplyAssistantNameCommand.ExecuteAsync();
+        await fixture.RaiseActivatedTranscriptAsync(transcript, 1);
+        fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.Dark);
+        fixture.Audit.Events.Last(item => item.Category == SecurityAuditCategory.ConfigurationWrite)
+            .Initiator.Should().Be(SecurityAuditInitiator.VoiceCommand);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        await fixture.ViewModel.DisposeAsync();
+    }
+
+    [Theory]
     [InlineData("use dark mode")]
     [InlineData("use reduced motion")]
-    [InlineData("Kora, use reduced motion")]
-    [InlineData("Kora, use dark mode")]
+    [InlineData("Aria, use reduced motion")]
+    [InlineData("Aria, use dark mode")]
     [InlineData("Novation, set reader text scale to 125 percent")]
     public async Task NaturalAppearanceVoiceWithoutCurrentNameHasNoPreferenceAuthority(string transcript)
     {

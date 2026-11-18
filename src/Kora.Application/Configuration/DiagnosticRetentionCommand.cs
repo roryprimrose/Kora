@@ -17,7 +17,7 @@ public sealed record DiagnosticRetentionCommand(AppearanceCommandOperation Opera
     public static DiagnosticRetentionCommand? Parse(string input, string assistantName)
     {
         var text = input.Trim();
-        var name = AssistantNameRules.Normalize(assistantName);
+        var name = AssistantNameRules.ResolveActivationName(text, assistantName);
         if (text.StartsWith(name, StringComparison.OrdinalIgnoreCase) && text.Length > name.Length
             && (char.IsWhiteSpace(text[name.Length]) || text[name.Length] == ','))
         {

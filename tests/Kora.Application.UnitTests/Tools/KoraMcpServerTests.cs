@@ -36,9 +36,11 @@ public sealed partial class KoraMcpServerTests : IDisposable
         using var fixture = new Fixture();
         using var root = Root();
         var caller = fixture.Registry.Admit(CapabilityLane.Execution);
-        McpProtocol.ValidateInitialization(fixture.Server.HandleRequest(caller, McpProtocol.InitializeRequest(), Token));
-        fixture.Server.HandleInitialized(caller, McpProtocol.InitializedNotification(), Token);
-        using var discovery = JsonDocument.Parse(fixture.Server.HandleRequest(caller, McpProtocol.DiscoveryRequest(), Token));
+        McpCapabilityProtocol.ReadInitialization(fixture.Server.HandleRequest(caller,
+            """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}"""u8, Token))
+            .Tools.Should().BeTrue();
+        fixture.Server.HandleInitialized(caller, Initialized, Token);
+        using var discovery = JsonDocument.Parse(fixture.Server.HandleRequest(caller, Discovery, Token));
         discovery.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray()
             .Select(tool => tool.GetProperty("name").GetString()).Should()
             .Equal(ReadOnlyCapabilityCatalog.Descriptors.Concat(MaintenanceTools.Descriptors).Select(tool => tool.Id));
@@ -57,7 +59,7 @@ public sealed partial class KoraMcpServerTests : IDisposable
         using var root = Root();
         var caller = fixture.Registry.Admit(CapabilityLane.Execution);
         fixture.Preferences.SetToolEnabled(KoraMcpCatalog.ServerId, ReadOnlyCapabilityCatalog.Version, false);
-        using var discovery = JsonDocument.Parse(fixture.Server.HandleRequest(caller, McpProtocol.DiscoveryRequest(), Token));
+        using var discovery = JsonDocument.Parse(fixture.Server.HandleRequest(caller, Discovery, Token));
         discovery.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray()
             .Select(tool => tool.GetProperty("name").GetString()).Should()
             .Equal(ReadOnlyCapabilityCatalog.Descriptors.Concat(MaintenanceTools.Descriptors).Where(tool =>
@@ -229,7 +231,7 @@ public sealed partial class KoraMcpServerTests : IDisposable
         using var fixture = new Fixture();
         using var root = Root();
         var caller = fixture.Registry.Admit(CapabilityLane.Execution);
-        var request = McpProtocol.DiscoveryRequest();
+        var request = Discovery;
         var expected = fixture.Server.HandleRequest(caller, request, Token);
         fixture.Server.HandleRequest(caller, request, Token, expected.Length).Should().Equal(expected);
         var tooSmall = () => fixture.Server.HandleRequest(caller, request, Token, expected.Length - 1);
@@ -248,16 +250,16 @@ public sealed partial class KoraMcpServerTests : IDisposable
         using var other = new Fixture();
         using var root = Root();
         var foreign = other.Registry.Admit(CapabilityLane.Execution);
-        var call = () => fixture.Server.HandleRequest(foreign, McpProtocol.DiscoveryRequest(), Token);
+        var call = () => fixture.Server.HandleRequest(foreign, Discovery, Token);
         call.Should().Throw<InvalidOperationException>();
         var caller = fixture.Registry.Admit(CapabilityLane.Execution);
         fixture.Preferences.SetServerEnabled(KoraMcpCatalog.ServerId, false);
-        var disabled = () => fixture.Server.HandleRequest(caller, McpProtocol.DiscoveryRequest(), Token);
+        var disabled = () => fixture.Server.HandleRequest(caller, Discovery, Token);
         disabled.Should().Throw<InvalidOperationException>();
         fixture.Preferences.SetServerEnabled(KoraMcpCatalog.ServerId, true);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var cancelled = () => fixture.Server.HandleRequest(caller, McpProtocol.DiscoveryRequest(), cancellation.Token);
+        var cancelled = () => fixture.Server.HandleRequest(caller, Discovery, cancellation.Token);
         cancelled.Should().Throw<OperationCanceledException>();
         fixture.Info.Reads.Should().Be(0);
     }
@@ -362,6 +364,8 @@ public sealed partial class KoraMcpServerTests : IDisposable
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
+    private static byte[] Discovery => """{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"""u8.ToArray();
+    private static byte[] Initialized => """{"jsonrpc":"2.0","method":"notifications/initialized"}"""u8.ToArray();
     private static HostActivity Root() =>
         HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
 

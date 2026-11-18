@@ -198,6 +198,12 @@ internal sealed partial class NamedSkillInvocationController(
             { sharedReview = await shared.ReviewAsync(choice.Source!, choice.Shared!, Current, original!.Origin, token); }
             if (!Current()) { RetireReview(); return; }
             opened.Instructions.Text = choice + "\n\n" + (ownedReview?.Text ?? sharedReview!.Text);
+            var reviewedOwned = ownedReview;
+            var reviewedShared = sharedReview;
+            var contents = reviewedOwned?.Contents
+                ?? Kora.Core.Presentation.ReviewContents.FromSharedSkill(choice.Shared!.Name ?? choice.Shared.RelativeFile, choice.Shared);
+            opened.ContentsLink.Offer(contents, () => Current() && ReferenceEquals(ownedReview, reviewedOwned)
+                && ReferenceEquals(sharedReview, reviewedShared) && ReferenceEquals(window, opened));
             opened.LiteralInputs.Configure(ownedReview?.RequiredNames ?? [], (_, _) => RetirePreparation());
             opened.Status.Text = ownedReview?.RequiresReferenceConsent == true
                 ? "Review the exact declaration, then separately authorize only those owned Markdown reads. No component contents read yet."
@@ -301,6 +307,7 @@ internal sealed partial class NamedSkillInvocationController(
 
     private void RetireReview()
     {
+        window?.ContentsLink.Retire();
         RetirePreparation();
         ownedReview?.Dispose();
         sharedReview?.Dispose();

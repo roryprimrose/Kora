@@ -32,6 +32,9 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.ActiveReasoningTask!;
         var original = f.ViewModel.CaptureModelActionReview()!;
         original.Should().NotBeNull();
+        f.ViewModel.ModelActionReviewDetail.Should()
+            .Be($"Proposed by artifact revision {definition.Digest[..12]}; only a single-use approval is valid.");
+        f.ViewModel.ModelActionReviewCommand.Should().Be("enable hosted models");
         var decisionReads = 0;
         f.ViewModel.BindFileArtifactFreshness(async (_, _) =>
         {
@@ -86,7 +89,14 @@ public sealed partial class MainViewModelTests
         f.ViewModel.CanConfirmModelActionReview.Should().BeFalse();
         f.ViewModel.CanConfirmReusableModelActionReview.Should().BeFalse();
         f.ViewModel.CanRejectModelActionReview.Should().BeFalse();
+        f.ViewModel.ModelActionReviewTitle.Should().BeEmpty();
+        f.ViewModel.ModelActionReviewDetail.Should().BeEmpty();
+        f.ViewModel.ModelActionReviewCommand.Should().BeEmpty();
         var target = await ProposeModelActionReviewAsync(f);
+        f.ViewModel.ModelActionReviewTitle.Should().StartWith("Allow Kora to ")
+            .And.Contain("use configured hosted model providers").And.EndWith("?");
+        f.ViewModel.ModelActionReviewDetail.Should().BeEmpty();
+        f.ViewModel.ModelActionReviewCommand.Should().Be("enable hosted models");
         f.ViewModel.CanConfirmModelActionReview.Should().BeTrue();
         f.ViewModel.CanConfirmReusableModelActionReview.Should().BeTrue();
         f.ViewModel.CanRejectModelActionReview.Should().BeTrue();
@@ -126,6 +136,9 @@ public sealed partial class MainViewModelTests
         f.ViewModel.PendingModelActionReview.Should().BeNull();
         f.ViewModel.ModelActionReviews.Should().BeEmpty();
         f.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        f.ViewModel.ModelActionReviewTitle.Should().BeEmpty();
+        f.ViewModel.ModelActionReviewDetail.Should().BeEmpty();
+        f.ViewModel.ModelActionReviewCommand.Should().BeEmpty();
         f.ViewModel.PresenceState.Should().Be(f.ViewModel.State);
         f.Audit.Events.Should().Contain(audit => audit.CorrelationId == target.Audit.CorrelationId
             && audit.Outcome == (reject ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Succeeded));

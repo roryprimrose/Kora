@@ -4,4 +4,6 @@ public enum ModelOutputFormat
 {
     Text,
     OwnedAgentProposal,
+    DefinitionBodyProposal,
+    PromptTemplateProposal,
 }

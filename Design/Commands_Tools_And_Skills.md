@@ -314,6 +314,8 @@ model fakes, not live servers. The shipped broker remains explicitly
 does not advertise an enabled connector, and remote model disclosure is not
 approved. The first profile remains local-model-only.
 
+The [official SDK connection](../src/Kora.Windows/Mcp/McpHttpConnection.Sdk.cs) is the sole external production request constructor. Host-owned strict response parsers and physical policy remain authoritative. [SDK transport regressions](../tests/Kora.Windows.IntegrationTests/McpSdkTransportTests.cs) and [private dispatcher consumers](../tests/Kora.Windows.IntegrationTests/KoraMcpSdkConsumerTests.cs) exercise the maintained routes without a live endpoint.
+
 ## Responsibility and Terminology
 
 The [canonical catalogue](Internal_Model_Tools.md) owns tool IDs and caller lanes;

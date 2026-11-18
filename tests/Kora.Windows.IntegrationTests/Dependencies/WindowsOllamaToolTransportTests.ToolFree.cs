@@ -46,17 +46,23 @@ public sealed partial class WindowsOllamaToolTransportTests
     }
 
     [Theory]
-    [InlineData("missing")]
-    [InlineData("json")]
-    [InlineData("different")]
-    public async Task SdkCannotSilentlyIgnoreOrReplaceTheHostProposalSchema(string change)
+    [InlineData(ModelOutputFormat.OwnedAgentProposal, "missing")]
+    [InlineData(ModelOutputFormat.OwnedAgentProposal, "json")]
+    [InlineData(ModelOutputFormat.OwnedAgentProposal, "different")]
+    [InlineData(ModelOutputFormat.DefinitionBodyProposal, "missing")]
+    [InlineData(ModelOutputFormat.DefinitionBodyProposal, "json")]
+    [InlineData(ModelOutputFormat.DefinitionBodyProposal, "different")]
+    [InlineData(ModelOutputFormat.PromptTemplateProposal, "missing")]
+    [InlineData(ModelOutputFormat.PromptTemplateProposal, "json")]
+    [InlineData(ModelOutputFormat.PromptTemplateProposal, "different")]
+    public async Task SdkCannotSilentlyIgnoreOrReplaceTheHostProposalSchema(ModelOutputFormat outputFormat, string change)
     {
         var sends = 0;
         using var client = new HttpClient(new OllamaSdkRequestHandler(Model, false, (_, _) =>
         {
             sends++;
             return Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK));
-        }, outputSchema: OwnedAgentProfileDocument.ProposalSchema));
+        }, outputSchema: ModelOutputSchemas.GetSchema(outputFormat)));
         var format = change switch { "missing" => "", "json" => ",\"format\":\"json\"", _ => ",\"format\":{}" };
         using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(WindowsOllamaToolTransport.Endpoint, "api/chat"))
         {
@@ -66,14 +72,17 @@ public sealed partial class WindowsOllamaToolTransportTests
         sends.Should().Be(0);
     }
 
-    [Fact]
-    public async Task AgentProposalStreamingIsExplicitlyUnavailableWithoutBufferedFallback()
+    [Theory]
+    [InlineData(ModelOutputFormat.OwnedAgentProposal)]
+    [InlineData(ModelOutputFormat.DefinitionBodyProposal)]
+    [InlineData(ModelOutputFormat.PromptTemplateProposal)]
+    public async Task ProposalStreamingIsExplicitlyUnavailableWithoutBufferedFallback(ModelOutputFormat format)
     {
         await using var f = new Fixture();
         using var root = f.Root();
         var updates = 0;
         var reply = await f.Transport.CompleteWithAnswerAsync(
-            f.Request(toolMode: ModelToolMode.None, outputFormat: ModelOutputFormat.OwnedAgentProposal),
+            f.Request(toolMode: ModelToolMode.None, outputFormat: format),
             (_, _) => { updates++; return ValueTask.CompletedTask; }, Token);
         reply.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
         reply.Message.Should().BeNull();

@@ -94,7 +94,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             async Task Run(string command) { f.Main.CommandText = command; await f.Main.RunTypedCommand.ExecuteAsync(); }
             async Task<Window> Review(Task operation)
             {
-                (await Task.WhenAny(next.Task, operation)).Should().BeSameAs(next.Task,
+                (await Task.WhenAny(next.Task, operation).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken)).Should().BeSameAs(next.Task,
                     "native review must be reached: {0}", string.Join("\n", editor!.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text)));
                 var result = await next.Task;
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -126,13 +126,13 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             if (savedSource)
             {
                 var saving = Run("owned skill save");
-                await saving;
+                await saving.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 next.Task.IsCompleted.Should().BeFalse("testing must not implicitly validate Save");
                 await Run("owned skill validate");
                 saving = Run("owned skill save");
                 Choose(await Review(saving), "Continue to separate native publication confirmation");
                 Choose(await Review(saving), "Publish exact new version");
-                await saving;
+                await saving.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 await Run("owned skill list");
                 await Run("owned skill reopen example 1.0.0");
                 if (renamedSource)
@@ -329,13 +329,13 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                         adapter.Output = """{"body":"replacement guidance"}""";
                     }
                     var retry = Run(refining ? "owned skill refine" : "owned skill test");
-                    if (await Task.WhenAny(next.Task, retry) == next.Task)
+                    if (await Task.WhenAny(next.Task, retry).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken) == next.Task)
                     {
                         Choose(await Review(retry), refining ? "Generate local guidance proposal" : "Start SIMULATED test");
-                        if (await Task.WhenAny(next.Task, retry) == next.Task)
+                        if (await Task.WhenAny(next.Task, retry).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken) == next.Task)
                         { Choose(await Review(retry), refining ? "Reject proposal" : "Dismiss simulated result"); }
                     }
-                    await retry;
+                    await retry.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                     adapter.Calls.Should().Be(calls,
                         "retained deleted-source text cannot become a source-free simulation or refinement");
                     next.Task.IsCompleted.Should().BeFalse("no deleted-source result or proposal can be disclosed");

@@ -100,7 +100,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync(name + ", open new request", 1);
         origins.Should().Equal(RequestOrigin.LocalUi, RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice);
         f.Voice.StartedPhrases.Should().Contain("open new request").And.Contain(name + " open new request")
-            .And.NotContain("Kora open new request");
+            .And.Contain("Kora open new request").And.NotContain("Aria open new request");
         f.ViewModel.Transcript.Should().Contain("activated only");
         f.ViewModel.ResponseBody.Should().Be(voiceBody);
         f.HostStore.Records.Should().HaveCount(records);

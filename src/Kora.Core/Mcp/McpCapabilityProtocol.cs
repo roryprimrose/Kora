@@ -38,14 +38,6 @@ public static class McpCapabilityProtocol
         return supported;
     }
 
-    public static byte[] ListRequest(McpCapabilityKind kind, int requestId, string? cursor = null)
-    {
-        var method = ListMethod(kind);
-        ValidateCursor(cursor);
-        return Request(method, requestId, cursor is null ? new Dictionary<string, string>(StringComparer.Ordinal)
-            : new(StringComparer.Ordinal) { ["cursor"] = cursor });
-    }
-
     public static void ValidateCursor(string? cursor)
     {
         if (cursor is not null) { ValidateText(cursor, 2048); }
@@ -107,18 +99,6 @@ public static class McpCapabilityProtocol
         }
         var cursor = result.TryGetProperty("nextCursor", out _) ? Text(result, "nextCursor", 2048) : null;
         return new(items.ToImmutable(), cursor);
-    }
-
-    public static byte[] ResourceRequest(string uri, int requestId)
-    {
-        ValidateUri(uri);
-        return Request("resources/read", requestId, new { uri });
-    }
-
-    public static byte[] PromptRequest(McpCapability prompt, string arguments, int requestId)
-    {
-        var input = ReadPromptArguments(prompt, arguments);
-        return Request("prompts/get", requestId, new { name = prompt.Id, arguments = input });
     }
 
     public static JsonElement ReadPromptArguments(McpCapability prompt, string arguments)
@@ -226,15 +206,6 @@ public static class McpCapabilityProtocol
         if (result.Select(item => item.Name).Distinct(StringComparer.Ordinal).Count() != result.Length)
         { throw new InvalidDataException("Duplicate prompt arguments are not admitted."); }
         return result;
-    }
-
-    private static byte[] Request<T>(string method, int requestId, T parameters)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(requestId, 2);
-        var wire = JsonSerializer.SerializeToUtf8Bytes(new { jsonrpc = "2.0", id = requestId, method, @params = parameters });
-        if (wire.Length > McpProtocol.MaximumDiscoveryUtf8Bytes)
-        { throw new InvalidDataException("The complete MCP request exceeds its byte bound."); }
-        return wire;
     }
 
     private static JsonElement Result(JsonElement root, int requestId)

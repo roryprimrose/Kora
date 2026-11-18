@@ -7,6 +7,8 @@ using Kora.Application.Definitions;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Agents;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
+using Kora.Core.Customizations;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -23,6 +25,60 @@ public sealed class CustomizationAuthoringServiceTests : IDisposable
     };
     public CustomizationAuthoringServiceTests() => ActivitySource.AddActivityListener(listener);
     public void Dispose() => listener.Dispose();
+
+    [Theory]
+    [InlineData("{\"body\":\"Summarize ${input:topic}.\"}", "current")]
+    [InlineData("{\"unsupported\":\"Needs file access\"}", "unsupported")]
+    [InlineData("{\"body\":\"one\",\"body\":\"two\"}", "invalid")]
+    [InlineData("{\"body\":\"Summarize ${input:other}.\"}", "invalid")]
+    [InlineData("{\"body\":\"Summarize ${input:topic}.\",\"unsupported\":\"reason\"}", "invalid")]
+    [InlineData("{\"body\":\"Summarize ${input:topic}.\"}", "source")]
+    [InlineData("{\"body\":\"Summarize ${input:topic}.\"}", "privacy")]
+    public async Task PromptAuthoringSelectsNativeUnionAndRetainsDomainAndSourceValidation(string answer, string change)
+    {
+        var store = new AudioControlTestStore();
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        await using var admission = new InstructionControlAdmission(store, store, new(store));
+        var runner = new AuthoringRunner { Answer = answer };
+        var service = new CustomizationAuthoringService(admission, runner, TimeProvider.System);
+        var source = new CustomizationSource("file.example", CustomizationKind.Prompt, CustomizationScope.Kora,
+            "example", "owned", "example.prompt.md");
+        var file = new CustomizationFile(source.PrimaryFile, ArtifactFileDocument.Encode(
+            "---\nkora-format: 2\nname: example\ndescription: Saved request\n---\nOriginal ${input:topic}.", false));
+        var original = file.CopyBytes();
+        var checks = 0;
+        var eligible = true;
+        Task Validate(CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            checks++;
+            if (runner.Joined)
+            {
+                if (change is "source") { throw new InvalidOperationException("Pinned source changed."); }
+                if (change is "privacy") { eligible = false; }
+            }
+            return Task.CompletedTask;
+        }
+        var operation = () => service.Refine(source, [file], new(null, RequiredPromptInputs: "topic"),
+            "  Make this reusable.\r\n", () => eligible, Token, Validate);
+        if (change is "current")
+        {
+            var proposed = await operation();
+            proposed.Files.Single().Text.Should().EndWith("Summarize ${input:topic}.");
+        }
+        else if (change is "invalid") { await operation.Should().ThrowAsync<InvalidDataException>(); }
+        else { await operation.Should().ThrowAsync<InvalidOperationException>(); }
+        runner.Context!.OutputFormat.Should().Be(ModelOutputFormat.PromptTemplateProposal);
+        runner.Context.ToolMode.Should().Be(ModelToolMode.None);
+        runner.Context.Tools.Should().BeEmpty();
+        runner.Context.UserRequest.Should().Be("  Make this reusable.\r\n");
+        runner.Context.Evidence.Single().Disclosure.Should().Be(ModelEvidenceDisclosure.LocalOnly);
+        runner.Context.Evidence.Single().Content.Should().Contain("topic");
+        runner.Joined.Should().BeTrue();
+        checks.Should().Be(3);
+        file.CopyBytes().Should().Equal(original);
+    }
 
     [Theory]
     [InlineData(RequestOrigin.LocalUi, "current")]
@@ -167,6 +223,7 @@ public sealed class CustomizationAuthoringServiceTests : IDisposable
     {
         internal bool Joined;
         internal ModelContextEnvelope? Context;
+        internal string Answer = "{\"description\":\"Short role\",\"body\":\"Short guidance\"}";
         public async Task<ModelContextAdmission> AdmitAsync(LocalContextSessionTarget target, Func<bool> sourceCurrent,
             CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
         {
@@ -182,7 +239,7 @@ public sealed class CustomizationAuthoringServiceTests : IDisposable
             public Task<LocalContextTurnReceipt> Completion => Task.FromResult(Result());
             private LocalContextTurnReceipt Result() => new(request, ModelTurnOutcome.Succeeded, LocalContextTurnReason.Completed,
                 ModelResult: new(ModelTurnOutcome.Succeeded, ModelTurnReason.None,
-                    Response: new("{\"description\":\"Short role\",\"body\":\"Short guidance\"}", null)));
+                    Response: new(owner.Answer, null)));
             public Task<LocalContextTurnReceipt> RunAsync(ModelContextEnvelope context, CancellationToken token)
             { owner.Context = context; return Task.FromResult(Result()); }
             public ValueTask DisposeAsync() { owner.Joined = true; return ValueTask.CompletedTask; }

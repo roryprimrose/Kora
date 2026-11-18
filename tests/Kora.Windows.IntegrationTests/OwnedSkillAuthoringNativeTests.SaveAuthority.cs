@@ -58,7 +58,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             async Task Run(string text) { f.Main.CommandText = text; await f.Main.RunTypedCommand.ExecuteAsync(); }
             async Task<Window> Review(Task pending)
             {
-                (await Task.WhenAny(next.Task, pending)).Should().BeSameAs(next.Task,
+                (await Task.WhenAny(next.Task, pending).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken)).Should().BeSameAs(next.Task,
                     "the exact native review must be reached before completion");
                 var dialog = await next.Task;
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -104,7 +104,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 Choose(dirty, "Save");
             }
             var saveReviews = new List<string>();
-            while (await Task.WhenAny(next.Task, saving) == next.Task)
+            while (await Task.WhenAny(next.Task, saving).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken) == next.Task)
             {
                 var review = await Review(saving);
                 if (string.Equals(review.Title, "Review complete skill package", StringComparison.Ordinal))
@@ -128,7 +128,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 }
                 else { Choose(review, "Cancel"); }
             }
-            await saving;
+            await saving.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             var saved = await store.Read("example", "1.0.0", f.Token);
             var createAudit = audit.Events.Where(entry => string.Equals(entry.ActionId, "definition.owned-skill.create", StringComparison.Ordinal)).ToArray();
             var retainedDraft = editor.Guidance.Text;

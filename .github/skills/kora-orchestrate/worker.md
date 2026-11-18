@@ -12,6 +12,10 @@ authority and restrictions; agent selection alone does not authorize GitHub writ
 
 ## Implementation and publication
 
+- Before any dependency command inspect and reserve the complete affected tracked
+  manifest/lock/license-notice closure, including all solution-project locks the
+  command restores even without source edits. Direct project references alone
+  are not the closure. Withhold the command until coverage is accepted.
 - Verify exclusive ownership of the exact worktree, branch, PR/outcome and files.
   Never write in the coordinator checkout or another owner's workspace.
 - Ready delivery: create an isolated worktree and unique branch from current
@@ -89,6 +93,48 @@ coordinator continuation **after** accepted durable coverage before writing
 additions. Preserve old files, permissions, outcome, PR, blockers and cleanup.
 Do not package a superset as `refine-scopes`, resume a retired writer, or infer
 runtime/effect authority from a successful deterministic amendment.
+
+## Explicit scope-incident recovery acknowledgment
+
+An incidental out-of-reservation write requires the distinct
+[human-authorized recovery protocol](./README.md#explicit-human-authorized-scope-incident-recovery),
+not ordinary extension. Stop source writes, join current work/commands and
+preserve the complete actual/planned/committed/retained/dirty/restored history.
+Keep the original incident command, reservation/head and unauthorized paths.
+Do not roll back dirty files, conceal restored writes or call earlier effects authorized.
+
+The host must obtain a fresh exact-owner acknowledgment over the final whole
+proof and a new explicit human decision over that proof and acknowledgment.
+General implementation approval and an old receipt/digest are not that decision.
+Use the [exact synthetic input](./README.md#exact-input-and-synthetic-execution)
+only to understand shape; it supplies no live authority or quiescence.
+
+When inbound pending/processing enumeration is unavailable, retain UNKNOWN.
+Only the separately typed human-approved source-authority fence can reconcile
+this case: actually establish a fresh epoch/nonce revoking all earlier broad
+source instructions; confirm live pause/join and rejection of stale authority
+as the same owner. No queue drain is inferred. If those facts cannot be established,
+withhold acknowledgment/continuation and preserve the incident.
+
+Acceptance reserves prospective exact coverage only; it does not resume writes,
+clear blockers, retire/replace the owner, alter prior publication/cleanup or
+waive any ordinary pending-zero protocol. Wait for separately authorized exact
+continuation carrying the current grant/fence and fresh whole-request owner
+acknowledgment; use the [continuation verifier](./README.md#separate-exact-continuation-and-persistence).
+Reject stale queued broad instructions before any write. Actual host enforcement,
+human authentication and incident-specific blocker resolution remain external.
+
+If compatible unrelated main advancement invalidates an accepted grant's
+continuation, remain paused and use the explicit
+[same-owner renewal](./README.md#same-owner-continuation-renewal).
+Reverify the preserved source identity, original recovered scopes and fence,
+fresh live pause/join and current complete held guards. Acknowledge the whole
+renewal including independently reviewed main-change/source-contract compatibility;
+disjoint paths alone or the old source HEAD is insufficient.
+Do not rebase dirty work, rewrite the grant, expand scopes or replace UNKNOWN.
+After durable renewal, separately acknowledge the current version-2 continuation
+request with its renewal digest. Reject stale acknowledgments/messages; host
+delivery deduplication and actual execution authority remain separate.
 
 ## Superseded exact-file write identity
 

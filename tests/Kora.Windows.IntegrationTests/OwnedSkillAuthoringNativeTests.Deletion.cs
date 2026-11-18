@@ -80,7 +80,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             async Task Run(string text) { f.Main.CommandText = text; await f.Main.RunTypedCommand.ExecuteAsync(); }
             async Task<Window> Review(Task operation)
             {
-                (await Task.WhenAny(next.Task, operation)).Should().BeSameAs(next.Task,
+                (await Task.WhenAny(next.Task, operation).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken)).Should().BeSameAs(next.Task,
                     "the operation must reach its distinct native review: {0}", string.Join("\n",
                         editor!.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text)));
                 var result = await next.Task;
@@ -140,7 +140,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 Choose(dirty, scenario is "dirty-cancel" ? "Cancel" : scenario is "dirty-save" ? "Save" : "Discard");
                 if (scenario is "dirty-cancel")
                 {
-                    await operation;
+                    await operation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                     editing.Guidance.Text.Should().Be("unsaved draft must not be lost");
                     (await store.Read("example", "1.0.0", f.Token))!.IsSameRevision(saved).Should().BeTrue();
                     return;
@@ -174,7 +174,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             else { Choose(sourceReview, scenario is "cancel-review" ? "Cancel" : "Continue to separate deletion confirmation"); }
             if (scenario is "draft" or "selection" or "owner" or "control" or "privacy" or "source" or "cancel-review" or "escape-review")
             {
-                await operation;
+                await operation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
                 File.Exists(Path.Combine(store.Destination(document), "manifest.yaml")).Should().BeTrue();
                 if (scenario is "privacy") { await f.Main.PrivacyClosureTask; }
                 if (scenario is "escape-review")
@@ -195,7 +195,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             { store.Checkpoint = point => { if (point is "after-delete") { throw new IOException("fixture readback unavailable"); } }; }
             if (scenario is "escape-confirm") { dismissed = Escape(confirmation); }
             else { Choose(confirmation, scenario is "cancel-confirm" ? "Cancel" : "Delete only this exact owned source"); }
-            await operation;
+            await operation.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             store.Checkpoint = null;
             if (scenario is "uncertain")
             {

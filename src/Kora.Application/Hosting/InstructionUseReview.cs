@@ -12,6 +12,10 @@ public sealed class InstructionUseReview
     public Guid Id { get; } = Guid.NewGuid();
     public DateTimeOffset ExpiresAt { get; }
     public bool CanConfirm => Source.CanSubmit;
+
+    /// <summary>Read-only copy of the exact pinned instruction; viewing it is not confirmation.</summary>
+    public Kora.Core.Presentation.ReviewContents Contents =>
+        Kora.Core.Presentation.ReviewContents.FromText(Source.Name, "instruction.md", Source.InstructionText);
     public string Text => "ONE local request in the exact Active conversation: "
         + Source.Target.Metadata!.Name.Value + "\nOriginal channel: " + Source.Origin
         + "\nSource: " + Source.Name + " (enabled Kora-owned instruction)"

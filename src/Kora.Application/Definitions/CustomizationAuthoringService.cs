@@ -88,7 +88,7 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
                 mode = context.Mode.ToString(), requiredInputs = PromptTemplateAuthoring.RequiredNames(declaration),
                 source = frozen.Single().Text,
             }), PromptPolicy, answer => PromptTemplateAuthoring.Parse(source, frozen, context, answer),
-                () => eligible() && time.GetUtcNow() < expires, validateSource, token);
+                () => eligible() && time.GetUtcNow() < expires, validateSource, token, ModelOutputFormat.PromptTemplateProposal);
         }
         var evidence = JsonSerializer.Serialize(new
         {
@@ -100,7 +100,8 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
 
     private async Task<T> GenerateLocalAuthoring<T>(string requestText, string evidence, string policy,
         Func<string, T> parse, Func<bool> eligible,
-        Func<CancellationToken, Task>? validateSource, CancellationToken token)
+        Func<CancellationToken, Task>? validateSource, CancellationToken token,
+        ModelOutputFormat outputFormat = ModelOutputFormat.Text)
     {
         if (runner is null)
         { throw new InvalidOperationException("The admitted local prompt-authoring runner is unavailable. Draft retained; no fallback."); }
@@ -120,7 +121,7 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
             var now = time.GetUtcNow();
             var envelope = new ModelContextEnvelope(request, policy, requestText,
                 [new(new(Guid.NewGuid()), request, new(1), evidence, ModelEvidenceDisclosure.LocalOnly)],
-                now, now.AddMinutes(2), ModelToolMode.None);
+                now, now.AddMinutes(2), ModelToolMode.None, outputFormat: outputFormat);
             envelope.RequireCompleteInputLimit();
             var candidate = await runner.AdmitAsync(LocalContextSessionTarget.Existing(sourceRequest, request, control.Session.Generation),
                 eligible, token, validateSource).ConfigureAwait(false);

@@ -104,6 +104,32 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void Conversation_side_preference_round_trips_and_replaces_only_its_own_file(bool value)
+    {
+        var preferences = CreatePreferences();
+        preferences.LoadConversationOnRight().Should().BeNull();
+        preferences.SaveConversationOnRight(!value);
+        preferences.SaveConversationOnRight(value);
+        CreatePreferences().LoadConversationOnRight().Should().Be(value);
+        Directory.GetFiles(Path.Combine(root, "Preferences")).Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("right")]
+    [InlineData("1")]
+    public void Invalid_conversation_side_preference_is_not_reinterpreted_as_a_default(string value)
+    {
+        var directory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "appearance-conversation-on-right.txt"), value);
+        var load = CreatePreferences().LoadConversationOnRight;
+        load.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void Presence_display_preference_round_trips(bool value)
     {
         var preferences = CreatePreferences();

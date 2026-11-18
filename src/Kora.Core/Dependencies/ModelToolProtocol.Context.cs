@@ -41,9 +41,10 @@ public static partial class ModelToolProtocol
         catch (Exception exception) when (exception is JsonException or ArgumentException)
         { throw new InvalidDataException("The host context has invalid typed fields.", exception); }
         var tools = content.Constraints?.GetTools(content.ToolMode) ?? GetTools(content.ToolMode);
+        _ = ModelOutputSchemas.GetSchema(content.OutputFormat);
         if (content.SystemPolicy is null || content.UserRequest is null || content.Evidence is null
             || content.OutputFormat != ModelOutputFormat.Text
-                && (content.OutputFormat != ModelOutputFormat.OwnedAgentProposal || content.ToolMode != ModelToolMode.None
+                && (content.ToolMode != ModelToolMode.None
                     || provenance.Selection.Provider != ModelProviderIdentity.Ollama)
             || (content.ToolMode == ModelToolMode.McpReadOnly) != (content.McpTool is not null)
             || content.WebPages is not null && content.ToolMode != ModelToolMode.LocalWebPage

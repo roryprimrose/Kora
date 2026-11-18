@@ -44,6 +44,30 @@ host-versus-extension rationale, exact source/failure evidence and source head,
 likely canonical file scopes, exclusions, consumed prerequisites, focused checks,
 and evidence that it is neither delivered nor owned.
 
+Include the entire affected tracked manifest/lock/license-notice closure for
+dependency work, including all solution-project locks restored by the intended
+command even without source edits. Direct project references alone do not prove
+the closure; see [the worker rule](./worker.md#implementation-and-publication).
+
+An incidental unauthorized write is not an ordinary extension candidate.
+Report the original command/reservation/head and complete dirty/restored history;
+do not omit it, retire/replace its owner or infer new authority. The separate
+[human-authorized recovery protocol](./README.md#explicit-human-authorized-scope-incident-recovery)
+needs fresh final-proof human authority, exact same-owner pause/join and current
+exclusivity. Its [synthetic input](./README.md#exact-input-and-synthetic-execution)
+is not host evidence. UNKNOWN counts stay UNKNOWN; only an actually established,
+human-approved same-owner source-authority fence can reconcile earlier broad
+instructions without queue enumeration. Acceptance emits no actions or blocker
+clearance. Later exact continuation must revalidate the current grant/fence;
+unestablished pause/join/fence withholds continuation, never invents pending zero.
+
+Unrelated compatible main advancement does not retire or replace a retained
+recovered owner. Report the changed source; only the coordinator's explicit
+[same-owner renewal](./README.md#same-owner-continuation-renewal) with fresh
+independent compatibility/current source/held guards and owner acknowledgment
+can support version-2 continuation. Do not edit the original grant, infer
+compatibility from disjoint paths alone, expand scopes or supply execution authority.
+
 Before the first candidate at a new head, report SOURCE_CHANGED so the coordinator
 can refresh the registry. Candidates cannot silently change source freshness.
 Product/authority blockers are parked, not converted into imagined contracts.

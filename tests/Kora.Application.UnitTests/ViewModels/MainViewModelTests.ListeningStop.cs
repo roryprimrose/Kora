@@ -143,7 +143,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.BeginPushToTalkAsync();
         f.Voice.StartedPhrases.Should().Contain("stop listening").And.Contain("disable listening")
             .And.Contain("Nova stop listening").And.Contain("Nova disable listening")
-            .And.NotContain("Kora stop listening");
+            .And.Contain("Kora stop listening").And.NotContain("Aria stop listening");
         await f.ViewModel.EndPushToTalkAsync();
         f.TextToSpeech.ClearSpokenResponse();
         f.Voice.StopGate = new(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -12,7 +12,7 @@ internal sealed class PresenceStateAutomationPeer(
     Control owner,
     Func<(AssistantState State, bool IsSpeaking)?> capture) : ControlAutomationPeer(owner)
 {
-    internal const string UnavailableName = "Kora presence: unavailable";
+    internal static string UnavailableName => $"{AssistantNameDisplay.Current.Name} presence: unavailable";
     private string previousName = GetName(capture());
 
     protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Text;
@@ -59,6 +59,6 @@ internal sealed class PresenceStateAutomationPeer(
             _ => null,
         };
         return description is null ? UnavailableName
-            : $"Kora presence: {description}; speech playback {(current.IsSpeaking ? "active" : "inactive")}";
+            : $"{AssistantNameDisplay.Current.Name} presence: {description}; speech playback {(current.IsSpeaking ? "active" : "inactive")}";
     }
 }

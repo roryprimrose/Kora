@@ -148,11 +148,11 @@ public sealed partial class KoraMcpServerTests
         using var other = new Fixture();
         using var root = Root();
         var foreign = other.Registry.Admit(CapabilityLane.Execution);
-        var notify = () => fixture.Server.HandleInitialized(foreign, McpProtocol.InitializedNotification(), Token);
+        var notify = () => fixture.Server.HandleInitialized(foreign, Initialized, Token);
         notify.Should().Throw<InvalidOperationException>();
         var caller = fixture.Registry.Admit(CapabilityLane.Execution);
         fixture.Preferences.SetServerEnabled(KoraMcpCatalog.ServerId, false);
-        var disabled = () => fixture.Server.HandleInitialized(caller, McpProtocol.InitializedNotification(), Token);
+        var disabled = () => fixture.Server.HandleInitialized(caller, Initialized, Token);
         disabled.Should().Throw<InvalidOperationException>();
         fixture.Preferences.SetServerEnabled(KoraMcpCatalog.ServerId, true);
         var result = await fixture.Server.InvokeAsync(ModelToolMode.SettingsDiscovery, "settings.get", "{}",

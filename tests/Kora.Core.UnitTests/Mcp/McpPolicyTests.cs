@@ -118,8 +118,8 @@ public sealed class McpPolicyTests
         foreach (var arguments in new[] { "{\"query\":\"" + text + "\"}", JsonSerializer.Serialize(new { query = text }) })
         {
             schema.ValidateArguments(arguments);
-            using var wire = JsonDocument.Parse(McpProtocol.InvocationRequest("search", schema, arguments));
-            var actual = wire.RootElement.GetProperty("params").GetProperty("arguments");
+            using var wire = JsonDocument.Parse(arguments);
+            var actual = wire.RootElement;
             actual.GetRawText().Should().Be(arguments);
             actual.GetProperty("query").GetString().Should().Be(text);
         }
@@ -138,8 +138,6 @@ public sealed class McpPolicyTests
         var oversize = "{\"query\":\"" + text + "a\"}";
         Encoding.UTF8.GetByteCount(oversize).Should().Be(McpToolSchema.MaximumArgumentsUtf8Bytes + 1);
         FluentActions.Invoking(() => schema.ValidateArguments(oversize)).Should().Throw<InvalidDataException>();
-        FluentActions.Invoking(() => McpProtocol.InvocationRequest("search", schema, oversize))
-            .Should().Throw<InvalidDataException>();
         FluentActions.Invoking(() => schema.ValidateArguments(JsonSerializer.Serialize(new { query = text })))
             .Should().Throw<InvalidDataException>();
     }
@@ -153,8 +151,6 @@ public sealed class McpPolicyTests
     {
         var schema = new McpToolSchema(Schema);
         FluentActions.Invoking(() => schema.ValidateArguments(arguments)).Should().Throw<InvalidDataException>();
-        FluentActions.Invoking(() => McpProtocol.InvocationRequest("search", schema, arguments))
-            .Should().Throw<InvalidDataException>();
     }
 
     [Theory]

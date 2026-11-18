@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
 using Kora.Application.Voice;
+using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
@@ -19,6 +20,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
     private readonly HostQuestionService questions;
     private readonly IQuestionVoiceRecognitionService capture;
     private readonly TimeProvider time;
+    private readonly Func<string> assistantName;
     private readonly IUiDispatcher dispatcher;
     private readonly Func<QuestionVoiceAdmission?> observe;
     private readonly Func<string, Func<bool>, CancellationToken, Task> speak;
@@ -36,8 +38,9 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         TimeProvider time, IUiDispatcher dispatcher, Func<QuestionVoiceAdmission?> observe,
         Func<string, Func<bool>, CancellationToken, Task> speak, ILogger<HostQuestionVoiceReplyService> logger,
         Func<string, Task<bool>>? tryStopListening = null, Func<IEnumerable<string>>? listeningStopPhrases = null,
-        Func<ConversationalReplyState?>? conversationalPreference = null)
+        Func<ConversationalReplyState?>? conversationalPreference = null, Func<string>? assistantName = null)
     {
+        this.assistantName = assistantName ?? (static () => AssistantNameRules.DefaultName);
         this.questions = questions;
         this.capture = capture;
         this.time = time;
@@ -311,7 +314,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         {
             failure = exception;
             ReplyFailure(logger, exception.GetType().FullName);
-            lock (gate) { status = "Microphone cleanup unconfirmed. Restart Kora before another voice reply."; }
+            lock (gate) { status = $"Microphone cleanup unconfirmed. Restart {assistantName()} before another voice reply."; }
             Publish();
         }
         finally

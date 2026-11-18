@@ -12,7 +12,7 @@ public sealed record AppearanceCommand(AppearanceCommandOperation Operation,
     public static AppearanceCommand? Parse(string transcript, string assistantName)
     {
         var text = transcript.Trim();
-        var name = AssistantNameRules.Normalize(assistantName);
+        var name = AssistantNameRules.ResolveActivationName(text, assistantName);
         if (text.StartsWith(name, StringComparison.OrdinalIgnoreCase)
             && text.Length > name.Length && (char.IsWhiteSpace(text[name.Length]) || text[name.Length] == ','))
         {

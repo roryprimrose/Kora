@@ -13,9 +13,8 @@ public sealed class BuiltInCommandRouter(BuiltInCommandCatalog catalog)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(transcript);
 
-        var normalizedAssistantName = Normalize(AssistantNameRules.Normalize(assistantName));
         var normalized = Normalize(transcript);
-        var commands = catalog.GetCommands(assistantName)
+        var commands = catalog.GetActivationCommands(assistantName)
             .SelectMany(command => command.AllPhrases.Select(phrase => (Phrase: Normalize(phrase), Command: command)))
             .DistinctBy(item => (item.Phrase, item.Command.Action))
             .ToDictionary(item => item.Phrase, item => item.Command, StringComparer.Ordinal);
@@ -24,15 +23,15 @@ public sealed class BuiltInCommandRouter(BuiltInCommandCatalog catalog)
         {
             return new CommandMatch(true, transcript, normalized, stop);
         }
-        if (string.Equals(normalized, normalizedAssistantName, StringComparison.Ordinal))
+        if (AssistantNameRules.GetActivationNames(assistantName)
+            .Any(name => string.Equals(normalized, Normalize(name), StringComparison.Ordinal)))
         {
             return CommandMatch.NotMatched(transcript, string.Empty);
         }
 
-        var activationName = $"{normalizedAssistantName} ";
-        if (normalized.StartsWith(activationName, StringComparison.Ordinal))
+        if (TryRemoveNormalizedActivationName(normalized, assistantName, out var remainder))
         {
-            normalized = normalized[activationName.Length..];
+            normalized = remainder;
         }
 
         return commands.TryGetValue(normalized, out var command)
@@ -43,11 +42,24 @@ public sealed class BuiltInCommandRouter(BuiltInCommandCatalog catalog)
     public bool IsActivationPrefixed(string transcript, string assistantName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(transcript);
-        var normalizedAssistantName = Normalize(AssistantNameRules.Normalize(assistantName));
-        var normalizedTranscript = Normalize(transcript);
-        return normalizedTranscript.StartsWith(
-            $"{normalizedAssistantName} ",
-            StringComparison.Ordinal);
+        return TryRemoveNormalizedActivationName(Normalize(transcript), assistantName, out _);
+    }
+
+    /// <summary>Removes the longest accepted activation name, followed by a word break, from normalized text.</summary>
+    internal static bool TryRemoveNormalizedActivationName(
+        string normalizedText, string assistantName, out string remainder)
+    {
+        foreach (var name in AssistantNameRules.GetActivationNames(assistantName))
+        {
+            var prefix = $"{Normalize(name)} ";
+            if (normalizedText.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                remainder = normalizedText[prefix.Length..];
+                return true;
+            }
+        }
+        remainder = normalizedText;
+        return false;
     }
 
     public bool ContainsNormalizedPhrase(string text, string phrase)

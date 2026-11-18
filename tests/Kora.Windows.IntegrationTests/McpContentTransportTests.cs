@@ -37,18 +37,13 @@ public sealed class McpContentTransportTests
         };
         await using (var connection = await fixture.Broker.ConnectAsync(fixture.Account, TestContext.Current.CancellationToken))
         {
-            var initialized = await connection.ExchangeAsync(McpTransportFixture.Wire(McpProtocol.InitializeRequest()),
-                McpProtocol.MaximumDiscoveryUtf8Bytes, TestContext.Current.CancellationToken);
-            var capabilities = McpCapabilityProtocol.ReadInitialization(initialized.AsSpan());
+            var capabilities = (await connection.InitializeAsync(TestContext.Current.CancellationToken)).Value;
             capabilities.Tools.Should().BeFalse();
             capabilities.Supports(kind).Should().BeTrue();
-            await connection.NotifyAsync(McpTransportFixture.Wire(McpProtocol.InitializedNotification()), TestContext.Current.CancellationToken);
-            var request = kind == McpCapabilityKind.Resource ? McpCapabilityProtocol.ResourceRequest(resourceUri, 2)
-                : McpCapabilityProtocol.PromptRequest(new(McpCapabilityKind.Prompt, "review", "Review", """{"name":"review"}"""), "{}", 2);
-            var bytes = await connection.ExchangeAsync(McpTransportFixture.Wire(request), McpCapabilityProtocol.MaximumContentBytes,
-                TestContext.Current.CancellationToken);
-            var document = kind == McpCapabilityKind.Resource ? McpCapabilityProtocol.ReadResource(bytes.AsSpan(), 2, resourceUri)
-                : McpCapabilityProtocol.ReadPrompt(bytes.AsSpan(), 2);
+            var document = (kind == McpCapabilityKind.Resource
+                ? await connection.ReadResourceAsync(resourceUri, TestContext.Current.CancellationToken)
+                : await connection.ReadPromptAsync(new(McpCapabilityKind.Prompt, "review", "Review", """{"name":"review"}"""),
+                    "{}", TestContext.Current.CancellationToken)).Value;
             document.Blocks.Single().Text.Should().Be("actual source text");
         }
         fixture.Requests.Should().OnlyContain(sent => sent.Address == fixture.Account.Destination.Address);

@@ -107,7 +107,7 @@ internal sealed partial class SessionsViewModel
     public string RoutineQuietStatus => localEvents is { } broker
         ? "Quiet routine notices for this run: " + (broker.RoutineQuiet.Enabled ? "On" : "Off")
             + (broker.IsAvailable ? string.Empty : " (held/unavailable; refresh recovery, no confirmed change inferred)")
-            + ". Work and Maintenance notice deliveries and rows only; until explicitly cleared or Kora restarts. "
+            + $". Work and Maintenance notice deliveries and rows only; until explicitly cleared or {AssistantNameDisplay.Current.Name} restarts. "
             + "Failures, Attention, required questions/approvals, authoritative work/status and recovery remain unchanged. No speech."
         : "Quiet routine notices unavailable. No choice or source is inferred.";
     public bool CanChangeRoutineQuiet => routineSurfaceOpen && !changingRoutineQuiet && CanRead && access.CanControl

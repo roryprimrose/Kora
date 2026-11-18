@@ -117,6 +117,8 @@ a second child.
 | `blocked` | Worker `owner/key`, explicit `reason`; retain slot and scope. |
 | `refine-scopes` | Attached stopped running/published `owner/key`, `expectedScopeRevision`, complete versioned `proof` and fresh exact-owner `acknowledgment`; shrink only, retain ownership and cleanup. See [exact input and sequencing](./README.md#shrink-only-reservation-protocol). |
 | `extend-scopes` | Attached running nonretired `owner/key`, current `expectedScopeRevision`, complete actual/planned/preservation, temporary pause, exact additional union/exclusivity `proof` and fresh whole-proof `acknowledgment`. Coverage only; continuation is separate. See [mutable input and migration](./README.md#active-mutable-owner-scope-extension). |
+| `recover-scope-incident` | Opt-in same-owner prospective coverage; exact incident/current proof, fresh owner acknowledgment, new human decision and independent supplied host readback. No actions or blocker clearance. See [exact input and UNKNOWN fencing](./README.md#explicit-human-authorized-scope-incident-recovery). |
+| `renew-recovery-continuation` | Explicit same-owner unchanged-grant/source/scopes/fence renewal for compatible main advancement; fresh current item/revision/held guards, complete independent compatibility readback and whole-proof owner acknowledgment. No actions or new authority. See [renewal input and sequencing](./README.md#same-owner-continuation-renewal). |
 | `supersede-write-reservations` | Versioned whole `proof` and explicit human `authorization`, bound to the current durable revision/source/coordinator, complete candidate and every exact prior holder. Local-ledger activation only; external preparation never launches. See [exact input and limitations](./README.md#exact-path-write-reservation-supersession). |
 | `completed` | Published worker `owner/key`; verified cleanup `proof`: matching `remoteHead`, `stoppedWriting`, `worktreeAbsent`, `branchAbsent`, `pendingInstructions=0`. |
 | `pass-ended` | Planner `owner`, assigned `pass`, `readyExamined=true`, `repairExamined=true`, boolean `remaining`; optional shortage receipt. |
@@ -148,6 +150,26 @@ retired, including inside its retained scopes. Refinement is not reconciliation
 for expansion or permission to restart. It preserves slots, PRs, publication,
 blockers and cleanup obligations; only disjoint independently admitted work can
 gain eligibility. Never infer an acknowledgment or stopped state from idle.
+
+For an incidental unauthorized write, ordinary extension remains forbidden.
+Use only [explicit incident recovery](./README.md#explicit-human-authorized-scope-incident-recovery)
+with new final-proof human authority and independently observed live pause/join.
+UNKNOWN pending/processing counts remain UNKNOWN; the separately typed
+human-approved source-fence mode requires an actually established same-owner
+revocation epoch/nonce, not an idle status, digest or receipt alone.
+Recovery preserves dirty/restored history, unauthorized provenance, owner and
+blockers; it emits no actions. Later exact continuation must revalidate the
+accepted current grant/fence using `validateRecoveryContinuation` and real host
+authority. Stale broad instructions cannot restore authority. Missing host
+proof withholds continuation; deterministic helpers do not authenticate consent.
+
+Unrelated main advancement is not permission to discard or rewrite an accepted
+grant. Use [explicit continuation renewal](./README.md#same-owner-continuation-renewal)
+only after fresh independent whole-change compatibility/source/exclusivity
+review and the same owner's complete acknowledgment. Version-2 continuation
+binds the latest durable renewal at its immediately following checkpoint revision;
+it retains source base, recovered scopes, UNKNOWN counts and the original fence,
+emits no action and still confers no execution authority. No automatic fallback.
 
 For [accepted exact-path supersession](./README.md#exact-path-write-reservation-supersession), use exported `heldReservations(state,key)` for effective planner/worker/external-consumer exclusions, never subtract ancestors or overwrite historical item scopes.
 Original owners keep publication, blockers, slots and cleanup; derived prior source retirement is permanent even when the legacy item flag is false.
@@ -227,6 +249,18 @@ delete worktrees as interruption cleanup or affect unrelated sessions/processes.
 For a caller-created genuinely new standalone session, follow
 [the handoff contract](./handoff.md). Freeze old authority and verify stopped
 owners before adopting the same checkpoint; never create a second live registry.
+
+## Learnings
+
+Before any dependency command inspect and reserve the complete affected tracked
+manifest/lock/license-notice closure, including all solution-project locks the
+command restores even without source edits. Direct project references alone
+are not that closure; see [the worker rule](./worker.md#implementation-and-publication).
+
+Keep original grant provenance immutable while explicitly renewing current
+compatibility when unrelated main advances. A current-main mismatch requires
+fresh evidence, not permanent stranding of unchanged work or an ignore-main
+switch; see [same-owner renewal](./README.md#same-owner-continuation-renewal).
 
 ## Validation
 

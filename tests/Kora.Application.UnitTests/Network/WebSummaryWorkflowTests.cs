@@ -28,7 +28,7 @@ public sealed class WebSummaryWorkflowTests : IDisposable
     [Theory]
     [InlineData("summarize current web result", true)]
     [InlineData("Nova, summarize current web result", true)]
-    [InlineData("Kora, summarize current web result", false)]
+    [InlineData("Aria, summarize current web result", false)]
     [InlineData("summarize current web result https://example.com/", false)]
     [InlineData("please summarize current web result", false)]
     [InlineData("summarize current web result\n", false)]

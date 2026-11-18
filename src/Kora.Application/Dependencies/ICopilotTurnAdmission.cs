@@ -6,4 +6,8 @@ namespace Kora.Application.Dependencies;
 public interface ICopilotTurnAdmission
 {
     Task<ModelTurnAdmission> AdmitCopilotAsync(ModelContextEnvelope context, CancellationToken token);
+
+    Task<ModelTurnAdmission> AdmitCopilotAsync(ModelContextEnvelope context, CopilotCustomizationSelection selection,
+        Func<CancellationToken, ValueTask<bool>> sourceCurrent, CancellationToken token) =>
+        Task.FromResult(new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)));
 }

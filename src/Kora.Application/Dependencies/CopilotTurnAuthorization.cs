@@ -8,6 +8,12 @@ namespace Kora.Application.Dependencies;
 public sealed class CopilotTurnAuthorization : HostedTurnAuthorization
 {
     internal CopilotTurnAuthorization(HostedTransmissionReviewService owner, HostActivity issuer,
-        ModelContextEnvelope context, ProviderProfileTuple profile)
-        : base(owner, issuer, context, profile) { }
+        ModelContextEnvelope context, ProviderProfileTuple profile,
+        CopilotCustomizationSelection? selection = null,
+        Func<CancellationToken, ValueTask<bool>>? sourceCurrent = null)
+        : base(owner, issuer, context, profile)
+    { Selection = selection; SourceCurrent = sourceCurrent; }
+
+    internal CopilotCustomizationSelection? Selection { get; }
+    internal Func<CancellationToken, ValueTask<bool>>? SourceCurrent { get; }
 }

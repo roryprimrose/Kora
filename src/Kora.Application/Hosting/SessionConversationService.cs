@@ -125,7 +125,8 @@ public sealed partial class SessionConversationService(
         LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false,
         bool ordinaryActiveDeadline = false, LocalRequestProfileReview? localRequestProfile = null,
         bool retainAgentObservations = false,
-        Func<ModelTurn, Func<bool>, CancellationToken, Task<ModelTurnReason>>? prepareAdmitted = null)
+        Func<ModelTurn, Func<bool>, CancellationToken, Task<ModelTurnReason>>? prepareAdmitted = null,
+        CopilotCustomizationRequest? copilotCustomization = null)
     {
         RequireOriginalSource(origin);
         using var lifecycle = EnterLifecycleSubmission(target, body, admitted);
@@ -232,7 +233,11 @@ public sealed partial class SessionConversationService(
                                 : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))
                             : copilot
                             ? turns is ICopilotTurnAdmission hosted
-                                ? await hosted.AdmitCopilotAsync(context, token).ConfigureAwait(false)
+                                ? copilotCustomization is null
+                                    ? await hosted.AdmitCopilotAsync(context, token).ConfigureAwait(false)
+                                    : await hosted.AdmitCopilotAsync(context, copilotCustomization.Selection,
+                                        copilotCustomization.SourceCurrent,
+                                        token).ConfigureAwait(false)
                                 : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))
                             : await turns.AdmitAsync(choice, context, null, token).ConfigureAwait(false);
                     }

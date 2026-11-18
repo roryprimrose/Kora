@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Windows.Dependencies;
 
 /// <summary>One owned, isolated SDK process and volatile session per admitted turn. Live enablement is independent.</summary>
-public sealed partial class CopilotSdkTurnRuntime : ICopilotAnswerTurnRuntime, IAsyncDisposable
+public sealed partial class CopilotSdkTurnRuntime : ICopilotAnswerTurnRuntime, ICopilotCustomizationTurnRuntime, IAsyncDisposable
 {
     private readonly ICopilotExecutionAccountSource accounts;
     private readonly TimeProvider time;
@@ -54,7 +54,9 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotAnswerTurnRuntime, I
     private async Task<CopilotTurnReply> RunCoreAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
         ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
         Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission,
-        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken cancellationToken)
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken cancellationToken,
+        CopilotCustomizationSelection? selection = null,
+        Func<CancellationToken, ValueTask<bool>>? sourceCurrent = null)
     {
         ArgumentNullException.ThrowIfNull(provenance);
         ArgumentNullException.ThrowIfNull(profile);
@@ -71,7 +73,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotAnswerTurnRuntime, I
             return new(ModelTurnOutcome.Denied);
         }
         var toolContext = ModelToolProtocol.ReadContext(context.Span, provenance);
-        if (publish is not null && toolContext.ToolMode != ModelToolMode.None)
+        if ((publish is not null || selection is not null) && toolContext.ToolMode != ModelToolMode.None)
         { return new(ModelTurnOutcome.Denied); }
         if (Interlocked.CompareExchange(ref occupied, 1, 0) != 0) { return new(ModelTurnOutcome.Unavailable); }
         if (Volatile.Read(ref disposed))
@@ -93,6 +95,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotAnswerTurnRuntime, I
         var stopped = false;
         var live = 1;
         CopilotFinalRequestHandler? requestHandler = null;
+        CopilotSelectedSkillProvider? selectedSkills = null;
         CopilotTurnReply result;
         try
         {
@@ -107,15 +110,21 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotAnswerTurnRuntime, I
                 files = new(account.WorkingDirectory);
                 bool Live() => !Volatile.Read(ref disposed) && Volatile.Read(ref live) != 0 && !callbacks.IsCancellationRequested
                     && account.ExpiresAt > time.GetUtcNow();
+                async ValueTask<bool> SelectionCurrent(CancellationToken token) =>
+                    Live() && (selection is null || sourceCurrent is not null
+                        && await sourceCurrent(token).ConfigureAwait(false) && Live());
                 requestHandler = new CopilotFinalRequestHandler(http, provenance, profile, sessionId, Live,
                     async (transmission, token) =>
                     {
                         using var lease = drain.Enter();
                         using var callbackActivity = continuation();
                         var bound = ReferenceEquals(await accounts.ResolveAsync(profile, token).ConfigureAwait(false), account);
-                        var admitted = bound && Live() && await admitTransmission(transmission, token).ConfigureAwait(false);
+                        var admitted = bound && await SelectionCurrent(token).ConfigureAwait(false)
+                            && (selection is null || SelectedContentPresent(transmission, selection, selectedSkills))
+                            && await admitTransmission(transmission, token).ConfigureAwait(false);
                         admitted = admitted && Live()
-                            && ReferenceEquals(await accounts.ResolveAsync(profile, token).ConfigureAwait(false), account);
+                            && ReferenceEquals(await accounts.ResolveAsync(profile, token).ConfigureAwait(false), account)
+                            && await SelectionCurrent(token).ConfigureAwait(false);
                         callbackActivity.Complete(admitted ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
                         return admitted;
                     }, callbacks.Token);
@@ -181,9 +190,20 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotAnswerTurnRuntime, I
                             }, new() { SkipPermission = true }, new() { Name = name });
                         }).ToArray();
                         var configuration = CreateSessionConfiguration(account, sessionId, files, functions);
+                        if (selection is not null)
+                        {
+                            if (!await SelectionCurrent(callbacks.Token).ConfigureAwait(false))
+                            { throw new OperationCanceledException("Selected source authority expired."); }
+                            selectedSkills = ConfigureSelection(configuration, selection,
+                                async token => await SelectionCurrent(token).ConfigureAwait(false)
+                                    && ReferenceEquals(await accounts.ResolveAsync(profile, token).ConfigureAwait(false), account)
+                                    && await SelectionCurrent(token).ConfigureAwait(false),
+                                drain.Enter, continuation, callbacks.Token);
+                        }
                         configuration.Streaming = publish is not null;
                         session = await client.CreateAsync(configuration, callbacks.Token).ConfigureAwait(false);
-                        if (!string.Equals(session.SessionId, sessionId, StringComparison.Ordinal) || !Live())
+                        if (!string.Equals(session.SessionId, sessionId, StringComparison.Ordinal)
+                            || !await SelectionCurrent(callbacks.Token).ConfigureAwait(false))
                         {
                             result = new(ModelTurnOutcome.Denied);
                         }
@@ -215,7 +235,9 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotAnswerTurnRuntime, I
                             var answer = await pending.WaitAsync(callbacks.Token).ConfigureAwait(false);
                             callbacks.Token.ThrowIfCancellationRequested();
                             var accountCurrent = ReferenceEquals(await accounts.ResolveAsync(profile, callbacks.Token).ConfigureAwait(false), account);
+                            var sourceRemainsCurrent = await SelectionCurrent(callbacks.Token).ConfigureAwait(false);
                             result = !accountCurrent ? new(ModelTurnOutcome.AuthenticationRequired)
+                                : !sourceRemainsCurrent ? new(ModelTurnOutcome.DeniedEgress)
                                 : requestHandler.Denied || !requestHandler.HasSuccessfulTransmission ? new(ModelTurnOutcome.DeniedEgress)
                                 : !Live() || string.IsNullOrWhiteSpace(answer)
                                 || !answer.StartsWith(previous, StringComparison.Ordinal)

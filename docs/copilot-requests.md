@@ -8,8 +8,8 @@ There is no automatic hosted fallback.
 ## Setup and model selection
 
 1. Install a Copilot runtime separately from a trusted source. Kora does not
-   download, bundle or install it. The pinned SDK 1.0.26 declares runtime
-   1.0.103; compatibility with a different installed version is not guaranteed.
+   download, bundle or install it. Use a runtime compatible with the
+   [pinned SDK](../Directory.Packages.props); compatibility with another installed version is not guaranteed.
 2. In **Settings > Providers**, select **Set up Copilot live evaluation and
    account**. Enter the absolute path to the actual installed `copilot.exe`,
    not a shell script, directory or remote executable.
@@ -55,6 +55,25 @@ validated final answer is retained. Tool-bearing requests remain buffered.
 The reviewed HTTP response is still buffered, so this does not promise
 network-level token latency. Inherited history, attachments, native Copilot
 tools, MCP, skills and agents are not enabled by this operation.
+
+## One selected skill or custom agent
+
+The separate [Customizations operation](../src/Kora/CustomizationWindowController.Copilot.cs) can submit one compatible saved source with a new Copilot request. It does not activate that source globally or change any local-only invocation.
+
+1. In **Customizations**, select the saved skill or agent. Save or reload any unsaved source draft first.
+2. Enter the exact name of an existing Active conversation in the selected Copilot target field, and enter the unchanged original task in the request field.
+3. Choose **Run selected with Copilot**. Review the source location, primary file and bounded-read disclosure before choosing **Read this exact source**.
+4. Inspect the complete source, native selection, unchanged task and exact target. Choose **Authorize this exact hosted copy** only if you intend to disclose this source for this one request.
+5. Separately review retention and choose **Retain and submit this one request** once. This retains the original USER task and, later, the genuine ASSISTANT answer or truthful HOST outcome in the reviewed conversation.
+6. Review and approve each complete physical transmission in the existing native disclosure window. Source consent and retention confirmation do not approve egress.
+
+The [compatibility reader](../src/Kora.Application/Definitions/CopilotCustomizationSelection.cs) currently accepts one bounded UTF-8 file without a BOM: an instruction-only `SKILL.md` with only name/version/description metadata, or a reference-free, tool-free native v1 agent. Companions, scripts, references, tools, MCP, hooks, imports, model/reasoning overrides and unsupported metadata are refused rather than omitted.
+
+The [native runtime](../src/Kora.Windows/Dependencies/CopilotSdkTurnRuntime.Customizations.cs) selects exactly one custom agent. For a skill, a fixed tool-free host agent preloads only the selected ephemeral provider skill; it does not paste the source into the ordinary user request or enable the native skill tool. No filesystem discovery, inferred agents or continuing selection is enabled.
+
+Choose **Stop selected Copilot request** to request cancellation. [Ownership remains held](../src/Kora.Application/Definitions/CopilotCustomizationWorkflow.cs) until source work, provider callbacks and sends physically join. Cancellation does not claim rollback. Source replacement/removal/disable, changed target, privacy or expired authority prevents further admitted work; inspect the exact conversation after an unconfirmed outcome rather than automatically retrying.
+
+This operation retains the existing [evaluation and qualification limits](#lifetime-privacy-and-limitations). Deterministic native-seam tests do not qualify an installed runtime, account or model.
 
 ## Lifetime, privacy and limitations
 

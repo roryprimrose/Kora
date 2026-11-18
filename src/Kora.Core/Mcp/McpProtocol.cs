@@ -1,5 +1,3 @@
-﻿using System.Collections.Immutable;
-using System.Text;
 using System.Text.Json;
 
 using Kora.Core.Dependencies;
@@ -13,80 +11,6 @@ public static class McpProtocol
     public const int MaximumDiscoveryUtf8Bytes = 16384;
     public const int MaximumTools = 8;
     public const int MaximumResultUtf8Bytes = 1536;
-
-    public static byte[] InitializeRequest() => Encoding.UTF8.GetBytes(
-        """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"Kora","version":"1"}}}""");
-
-    public static byte[] InitializedNotification() =>
-        Encoding.UTF8.GetBytes("""{"jsonrpc":"2.0","method":"notifications/initialized"}""");
-
-    public static byte[] DiscoveryRequest() =>
-        Encoding.UTF8.GetBytes("""{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}""");
-
-    public static void ValidateInitialization(ReadOnlySpan<byte> bytes)
-    {
-        using var document = ModelToolProtocol.ReadJson(bytes, MaximumDiscoveryUtf8Bytes);
-        var result = ReadResult(document.RootElement, 1);
-        RequireFields(result, ["protocolVersion", "capabilities", "serverInfo"], ["instructions"]);
-        if (!TextEquals(result.GetProperty("protocolVersion"), Version)
-            || result.GetProperty("capabilities") is not { ValueKind: JsonValueKind.Object } capabilities
-            || !capabilities.TryGetProperty("tools", out var tools) || tools.ValueKind != JsonValueKind.Object
-            || result.GetProperty("serverInfo") is not { ValueKind: JsonValueKind.Object } server)
-        { throw new InvalidDataException("MCP negotiation did not establish the exact supported tool protocol."); }
-        RequireFields(server, ["name", "version"], ["title"]);
-        if (server.GetProperty("name").ValueKind != JsonValueKind.String
-            || server.GetProperty("version").ValueKind != JsonValueKind.String)
-        { throw new InvalidDataException("MCP negotiation lacks a server identity."); }
-        // Server instructions and capability hints are bounded untrusted data, never host policy.
-    }
-
-    public static ImmutableArray<McpDiscoveredTool> ReadDiscovery(ReadOnlySpan<byte> bytes)
-    {
-        using var document = ModelToolProtocol.ReadJson(bytes, MaximumDiscoveryUtf8Bytes);
-        var result = ReadResult(document.RootElement, 2);
-        RequireFields(result, ["tools"], []);
-        var tools = result.GetProperty("tools");
-        if (tools.ValueKind != JsonValueKind.Array || tools.GetArrayLength() is < 1 or > MaximumTools)
-        { throw new InvalidDataException("MCP discovery requires a finite nonempty unpaginated tool set."); }
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        var discovered = ImmutableArray.CreateBuilder<McpDiscoveredTool>();
-        foreach (var tool in tools.EnumerateArray())
-        {
-            RequireFields(tool, ["name", "inputSchema"], ["description", "annotations", "outputSchema", "title"]);
-            var name = tool.GetProperty("name");
-            if (name.ValueKind != JsonValueKind.String)
-            { throw new InvalidDataException("An MCP tool requires an exact bounded name."); }
-            McpToolSchema.ValidateName(name.GetString()!);
-            if (!names.Add(name.GetString()!))
-            { throw new InvalidDataException("Duplicate MCP tools are not admitted."); }
-            var schema = new McpToolSchema(tool.GetProperty("inputSchema").GetRawText());
-            discovered.Add(new(name.GetString()!, schema));
-        }
-        return discovered.ToImmutable();
-    }
-
-    public static byte[] InvocationRequest(string toolName, McpToolSchema schema, string arguments, int requestId = 3)
-    {
-        McpToolSchema.ValidateName(toolName);
-        ArgumentNullException.ThrowIfNull(schema);
-        ArgumentOutOfRangeException.ThrowIfLessThan(requestId, 3);
-        schema.ValidateArguments(arguments);
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
-        {
-            writer.WriteStartObject();
-            writer.WriteString("jsonrpc", "2.0");
-            writer.WriteNumber("id", requestId);
-            writer.WriteString("method", "tools/call");
-            writer.WriteStartObject("params");
-            writer.WriteString("name", toolName);
-            writer.WritePropertyName("arguments");
-            writer.WriteRawValue(arguments);
-            writer.WriteEndObject();
-            writer.WriteEndObject();
-        }
-        return stream.ToArray();
-    }
 
     public static McpRemoteResult ReadInvocationResult(ReadOnlySpan<byte> bytes, int requestId = 3)
     {

@@ -31,16 +31,13 @@ public sealed class McpCapabilityProtocolTests
     [InlineData(McpCapabilityKind.Prompt, "prompts/list", "prompts", """{"name":"review","arguments":[{"name":"code","required":true}]}""")]
     public void ListsOnlyRequestedMetadataWithOpaqueCursor(McpCapabilityKind kind, string method, string property, string entry)
     {
-        using var request = JsonDocument.Parse(McpCapabilityProtocol.ListRequest(kind, 4, "opaque"));
-        request.RootElement.GetProperty("method").GetString().Should().Be(method);
-        request.RootElement.GetProperty("params").GetProperty("cursor").GetString().Should().Be("opaque");
+        McpCapabilityProtocol.ListMethod(kind).Should().Be(method);
         var page = McpCapabilityProtocol.ReadPage(Rpc("{\"" + property + "\":[" + entry + "],\"nextCursor\":\"next\"}", 4), kind, 4);
         page.Items.Should().ContainSingle();
         page.Items[0].Category.Should().Be(McpCapabilitySelection.Category(kind));
         page.Items[0].UnavailableReason.Should().BeNull();
         page.Items[0].ToString().Should().Contain(page.Items[0].Name);
         page.NextCursor.Should().Be("next");
-        McpCapabilityProtocol.ListRequest(kind, 2).Should().NotBeEmpty();
     }
 
     [Fact]
@@ -67,8 +64,6 @@ public sealed class McpCapabilityProtocolTests
         prompt.Json.Should().Contain("reference");
         prompt.Display.Should().Contain("Template role: assistant");
         prompt.ToString().Should().Be(nameof(McpTextDocument));
-        using var request = JsonDocument.Parse(McpCapabilityProtocol.ResourceRequest("data://item", 7));
-        request.RootElement.GetProperty("params").GetProperty("uri").GetString().Should().Be("data://item");
     }
 
     [Fact]
@@ -76,13 +71,13 @@ public sealed class McpCapabilityProtocolTests
     {
         var prompt = new McpCapability(McpCapabilityKind.Prompt, "review", "Review",
             """{"name":"review","arguments":[{"name":"code","required":true},{"name":"style"}]}""");
-        using var request = JsonDocument.Parse(McpCapabilityProtocol.PromptRequest(prompt, """{"code":"unchanged"}""", 3));
-        request.RootElement.GetProperty("params").GetProperty("arguments").GetProperty("code").GetString().Should().Be("unchanged");
+        var request = McpCapabilityProtocol.ReadPromptArguments(prompt, """{"code":"unchanged"}""");
+        request.GetProperty("code").GetString().Should().Be("unchanged");
         foreach (var arguments in new[] { "{}", "[]", """{"code":1}""", """{"code":"x","extra":"y"}""", "{\"code\":\"" + new string('a', 1025) + "\"}" })
-        { FluentActions.Invoking(() => McpCapabilityProtocol.PromptRequest(prompt, arguments, 3)).Should().Throw<InvalidDataException>(); }
-        FluentActions.Invoking(() => McpCapabilityProtocol.PromptRequest(prompt with { Kind = McpCapabilityKind.Tool }, "{}", 3))
+        { FluentActions.Invoking(() => McpCapabilityProtocol.ReadPromptArguments(prompt, arguments)).Should().Throw<InvalidDataException>(); }
+        FluentActions.Invoking(() => McpCapabilityProtocol.ReadPromptArguments(prompt with { Kind = McpCapabilityKind.Tool }, "{}"))
             .Should().Throw<InvalidDataException>();
-        FluentActions.Invoking(() => McpCapabilityProtocol.PromptRequest(null!, "{}", 3)).Should().Throw<ArgumentNullException>();
+        FluentActions.Invoking(() => McpCapabilityProtocol.ReadPromptArguments(null!, "{}")).Should().Throw<ArgumentNullException>();
     }
 
     [Theory]
@@ -123,8 +118,7 @@ public sealed class McpCapabilityProtocolTests
         FluentActions.Invoking(() => McpCapabilityProtocol.ReadPage(Encoding.UTF8.GetBytes(
             """{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"private server detail"}}"""), McpCapabilityKind.Tool, 2))
             .Should().Throw<InvalidOperationException>().WithMessage("*server reported an error*");
-        FluentActions.Invoking(() => McpCapabilityProtocol.ListRequest(McpCapabilityKind.Tool, 1)).Should().Throw<ArgumentOutOfRangeException>();
-        FluentActions.Invoking(() => McpCapabilityProtocol.ListRequest((McpCapabilityKind)99, 2)).Should().Throw<ArgumentOutOfRangeException>();
+        FluentActions.Invoking(() => McpCapabilityProtocol.ListMethod((McpCapabilityKind)99)).Should().Throw<ArgumentOutOfRangeException>();
         FluentActions.Invoking(() => new McpServerCapabilities(true, true, true).Supports((McpCapabilityKind)99))
             .Should().Throw<ArgumentOutOfRangeException>();
     }

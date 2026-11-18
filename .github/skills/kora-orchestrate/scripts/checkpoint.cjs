@@ -35,6 +35,16 @@ function validateCheckpoint(value) {
     new Set(readmissions.map(event => event.id)).size === readmissions.length,
   'Checkpoint candidate revalidation event/schema binding is inconsistent.');
   const supersessions = value.state.supersessions ?? [];
+  const renewals = value.state.recoveryRenewals ?? [];
+  const renewalJournal = value.events.filter(event => event.type === 'renew-recovery-continuation');
+  requireValue(renewalJournal.length === renewals.length &&
+    new Set(renewalJournal.map(event => event.id)).size === renewalJournal.length &&
+    renewalJournal.every(event => {
+      const record = renewals.find(record => record.event.id === event.id);
+      return record && event.digest === digest(record) && record.event.proof.checkpointRevision < value.revision &&
+        Array.isArray(event.commands) && event.commands.length === 0 &&
+        !value.actions.some(action => action.id.startsWith(`${event.id}:`));
+    }), 'Checkpoint recovery renewal complete history/action journal binding is inconsistent.');
   const recoveries = value.state.recoveries ?? [];
   const recoveryJournal = value.events.filter(event => event.type === 'recover-scope-incident');
   requireValue(recoveryJournal.length === recoveries.length &&
@@ -87,14 +97,15 @@ function checkpoint(file, input, io = fs) {
     } else if (input.operation === 'apply') {
       requireValue(value, 'Checkpoint is not initialized.');
       const result = applyEvent(value.state, input.event, {
-        revision: value.revision, recoveryEvidence: input.recoveryEvidence
+        revision: value.revision, recoveryEvidence: input.recoveryEvidence, renewalEvidence: input.renewalEvidence
       });
       if (result.duplicate) return value;
       value.state = result.state;
       const at = new Date().toISOString();
       value.events.push({ id: input.event.id, type: input.event.type, at,
-        ...(['supersede-write-reservations', 'recover-scope-incident'].includes(input.event.type)
-          ? { digest: digest(input.event.type === 'recover-scope-incident'
+        ...(['supersede-write-reservations', 'recover-scope-incident', 'renew-recovery-continuation'].includes(input.event.type)
+          ? { digest: digest(input.event.type === 'renew-recovery-continuation'
+            ? value.state.recoveryRenewals.at(-1) : input.event.type === 'recover-scope-incident'
             ? value.state.recoveries.at(-1) : value.state.supersessions.at(-1)),
           commands: structuredClone(result.actions) } : {}) });
       result.actions.forEach((command, index) => value.actions.push({

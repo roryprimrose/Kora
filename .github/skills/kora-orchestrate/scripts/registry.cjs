@@ -28,6 +28,7 @@ const AMENDMENT_MARKER = 'scope-amendment:v1:';
 const READMISSION_MARKER = 'candidate-revalidation:v1:';
 const SUPERSESSION_MARKER = 'write-supersession:v1:';
 const RECOVERY_MARKER = 'scope-incident-recovery:v1:';
+const RENEWAL_MARKER = 'recovery-continuation-renewal:v1:';
 const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 const covers = (scopes, value) => scopes.some(s => value === s || value.startsWith(`${s}\\`));
 
@@ -272,7 +273,7 @@ function validateRecoveries(state) {
       requireValue(names.every(name => Object.hasOwn(before, name) === (record.fromVersion >= minimum)),
         'Recovery original item schema/version binding changed.');
     }
-    requireValue([1, 2, 3, 4, 5, 6].includes(record.fromVersion) &&
+    requireValue([1, 2, 3, 4, 5, 6, 7].includes(record.fromVersion) &&
       digest(before) === p.expectedItemDigest && before.phase === 'running' &&
       before.owner === p.owner && before.key === p.key && !before.sourceWritesRetired &&
       before.publication === null && (before.scopeRevision ?? 0) === p.scopeRevision &&
@@ -320,16 +321,129 @@ function recoveryContinuationDigest(request) {
   return digest(body);
 }
 
+function validateRecoveryRenewal(record, grant, previous) {
+  fields(record, 'event before hostEvidence commands');
+  const { event, before, hostEvidence: h } = record;
+  fields(event, 'id type proof acknowledgment');
+  const p = event.proof;
+  fields(p, 'version repository coordinator checkpointRevision head key owner grantDigest previousRenewalDigest expectedItemDigest scopeRevision scopes source fence quiescence exclusivity compatibility');
+  const original = grant.event.proof;
+  fields(p.source, 'owner worktree branch head receipt');
+  fields(p.quiescence, 'sourcePaused commandsRunning workJoined pendingInstructions processingInstructions receipt');
+  fields(p.exclusivity, 'complete reservations receipt');
+  fields(p.compatibility, 'baseHead fromHead toHead ancestorVerified complete changedPaths scopeReviewCompatible sourceReviewCompatible receipt');
+  fields(event.acknowledgment, 'id receipt owner key scopeRevision proofDigest workJoined staleAuthorityRejected fence');
+  fields(h, 'kind coordinator checkpointRevision proofDigest ownerResponseId compatibilityDigest sourceIdentityVerified sourcePauseVerified commandsJoinedVerified instructionAuthorityVerified compatibilityVerified receipt');
+  canonicalPaths(p.scopes, true);
+  canonicalPaths(p.compatibility.changedPaths);
+  requireValue(text(event.id) && event.type === 'renew-recovery-continuation' &&
+    p.version === 1 && p.repository === original.repository && p.coordinator === original.coordinator &&
+    head(p.head) && p.head !== original.head && p.key === original.key && p.owner === original.owner &&
+    Number.isSafeInteger(p.checkpointRevision) && p.checkpointRevision > original.checkpointRevision &&
+    p.grantDigest === digest(grant) && p.previousRenewalDigest === (previous ? digest(previous) : null) &&
+    (!previous || p.checkpointRevision > previous.event.proof.checkpointRevision) &&
+    p.expectedItemDigest === digest(before) && before.key === p.key && before.owner === p.owner &&
+    before.phase === 'running' && !before.sourceWritesRetired && before.publication === null &&
+    p.scopeRevision === before.scopeRevision && p.scopeRevision === original.scopeRevision + 1 &&
+    equal(p.scopes, before.scopes) && equal(p.scopes, original.toScopes) &&
+    ['owner', 'worktree', 'branch', 'head'].every(name => p.source[name] === original.source[name]) &&
+    text(p.source.receipt) && equal(p.fence, original.reconciliation.fence ?? null) &&
+    equal(record.commands, []),
+  'Renewal must retain the exact original grant, same owner/source base/scopes/fence and current item.');
+  const q = p.quiescence;
+  requireValue(q.sourcePaused === true && q.commandsRunning === false && q.workJoined === true &&
+    q.pendingInstructions === original.reconciliation.pendingInstructions &&
+    q.processingInstructions === original.reconciliation.processingInstructions && text(q.receipt),
+  'Renewal requires fresh live pause/join and truthful unchanged instruction reconciliation.');
+  const c = p.compatibility;
+  requireValue(c.baseHead === original.head && c.fromHead === (previous?.event.proof.head ?? original.head) &&
+    c.toHead === p.head && c.ancestorVerified === true && c.complete === true &&
+    c.scopeReviewCompatible === true && c.sourceReviewCompatible === true && text(c.receipt) &&
+    !overlaps(c.changedPaths, p.scopes),
+  'Fresh complete compatible main advancement and unchanged reserved paths/source contracts required.');
+  requireValue(p.exclusivity.complete === true && Array.isArray(p.exclusivity.reservations) &&
+    text(p.exclusivity.receipt), 'Complete current renewal exclusivity evidence required.');
+  const keys = new Set([p.key]);
+  for (const held of p.exclusivity.reservations) {
+    fields(held, 'key owner scopes scopeRevision sourceWritesRetired');
+    canonicalPaths(held.scopes);
+    requireValue(text(held.key) && !keys.has(held.key) && (held.owner === null || text(held.owner)) &&
+      Number.isSafeInteger(held.scopeRevision) && held.scopeRevision >= 0 &&
+      typeof held.sourceWritesRetired === 'boolean' && !overlaps(held.scopes, p.scopes),
+    'Renewal conflicts with retained exclusive ownership.');
+    keys.add(held.key);
+  }
+  const a = event.acknowledgment;
+  validateAcknowledgment(a, p);
+  requireValue(a.workJoined === true && a.staleAuthorityRejected === true && equal(a.fence, p.fence),
+    'Fresh owner acknowledgment must bind the entire renewal compatibility proof and retained fence.');
+  requireValue(h.kind === 'host-verified-recovery-renewal' && h.coordinator === p.coordinator &&
+    h.checkpointRevision === p.checkpointRevision && h.proofDigest === digest(p) &&
+    h.ownerResponseId === a.id && h.compatibilityDigest === digest(c) &&
+    h.sourceIdentityVerified === true && h.sourcePauseVerified === true &&
+    h.commandsJoinedVerified === true && h.instructionAuthorityVerified === true &&
+    h.compatibilityVerified === true && text(h.receipt),
+  'Independent current host readback of renewal compatibility, source, owner and live instruction authority required.');
+}
+
+function validateRecoveryRenewals(state) {
+  const markers = state.seen.filter(id => id.startsWith(RENEWAL_MARKER));
+  if (state.version < 7) {
+    requireValue(!Object.hasOwn(state, 'recoveryRenewals') && markers.length === 0,
+      'Recovery renewal schema downgrade.');
+    return;
+  }
+  requireValue(Array.isArray(state.recoveryRenewals), 'Recovery renewal history missing.');
+  const events = new Set();
+  const acks = new Set([
+    ...state.items.flatMap(item => [...item.scopeHistory, ...item.scopeAmendments]
+      .map(record => record.acknowledgment.id)),
+    ...state.recoveries.map(record => record.event.acknowledgment.id),
+    ...state.supersessions.flatMap(record => record.event.proof.holders
+      .filter(holder => holder.acknowledgment).map(holder => holder.acknowledgment.id))
+  ]);
+  const previous = new Map();
+  for (const record of state.recoveryRenewals) {
+    const grantDigest = record?.event?.proof?.grantDigest;
+    const grant = state.recoveries.find(value => digest(value) === grantDigest);
+    requireValue(grant, 'Renewal original grant is missing or altered.');
+    validateRecoveryRenewal(record, grant, previous.get(grantDigest));
+    const { event } = record;
+    requireValue(state.seen.includes(event.id) && !events.has(event.id) &&
+      !acks.has(event.acknowledgment.id), 'Recovery renewal event or owner acknowledgment replay.');
+    events.add(event.id);
+    acks.add(event.acknowledgment.id);
+    previous.set(grantDigest, record);
+  }
+  requireValue(equal(markers.slice().sort(), state.recoveryRenewals.map(record =>
+    `${RENEWAL_MARKER}${digest(record)}`).sort()), 'Recovery renewal history/seen binding missing.');
+}
+
 function validateRecoveryContinuation(state, request, context = {}) {
   validate(state);
-  fields(request, 'version kind coordinator head sourceHead checkpointRevision key owner expectedItemDigest scopeRevision grantDigest fence acknowledgment');
+  fields(request, `version kind coordinator head sourceHead checkpointRevision key owner expectedItemDigest scopeRevision grantDigest fence acknowledgment${request?.version === 2 ? ' renewalDigest' : ''}`);
   fields(request.acknowledgment, 'id owner requestDigest grantDigest fence workJoined staleAuthorityRejected receipt');
   const item = state.items.find(value => value.key === request.key);
   const record = recoveryRecords(state, request.key).at(-1);
   const fence = record?.event.proof.reconciliation.fence ?? null;
-  requireValue(state.enabled && state.mode === 'delivery' && request.version === 1 &&
+  const renewal = (state.recoveryRenewals ?? []).filter(value =>
+    value.event.proof.key === request.key).at(-1);
+  const renewed = request.version === 2;
+  const currentHead = renewed ? renewal?.event.proof.head : record?.event.proof.head;
+  if (renewed) {
+    const p = renewal?.event.proof;
+    requireValue(p && request.renewalDigest === digest(renewal) && p.grantDigest === digest(record) &&
+      p.expectedItemDigest === digest(item) && p.scopeRevision === item.scopeRevision &&
+      equal(p.scopes, item.scopes) && equal(p.fence, fence) && p.owner === item.owner &&
+      context.revision === p.checkpointRevision + 1 &&
+      equal(p.exclusivity.reservations, heldReservations(state, request.key)) &&
+      !state.recoveryRenewals.some(old => old.event.acknowledgment.id === request.acknowledgment.id) &&
+      !state.recoveries.some(old => old.event.acknowledgment.id === request.acknowledgment.id),
+    'Renewed continuation requires the latest current-revision/item/exclusivity renewal and a separate fresh acknowledgment.');
+  }
+  requireValue(state.enabled && state.mode === 'delivery' && [1, 2].includes(request.version) &&
     request.kind === 'exact-recovered-owner-continuation' && record && item?.phase === 'running' &&
-    record.event.proof.coordinator === state.coordinator && record.event.proof.head === state.head &&
+    record.event.proof.coordinator === state.coordinator && currentHead === state.head &&
     !item.sourceWritesRetired && !supersededWriter(state, item.key) &&
     request.coordinator === state.coordinator && request.head === state.head &&
     request.sourceHead === record.event.proof.source.head &&
@@ -743,7 +857,7 @@ function validateReadmissions(state) {
       fields(record, 'event before fromVersion');
       const { event, before, fromVersion } = record;
       validateReadmissionEvent(event);
-      requireValue([1, 2, 3, 4, 5, 6].includes(fromVersion) && (index === 0 || fromVersion >= 4),
+      requireValue([1, 2, 3, 4, 5, 6, 7].includes(fromVersion) && (index === 0 || fromVersion >= 4),
         'Invalid candidate revalidation source schema.');
       fields(before, `key outcome pool kind head scopes evidence pr owner phase blocker publication${
         fromVersion >= 2 ? ' scopeRevision scopeHistory sourceWritesRetired' : ''}${
@@ -789,7 +903,7 @@ function validateReadmissions(state) {
 }
 
 function validate(state) {
-  requireValue([1, 2, 3, 4, 5, 6].includes(state?.version) && typeof state.enabled === 'boolean' &&
+  requireValue([1, 2, 3, 4, 5, 6, 7].includes(state?.version) && typeof state.enabled === 'boolean' &&
     ['observe', 'delivery'].includes(state.mode) &&
     text(state.coordinator) && (state.head === null || head(state.head)) && Array.isArray(state.items) &&
     Array.isArray(state.seen), 'Malformed registry.');
@@ -871,6 +985,7 @@ function validate(state) {
   validateAmendments(state);
   validateReadmissions(state);
   validateRecoveries(state);
+  validateRecoveryRenewals(state);
 }
 
 function createState(coordinator, sourceHead, mode = 'observe') {
@@ -930,11 +1045,14 @@ function dispatch(state, actions) {
 function applyEvent(current, event, context = {}) {
   validate(current);
   requireValue(event && text(event.id) && text(event.type), 'Event identity/type missing.');
-  requireValue(![REFINEMENT_MARKER, AMENDMENT_MARKER, READMISSION_MARKER, SUPERSESSION_MARKER, RECOVERY_MARKER]
+  requireValue(![REFINEMENT_MARKER, AMENDMENT_MARKER, READMISSION_MARKER, SUPERSESSION_MARKER, RECOVERY_MARKER, RENEWAL_MARKER]
     .some(prefix => event.id.startsWith(prefix)),
     'Reserved scope event identity.');
   const state = structuredClone(current);
   if (state.seen.includes(event.id)) {
+    requireValue(event.type !== 'renew-recovery-continuation' &&
+      !(state.recoveryRenewals ?? []).some(record => record.event.id === event.id),
+    'Recovery renewal requests cannot be replayed; read the accepted checkpoint instead.');
     const recovery = (state.recoveries ?? []).find(record => record.event.id === event.id);
     if (recovery || event.type === 'recover-scope-incident') {
       requireValue(recovery && equal(recovery.event, event),
@@ -1218,6 +1336,26 @@ function applyEvent(current, event, context = {}) {
       state.seen.push(`${RECOVERY_MARKER}${digest(record)}`);
       break;
     }
+    case 'renew-recovery-continuation': {
+      const p = event.proof;
+      const item = state.items.find(value => value.key === p?.key);
+      const grant = recoveryRecords(state, item?.key).at(-1);
+      requireValue(state.enabled && state.mode === 'delivery' && state.version >= 6 &&
+        grant && item?.phase === 'running' && !item.sourceWritesRetired &&
+        !supersededWriter(state, item.key) && !supersessionParticipant(state, item.key) &&
+        p.coordinator === state.coordinator && p.head === state.head &&
+        p.checkpointRevision === context.revision && Number.isSafeInteger(context.revision) &&
+        equal(p.exclusivity?.reservations, heldReservations(state, item.key)),
+      'Renewal requires current enabled same-owner recovery, main/checkpoint and exclusive guards.');
+      const record = { event: structuredClone(event), before: structuredClone(item),
+        hostEvidence: structuredClone(context.renewalEvidence), commands: [] };
+      validateRecoveryRenewal(record, grant, (state.recoveryRenewals ?? [])
+        .filter(old => old.event.proof.grantDigest === digest(grant)).at(-1));
+      if (state.version < 7) { state.version = 7; state.recoveryRenewals = []; }
+      state.recoveryRenewals.push(record);
+      state.seen.push(`${RENEWAL_MARKER}${digest(record)}`);
+      break;
+    }
     case 'completed': {
       const item = worker();
       const proof = event.proof;
@@ -1302,7 +1440,7 @@ function applyEvent(current, event, context = {}) {
     }
   }
   validate(state);
-  if (event.type !== 'recover-scope-incident') dispatch(state, actions);
+  if (!['recover-scope-incident', 'renew-recovery-continuation'].includes(event.type)) dispatch(state, actions);
   if (event.type === 'supersede-write-reservations') {
     const record = state.supersessions.at(-1);
     const marker = `${SUPERSESSION_MARKER}${digest(record)}`;

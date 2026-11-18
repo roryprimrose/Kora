@@ -180,11 +180,89 @@ Expected output for each mode includes `actions:[]`, `coverageVerified:true`, th
 
 That acknowledgment has exactly `id`, `owner`, `requestDigest=recoveryContinuationDigest(request)`, `grantDigest`, `fence`, `workJoined=true`, `staleAuthorityRejected=true`, `receipt`. The digest excludes the acknowledgment itself, binding the complete request including current revision/item. Reused recovery acknowledgment, stale source/coordinator/revision/item/grant/fence or retired/superseded owner rejects. The host still needs actual separate execution authority and blocker reconciliation ([validation](./scripts/registry.cjs)).
 
+Version 1 retains exact same-main behavior. If unrelated compatible main advancement invalidates it, use the explicit [same-owner continuation renewal](./README.md#same-owner-continuation-renewal), not a rewritten grant, rebase of retained dirty work or an ignore-main option.
+
 Acceptance explicitly migrates legacy versions 1-5 to version 6 without discarding existing refinement/amendment/readmission/supersession proofs. Full recovery records retain the original item and schema, complete event, independent supplied host evidence and an empty command journal; per-item indexes and reserved seen/digest markers bind them. Checkpoint event digests and empty action bindings detect omission, altered replay and downgrade. Old valid states remain accepted without recovery fields ([migration tests](./scripts/registry.test.cjs), [atomic checkpoint tests](./scripts/checkpoint.test.cjs)).
 
 ### Dependency closure lesson
 
 Before any dependency command, inspect and reserve the entire affected tracked manifest/lock/license-notice closure. Include all solution-project locks restored by the command even when their source is not edited; direct project references alone do not establish this closure. Withhold dependency commands until accepted coverage. This tooling protocol itself requires no restore, dependency, lock or notice change ([worker contract](./worker.md#implementation-and-publication), [launch guidance](./scripts/worker-launch.cjs)).
+
+### Same-owner continuation renewal
+
+`renew-recovery-continuation` explicitly revalidates an accepted recovery for compatible unrelated main advancement. It never grants paths, rewrites the original recovery/main/source base, changes the item/scopes/fence/blockers/history, resumes work or emits any actions. The original owner must still be attached, running and nonretired/nonsuperseded ([verifier](./scripts/registry.cjs)).
+
+Collect and apply in this order ([checkpoint](./scripts/checkpoint.cjs), [worker](./worker.md#explicit-scope-incident-recovery-acknowledgment)):
+
+1. Reconcile source through ordinary `refresh`, then read the current checkpoint. Capture the complete current item/digest, scope revision/scopes, latest original recovery record/digest, latest prior renewal/digest (or `null`) and `heldReservations(state,key)`. Do not reuse the original recovery checkpoint revision.
+2. Independently reverify the same owner's unchanged worktree/branch/source HEAD, original recovered scopes and current fence. Obtain actual fresh live source pause, joined work/commands and instruction-authority observations. UNKNOWN remains UNKNOWN; enumeration-zero owners still require actual current zero.
+3. Inventory the **entire** original-grant-main to current-main change, including deleted paths and both rename sides; verify forward ancestry from the previous renewal head, or original main for the first renewal. Reject any overlap with recovered scopes. Independently review relevant source/dependency/contracts against the preserved source base; disjoint paths alone are not compatibility.
+4. Bind this complete proof to a fresh exact-owner acknowledgment. Independently read back the owner's response and compatibility/source/pause/join/instruction facts through the host into `renewalEvidence`. A supplied receipt/digest or an unchanged source HEAD alone does not establish those facts.
+5. Apply once through checkpoint `apply` at the captured current revision. On changed evidence/item/source/guards or a stale revision, recollect; do not rehash stale acknowledgments. Renewal replay, even the same payload/ID, rejects without replacement: read the accepted checkpoint to reconcile an ambiguous result.
+6. Read back the renewal and empty command journal, then obtain a **separate** fresh exact continuation acknowledgment. Version 2 continuation must be checked at the immediately post-renewal checkpoint revision against the latest renewal, current item/main/source/scopes/fence and held guards. Any intervening checkpoint mutation requires a fresh renewal, not reuse.
+
+The host remains responsible for actual compatibility/identity verification, consent and source-write enforcement. Renewal retains the original human-authorized fence and existing execution-authority limits; it is not a new human permission, generic readmission, incident admission for clean omissions or blocker resolution. Failed/unknown compatibility withholds continuation ([authority limits](./scripts/registry.cjs)).
+
+#### Exact renewal input
+
+Use the existing absolute ignored scratch checkpoint path. All nested fields below are mandatory; no bypass or optional compatibility flag exists. `source` retains original `{owner,worktree,branch,head}` with a fresh actual `receipt`; `scopes` must equal the original recovery's `toScopes`, with scope revision exactly original `scopeRevision+1` ([schema](./scripts/registry.cjs)).
+
+| Object | Exact fields |
+| --- | --- |
+| checkpoint apply | `operation="apply"`, current numeric `expectedRevision`, `event`, independent supplied `renewalEvidence` |
+| event | fresh `id`, `type="renew-recovery-continuation"`, `proof`, `acknowledgment` |
+| proof | `version=1`, `repository`, `coordinator`, `checkpointRevision`, current main `head`, `key`, `owner`, `grantDigest`, `previousRenewalDigest`, `expectedItemDigest`, `scopeRevision`, `scopes`, `source`, `fence`, `quiescence`, `exclusivity`, `compatibility` |
+| quiescence | `sourcePaused=true`, `commandsRunning=false`, `workJoined=true`, `pendingInstructions`, `processingInstructions`, fresh live `receipt`; counts equal the original reconciliation (`"UNKNOWN"` stays unknown) |
+| exclusivity | `complete=true`, exact current `reservations=heldReservations(state,key)`, actual current inventory `receipt` |
+| compatibility | `baseHead` original grant main, `fromHead` previous renewal main or original main, `toHead` current main, `ancestorVerified=true`, `complete=true`, canonical `changedPaths` for the whole base-to-current diff, `scopeReviewCompatible=true`, `sourceReviewCompatible=true`, actual review `receipt` |
+| acknowledgment | fresh `id`, `receipt`, exact `owner`, `key`, current `scopeRevision`, `proofDigest=digest(proof)`, `workJoined=true`, `staleAuthorityRejected=true`, exact unchanged `fence` |
+| renewalEvidence | `kind="host-verified-recovery-renewal"`, `coordinator`, `checkpointRevision`, `proofDigest`, actual `ownerResponseId`, `compatibilityDigest=digest(proof.compatibility)`, `sourceIdentityVerified=true`, `sourcePauseVerified=true`, `commandsJoinedVerified=true`, `instructionAuthorityVerified=true`, `compatibilityVerified=true`, independent actual readback `receipt` |
+
+`grantDigest=digest(completeAcceptedRecoveryRecord)` preserves the original authority/history. `previousRenewalDigest` is `null` only for the first renewal of that grant; successive renewals bind `digest(completePreviousRenewalRecord)`. Each renewal record is exactly `{event,before,hostEvidence,commands:[]}`. Version 7 adds `state.recoveryRenewals` and reserved seen/digest markers without mutating any existing items or proofs ([persistence](./scripts/registry.cjs)).
+
+Use exported `applyEvent(state,event,{revision,renewalEvidence})` only for deterministic verification; live persistence uses the checkpoint wrapper. The registry stdin CLI has no verified context and cannot apply renewal. Placeholder input outline (not a grant, not executable until independently observed typed fields replace every placeholder):
+
+```text
+{
+  "operation": "apply",
+  "expectedRevision": "<CURRENT_INTEGER>",
+  "event": {
+    "id": "<FRESH_RENEWAL_EVENT_ID>",
+    "type": "renew-recovery-continuation",
+    "proof": "<EXPAND_EXACT_PROOF_SCHEMA_ABOVE_WITH_CURRENT_OBSERVATIONS>",
+    "acknowledgment": "<ACTUAL_FRESH_WHOLE_PROOF_OWNER_ACKNOWLEDGMENT>"
+  },
+  "renewalEvidence": "<INDEPENDENT_ACTUAL_HOST_READBACK_USING_EXACT_SCHEMA_ABOVE>"
+}
+```
+
+```powershell
+Get-Content -LiteralPath $RenewalInputPath -Raw |
+    node $MergedCheckpointCli $CheckpointPath
+```
+
+Version 2 `validateRecoveryContinuation(state,request,{revision})` uses the exact version-1 request fields plus `renewalDigest=digest(latestAcceptedRenewalRecord)` and `version=2`. It binds the original `grantDigest` and unchanged source/fence, the current main/item and post-renewal revision. Its separate acknowledgment binds `recoveryContinuationDigest(request)` including `renewalDigest`; original recovery or any renewal acknowledgment cannot be reused ([function](./scripts/registry.cjs)).
+
+Validation still returns `{coverageVerified:true,blockers:<current blocker>,sourceExecutionAuthorized:false}`. It neither consumes a host instruction nor authorizes/sends one; repeated read-only validation is not execution or a queue-drain claim. The host must deduplicate actual continuation delivery/consumption by exact message identity and revalidate the current grant/fence before writes ([transport](./SKILL.md#bootstrap-and-transport)).
+
+#### Runnable synthetic renewal example
+
+This exact in-memory example uses only [synthetic observations](./scripts/incident-recovery-fixture.cjs); it performs no host calls, Git commands, checkpoint writes or source continuation:
+
+```javascript
+const path = require('node:path');
+const root = path.resolve('.github', 'skills', 'kora-orchestrate', 'scripts');
+const { applyEvent, validateRecoveryContinuation } = require(path.join(root, 'registry.cjs'));
+const { renewalFixture, renewalEvent, renewalContext, continuation } =
+  require(path.join(root, 'incident-recovery-fixture.cjs'));
+const before = renewalFixture();
+const event = renewalEvent(before, 43);
+const result = applyEvent(before, event, renewalContext(event));
+const checked = validateRecoveryContinuation(result.state, continuation(result.state, 44, true), { revision: 44 });
+console.log(JSON.stringify({ actions: result.actions, checked }));
+```
+
+Expected output includes `actions:[]`, `coverageVerified:true`, retained blockers and `sourceExecutionAuthorized:false`. Missing/foreign/stale compatibility, acknowledgment, source, scope, fence or exclusive guards reject. Original versions 1-6 and same-head behavior remain valid; failed renewal leaves the original incident/grant and file bytes unchanged ([regressions](./scripts/registry.test.cjs), [checkpoint tests](./scripts/checkpoint.test.cjs)).
 
 ## Shrink-only reservation protocol
 

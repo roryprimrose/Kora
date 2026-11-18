@@ -43,6 +43,10 @@ the host has an explicit current local capacity qualification for that exact
 provider/profile. Hosted and ordinary requests remain serial. No provider
 fallback or automatic retry occurs.
 
+Each admitted run keeps its own volatile agent session and serial bounded
+continuation. Changing the execution library does not approve a model or
+increase concurrent capacity ([execution contract](../Design/Local_Inference.md)).
+
 An allocated tab or an invocation request is not proof of provider execution.
 Status reports the actual retained outcome or an unavailable, resource-blocked,
 revoked, cancelled or unconfirmed operation. A genuine answer is retained only

@@ -16,12 +16,16 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
     public event Action<HostedTransmissionReview>? ClaudeOffered;
     public event Action<HostedTransmissionReview>? ClaudeRetired;
 
-    public CopilotTurnAuthorization PrepareTurn(ModelContextEnvelope context, ProviderProfileTuple profile)
+    public CopilotTurnAuthorization PrepareTurn(ModelContextEnvelope context, ProviderProfileTuple profile,
+        CopilotCustomizationSelection? selection = null,
+        Func<CancellationToken, ValueTask<bool>>? sourceCurrent = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(profile);
         var current = ValidatePreparation(context, profile, ProviderService.Copilot);
-        return new(this, current, context, profile);
+        if (selection is not null && (sourceCurrent is null || context.ToolMode != ModelToolMode.None))
+        { throw new InvalidOperationException("Selected native Copilot intent requires exact source validation and no tools."); }
+        return new(this, current, context, profile, selection, sourceCurrent);
     }
 
     public ClaudeTurnAuthorization PrepareClaudeTurn(ModelContextEnvelope context, ProviderProfileTuple profile,

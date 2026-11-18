@@ -38,29 +38,42 @@ internal sealed class CopilotModelTurnAdapter(ICopilotTurnRuntime runtime, Hoste
         ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
         Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken cancellationToken)
     {
+        async ValueTask<bool> IsCurrent(CancellationToken token) =>
+            authorization is not null && current is not null && reviews.Current(authorization)
+            && await current(token).ConfigureAwait(false)
+            && (authorization.Selection is null || authorization.SourceCurrent is not null
+                && await authorization.SourceCurrent(token).ConfigureAwait(false)
+                && await current(token).ConfigureAwait(false) && reviews.Current(authorization));
         if (authorization is null || current is null || profile != authorization.Profile
             || !ReferenceEquals(provenance.Request, authorization.Context.Request)
             || !context.Span.SequenceEqual(authorization.Context.Serialize()) || !reviews.Current(authorization)
-            || !await current(cancellationToken).ConfigureAwait(false))
+            || !await IsCurrent(cancellationToken).ConfigureAwait(false))
         { return new(ModelTurnOutcome.DeniedEgress, provenance.Selection); }
+        if (authorization.Selection is not null && runtime is not ICopilotCustomizationTurnRuntime)
+        { return new(ModelTurnOutcome.Unavailable, provenance.Selection, Reason: ModelTurnReason.UnregisteredModel); }
         async ValueTask<CapabilityReply> Invoke(string id, string input, CancellationToken token)
         {
-            if (!reviews.Current(authorization) || !await current(token).ConfigureAwait(false))
+            if (!await IsCurrent(token).ConfigureAwait(false))
             { return new(CapabilityOutcome.Denied, "copilot-turn-not-current"); }
             var response = await invokeTool(id, input, token).ConfigureAwait(false);
-            return await current(token).ConfigureAwait(false) ? response : new(CapabilityOutcome.Denied, "copilot-turn-changed");
+            return await IsCurrent(token).ConfigureAwait(false) ? response : new(CapabilityOutcome.Denied, "copilot-turn-changed");
         }
         ValueTask<bool> Review(CopilotTransmission transmission, CancellationToken token) =>
             ReferenceEquals(transmission.Provenance, provenance) && transmission.Profile == profile
-                ? reviews.ReviewAsync(authorization, transmission, current, token) : ValueTask.FromResult(false);
+                ? reviews.ReviewAsync(authorization, transmission, IsCurrent, token) : ValueTask.FromResult(false);
         CopilotTurnReply reply;
-        if (publish is not null && runtime is ICopilotAnswerTurnRuntime streaming)
+        if (authorization.Selection is { } selected && runtime is ICopilotCustomizationTurnRuntime native)
+        {
+            reply = await native.RunSelectedAsync(provenance, profile, context, selected, IsCurrent, Review,
+                cancellationToken).ConfigureAwait(false);
+        }
+        else if (publish is not null && runtime is ICopilotAnswerTurnRuntime streaming)
         {
             if (authorization.Context.ToolMode != ModelToolMode.None)
             { return new(ModelTurnOutcome.Denied, provenance.Selection, Reason: ModelTurnReason.ToolUseNotPermitted); }
             reply = await streaming.RunWithAnswerAsync(provenance, profile, context, Invoke, Review, async (update, token) =>
             {
-                if (!reviews.Current(authorization) || !await current(token).ConfigureAwait(false))
+                if (!await IsCurrent(token).ConfigureAwait(false))
                 { throw new InvalidDataException("Copilot provisional account/source authority changed."); }
                 await publish(update, token).ConfigureAwait(false);
             }, cancellationToken).ConfigureAwait(false);
@@ -70,7 +83,7 @@ internal sealed class CopilotModelTurnAdapter(ICopilotTurnRuntime runtime, Hoste
             reply = await runtime.RunAsync(provenance, profile, context, Invoke, Review, cancellationToken).ConfigureAwait(false);
         }
         if (reply.Outcome == ModelTurnOutcome.Succeeded
-            && (!reviews.Current(authorization) || !await current(cancellationToken).ConfigureAwait(false)))
+            && !await IsCurrent(cancellationToken).ConfigureAwait(false))
         { return new(ModelTurnOutcome.DeniedEgress, provenance.Selection) { TokenUsage = reply.TokenUsage }; }
         return new(reply.Outcome, provenance.Selection,
             reply.Outcome == ModelTurnOutcome.Succeeded ? new LocalModelResponse(reply.Answer, null) : null)

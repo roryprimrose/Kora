@@ -173,7 +173,7 @@ contract and Application
 [`CopilotModelTurnAdapter`](../src/Kora.Application/Dependencies/CopilotModelTurnAdapter.cs)
 keep SDK/process mechanisms out of Core and Application.
 
-The bounded profile uses one owned stdio runtime and fresh host-turn-derived
+The default bounded profile uses one owned stdio runtime and fresh host-turn-derived
 SDK session per turn; no external server, resume, native tools, MCP, custom
 agents, skills, plugins, filesystem discovery, memory, embeddings, session
 telemetry, persistent session store or infinite-session compaction is enabled.
@@ -183,6 +183,16 @@ exact turn/account/session; SDK trace headers cannot choose those identities.
 Session state uses a per-turn virtual store limited to 64 entries and 262144
 content bytes, with no host-filesystem fallback. SQL and binary requests
 are routed to explicit refusal handlers, not native fallback storage.
+
+The separately reviewed [single-customization workflow](../src/Kora.Application/Definitions/CopilotCustomizationWorkflow.cs) adds one immutable request-scoped hosted copy, without changing held context/evidence schemas or local-only invocation routes. Source reading, affirmative exact-source hosted disclosure, original USER retention in one exact Active conversation and every physical-send approval remain separate decisions.
+
+The optional [native selection capability](../src/Kora.Core/Dependencies/ICopilotCustomizationTurnRuntime.cs) binds the reviewed copy to the issued Copilot authorization and current source lifetime. Missing native support is explicitly unavailable, never ordinary-text fallback. The [compatibility reader](../src/Kora.Application/Definitions/CopilotCustomizationSelection.cs) reuses the existing skill/agent parsers and rejects unsupported companions, references, tools and metadata.
+
+The [native configuration](../src/Kora.Windows/Dependencies/CopilotSdkTurnRuntime.Customizations.cs) supplies exactly one custom agent and activates it through `Agent`, with explicit empty tools and `Infer=false`. A selected skill uses one fixed host agent whose `Skills` eagerly preloads only the selected ephemeral [`ISkillProvider`](../src/Kora.Windows/Dependencies/CopilotSelectedSkillProvider.cs) entry. No native skill tool, slash dispatch, directory, broad discovery, model override or bespoke agent executor is admitted.
+
+Provider callbacks re-enter captured host context, share the runtime callback drain and revalidate source/account authority. Final-send admission also requires the selected content in the actual final JSON, and a selected skill must have been read through its native provider. [Deterministic native-seam tests](../tests/Kora.Windows.IntegrationTests/Dependencies/CopilotSdkTurnRuntimeTests.Customizations.cs) reject unused configuration and omitted selected content, and keep cancellation-ignoring callbacks owned until physical join.
+
+The [canonical conversation regression](../tests/Kora.Windows.IntegrationTests/CopilotCustomizationWorkflowTests.cs) exercises separate source/retention/send decisions and retained genuine answers or denied outcomes. This is I evidence, not installed-runtime activation, live-account/provider or containment qualification. Existing evaluation admission remains required and ordinary production qualification remains unavailable; no deployment or runtime is enabled by selecting a definition.
 
 The final HTTP interceptor admits only the selected model's complete JSON
 request to the exact HTTPS Copilot chat/responses endpoints. It rejects

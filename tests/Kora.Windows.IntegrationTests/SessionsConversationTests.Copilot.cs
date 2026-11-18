@@ -15,6 +15,18 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    internal static ProviderProfileTuple SelectedCopilotProfile => CopilotCatalogue.Profile;
+    internal sealed class SelectedCopilotComposition(InteractionStorageFixture storage, ICopilotTurnRuntime runtime) : IAsyncDisposable
+    {
+        private readonly Composition inner = new(storage, copilot: runtime);
+        internal Kora.Application.Hosting.SessionWorkspaceService Workspace => inner.Workspace;
+        internal Kora.Application.Hosting.SessionConversationService Conversation => inner.Conversation;
+        internal ModelTurnHost Turns => inner.Turns;
+        internal HostedTransmissionReviewService Reviews => inner.Reviews;
+        internal Kora.Core.Auditing.ISecurityAuditLog Audit => inner.Audit;
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
+    }
+
     [Theory]
     [InlineData("complete")]
     [InlineData("cancel")]

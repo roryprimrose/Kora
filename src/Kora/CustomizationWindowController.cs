@@ -24,7 +24,8 @@ internal sealed partial class CustomizationWindowController(
     Func<string, string, RequestOrigin, Func<bool>, Task>? addOwnedAgent = null,
     Kora.Application.Configuration.McpServerConfigurationService? mcpConfiguration = null,
     Kora.Application.Configuration.ArtifactDirectoryConfigurationService? mcpSettings = null,
-    Kora.Application.Hosting.SessionConversationService? mcpConversation = null) : IDisposable
+    Kora.Application.Hosting.SessionConversationService? mcpConversation = null,
+    Func<CopilotCustomizationWorkflow>? copilotWorkflow = null) : IDisposable
 {
     private CustomizationView? window;
     private CustomizationWindow? adapter;
@@ -204,6 +205,7 @@ internal sealed partial class CustomizationWindowController(
 
     private void Start(string action)
     {
+        if (action is "Stop selected Copilot request") { StopSelectedCopilot(); return; }
         if (action is "Mcp input") { if (!changingBuffer) { InputChanged(); } return; }
         RetireVoiceTarget();
         if (action is "Cancel prompt authoring")
@@ -241,6 +243,7 @@ internal sealed partial class CustomizationWindowController(
                 case "Voice": await VoiceCore(Current, token); break;
                 case "Command": await RouteCore(pendingCommand!, Current, token); break;
                 case "Refresh": await Refresh(Current, token); break;
+                case "Run selected with Copilot": await RunSelectedCopilot(Current, token); break;
                 case "Mcp capabilities": await ManageCapabilities(Current, token); break;
                 case "Select":
                     if (opened.SelectedSource is { } selected && await LeaveDraft(Current, token)) { await Inspect(selected, false, Current, token); }
@@ -888,6 +891,7 @@ internal sealed partial class CustomizationWindowController(
         RetirePromptAuthoring();
         if (closing || args.Cancel || !busy && !Dirty()) { return; }
         args.Cancel = true;
+        if (selectedCopilotCancellation is not null) { StopSelectedCopilot(); }
         if (!busy) { active = CloseReviewed(); }
     }
     private async Task CloseReviewed()
@@ -898,7 +902,7 @@ internal sealed partial class CustomizationWindowController(
     internal async Task<bool> PrepareClose()
     {
         if (window is null) { return true; }
-        if (busy) { window.CancelReview(); return false; }
+        if (busy) { if (selectedCopilotCancellation is not null) { StopSelectedCopilot(); } window.CancelReview(); return false; }
         try { return await LeaveDraft(Eligible, lifetime!.Token); }
         catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException or OperationCanceledException)
         { window?.Status.Text = "Close did not complete: " + exception.Message; return false; }

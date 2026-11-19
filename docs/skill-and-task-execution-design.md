@@ -115,6 +115,24 @@ zero-tool request. Changed files, withdrawal, closed review or lost private
 admission require a fresh review. The answer or truthful terminal is retained
 with the unchanged request; no automatic replay occurs.
 
+Standalone owned and shared instruction-only use runs through the existing
+[local MAF/MEAI runtime](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.AgentFramework.cs).
+The complete review includes host-owned limits: no tools or calls, one model
+round, the full 32768-byte serialized input limit and at most 15 seconds (or
+earlier source expiry). Shared review labels these limits separately from the
+unchanged source; agent-reference guidance keeps its separate source-only
+display and profile-owned budgets
+([review](../src/Kora.Application/Skills/SharedSkillUseReview.cs),
+[agent review](../src/Kora.Application/Agents/AgentSkillReferenceReview.cs)).
+
+This bounded mode buffers one final answer rather than displaying provisional
+streaming text. Cancellation keeps ownership until the actual model operation
+joins, and withdrawn source, target or private admission cannot publish a late
+answer. An unqualified local runtime remains unavailable; there is no hosted
+fallback, automatic installation or replay
+([runtime](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.AgentFramework.cs),
+[reviewed workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
+
 References must remain inside the selected package and be nonempty strict
 UTF-8, at most 16 KiB each and 64 KiB including the primary. Missing, changed,
 undeclared, nested or executable references are unavailable, not partially

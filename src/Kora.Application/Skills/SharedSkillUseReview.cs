@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Kora.Core.Skills;
 
 namespace Kora.Application.Skills;
@@ -43,13 +44,21 @@ public sealed class SharedSkillUseReview : IDisposable
             lock (gate)
             {
                 if (!IsCurrent) { return string.Empty; }
-                return snapshot!.ReferenceBundle is not { } bundle ? snapshot.Text!
-                    : $"PRIMARY {snapshot.RelativeFile}\n{snapshot.Text}\n\n"
-                        + string.Join("\n\n", bundle.References.Select(reference =>
-                            $"REFERENCE {reference.RelativePath}\n{reference.Text}"));
+                return $"{RenderSource()}\n\nHOST EXECUTION CONSTRAINTS (not skill source)\n"
+                    + JsonSerializer.Serialize(ToolFreeSkillConstraints.Instance);
             }
         }
     }
+    internal string SourceText
+    {
+        get { lock (gate) { return IsCurrent ? RenderSource() : string.Empty; } }
+    }
+
+    private string RenderSource() => snapshot!.ReferenceBundle is not { } bundle ? snapshot.Text!
+        : $"PRIMARY {snapshot.RelativeFile}\n{snapshot.Text}\n\n"
+            + string.Join("\n\n", bundle.References.Select(reference =>
+                $"REFERENCE {reference.RelativePath}\n{reference.Text}"));
+
     public bool IsCurrent
     {
         get

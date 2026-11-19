@@ -56,7 +56,9 @@ public sealed partial class ModelTurnHostTests
         transport.Requests.Should().HaveCount(2);
         using var review = await ReadSelectedSkill(workflow, proposal, shared.Eligible);
         review.IsEnabled.Should().BeFalse();
-        review.Text.Should().Be(shared.Reader.Text);
+        var completeReview = review.Text;
+        completeReview.Should().Be($"{shared.Reader.Text}\n\nHOST EXECUTION CONSTRAINTS (not skill source)\n"
+            + JsonSerializer.Serialize(ToolFreeSkillConstraints.Instance));
         f.ExecutionStarts.Should().Be(1);
         await workflow.EnableAsync(review, shared.Eligible, origin, Token);
         using var invocation = await workflow.PrepareAsync(review, proposal.Target, proposal.OriginalRequest, shared.Eligible, origin, Token);
@@ -74,6 +76,9 @@ public sealed partial class ModelTurnHostTests
         executor.Context.UserRequest.Should().Be(task);
         executor.Context.ToolMode.Should().Be(ModelToolMode.None);
         executor.Context.Tools.Should().BeEmpty();
+        executor.Context.Constraints.Should().NotBeNull();
+        completeReview.Should().Be($"{shared.Reader.Text}\n\nHOST EXECUTION CONSTRAINTS (not skill source)\n"
+            + JsonSerializer.Serialize(executor.Context.Constraints));
         executor.Messages.Should().BeEmpty("the joined selector is not a parent runtime or fabricated tool result");
         executor.Context.Evidence.Should().ContainSingle().Which.Content.Should().Be(shared.Reader.Text);
         transport.Requests.Take(2).Should().OnlyContain(request => request.Context.ToolMode == ModelToolMode.CustomizationDiscovery

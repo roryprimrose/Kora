@@ -11,7 +11,8 @@ const { incidentFixture, recoveryEvent, recoveryEvidence, renewalEvent, renewalE
 const { validateRecoveryContinuation } = require('./registry.cjs');
 const { refinementFixture, refinementEvent, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
-  supersessionBeneficiaryFixture } = require('./refinement-fixture.cjs');
+  supersessionBeneficiaryFixture, fencedExtensionFixture, fencedExtensionEvent,
+  fencedExtensionContext } = require('./refinement-fixture.cjs');
 
 function fixture() {
   const files = new Map();
@@ -69,6 +70,53 @@ function incidentCheckpoint() {
     state: incidentFixture(), actions: [], events: [] }));
   return f;
 }
+
+test('fenced mutable checkpoint binds actual authority history and no actions, rejects replay and journal tampering', () => {
+  const f = fixture();
+  f.files.set(f.file, JSON.stringify({ version: 1, revision: 41,
+    state: fencedExtensionFixture(), events: [], actions: [] }));
+  const event = fencedExtensionEvent(f.run({ operation: 'read' }).state);
+  const accepted = f.run({ operation: 'apply', expectedRevision: 41, event,
+    extensionEvidence: fencedExtensionContext(event).extensionEvidence });
+  assert.equal(accepted.revision, 42);
+  assert.deepEqual(accepted.actions, []);
+  assert.equal(accepted.events.at(-1).digest, digest(accepted.state.items[0].scopeAmendments[0]));
+  assert.deepEqual(accepted.events.at(-1).commands, []);
+  const original = f.files.get(f.file);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: 42, event,
+    extensionEvidence: fencedExtensionContext(event).extensionEvidence }), /cannot be replayed/);
+  assert.equal(f.files.get(f.file), original);
+  for (const change of [
+    v => { v.events[0].digest = '0'.repeat(64); }, v => { v.events[0].commands = [{ type: 'resume' }]; },
+    v => { v.actions.push({ id: `${event.id}:0`, status: 'pending', command: { type: 'resume' } }); },
+    v => { v.state.version = 7; }, v => { v.state.items[0].scopeAmendments[0].authorization.id = 'forged'; },
+    v => { v.state.items[0].scopeAmendments[0].hostEvidence.instructionAuthorityVerified = false; },
+    v => { v.events = []; }
+  ]) {
+    const altered = structuredClone(accepted); change(altered); const bytes = JSON.stringify(altered);
+    f.files.set(f.file, bytes);
+    assert.throws(() => f.run({ operation: 'read' }));
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: 42, event: { id: 'later', type: 'pause' } }));
+    assert.equal(f.files.get(f.file), bytes);
+  }
+});
+
+test('fenced extension stale writer, missing readback, contention and failed replacement retain exact original bytes', () => {
+  for (const failure of ['revision', 'lock', 'evidence', 'replace']) {
+    const f = fixture();
+    f.files.set(f.file, JSON.stringify({ version: 1, revision: 41,
+      state: fencedExtensionFixture(), events: [], actions: [] }));
+    const event = fencedExtensionEvent(f.run({ operation: 'read' }).state);
+    const original = f.files.get(f.file);
+    if (failure === 'lock') f.files.set(`${f.file}.lock`, 'other-writer');
+    if (failure === 'replace') f.failReplacement();
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: failure === 'revision' ? 40 : 41,
+      event, ...(failure === 'evidence' ? {} : { extensionEvidence: fencedExtensionContext(event).extensionEvidence }) }));
+    assert.equal(f.files.get(f.file), original);
+    assert.deepEqual([...f.files.keys()].sort(),
+      (failure === 'lock' ? [f.file, `${f.file}.lock`] : [f.file]).sort());
+  }
+});
 
 function renewalCheckpoint() {
   const f = incidentCheckpoint();

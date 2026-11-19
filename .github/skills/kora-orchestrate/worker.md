@@ -85,6 +85,23 @@ actual/planned/committed/retained/unpreserved writes (including restored files).
 Temporarily pause source work and reconcile queued/processing broad instructions
 with the coordinator before returning a fresh whole-proof acknowledgment.
 Unknown pending counts or exclusivity are blockers, not default success.
+For non-incident additions only, unavailable queue enumeration may use the
+[explicit human-approved version-2 extension](./README.md#explicit-human-approved-unknown-extension).
+Keep UNKNOWN; actually pause/join all source work and establish a fresh
+same-owner epoch/nonce revoking all earlier broad source authority. Bind current
+source/item/revision/complete union/held guards to the final proof; acknowledge
+that complete proof and rejection of stale authority. A new authenticated human
+decision over proof plus acknowledgment and independent host readback remain
+required. Implementation approval, fixture/digest strings and idle state cannot
+prove consent or physical enforcement. All actual writes must remain covered by
+original scopes; never invent an incident or legalize outside-scope writes.
+If pause/join/fence cannot be established, withhold acknowledgment/continuation.
+Acceptance emits no actions or blocker clearance; wait for separate exact
+continuation carrying latest coverage/fence and fresh whole-request owner response,
+validated through `validateScopeExtensionContinuation`. Reject stale broad
+instructions before writes, including after later zero-count claims. Host
+enforcement/deduplication remain separate; no ordinary pending-zero gate changes
+([schemas and synthetic example](./README.md#explicit-human-approved-unknown-extension)).
 
 Bind the final union/preservation/quiescence/exclusive snapshot/revision to the
 fresh owner acknowledgment digest. Freeze writes outside the union; this is

@@ -431,7 +431,7 @@ in [checkpoint.cjs](./scripts/checkpoint.cjs), and behavioral cases in
 
 The checkpoint envelope remains
 `{operation:"apply",expectedRevision:<current checkpoint revision>,event:<below>}`.
-The event has exactly `id`, `type="extend-scopes"`, `owner`, `key`,
+The version-1 event has exactly `id`, `type="extend-scopes"`, `owner`, `key`,
 `expectedScopeRevision`, `proof`, `acknowledgment`. Every nested field is
 required; unknown fields reject. This is a synthetic proof example, not an
 actual host acknowledgment:
@@ -500,7 +500,7 @@ must cover an explicit planned write. Subsequent amendments
 retain prior actual and planned manifests (planned paths may become actual).
 Unpreserved dirty files remain retained, not permission to delete.
 
-`quiescence` requires a concrete temporary paused-source receipt and verified
+Version-1 `quiescence` requires a concrete temporary paused-source receipt and verified
 zero queued/processing broad instructions. It is not `stoppedWriting` or
 permanent retirement. `unionFrozen=true` acknowledges no writes beyond the
 accepted union. The host/owner must prove those facts; unknown pending counts,
@@ -519,7 +519,131 @@ coordinator receipts must establish actual exclusive ownership.
 `proofDigest`, with the same whole-proof `digest(proof)` and actual fresh
 owner-response requirements as shrink. IDs cannot replay across **either**
 protocol. A stale checkpoint writer, owner, revision, current scopes/PR or
-exclusivity snapshot rejects with no effects. Same event ID remains idempotent.
+exclusivity snapshot rejects with no effects. Version-1 event replay remains idempotent.
+
+### Explicit human-approved UNKNOWN extension
+
+For a **non-incident** mutable closure omission, proof version 2 permits
+UNKNOWN queue counts only through an explicitly established same-owner source
+authority fence. All actual writes must still be covered by original scopes:
+this is not incident recovery or retroactive authorization. Ordinary version-1
+pending-zero behavior, shrink, cleanup, handoff and supersession remain unchanged
+([verifiers](./scripts/registry.cjs), [regressions](./scripts/registry.test.cjs)).
+
+The host must independently observe current source identity and preservation,
+temporary pause, no running source commands, joined work and effective rejection
+of all earlier broad source instructions. Sender-only pending lists, bounded
+transcripts, idle state, message acceptance, fixture strings and digests do not
+establish these facts or authenticate human consent. If actual enforcement or
+pause/join cannot be established, withhold acknowledgment and continuation;
+never infer a complete queue drain ([worker obligations](./worker.md#mutable-owner-extension-acknowledgment)).
+
+The event retains every version-1 field and adds `authorization`. Proof version 2
+retains the original proof fields except the replaced `quiescence` shape below;
+each row lists exact required nested fields. Unknown fields reject
+([implementation](./scripts/registry.cjs)):
+
+| Object | Exact fields and constraints |
+| --- | --- |
+| Additional proof fields | `repository="roryprimrose/Kora"`, exact `coordinator`, current safe-integer `checkpointRevision`, current main `head`, `source`, `expectedItemDigest=digest(current complete item)`, `reconciliation` |
+| `source` | `owner`, canonical absolute Windows `worktree`, `branch`, current source `head`, `receipt`; same owner, source head is original reservation head or a preserved commit. Source base remains distinct from current main. |
+| Replaced `quiescence` | `paused=true`, `commandsRunning=false`, `workJoined=true`, `receipt`; independently observed, not inferred from queue counts. |
+| `reconciliation` | `kind="human-approved-source-fence"`, `pendingInstructions="UNKNOWN"`, `processingInstructions="UNKNOWN"`, `fence`, `receipt` |
+| `fence` | Positive integer `epoch`, fresh `nonce`, `revokesEarlierSourceAuthority=true`, `established=true`, `receipt` |
+| `acknowledgment` | Original `id,receipt,owner,key,scopeRevision,proofDigest=digest(proof)`, plus `workJoined=true,staleAuthorityRejected=true,fence`; exact fresh owner response over the complete frozen proof and matching fence. |
+| `authorization` | `kind="explicit-human-scope-extension-decision"`, fresh `id`, authenticated `actor`, `decision="prospective-coverage-only"`, `subjectDigest=digest({proof,acknowledgment})`, `receipt`; actual new human decision, not implementation approval. |
+| Independent `extensionEvidence` | `kind="host-verified-fenced-scope-extension"`, matching `coordinator,checkpointRevision,proofDigest,ownerResponseId,humanDecisionId,humanDecisionDigest=digest(authorization)`, observed `sourceIdentityVerified=true,sourcePauseVerified=true,commandsJoinedVerified=true,instructionAuthorityVerified=true`, `receipt` |
+
+`extensionEvidence` is a sibling of `event` in the checkpoint apply input,
+not part of the event or an owner-authored substitute for host observation.
+Reducer callers pass it separately as `{revision,extensionEvidence}`.
+The stdin registry CLI has no independent evidence adapter and cannot accept
+this transaction by itself. After independently collecting real facts, the
+checkpoint CLI accepts this exact envelope
+([checkpoint implementation](./scripts/checkpoint.cjs)):
+
+```text
+{operation:"apply",expectedRevision:<current>,event:<complete version-2 event>,
+ extensionEvidence:<independent current host readback>}
+```
+
+```powershell
+Get-Content -LiteralPath $ApprovedInputPath -Raw |
+    node .\.github\skills\kora-orchestrate\scripts\checkpoint.cjs $CheckpointPath
+```
+
+Before that command, read the current checkpoint/complete item and all held
+guards; inventory actual/planned/committed/retained/unpreserved/restored paths;
+pause/join the exact source owner; establish the fresh revocation fence; freeze
+the exact old-plus-additional union and full proof; obtain its exact-owner
+acknowledgment; obtain the new human decision over both; independently read back
+all observations. A changed source, item, revision, union, owner or exclusivity
+snapshot requires fresh proof, acknowledgment and human authority. Never replace
+unknown facts with `true` to fill this input
+([validation and atomic replacement](./scripts/checkpoint.cjs)).
+
+Acceptance migrates valid v1-v7 stores to **v8**, preserving all existing
+history, publication, blockers, slots, cleanup and retired-owner guards.
+The existing amendment index and `scope-amendment:v1:` digest marker now bind
+the version-2 record
+`{eventId,proof,acknowledgment,authorization,hostEvidence,before,fromVersion,commands:[]}`.
+`before` is the complete prior item. Checkpoint event digest binds this entire
+record, the immediately prior proof revision and empty commands; fabricated
+actions, omitted history, schema downgrade and altered replay reject before
+replacement. Version-2 event replay always rejects, even with unchanged payload.
+There is **no** launch, resume, discovery action or blocker clearance. Later
+extensions or recoveries cannot drop an accepted mutable fence with zero-count
+claims: same source owner/worktree/branch, strictly increasing epochs and fresh
+nonces/human decisions remain required
+([persisted validators](./scripts/registry.cjs), [checkpoint tests](./scripts/checkpoint.test.cjs)).
+
+#### Separate fenced-extension continuation
+
+After durable acceptance, independently read current state and obtain a fresh
+exact-owner whole-request acknowledgment. Exported
+`validateScopeExtensionContinuation(state,request,{revision})` is read-only;
+its exact request fields are:
+
+```text
+version:1, kind:"exact-extended-owner-continuation", coordinator, head,
+source:{owner,worktree,branch,head}, checkpointRevision, key, owner,
+expectedItemDigest, scopeRevision, coverageDigest, fence,
+acknowledgment:{id,owner,requestDigest,coverageDigest,fence,
+               workJoined:true,staleAuthorityRejected:true,receipt}
+```
+
+`coverageDigest=digest(complete latest version-2 amendment record)`;
+`requestDigest=recoveryContinuationDigest(request)` excludes acknowledgment.
+It binds current checkpoint revision, complete item, latest exact accepted scopes,
+main/source identity, unchanged full held guards and accepted fence. Any later
+scope change or newer fence invalidates the old continuation, including an old
+incident-recovery continuation. Main/guard drift fails closed; this path adds no
+renewal mechanism. Success returns
+`{coverageVerified:true,blockers:<retained blocker>,sourceExecutionAuthorized:false}`.
+The host must independently authenticate actual consent/owner response, enforce
+the fence before every source operation, deduplicate actual delivery and issue
+the separate narrowly authorized continuation. Repeated read-only validation
+does not consume or authenticate an execution grant
+([verifiers](./scripts/registry.cjs), [launch consumer](./scripts/worker-launch.cjs)).
+
+This runnable example uses only synthetic in-memory facts. It prints exact input
+shapes, not live proof; it does not touch any checkpoint, host owner or source
+([fixture](./scripts/refinement-fixture.cjs)):
+
+```javascript
+const path = require('node:path');
+const base = path.resolve('.github', 'skills', 'kora-orchestrate', 'scripts');
+const { applyEvent, validateScopeExtensionContinuation } = require(path.join(base, 'registry.cjs'));
+const { fencedExtensionFixture, fencedExtensionEvent, fencedExtensionContext,
+  fencedExtensionContinuation } = require(path.join(base, 'refinement-fixture.cjs'));
+const state = fencedExtensionFixture(), event = fencedExtensionEvent(state);
+const context = fencedExtensionContext(event);
+const accepted = applyEvent(state, event, context);
+const request = fencedExtensionContinuation(accepted.state);
+const result = validateScopeExtensionContinuation(accepted.state, request, { revision: 42 });
+console.log(JSON.stringify({ operation: 'apply', expectedRevision: 41, event,
+  extensionEvidence: context.extensionEvidence, actions: accepted.actions, request, result }));
+```
 
 ### Mutable migration, sequencing and retained source
 

@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora;
 
 internal sealed partial class PromptParameterController(
-    MainViewModel main, ArtifactCatalogue catalogue, PromptRequestConsumer consumer,
+    MainViewModel main, ArtifactCatalogue catalogue,
     PromptConversationSubmission submission,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<PromptParameterController> logger,
     PromptInputVoiceController? inputVoice = null, Func<bool>? nativeFocus = null) : IDisposable, IAsyncDisposable
@@ -168,18 +168,7 @@ internal sealed partial class PromptParameterController(
                 opened.ContentsLink.Offer(
                     Kora.Core.Presentation.ReviewContents.FromText(expanded.Source.Name, "request.md", expanded.UserRequest, expanded.Digest),
                     () => Eligible(captured) && ReferenceEquals(window, opened));
-                opened.Use.IsEnabled = captured.CanUse;
-                opened.Status.Text = $"Complete expanded USER REQUEST; digest {expanded.Digest}. Preview is not model/tool approval. Use is separate.";
-            }
-            else if (string.Equals(action, "Use", StringComparison.Ordinal))
-            {
-                RetireReview();
-                var expanded = await captured.CaptureUse(main.IsPromptSourceCurrent, token);
-                bool Current() => Eligible(captured) && captured.IsUseCurrent(expanded);
-                var result = await consumer.Use(expanded, Current, token);
-                if (!Current()) { return; }
-                main.ReportPromptUse(result);
-                opened.Status.Text = $"Generation unavailable: {result.Outcome} / {result.Reason}. No model or action started; inputs remain ephemeral.";
+                opened.Status.Text = $"Complete expanded USER REQUEST; digest {expanded.Digest}. Preview is not submission or model/tool approval. Select an exact Active session, review retention and separately confirm.";
             }
             else if (action is "RefreshTargets" or "NextTargets")
             {
@@ -269,7 +258,6 @@ internal sealed partial class PromptParameterController(
             if (ReferenceEquals(window, opened))
             {
                 opened.Preview.IsEnabled = false;
-                opened.Use.IsEnabled = false;
                 opened.Status.Text = $"Submission unconfirmed; content may already be retained. NEVER automatically retry or infer rollback. "
                     + $"Inspect exact session {exception.Request.SessionId.Value:D}, request {exception.Request.RequestId.Value:D}, "
                     + $"task {exception.Request.TaskId.Value:D} through conversation/task receipts.";

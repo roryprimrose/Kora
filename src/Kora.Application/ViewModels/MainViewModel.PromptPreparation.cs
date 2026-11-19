@@ -1,7 +1,6 @@
 ﻿using Kora.Application.Definitions;
 using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
-using Kora.Core.Dependencies;
 
 namespace Kora.Application.ViewModels;
 
@@ -54,8 +53,4 @@ public sealed partial class MainViewModel
         return current is not null && await current(source, token) && !token.IsCancellationRequested;
     }
 
-    public void ReportPromptUse(ModelTurnResult result) => ShowInformation(
-        "Prompt generation unavailable.",
-        $"The separately reviewed expanded user request was checked by the model admission boundary: {result.Outcome} / {result.Reason}. "
-        + "No generation, installation, authentication fallback, HTTP request or action was started. No production adapter is qualified.");
 }

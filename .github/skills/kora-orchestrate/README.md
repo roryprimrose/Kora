@@ -811,7 +811,7 @@ Use the existing absolute ignored scratch checkpoint client with `operation=appl
 
 | Object | Exact fields and requirements |
 | --- | --- |
-| `proof` | `version=1`, `repository="roryprimrose/Kora"`, exact `coordinator`, `checkpointRevision`, current verified `head`, `mode`, `authority`, `exactFiles`, complete `candidate`, `expectedItemDigest`, `manifestComplete=true`, `localReservations`, `externalCheckpoints`, `holders`. |
+| Version-1 `proof` | `version=1`, `repository="roryprimrose/Kora"`, exact `coordinator`, `checkpointRevision`, current verified `head`, `mode`, `authority`, `exactFiles`, complete `candidate`, `expectedItemDigest`, `manifestComplete=true`, `localReservations`, `externalCheckpoints`, `holders`. |
 | `authority` | `singleLedger=true` only for local activation; false for external preparation. Nonempty `receipt` identifies independently verified controlling source authority, not a snapshot-based claim to it. |
 | `exactFiles` | `complete=true`, canonical unique `paths` equal the first-occurrence union of all holder paths, and `receipt` establishing these are exact files, not directories. Filesystem kinds are a trusted-host fact, not inferred from extensions. |
 | `candidate` | Entire current unowned, unreserved, unpublished, nonretired candidate item, including all metadata/history. `expectedItemDigest=digest(candidate)`, head equals proof head and blocker is null. Independent product/effect admission remains required. |
@@ -835,7 +835,7 @@ The pure reducer requires a host-supplied third argument `{revision}` for this e
 First acceptance upgrades valid v1-v4 to v5, preserving prior schemas/history with their existing empty migration metadata. Unaccepted older stores remain unchanged.
 Each `supersessions[]` record stores `{event,commands}`; `seen` binds the event and `write-supersession:v1:<digest(record)>`. The [checkpoint journal](./scripts/checkpoint.cjs) binds the full record and exact generated commands before returning any action.
 
-Exact accepted replay at the current checkpoint revision changes no bytes, actions or revision. Changed payload/type, stale item/snapshot/source/revision, missing history/journal/commands, lock contention or replacement failure rejects without replacement. Hashes detect inconsistent edits, not a coherently forged whole store ([regressions](./scripts/checkpoint.test.cjs)).
+Version-1 exact accepted replay at the current checkpoint revision changes no bytes, actions or revision. Changed payload/type, stale item/snapshot/source/revision, missing history/journal/commands, lock contention or replacement failure rejects without replacement. Hashes detect inconsistent edits, not a coherently forged whole store ([regressions](./scripts/checkpoint.test.cjs)).
 
 Shared `heldReservations(state,key)` includes effective local exclusions, nonactivating external snapshots and a beneficiary-specific transferred-file fence. Empty effective scopes retain their slot/owner.
 Only the exact beneficiary can acquire transferred writes even if it waits for capacity, a rival appears first, or the prior holder completes cleanup. Validation, dispatch, adoption, revalidation, extension and [worker launch](./scripts/worker-launch.cjs) consume this derivation.
@@ -869,3 +869,94 @@ console.log(JSON.stringify({
 ```
 
 Run the three focused modules and the combined maintained policy selector under [deployment acceptance](./README.md#deployment-acceptance). Tests exercise synthetic complete proofs and explicit unknowns; they cannot authenticate supplied receipt strings or establish an unavailable external protocol.
+
+### Human-fenced local holder handoff
+
+Proof version 2 is an explicit opt-in alternative for retained **published** local holders when complete queue enumeration is unavailable. It never coerces UNKNOWN to zero, invents `sourceInstructionsCleared`, fabricates an incident or authorizes past effects.
+Version-1 verified-zero activation/revocation and nonactivating external preparation remain unchanged ([validator](./scripts/registry.cjs)).
+
+Only one independently verified controlling local ledger may activate this path. Every overlapping holder must cooperatively stop its entire source identity, join owned commands and establish a fresh authority-revocation fence rejecting **all** earlier broad source grants. Require each actual whole-proof owner response; version 2 adds no UNKNOWN revocation route ([worker contract](./worker.md)).
+
+The host must independently authenticate the new human whole-proof decision and read back each holder's exact source, complete preservation, stopped/joined work and effective stale-authority rejection.
+Idle/merged/UI/sender-pending state, accepted transport, fixtures, hashes and implementation approval prove none of these facts. Missing observations withhold handoff; no queue-drain or OS-enforcement claim is made ([verifier](./scripts/registry.cjs)).
+
+Keep the existing `{id,type:"supersede-write-reservations",proof,authorization}` event. All version-1 proof fields remain, with `version=2`, `mode="activate-local"`, `authority.singleLedger=true` and `externalCheckpoints=[]`; the following exact additions/replacements apply ([implementation](./scripts/registry.cjs)):
+
+| Object | Exact version-2 fields and constraints |
+| --- | --- |
+| Additional proof fields | `expectedStateDigest=digest(complete current state)`, `effectiveReservations=heldReservations(state,candidate.key)`, `beneficiaryManifest` |
+| `beneficiaryManifest` | `complete=true`, `actual=[]`, `planned` exactly equals complete candidate `scopes` in order. Entire admitted operation/evidence, current-source head and metadata remain in `candidate`. |
+| Each holder, additions | `source`, `reconciliation`; all original holder identity/digest/revision/exact paths/manifest/preservation remain required, without dropping restored or historical actual/planned paths. |
+| `source` | `owner`, canonical absolute Windows `worktree`, `branch`, current preserved source `head`, `receipt`; head is original item head or a preserved commit. It is not necessarily current main. |
+| Replaced `stopped` | Exactly `writingStopped=true`, `commandsRunning=false`, `workJoined=true`, `receipt`; no `pendingInstructions` or `sourceInstructionsCleared` property. |
+| `reconciliation` | Exactly `kind="human-approved-source-fence"`, `pendingInstructions="UNKNOWN"`, `processingInstructions="UNKNOWN"`, `fence`, `receipt` |
+| `fence` | Exactly positive integer `epoch`, fresh `nonce`, `revokesEarlierSourceAuthority=true`, `established=true`, `receipt`; newer than any prior same-owner fence, same known worktree/branch identity, globally fresh nonce. |
+| Replaced holder acknowledgment | Exactly `kind="owner"`, fresh `id`, `receipt`, `proofDigest=supersessionAcknowledgmentDigest(proof,holder)`, exact `owner`, `workJoined=true`, `staleAuthorityRejected=true`, matching `fence` |
+| Extended human `authorization` | Existing `humanAuthorized=true,receipt,proofDigest=digest(proof)`, plus `kind="explicit-human-reservation-handoff-decision"`, fresh `id`, authenticated `actor`, `decision="retire-prior-writers-for-exact-beneficiary"` |
+
+Every owner acknowledgment binds the complete multi-holder proof, excluding all acknowledgment objects through the existing digest helper. The human decision binds the final proof **including all holder acknowledgments**.
+Any changed union, holder, source, preservation, fence, candidate, revision or guard requires fresh complete responses and human authority ([digest implementation](./scripts/registry.cjs)).
+
+Independent `supersessionEvidence` is a sibling of `event` in checkpoint input, not owner-authored event data. Its exact required fields are ([checkpoint client](./scripts/checkpoint.cjs)):
+
+```text
+kind:"host-verified-reservation-handoff", coordinator, checkpointRevision,
+proofDigest, humanDecisionId, humanDecisionDigest:digest(authorization),
+humanAuthorizationVerified:true, ledgerAuthorityVerified:true,
+beneficiarySourceVerified:true, holders, receipt
+```
+
+`holders` has exactly one observed entry per proof holder, in the same order, with these exact fields ([host-readback validation](./scripts/registry.cjs)):
+
+```text
+coordinator, key, owner, itemDigest, ownerResponseId,
+sourceDigest:digest(holder.source),
+preservationDigest:digest({manifest:holder.manifest,preservation:holder.preservation}),
+fenceDigest:digest(holder.reconciliation.fence), sourceIdentityVerified:true,
+preservationVerified:true, sourceStoppedVerified:true, commandsJoinedVerified:true,
+instructionAuthorityVerified:true, receipt
+```
+
+Collect current checkpoint/source/beneficiary/full item-history/effective-guard inventories, verify preservation, actually stop/join and establish all cooperative holder fences, freeze the proof, obtain every whole-proof owner response, obtain the separate exact live human decision, then independently read back all facts.
+A supplied receipt or `true` flag alone authenticates nothing ([authority boundary](./scripts/registry.cjs)).
+
+For actual separately approved operation only, use the native checkpoint CLI with the complete input below. Reducer callers pass `{revision,supersessionEvidence}` separately; the stdin registry CLI has no host-evidence adapter and cannot apply version 2 ([client](./scripts/checkpoint.cjs)):
+
+```text
+{operation:"apply",expectedRevision:<current>,event:<complete version-2 event>,
+ supersessionEvidence:<independent current host observations>}
+```
+
+```powershell
+Get-Content -LiteralPath $ApprovedInputPath -Raw |
+    node .\.github\skills\kora-orchestrate\scripts\checkpoint.cjs $CheckpointPath
+```
+
+Acceptance migrates valid v1-v8 stores to **v9**, preserving all prior protocols and v8 mutable fences. The new record is exactly `{event,commands:[],before,hostEvidence}`, where `before` is the complete validated pre-transaction state; existing event/index/marker and atomic checkpoint journal bind the full record.
+Version-2 replay, altered history, downgrade or fabricated actions reject before replacement ([tests](./scripts/checkpoint.test.cjs)).
+
+Acceptance emits **no actions**, leaves the beneficiary an unowned candidate and retains planner state. Only its exact future paths are reserved through the existing beneficiary-specific guard. It grants no source execution, clears no blocker and releases no slot/cleanup or remaining exclusion.
+Retire each entire prior source identity permanently, not only transferred paths or an old HEAD ([shared derivation](./scripts/registry.cjs)).
+
+After reading accepted state, separate current execution authority must precede an ordinary guarded dispatch event. For example, a separately authorized `refresh` with freshly verified current head can produce the existing recorded launch action.
+The host then validates it through `workerLaunch`, creates/attaches the exact new owner and verifies actual worktree/source/ownership before writes; neither helper calls the host automatically ([launch consumer](./scripts/worker-launch.cjs)).
+
+Old mutable/recovery continuations cannot revive retired holders. Historical scopes, publication, retained bytes, blockers, slots, cleanup and all old amendment/recovery/fence records survive.
+Only ordinary verified-zero beneficiary cleanup ends its future guard; prior-writer retirement and untransferred exclusions survive. External preparation is never this UNKNOWN alternative ([regressions](./scripts/registry.test.cjs)).
+
+This runnable example uses only in-memory synthetic data; it prints an input shape, never a live human grant or physical-enforcement receipt ([fixture](./scripts/refinement-fixture.cjs)):
+
+```javascript
+const path = require('node:path');
+const scripts = path.resolve('.github', 'skills', 'kora-orchestrate', 'scripts');
+const { applyEvent } = require(path.join(scripts, 'registry.cjs'));
+const { supersessionFixture, fencedSupersessionEvent,
+  fencedSupersessionContext } = require(path.join(scripts, 'refinement-fixture.cjs'));
+const before = supersessionFixture(), event = fencedSupersessionEvent(before);
+const context = fencedSupersessionContext(event);
+const accepted = applyEvent(before, event, context);
+console.log(JSON.stringify({ version: accepted.state.version, actions: accepted.actions,
+  beneficiaryPhase: accepted.state.items.find(item => item.key === 'successor').phase,
+  input: { operation: 'apply', expectedRevision: 41, event,
+    supersessionEvidence: context.supersessionEvidence } }));
+```

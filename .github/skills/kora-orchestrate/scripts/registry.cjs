@@ -273,7 +273,7 @@ function validateRecoveries(state) {
       requireValue(names.every(name => Object.hasOwn(before, name) === (record.fromVersion >= minimum)),
         'Recovery original item schema/version binding changed.');
     }
-    requireValue([1, 2, 3, 4, 5, 6, 7, 8].includes(record.fromVersion) &&
+    requireValue([1, 2, 3, 4, 5, 6, 7, 8, 9].includes(record.fromVersion) &&
       digest(before) === p.expectedItemDigest && before.phase === 'running' &&
       before.owner === p.owner && before.key === p.key && !before.sourceWritesRetired &&
       before.publication === null && (before.scopeRevision ?? 0) === p.scopeRevision &&
@@ -537,10 +537,13 @@ function supersessionAcknowledgmentDigest(proof, holder) {
 function validateSupersessionEvent(event) {
   fields(event, 'id type proof authorization');
   const p = event.proof;
-  fields(p, 'version repository coordinator checkpointRevision head mode authority exactFiles candidate expectedItemDigest manifestComplete localReservations externalCheckpoints holders');
-  fields(event.authorization, 'humanAuthorized receipt proofDigest');
+  const fenced = p?.version === 2;
+  fields(p, `version repository coordinator checkpointRevision head mode authority exactFiles candidate expectedItemDigest manifestComplete localReservations externalCheckpoints holders${
+    fenced ? ' expectedStateDigest effectiveReservations beneficiaryManifest' : ''}`);
+  fields(event.authorization, `humanAuthorized receipt proofDigest${
+    fenced ? ' kind id actor decision' : ''}`);
   requireValue(text(event.id) && event.type === 'supersede-write-reservations' &&
-    p.version === 1 && p.repository === 'roryprimrose/Kora' && text(p.coordinator) &&
+    [1, 2].includes(p.version) && p.repository === 'roryprimrose/Kora' && text(p.coordinator) &&
     Number.isSafeInteger(p.checkpointRevision) && p.checkpointRevision > 0 && head(p.head) &&
     ['activate-local', 'prepare-external'].includes(p.mode) &&
     p.manifestComplete === true && p.candidate && unownedCandidate(p.candidate) &&
@@ -550,6 +553,17 @@ function validateSupersessionEvent(event) {
   canonicalPaths(p.candidate.scopes, true);
   requireValue(event.authorization.humanAuthorized === true && text(event.authorization.receipt) &&
     event.authorization.proofDigest === digest(p), 'Exact whole-proof human authorization required.');
+  if (fenced) {
+    const h = event.authorization;
+    requireValue(p.mode === 'activate-local' && Array.isArray(p.effectiveReservations) &&
+      h.kind === 'explicit-human-reservation-handoff-decision' && text(h.id) && text(h.actor) &&
+      h.decision === 'retire-prior-writers-for-exact-beneficiary',
+    'Fenced handoff requires a new exact human decision in one controlling local ledger only.');
+    fields(p.beneficiaryManifest, 'complete actual planned');
+    requireValue(p.beneficiaryManifest.complete === true && equal(p.beneficiaryManifest.actual, []) &&
+      equal(p.beneficiaryManifest.planned, p.candidate.scopes),
+    'Complete current-source beneficiary manifest must name the exact future union with no prior writes.');
+  }
   fields(p.authority, 'singleLedger receipt');
   fields(p.exactFiles, 'complete paths receipt');
   requireValue(p.authority.singleLedger === (p.mode === 'activate-local') && text(p.authority.receipt) &&
@@ -563,7 +577,8 @@ function validateSupersessionEvent(event) {
   requireValue(p.mode !== 'prepare-external' || p.externalCheckpoints.length > 0,
     'External preparation requires a concrete complete checkpoint snapshot.');
   const ledgers = new Set([p.coordinator]);
-  const inventory = p.localReservations.map(item => ({ coordinator: p.coordinator, item, scopes: item.scopes }));
+  const inventory = p.localReservations.map(item => ({ coordinator: p.coordinator, item,
+  scopes: fenced ? p.effectiveReservations.find(held => held.key === item.key)?.scopes : item.scopes }));
   for (const snapshot of p.externalCheckpoints) {
     fields(snapshot, 'repository revision state stateDigest receipt');
     requireValue(snapshot.repository === p.repository && Number.isSafeInteger(snapshot.revision) &&
@@ -584,11 +599,12 @@ function validateSupersessionEvent(event) {
     requireValue(item && holdsSlot(item) && text(item.key) && head(item.head),
       'Every supersession snapshot reservation must be known.');
     canonicalPaths(item.scopes, true);
+    if (fenced) canonicalPaths(scopes);
     const identity = digest([coordinator, item.key]);
     requireValue(!identities.has(identity), 'Duplicate supersession snapshot holder.');
     identities.add(identity);
     if (!overlaps(p.candidate.scopes, scopes)) continue;
-    requireValue(text(item.owner) && ['running', 'published'].includes(item.phase),
+    requireValue(text(item.owner) && (fenced ? item.phase === 'published' : ['running', 'published'].includes(item.phase)),
       'Every overlapping supersession holder must be attached and known.');
     const paths = p.candidate.scopes.filter(value => scopes.includes(value));
     requireValue(paths.length > 0 && scopes.filter(value => overlaps([value], p.candidate.scopes))
@@ -604,7 +620,8 @@ function validateSupersessionEvent(event) {
     'Exact file-kind evidence must cover every transferred path, not directories.');
   const acknowledgments = new Set();
   for (const [index, holder] of p.holders.entries()) {
-    fields(holder, 'coordinator key owner itemDigest scopeRevision paths manifest preservation stopped acknowledgment');
+    fields(holder, `coordinator key owner itemDigest scopeRevision paths manifest preservation stopped acknowledgment${
+      fenced ? ' source reconciliation' : ''}`);
     requireValue(equal(Object.fromEntries(Object.keys(expected[index]).map(key => [key, holder[key]])),
       expected[index]), 'Supersession exact holder identity/digest/revision/paths mismatch.');
     const item = inventory.find(entry => entry.coordinator === holder.coordinator &&
@@ -614,9 +631,12 @@ function validateSupersessionEvent(event) {
         'Unknown external evidence must remain explicitly unknown.');
       continue;
     }
-    fields(holder.stopped, 'writingStopped pendingInstructions sourceInstructionsCleared receipt');
-    requireValue(holder.stopped.writingStopped === true && holder.stopped.pendingInstructions === 0 &&
-      holder.stopped.sourceInstructionsCleared === true && text(holder.stopped.receipt),
+    fields(holder.stopped, fenced ? 'writingStopped commandsRunning workJoined receipt'
+      : 'writingStopped pendingInstructions sourceInstructionsCleared receipt');
+    requireValue(holder.stopped.writingStopped === true && (fenced
+      ? holder.stopped.commandsRunning === false && holder.stopped.workJoined === true
+      : holder.stopped.pendingInstructions === 0 && holder.stopped.sourceInstructionsCleared === true) &&
+      text(holder.stopped.receipt),
     'Fresh stopped-work and complete source-instruction reconciliation required.');
     validateManifest({ manifest: holder.manifest, preservation: holder.preservation,
       phase: item.phase, publicationHead: item.publication?.remoteHead ?? null, toScopes: item.scopes });
@@ -627,13 +647,101 @@ function validateSupersessionEvent(event) {
       [...record.proof.manifest.actual, ...record.proof.manifest.planned].every(value =>
         [...holder.manifest.actual, ...holder.manifest.planned].includes(value))),
     'Supersession preservation cannot omit historical actual/planned writes.');
-    fields(holder.acknowledgment, 'kind id receipt proofDigest');
+    fields(holder.acknowledgment, `kind id receipt proofDigest${
+      fenced ? ' owner workJoined staleAuthorityRejected fence' : ''}`);
     const acknowledgment = holder.acknowledgment;
     requireValue(['owner', 'revocation'].includes(acknowledgment.kind) && text(acknowledgment.id) &&
       !acknowledgments.has(acknowledgment.id) && text(acknowledgment.receipt) &&
       acknowledgment.proofDigest === supersessionAcknowledgmentDigest(p, holder),
     'Fresh exact-holder whole-proof acknowledgment or explicit revocation receipt required.');
     acknowledgments.add(acknowledgment.id);
+    if (fenced) {
+      fields(holder.source, 'owner worktree branch head receipt');
+      fields(holder.reconciliation, 'kind pendingInstructions processingInstructions fence receipt');
+      const source = holder.source, r = holder.reconciliation, f = r.fence;
+      fields(f, 'epoch nonce revokesEarlierSourceAuthority established receipt');
+      requireValue(source.owner === holder.owner && typeof source.worktree === 'string' &&
+        path.win32.isAbsolute(source.worktree) && path.win32.normalize(source.worktree) === source.worktree &&
+        text(source.branch) && head(source.head) && text(source.receipt) &&
+        (source.head === item.head || holder.preservation.commits.some(commit => commit.head === source.head)) &&
+        r.kind === 'human-approved-source-fence' && r.pendingInstructions === 'UNKNOWN' &&
+        r.processingInstructions === 'UNKNOWN' && text(r.receipt) &&
+        Number.isSafeInteger(f.epoch) && f.epoch > 0 && text(f.nonce) &&
+        f.revokesEarlierSourceAuthority === true && f.established === true && text(f.receipt) &&
+        acknowledgment.kind === 'owner' && acknowledgment.owner === holder.owner &&
+        acknowledgment.workJoined === true && acknowledgment.staleAuthorityRejected === true &&
+        equal(acknowledgment.fence, f),
+      'UNKNOWN handoff requires exact preserved source, joined cooperative owner and established fresh revocation fence.');
+    }
+  }
+}
+
+function validateFencedSupersession(record, state) {
+  const { event, before, hostEvidence: e } = record;
+  const p = event.proof, h = event.authorization;
+  validate(before);
+  requireValue(state.version >= 9 && digest(before) === p.expectedStateDigest &&
+    before.enabled && before.mode === 'delivery' && before.coordinator === p.coordinator && before.head === p.head &&
+    equal(before.items.find(item => item.key === p.candidate.key), p.candidate) &&
+    equal(before.items.filter(holdsSlot), p.localReservations) &&
+    equal(heldReservations(before, p.candidate.key), p.effectiveReservations) &&
+    p.effectiveReservations.filter(held => overlaps(held.scopes, p.candidate.scopes)).every(held =>
+      p.holders.some(holder => holder.key === held.key && holder.owner === held.owner)) &&
+    equal(record.commands, []) && !before.seen.includes(event.id) &&
+    equal(before.seen, state.seen.slice(0, before.seen.length)),
+  'Fenced handoff original complete state, effective guards, history or no-action binding changed.');
+  for (const name of ['refinements', 'amendments', 'readmissions', 'supersessions', 'recoveries', 'recoveryRenewals']) {
+    requireValue(equal(before[name] ?? [], (state[name] ?? []).slice(0, (before[name] ?? []).length)),
+      'Fenced handoff cannot omit or rewrite prior immutable histories.');
+  }
+  const priorTransactions = [...(before.recoveries ?? []).map(old => old.event),
+    ...(before.supersessions ?? []).map(old => old.event)];
+  const priorAmendments = before.items.flatMap(item => item.scopeAmendments ?? []);
+  requireValue(![...priorTransactions, ...priorAmendments].some(old => old.authorization?.id === h.id),
+    'Fenced handoff human decision replay.');
+  const priorFences = [...priorAmendments.filter(old => old.proof.version === 2).map(old =>
+    ({ owner: old.proof.owner, source: old.proof.source, fence: old.proof.reconciliation.fence })),
+  ...(before.recoveries ?? []).filter(old => old.event.proof.reconciliation.fence).map(old =>
+    ({ owner: old.event.proof.owner, source: old.event.proof.source, fence: old.event.proof.reconciliation.fence })),
+  ...(before.supersessions ?? []).filter(old => old.event.proof.version === 2)
+    .flatMap(old => old.event.proof.holders.map(holder =>
+      ({ owner: holder.owner, source: holder.source, fence: holder.reconciliation.fence })))];
+  const nonces = new Set(priorFences.map(old => old.fence.nonce));
+  const oldAcknowledgments = new Set([
+    ...before.items.flatMap(item => [...(item.scopeHistory ?? []), ...(item.scopeAmendments ?? [])]
+      .map(old => old.acknowledgment.id)),
+    ...priorTransactions.flatMap(old => old.type === 'supersede-write-reservations'
+      ? old.proof.holders.map(holder => holder.acknowledgment?.id) : [old.acknowledgment.id]),
+    ...(before.recoveryRenewals ?? []).map(old => old.event.acknowledgment.id)]);
+  fields(e, 'kind coordinator checkpointRevision proofDigest humanDecisionId humanDecisionDigest humanAuthorizationVerified ledgerAuthorityVerified beneficiarySourceVerified holders receipt');
+  requireValue(e.kind === 'host-verified-reservation-handoff' && e.coordinator === p.coordinator &&
+    e.checkpointRevision === p.checkpointRevision && e.proofDigest === digest(p) &&
+    e.humanDecisionId === h.id && e.humanDecisionDigest === digest(h) &&
+    e.humanAuthorizationVerified === true && e.ledgerAuthorityVerified === true &&
+    e.beneficiarySourceVerified === true && text(e.receipt) &&
+    Array.isArray(e.holders) && e.holders.length === p.holders.length,
+  'Independent current host readback of human decision, local authority and beneficiary source required.');
+  for (const [index, holder] of p.holders.entries()) {
+    const f = holder.reconciliation.fence, observed = e.holders[index];
+    requireValue(!nonces.has(f.nonce) && !oldAcknowledgments.has(holder.acknowledgment.id) &&
+      priorFences.filter(old => old.owner === holder.owner).every(old =>
+        f.epoch > old.fence.epoch && ['owner', 'worktree', 'branch'].every(name =>
+          holder.source[name] === old.source[name])),
+    'Fresh same-source holder fence epoch/nonce and whole-proof acknowledgment required.');
+    nonces.add(f.nonce);
+    const historical = (before.recoveries ?? []).filter(old => old.event.proof.key === holder.key);
+    requireValue(historical.every(old => old.event.proof.manifest.actual.every(value =>
+      holder.manifest.actual.includes(value)) && old.event.proof.manifest.planned.every(value =>
+      [...holder.manifest.actual, ...holder.manifest.planned].includes(value))),
+    'Fenced handoff must preserve complete recovery actual/planned and restored-path history.');
+    fields(observed, 'coordinator key owner itemDigest ownerResponseId sourceDigest preservationDigest fenceDigest sourceIdentityVerified preservationVerified sourceStoppedVerified commandsJoinedVerified instructionAuthorityVerified receipt');
+    requireValue(['coordinator', 'key', 'owner', 'itemDigest'].every(name => observed[name] === holder[name]) &&
+      observed.ownerResponseId === holder.acknowledgment.id && observed.sourceDigest === digest(holder.source) &&
+      observed.preservationDigest === digest({ manifest: holder.manifest, preservation: holder.preservation }) &&
+      observed.fenceDigest === digest(f) && observed.sourceIdentityVerified === true &&
+      observed.preservationVerified === true && observed.sourceStoppedVerified === true &&
+      observed.commandsJoinedVerified === true && observed.instructionAuthorityVerified === true && text(observed.receipt),
+    'Independent host readback of every exact holder/source/preservation/stopped/joined/fenced response required.');
   }
 }
 
@@ -650,9 +758,10 @@ function validateSupersessions(state) {
   const acknowledgments = new Set(state.items.flatMap(item =>
     [...(item.scopeHistory ?? []), ...(item.scopeAmendments ?? [])].map(record => record.acknowledgment.id)));
   for (const record of state.supersessions) {
-    fields(record, 'event commands');
+    fields(record, `event commands${record.event?.proof?.version === 2 ? ' before hostEvidence' : ''}`);
     requireValue(Array.isArray(record.commands), 'Supersession action binding missing.');
     validateSupersessionEvent(record.event);
+    if (record.event.proof.version === 2) validateFencedSupersession(record, state);
     const { event } = record;
     const p = event.proof;
     requireValue(!events.has(event.id) && state.seen.includes(event.id) &&
@@ -777,7 +886,7 @@ function validateFencedAmendment(record, item) {
     e.sourceIdentityVerified === true && e.sourcePauseVerified === true &&
     e.commandsJoinedVerified === true && e.instructionAuthorityVerified === true && text(e.receipt),
   'Independent host readback of current human authority, owner, source pause/join and fence required.');
-  requireValue([1, 2, 3, 4, 5, 6, 7, 8].includes(fromVersion) && digest(before) === p.expectedItemDigest &&
+  requireValue([1, 2, 3, 4, 5, 6, 7, 8, 9].includes(fromVersion) && digest(before) === p.expectedItemDigest &&
     before.key === p.key && before.owner === p.owner && before.phase === 'running' &&
     !before.sourceWritesRetired && before.publication === null &&
     (before.scopeRevision ?? 0) === p.scopeRevision && equal(before.scopes, p.fromScopes) &&
@@ -805,7 +914,11 @@ function validateExtensionFences(state) {
   requireValue(!fenced.length || state.version >= 8, 'Fenced mutable extension schema downgrade.');
   const timeline = [...extensions, ...(state.recoveries ?? []).map(record => ({
     id: record.event.id, proof: record.event.proof, authorization: record.event.authorization
-  }))].sort((a, b) => state.seen.indexOf(a.id) - state.seen.indexOf(b.id));
+  })), ...(state.supersessions ?? []).filter(record => record.event.proof.version === 2).flatMap(record =>
+    record.event.proof.holders.map((holder, index) => ({ id: record.event.id,
+      proof: { owner: holder.owner, source: holder.source, reconciliation: holder.reconciliation },
+      authorization: index === 0 ? record.event.authorization : null
+    })))].sort((a, b) => state.seen.indexOf(a.id) - state.seen.indexOf(b.id));
   const owners = new Map(), nonces = new Set(), decisions = new Set();
   for (const entry of timeline) {
     const p = entry.proof;
@@ -980,7 +1093,7 @@ function validateReadmissions(state) {
       fields(record, 'event before fromVersion');
       const { event, before, fromVersion } = record;
       validateReadmissionEvent(event);
-      requireValue([1, 2, 3, 4, 5, 6, 7, 8].includes(fromVersion) && (index === 0 || fromVersion >= 4),
+      requireValue([1, 2, 3, 4, 5, 6, 7, 8, 9].includes(fromVersion) && (index === 0 || fromVersion >= 4),
         'Invalid candidate revalidation source schema.');
       fields(before, `key outcome pool kind head scopes evidence pr owner phase blocker publication${
         fromVersion >= 2 ? ' scopeRevision scopeHistory sourceWritesRetired' : ''}${
@@ -1026,7 +1139,7 @@ function validateReadmissions(state) {
 }
 
 function validate(state) {
-  requireValue([1, 2, 3, 4, 5, 6, 7, 8].includes(state?.version) && typeof state.enabled === 'boolean' &&
+  requireValue([1, 2, 3, 4, 5, 6, 7, 8, 9].includes(state?.version) && typeof state.enabled === 'boolean' &&
     ['observe', 'delivery'].includes(state.mode) &&
     text(state.coordinator) && (state.head === null || head(state.head)) && Array.isArray(state.items) &&
     Array.isArray(state.seen), 'Malformed registry.');
@@ -1187,6 +1300,9 @@ function applyEvent(current, event, context = {}) {
         'Incident recovery replay must match its original complete accepted event.');
     }
     const supersession = (state.supersessions ?? []).find(record => record.event.id === event.id);
+    requireValue(supersession?.event.proof.version !== 2 &&
+      !(event.type === 'supersede-write-reservations' && event.proof?.version === 2),
+    'Fenced handoff requests cannot be replayed; read the accepted checkpoint instead.');
     if (supersession || event.type === 'supersede-write-reservations') {
       requireValue(supersession && equal(supersession.event, event),
         'Supersession replay must match its original complete accepted event.');
@@ -1266,6 +1382,8 @@ function applyEvent(current, event, context = {}) {
     case 'supersede-write-reservations': {
       validateSupersessionEvent(event);
       const p = event.proof;
+      const fenced = p.version === 2;
+      const before = fenced ? structuredClone(state) : null;
       requireValue(Number.isSafeInteger(context.revision) && p.checkpointRevision === context.revision,
         'Supersession requires the exact current durable checkpoint revision.');
       requireValue(state.enabled && state.mode === 'delivery' && p.coordinator === state.coordinator &&
@@ -1278,6 +1396,9 @@ function applyEvent(current, event, context = {}) {
       requireValue(p.holders.filter(holder => holder.coordinator === p.coordinator)
         .every(holder => !supersessionParticipant(state, holder.key)),
       'A superseded writer cannot regain or reassign transferred source authority.');
+      if (fenced) requireValue(p.expectedStateDigest === digest(state) &&
+        equal(p.effectiveReservations, heldReservations(state, p.candidate.key)),
+      'Fenced handoff requires the current whole state and complete effective reservation snapshot.');
       if (state.version < 2) {
         state.refinements = [];
         for (const other of state.items) {
@@ -1293,7 +1414,16 @@ function applyEvent(current, event, context = {}) {
         for (const other of state.items) other.admissionHistory = [];
       }
       if (state.version < 5) { state.version = 5; state.supersessions = []; }
-      const record = { event: structuredClone(event), commands: [] };
+      if (fenced) {
+        if (state.version < 6) {
+          state.recoveries = [];
+          for (const other of state.items) other.scopeRecoveries = [];
+        }
+        if (state.version < 7) state.recoveryRenewals = [];
+        state.version = 9;
+      }
+      const record = { event: structuredClone(event), commands: [],
+        ...(fenced ? { before, hostEvidence: structuredClone(context.supersessionEvidence) } : {}) };
       state.supersessions.push(record);
       state.seen.push(`${SUPERSESSION_MARKER}${digest(record)}`);
       break;
@@ -1433,7 +1563,7 @@ function applyEvent(current, event, context = {}) {
           for (const other of state.items) other.scopeRecoveries = [];
         }
         if (state.version < 7) state.recoveryRenewals = [];
-        state.version = 8;
+        state.version = Math.max(state.version, 8);
       }
       item.scopeAmendments.push(record);
       item.scopeRevision++;
@@ -1590,7 +1720,8 @@ function applyEvent(current, event, context = {}) {
   }
   validate(state);
   if (!['recover-scope-incident', 'renew-recovery-continuation'].includes(event.type) &&
-    !(event.type === 'extend-scopes' && event.proof.version === 2)) dispatch(state, actions);
+    !(['extend-scopes', 'supersede-write-reservations'].includes(event.type) &&
+      event.proof.version === 2)) dispatch(state, actions);
   if (event.type === 'supersede-write-reservations') {
     const record = state.supersessions.at(-1);
     const marker = `${SUPERSESSION_MARKER}${digest(record)}`;

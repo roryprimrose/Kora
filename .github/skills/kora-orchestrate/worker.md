@@ -160,6 +160,22 @@ For [exact-path supersession](./README.md#exact-path-write-reservation-supersess
 Accepted local supersession permanently retires the prior writer's source authority even when its legacy `sourceWritesRetired` field remains false. Do not refine, extend, readmit or resume that source identity.
 Original commits/publication/history, blocker, slot and cleanup obligations remain; separately authorized truthful publication and actual cleanup are not forbidden by source retirement. No test, receipt string or digest authenticates external human/host facts.
 
+For the [human-fenced local handoff](./README.md#human-fenced-local-holder-handoff),
+UNKNOWN pending/processing counts stay UNKNOWN. As a retained published holder,
+actually stop the entire source identity, join commands, preserve all original/
+dirty/restored/history paths and establish a fresh cooperative epoch/nonce rejecting
+all earlier broad source authority. Return only an actual whole-multi-holder-proof
+acknowledgment bound to current beneficiary/source/revision/union/guards and the fence.
+The host must obtain new exact live human authority and independently read back all
+facts; no fixture, digest, idle state or implementation decision supplies them.
+If source pause/join or stale-authority rejection is unavailable, withhold handoff.
+Acceptance emits no actions and permanently retires all prior source writes,
+including untransferred paths, without deleting bytes/history or releasing publication,
+slots, blockers, cleanup or remaining exclusions. A future beneficiary waits for
+separately authorized guarded launch/attachment and actual owner/source verification.
+There is no UNKNOWN external takeover or new UNKNOWN revocation route; ordinary
+verified-zero protocols remain unchanged ([exact contract](./README.md#human-fenced-local-holder-handoff)).
+
 ## Cleanup before terminal completion
 
 1. Verify publication/remote-head evidence and retain receipts in the supplied

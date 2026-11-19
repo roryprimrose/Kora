@@ -12,7 +12,7 @@ const { validateRecoveryContinuation } = require('./registry.cjs');
 const { refinementFixture, refinementEvent, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
   supersessionBeneficiaryFixture, fencedExtensionFixture, fencedExtensionEvent,
-  fencedExtensionContext } = require('./refinement-fixture.cjs');
+  fencedExtensionContext, fencedSupersessionEvent, fencedSupersessionContext } = require('./refinement-fixture.cjs');
 
 function fixture() {
   const files = new Map();
@@ -70,6 +70,66 @@ function incidentCheckpoint() {
     state: incidentFixture(), actions: [], events: [] }));
   return f;
 }
+
+test('UNKNOWN holder handoff roundtrips complete history and no-action journal; tamper/replay never replaces bytes', () => {
+  const f = fixture();
+  f.files.set(f.file, JSON.stringify({ version: 1, revision: 41,
+    state: supersessionFixture(), events: [], actions: [] }));
+  const event = fencedSupersessionEvent(f.run({ operation: 'read' }).state);
+  const evidence = fencedSupersessionContext(event).supersessionEvidence;
+  const accepted = f.run({ operation: 'apply', expectedRevision: 41, event, supersessionEvidence: evidence });
+  assert.equal(accepted.revision, 42);
+  assert.equal(accepted.state.version, 9);
+  assert.deepEqual(accepted.actions, []);
+  assert.deepEqual(accepted.events.at(-1).commands, []);
+  assert.equal(accepted.events.at(-1).digest, digest(accepted.state.supersessions[0]));
+  assert.deepEqual(f.run({ operation: 'read' }), accepted);
+  const original = f.files.get(f.file);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: 42, event,
+    supersessionEvidence: evidence }), /cannot be replayed/);
+  assert.equal(f.files.get(f.file), original);
+  for (const change of [
+    v => { v.state.version = 8; },
+    v => { v.state.supersessions[0].before.items[0].publication.remoteHead = '0'.repeat(40); },
+    v => { delete v.state.supersessions[0].hostEvidence; },
+    v => { v.state.supersessions[0].hostEvidence.holders[1].commandsJoinedVerified = false; },
+    v => { v.state.supersessions[0].event.proof.holders[0].reconciliation.pendingInstructions = 0; },
+    v => { v.events[0].digest = '0'.repeat(64); },
+    v => { v.events = []; },
+    v => { delete v.events[0].commands; },
+    v => {
+      const command = { type: 'launch', key: 'successor', pool: 'ready' };
+      v.events[0].commands = [command];
+      v.state.supersessions[0].commands = [command];
+      v.actions.push({ id: `${event.id}:0`, status: 'pending', command });
+    },
+    v => { v.state.supersessions = []; }
+  ]) {
+    const altered = structuredClone(accepted); change(altered);
+    const bytes = JSON.stringify(altered); f.files.set(f.file, bytes);
+    assert.throws(() => f.run({ operation: 'read' }));
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: 42, event: { id: 'later', type: 'pause' } }));
+    assert.equal(f.files.get(f.file), bytes);
+  }
+});
+
+test('UNKNOWN handoff stale writer, missing independent proof, contention and failed replacement retain original bytes', () => {
+  for (const failure of ['revision', 'evidence', 'lock', 'replace']) {
+    const f = fixture();
+    f.files.set(f.file, JSON.stringify({ version: 1, revision: 41,
+      state: supersessionFixture(), events: [], actions: [] }));
+    const event = fencedSupersessionEvent(f.run({ operation: 'read' }).state);
+    const original = f.files.get(f.file);
+    if (failure === 'lock') f.files.set(`${f.file}.lock`, 'other-writer');
+    if (failure === 'replace') f.failReplacement();
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: failure === 'revision' ? 40 : 41,
+      event, ...(failure === 'evidence' ? {} : {
+        supersessionEvidence: fencedSupersessionContext(event).supersessionEvidence }) }));
+    assert.equal(f.files.get(f.file), original);
+    assert.deepEqual([...f.files.keys()].sort(),
+      (failure === 'lock' ? [f.file, `${f.file}.lock`] : [f.file]).sort());
+  }
+});
 
 test('fenced mutable checkpoint binds actual authority history and no actions, rejects replay and journal tampering', () => {
   const f = fixture();

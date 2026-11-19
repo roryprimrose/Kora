@@ -191,6 +191,20 @@ Original owners keep publication, blockers, slots and cleanup; derived prior sou
 
 Only a verified controlling single ledger can activate a transfer. Complete external snapshots can be recorded as nonactivating preparation; retain all their effective guards and withhold the beneficiary. No snapshot, merged publication, supplied receipt string or digest proves fresh human authority, host quiescence or a live authority handoff. Unknown facts stay unknown.
 
+For published local holders with unavailable full queue enumeration, use only
+[human-fenced supersession proof version 2](./README.md#human-fenced-local-holder-handoff).
+Retain literal UNKNOWN; require complete current state/beneficiary/holder history,
+effective guards, preserved bytes, actual stopped/joined commands, fresh cooperative
+authority-revocation fences, every whole-proof owner response, a new exact human
+decision and independent host readback. No receipt, UI/idle/sender list, implementation
+approval or digest authenticates these facts or proves queue drain/OS enforcement.
+Acceptance emits no actions, releases no slot/blocker/cleanup, permanently retires
+each entire prior source identity and keeps remaining exclusions/history/publication.
+Separate current execution authority and ordinary guarded dispatch/attachment plus
+actual new-owner/source verification remain required. External preparation cannot
+use this path; verified-zero revocation, cleanup, shrink and handoff remain unchanged
+([exact schemas and synthetic example](./README.md#human-fenced-local-holder-handoff)).
+
 `launch` actions already hold reservations. Send the relevant worker contract,
 one bounded assignment, publisher/authority, exclusions, scratch, and return
 address. Record the created chat through `attached`. Do not infer agent selection

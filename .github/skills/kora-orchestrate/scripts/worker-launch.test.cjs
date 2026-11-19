@@ -11,7 +11,7 @@ const { incidentFixture, recoveryEvent, recoveryContext,
 const { refinementFixture, refinementEvent, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
   supersessionBeneficiaryFixture, fencedExtensionFixture, fencedExtensionEvent,
-  fencedExtensionContext } = require('./refinement-fixture.cjs');
+  fencedExtensionContext, fencedSupersessionEvent, fencedSupersessionContext } = require('./refinement-fixture.cjs');
 
 const head = '1'.repeat(40);
 const settings = {
@@ -20,6 +20,30 @@ const settings = {
   productionWorkspace: 'Q:\\Repos\\Kora',
   scratch: 'Q:\\Repos\\Kora.worktrees\\control\\.scratch\\run'
 };
+
+test('UNKNOWN handoff cannot launch implicitly; separate guarded launch retains history and rejects forged readback', () => {
+  const before = supersessionFixture(), event = fencedSupersessionEvent(before);
+  const accepted = applyEvent(before, event, fencedSupersessionContext(event));
+  assert.deepEqual(accepted.actions, []);
+  assert.throws(() => workerLaunch(accepted.state, { type: 'launch', key: 'successor', pool: 'ready' }, settings),
+    /reservation/);
+  const dispatched = applyEvent(accepted.state, { id: 'authorized-handoff-dispatch', type: 'refresh', head });
+  const action = dispatched.actions.find(value => value.type === 'launch');
+  const prompt = workerLaunch(dispatched.state, action, settings).prompt;
+  assert.match(prompt, /supersede-write-reservations proof version 2/);
+  assert.match(prompt, /Every prior source identity stays permanently retired/);
+  assert.match(prompt, /Retained exclusion key=prior-0, owner=owner-0, scopes=docs\\retained.md/);
+  assert.match(prompt, /Historical reservation key=prior-1/);
+  for (const change of [
+    s => { s.version = 8; },
+    s => { s.supersessions[0].before.items.pop(); },
+    s => { s.supersessions[0].hostEvidence.humanAuthorizationVerified = false; },
+    s => { s.supersessions[0].hostEvidence.holders[0].sourceStoppedVerified = false; }
+  ]) {
+    const state = structuredClone(dispatched.state); change(state);
+    assert.throws(() => workerLaunch(state, action, settings));
+  }
+});
 
 test('fenced mutable history is validated by launch consumers without relaunch or lost guards', () => {
   const before = fencedExtensionFixture(), event = fencedExtensionEvent(before);

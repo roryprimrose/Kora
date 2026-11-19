@@ -19,7 +19,7 @@ public sealed class AgentSkillReferenceReview : IDisposable
 
     public AgentSkillGuidanceLease? Lease { get; private set; }
     public string DeclarationText => declaration?.DeclarationText ?? string.Empty;
-    public string CompleteText => review?.Text ?? string.Empty;
+    public string CompleteText => review?.SourceText ?? string.Empty;
     internal SharedSkillSnapshot Snapshot => workflow.RequireAgentSnapshot(
         review ?? throw new InvalidOperationException("Separately consent to the complete Markdown read first."));
     internal bool HasBundle => review is not null;

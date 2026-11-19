@@ -145,6 +145,21 @@ temporary-pause/current-union/exclusivity/owner proof. Preserve all original
 scopes and blockers, persist the accepted grant, then issue continuation
 separately. Neither a proposed union nor acknowledgment alone authorizes writes.
 This does not replace product/effect authority or qualify runtime.
+For a non-incident closure omission with unavailable queue enumeration, use only
+the [explicit human-approved version-2 extension](./README.md#explicit-human-approved-unknown-extension).
+Keep UNKNOWN counts; independently establish same-owner source pause/all-work
+join and a fresh effective source-authority revocation fence. Freeze complete
+item/source/revision/union/exclusive guards; require the actual owner's whole-proof
+acknowledgment, new human decision over proof plus acknowledgment and separate
+host readback. Fixtures, digests and implementation approval authenticate none
+of these facts. All actual writes must already be covered by original scopes.
+Acceptance preserves blockers/history and emits no actions. Later exact
+continuation must separately pass `validateScopeExtensionContinuation` against
+current item/source/guards and latest coverage/fence with fresh owner response;
+the host still owns consent, enforcement and delivery deduplication.
+Do not silently drop a mutable fence through later zero claims. Other protocols
+retain their pending-zero requirements; missing live evidence withholds writes
+([exact schemas and synthetic input](./README.md#explicit-human-approved-unknown-extension)).
 After accepted refinement the original owner's source writes are permanently
 retired, including inside its retained scopes. Refinement is not reconciliation
 for expansion or permission to restart. It preserves slots, PRs, publication,

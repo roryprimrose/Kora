@@ -273,7 +273,7 @@ function validateRecoveries(state) {
       requireValue(names.every(name => Object.hasOwn(before, name) === (record.fromVersion >= minimum)),
         'Recovery original item schema/version binding changed.');
     }
-    requireValue([1, 2, 3, 4, 5, 6, 7].includes(record.fromVersion) &&
+    requireValue([1, 2, 3, 4, 5, 6, 7, 8].includes(record.fromVersion) &&
       digest(before) === p.expectedItemDigest && before.phase === 'running' &&
       before.owner === p.owner && before.key === p.key && !before.sourceWritesRetired &&
       before.publication === null && (before.scopeRevision ?? 0) === p.scopeRevision &&
@@ -443,6 +443,8 @@ function validateRecoveryContinuation(state, request, context = {}) {
   }
   requireValue(state.enabled && state.mode === 'delivery' && [1, 2].includes(request.version) &&
     request.kind === 'exact-recovered-owner-continuation' && record && item?.phase === 'running' &&
+    !(item.scopeAmendments ?? []).some(old => old.proof.version === 2 &&
+      old.proof.scopeRevision > record.event.proof.scopeRevision) &&
     record.event.proof.coordinator === state.coordinator && currentHead === state.head &&
     !item.sourceWritesRetired && !supersededWriter(state, item.key) &&
     request.coordinator === state.coordinator && request.head === state.head &&
@@ -685,13 +687,14 @@ function validateSupersessions(state) {
 }
 
 function validateAmendment(record, item, previous) {
-  fields(record, 'eventId proof acknowledgment');
   const p = record.proof;
+  const fenced = p?.version === 2;
+  fields(record, `eventId proof acknowledgment${fenced ? ' authorization hostEvidence before fromVersion commands' : ''}`);
   const a = record.acknowledgment;
-  fields(p, 'version owner key reservation scopeRevision fromScopes additionalScopes toScopes phase sourceWritesRetired manifest preservation quiescence unionFrozen exclusivity receipt');
-  fields(a, 'id receipt owner key scopeRevision proofDigest');
+  fields(p, `version owner key reservation scopeRevision fromScopes additionalScopes toScopes phase sourceWritesRetired manifest preservation quiescence unionFrozen exclusivity receipt${fenced ? ' repository coordinator checkpointRevision head source expectedItemDigest reconciliation' : ''}`);
+  fields(a, `id receipt owner key scopeRevision proofDigest${fenced ? ' workJoined staleAuthorityRejected fence' : ''}`);
   fields(p.reservation, 'outcome kind pool head pr');
-  requireValue(text(record.eventId) && p.version === 1 && p.owner === item.owner &&
+  requireValue(text(record.eventId) && [1, 2].includes(p.version) && p.owner === item.owner &&
     p.key === item.key && p.phase === 'running' && p.sourceWritesRetired === false &&
     Number.isSafeInteger(p.scopeRevision) && p.scopeRevision >= 0 &&
     ['outcome', 'kind', 'pool', 'head'].every(key => p.reservation[key] === item[key]) &&
@@ -704,10 +707,11 @@ function validateAmendment(record, item, previous) {
     p.additionalScopes.every((value, index) => !overlaps([value],
       [...p.fromScopes, ...p.additionalScopes.slice(0, index)])),
   'Extension needs exact nonempty disjoint additions and complete original scope union.');
-  fields(p.quiescence, 'paused pendingInstructions receipt');
-  requireValue(p.quiescence.paused === true && p.quiescence.pendingInstructions === 0 &&
+  fields(p.quiescence, fenced ? 'paused commandsRunning workJoined receipt' : 'paused pendingInstructions receipt');
+  requireValue(p.quiescence.paused === true &&
+    (fenced ? p.quiescence.commandsRunning === false && p.quiescence.workJoined === true : p.quiescence.pendingInstructions === 0) &&
     text(p.quiescence.receipt) && p.unionFrozen === true,
-  'Temporary source pause, pending-zero and frozen union proof required.');
+  'Temporary source pause, joined work or verified pending-zero, and frozen union proof required.');
   fields(p.exclusivity, 'complete reservations receipt');
   requireValue(p.exclusivity.complete === true && text(p.exclusivity.receipt) &&
     Array.isArray(p.exclusivity.reservations), 'Complete exclusive ownership proof required.');
@@ -735,6 +739,125 @@ function validateAmendment(record, item, previous) {
     'Amendment history loses original scopes or write manifest.');
   }
   validateAcknowledgment(a, p);
+  if (fenced) validateFencedAmendment(record, item);
+}
+
+function validateFencedAmendment(record, item) {
+  const { proof: p, acknowledgment: a, authorization: h, hostEvidence: e, before, fromVersion } = record;
+  fields(p.source, 'owner worktree branch head receipt');
+  fields(p.reconciliation, 'kind pendingInstructions processingInstructions fence receipt');
+  const f = p.reconciliation.fence;
+  fields(f, 'epoch nonce revokesEarlierSourceAuthority established receipt');
+  fields(h, 'kind id actor decision subjectDigest receipt');
+  fields(e, 'kind coordinator checkpointRevision proofDigest ownerResponseId humanDecisionId humanDecisionDigest sourceIdentityVerified sourcePauseVerified commandsJoinedVerified instructionAuthorityVerified receipt');
+  fields(before, `key outcome pool kind head scopes evidence pr owner phase blocker publication${
+    fromVersion >= 2 ? ' scopeRevision scopeHistory sourceWritesRetired' : ''}${
+    fromVersion >= 3 ? ' scopeAmendments' : ''}${fromVersion >= 4 ? ' admissionHistory' : ''}${
+    fromVersion >= 6 ? ' scopeRecoveries' : ''}`);
+  requireValue(p.repository === 'roryprimrose/Kora' && text(p.coordinator) && head(p.head) &&
+    Number.isSafeInteger(p.checkpointRevision) && p.checkpointRevision > 0 &&
+    p.source.owner === p.owner && path.win32.isAbsolute(p.source.worktree) &&
+    path.win32.normalize(p.source.worktree) === p.source.worktree &&
+    text(p.source.branch) && head(p.source.head) && text(p.source.receipt) &&
+    (p.source.head === p.reservation.head || p.preservation.commits.some(commit => commit.head === p.source.head)),
+  'Fenced extension requires exact current repository, checkpoint and same-owner source identity.');
+  requireValue(p.reconciliation.kind === 'human-approved-source-fence' &&
+    p.reconciliation.pendingInstructions === 'UNKNOWN' && p.reconciliation.processingInstructions === 'UNKNOWN' &&
+    text(p.reconciliation.receipt) && Number.isSafeInteger(f.epoch) && f.epoch > 0 &&
+    text(f.nonce) && f.revokesEarlierSourceAuthority === true && f.established === true && text(f.receipt) &&
+    a.workJoined === true && a.staleAuthorityRejected === true && equal(a.fence, f),
+  'UNKNOWN requires a fresh established human-approved source fence and joined exact-owner acknowledgment.');
+  requireValue(h.kind === 'explicit-human-scope-extension-decision' && text(h.id) && text(h.actor) &&
+    h.decision === 'prospective-coverage-only' && text(h.receipt) &&
+    h.subjectDigest === digest({ proof: p, acknowledgment: a }),
+  'Current explicit human extension decision must bind the entire final proof and owner acknowledgment.');
+  requireValue(e.kind === 'host-verified-fenced-scope-extension' && e.coordinator === p.coordinator &&
+    e.checkpointRevision === p.checkpointRevision && e.proofDigest === digest(p) &&
+    e.ownerResponseId === a.id && e.humanDecisionId === h.id && e.humanDecisionDigest === digest(h) &&
+    e.sourceIdentityVerified === true && e.sourcePauseVerified === true &&
+    e.commandsJoinedVerified === true && e.instructionAuthorityVerified === true && text(e.receipt),
+  'Independent host readback of current human authority, owner, source pause/join and fence required.');
+  requireValue([1, 2, 3, 4, 5, 6, 7, 8].includes(fromVersion) && digest(before) === p.expectedItemDigest &&
+    before.key === p.key && before.owner === p.owner && before.phase === 'running' &&
+    !before.sourceWritesRetired && before.publication === null &&
+    (before.scopeRevision ?? 0) === p.scopeRevision && equal(before.scopes, p.fromScopes) &&
+    equal(p.reservation, Object.fromEntries(['outcome', 'kind', 'pool', 'head', 'pr'].map(name => [name, before[name]]))) &&
+    ['outcome', 'kind', 'pool', 'head', 'evidence'].every(name => before[name] === item[name]) &&
+    (before.pr === null || before.pr === item.pr) && equal(record.commands, []),
+  'Fenced extension original item identity/history or no-action binding changed.');
+  for (const [minimum, name] of [[2, 'scopeHistory'], [3, 'scopeAmendments'], [4, 'admissionHistory'], [6, 'scopeRecoveries']]) {
+    requireValue(Object.hasOwn(before, name) === (fromVersion >= minimum), 'Fenced extension original schema changed.');
+    const expected = name === 'admissionHistory' ? item[name] ?? [] : name === 'scopeRecoveries'
+      ? (item.scopeRecoveries ?? []).slice(0, (before.scopeRecoveries ?? []).length)
+      : (item[name] ?? []).filter(old => old.proof.scopeRevision < p.scopeRevision);
+    requireValue(equal(before[name] ?? [], expected),
+      'Fenced extension omitted or altered prior item history.');
+  }
+  requireValue((before.scopeHistory?.length ?? 0) + (before.scopeAmendments?.length ?? 0) +
+    (before.scopeRecoveries?.length ?? 0) === p.scopeRevision, 'Fenced extension loses prior scope revisions.');
+}
+
+function validateExtensionFences(state) {
+  const extensions = state.items.flatMap(item => (item.scopeAmendments ?? []).map(record => ({
+    id: record.eventId, proof: record.proof, authorization: record.authorization, record
+  })));
+  const fenced = extensions.filter(value => value.proof.version === 2);
+  requireValue(!fenced.length || state.version >= 8, 'Fenced mutable extension schema downgrade.');
+  const timeline = [...extensions, ...(state.recoveries ?? []).map(record => ({
+    id: record.event.id, proof: record.event.proof, authorization: record.event.authorization
+  }))].sort((a, b) => state.seen.indexOf(a.id) - state.seen.indexOf(b.id));
+  const owners = new Map(), nonces = new Set(), decisions = new Set();
+  for (const entry of timeline) {
+    const p = entry.proof;
+    const old = owners.get(p.owner);
+    if (entry.authorization) {
+      requireValue(!decisions.has(entry.authorization.id), 'Human extension/recovery decision replay.');
+      decisions.add(entry.authorization.id);
+    }
+    if (old?.mutable) requireValue(p.reconciliation?.fence,
+      'An accepted mutable source-authority fence cannot be dropped by later pending-zero claims.');
+    if (p.reconciliation?.fence) {
+      const f = p.reconciliation.fence;
+      requireValue(!nonces.has(f.nonce) && (!old || f.epoch > old.fence.epoch),
+        'Stale or replayed source-authority fence epoch/nonce.');
+      if (old && (old.mutable || entry.record)) requireValue(['owner', 'worktree', 'branch'].every(name =>
+        p.source[name] === old.source[name]), 'Fenced extension source identity drift.');
+      nonces.add(f.nonce);
+      owners.set(p.owner, { fence: f, source: p.source, mutable: !!entry.record || old?.mutable });
+    }
+  }
+}
+
+function validateScopeExtensionContinuation(state, request, context = {}) {
+  validate(state);
+  fields(request, 'version kind coordinator head source checkpointRevision key owner expectedItemDigest scopeRevision coverageDigest fence acknowledgment');
+  fields(request.source, 'owner worktree branch head');
+  fields(request.acknowledgment, 'id owner requestDigest coverageDigest fence workJoined staleAuthorityRejected receipt');
+  const item = state.items.find(value => value.key === request.key);
+  const record = item?.scopeAmendments?.at(-1);
+  const p = record?.proof;
+  const a = request.acknowledgment;
+  requireValue(state.enabled && state.mode === 'delivery' && request.version === 1 &&
+    request.kind === 'exact-extended-owner-continuation' && p?.version === 2 &&
+    p.coordinator === state.coordinator && p.head === state.head && item.phase === 'running' &&
+    !item.sourceWritesRetired && !supersededWriter(state, item.key) &&
+    request.coordinator === state.coordinator && request.head === state.head &&
+    Number.isSafeInteger(context.revision) && context.revision > p.checkpointRevision &&
+    request.checkpointRevision === context.revision && request.owner === item.owner &&
+    request.expectedItemDigest === digest(item) && request.scopeRevision === item.scopeRevision &&
+    item.scopeRevision === p.scopeRevision + 1 && equal(item.scopes, p.toScopes) &&
+    ['owner', 'worktree', 'branch', 'head'].every(name => request.source[name] === p.source[name]) &&
+    request.coverageDigest === digest(record) && equal(request.fence, p.reconciliation.fence) &&
+    equal(p.exclusivity.reservations, heldReservations(state, item.key)) &&
+    text(a.id) && text(a.receipt) && a.owner === item.owner && a.coverageDigest === request.coverageDigest &&
+    a.requestDigest === recoveryContinuationDigest(request) && equal(a.fence, request.fence) &&
+    a.workJoined === true && a.staleAuthorityRejected === true &&
+    !state.items.some(value => [...(value.scopeHistory ?? []), ...(value.scopeAmendments ?? [])]
+      .some(old => old.acknowledgment.id === a.id)) &&
+    !(state.recoveries ?? []).some(old => old.event.acknowledgment.id === a.id) &&
+    !(state.recoveryRenewals ?? []).some(old => old.event.acknowledgment.id === a.id),
+  'Exact current fenced extension, same source/item/guards and separate fresh continuation acknowledgment required.');
+  return { coverageVerified: true, blockers: item.blocker, sourceExecutionAuthorized: false };
 }
 
 function validateRefinements(state) {
@@ -857,7 +980,7 @@ function validateReadmissions(state) {
       fields(record, 'event before fromVersion');
       const { event, before, fromVersion } = record;
       validateReadmissionEvent(event);
-      requireValue([1, 2, 3, 4, 5, 6, 7].includes(fromVersion) && (index === 0 || fromVersion >= 4),
+      requireValue([1, 2, 3, 4, 5, 6, 7, 8].includes(fromVersion) && (index === 0 || fromVersion >= 4),
         'Invalid candidate revalidation source schema.');
       fields(before, `key outcome pool kind head scopes evidence pr owner phase blocker publication${
         fromVersion >= 2 ? ' scopeRevision scopeHistory sourceWritesRetired' : ''}${
@@ -903,7 +1026,7 @@ function validateReadmissions(state) {
 }
 
 function validate(state) {
-  requireValue([1, 2, 3, 4, 5, 6, 7].includes(state?.version) && typeof state.enabled === 'boolean' &&
+  requireValue([1, 2, 3, 4, 5, 6, 7, 8].includes(state?.version) && typeof state.enabled === 'boolean' &&
     ['observe', 'delivery'].includes(state.mode) &&
     text(state.coordinator) && (state.head === null || head(state.head)) && Array.isArray(state.items) &&
     Array.isArray(state.seen), 'Malformed registry.');
@@ -986,6 +1109,7 @@ function validate(state) {
   validateReadmissions(state);
   validateRecoveries(state);
   validateRecoveryRenewals(state);
+  validateExtensionFences(state);
 }
 
 function createState(coordinator, sourceHead, mode = 'observe') {
@@ -1050,6 +1174,10 @@ function applyEvent(current, event, context = {}) {
     'Reserved scope event identity.');
   const state = structuredClone(current);
   if (state.seen.includes(event.id)) {
+    requireValue(!(event.type === 'extend-scopes' && event.proof?.version === 2) &&
+      !state.items.some(item => (item.scopeAmendments ?? []).some(record =>
+        record.eventId === event.id && record.proof.version === 2)),
+    'Fenced extension requests cannot be replayed; read the accepted checkpoint instead.');
     requireValue(event.type !== 'renew-recovery-continuation' &&
       !(state.recoveryRenewals ?? []).some(record => record.event.id === event.id),
     'Recovery renewal requests cannot be replayed; read the accepted checkpoint instead.');
@@ -1257,14 +1385,22 @@ function applyEvent(current, event, context = {}) {
       const item = worker();
       requireValue(item.phase === 'running' && (item.sourceWritesRetired ?? false) === false,
         'Scope extension requires an attached running nonretired owner.');
-      fields(event, 'id type key owner expectedScopeRevision proof acknowledgment');
+      const fenced = event.proof?.version === 2;
+      fields(event, `id type key owner expectedScopeRevision proof acknowledgment${fenced ? ' authorization' : ''}`);
       requireValue(event.expectedScopeRevision === (item.scopeRevision ?? 0) &&
         event.proof?.scopeRevision === event.expectedScopeRevision &&
         equal(event.proof?.fromScopes, item.scopes) &&
         event.proof?.reservation?.pr === item.pr,
       'Stale mutable scope revision or current reservation binding.');
       const record = { eventId: event.id, proof: structuredClone(event.proof),
-        acknowledgment: structuredClone(event.acknowledgment) };
+        acknowledgment: structuredClone(event.acknowledgment),
+        ...(fenced ? { authorization: structuredClone(event.authorization),
+          hostEvidence: structuredClone(context.extensionEvidence), before: structuredClone(item),
+          fromVersion: state.version, commands: [] } : {}) };
+      if (fenced) requireValue(record.proof.coordinator === state.coordinator &&
+        record.proof.head === state.head && record.proof.checkpointRevision === context.revision &&
+        Number.isSafeInteger(context.revision) && record.proof.expectedItemDigest === digest(item) &&
+        item.publication === null, 'Fenced extension requires current coordinator, main, checkpoint and complete item.');
       const previous = [...(item.scopeAmendments ?? []),
         ...recoveryRecords(state, item.key).map(old => ({ proof: old.event.proof }))]
         .sort((a, b) => a.proof.scopeRevision - b.proof.scopeRevision).at(-1);
@@ -1285,6 +1421,19 @@ function applyEvent(current, event, context = {}) {
         state.version = 3;
         state.amendments = [];
         for (const other of state.items) other.scopeAmendments = [];
+      }
+      if (fenced) {
+        if (state.version < 4) {
+          state.readmissions = [];
+          for (const other of state.items) other.admissionHistory = [];
+        }
+        if (state.version < 5) state.supersessions = [];
+        if (state.version < 6) {
+          state.recoveries = [];
+          for (const other of state.items) other.scopeRecoveries = [];
+        }
+        if (state.version < 7) state.recoveryRenewals = [];
+        state.version = 8;
       }
       item.scopeAmendments.push(record);
       item.scopeRevision++;
@@ -1440,7 +1589,8 @@ function applyEvent(current, event, context = {}) {
     }
   }
   validate(state);
-  if (!['recover-scope-incident', 'renew-recovery-continuation'].includes(event.type)) dispatch(state, actions);
+  if (!['recover-scope-incident', 'renew-recovery-continuation'].includes(event.type) &&
+    !(event.type === 'extend-scopes' && event.proof.version === 2)) dispatch(state, actions);
   if (event.type === 'supersede-write-reservations') {
     const record = state.supersessions.at(-1);
     const marker = `${SUPERSESSION_MARKER}${digest(record)}`;
@@ -1453,7 +1603,8 @@ function applyEvent(current, event, context = {}) {
 
 module.exports = { createState, applyEvent, validate, digest, scope, canonicalPaths, overlaps,
   heldReservations, effectiveScopes, supersededWriter, preparedCandidate,
-  supersessionAcknowledgmentDigest, validateRecoveryContinuation, recoveryContinuationDigest, LIMITS };
+  supersessionAcknowledgmentDigest, validateRecoveryContinuation, recoveryContinuationDigest,
+  validateScopeExtensionContinuation, LIMITS };
 
 if (require.main === module) {
   try {

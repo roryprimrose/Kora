@@ -1,6 +1,7 @@
 'use strict';
 
-const { createState, applyEvent, digest, supersessionAcknowledgmentDigest } = require('./registry.cjs');
+const { createState, applyEvent, digest, supersessionAcknowledgmentDigest,
+  heldReservations, recoveryContinuationDigest } = require('./registry.cjs');
 
 const head = '1'.repeat(40);
 const owner = 'stopped-owner';
@@ -195,6 +196,89 @@ function supersessionBeneficiaryFixture() {
   return { reserved, running, published, completion, complete };
 }
 
+function fencedExtensionFixture() {
+  let state = createState('synthetic-coordinator', head, 'delivery');
+  state = applyEvent(state, { id: 'synthetic-mutable-owner', type: 'adopt', key: 'mutable',
+    owner: 'synthetic-mutable-owner', outcome: 'Synthetic complete reviewed local skill',
+    pool: 'ready', kind: 'feature', head, scopes: ['src\\owned.cs', 'tests\\owned.test.cs'],
+    evidence: 'SYNTHETIC bounded reserved source, not a live owner.' }).state;
+  state = applyEvent(state, { id: 'synthetic-held-owner', type: 'adopt', key: 'held',
+    owner: 'synthetic-held-owner', outcome: 'Synthetic retained other work',
+    pool: 'ready', kind: 'feature', head, scopes: ['src\\held.cs'],
+    evidence: 'SYNTHETIC exclusive retained other owner.' }).state;
+  return applyEvent(state, { id: 'synthetic-mutable-blocker', type: 'blocked',
+    key: 'mutable', owner: 'synthetic-mutable-owner', reason: 'Existing review scope blocker; no automatic clearance.' }).state;
+}
+
+function rebindFencedExtension(event) {
+  event.acknowledgment.proofDigest = digest(event.proof);
+  event.authorization.subjectDigest = digest({ proof: event.proof, acknowledgment: event.acknowledgment });
+  return event;
+}
+
+function fencedExtensionEvent(state, revision = 41, additionalScopes = ['src\\shared-review.cs']) {
+  const item = state.items.find(value => value.key === 'mutable');
+  const previous = item.scopeAmendments?.at(-1)?.proof;
+  const fence = { epoch: (previous?.reconciliation?.fence.epoch ?? 0) + 1,
+    nonce: `SYNTHETIC-fence-nonce-${revision}`, revokesEarlierSourceAuthority: true,
+    established: true, receipt: 'SYNTHETIC cooperative revocation observation; not OS enforcement.' };
+  const proof = { version: 2, owner: item.owner, key: item.key,
+    reservation: Object.fromEntries(['outcome', 'kind', 'pool', 'head', 'pr'].map(name => [name, item[name]])),
+    scopeRevision: item.scopeRevision ?? 0, fromScopes: [...item.scopes], additionalScopes,
+    toScopes: [...item.scopes, ...additionalScopes], phase: 'running', sourceWritesRetired: false,
+    manifest: { complete: true, actual: previous?.manifest.actual ?? ['src\\owned.cs'],
+      planned: [...new Set([...(previous?.manifest.planned ?? []), ...additionalScopes])] },
+    preservation: { complete: true, commits: [],
+      retained: [{ path: 'src\\owned.cs', receipt: 'SYNTHETIC preserved partial implementation file hash and length.' }],
+      unpreserved: [] },
+    quiescence: { paused: true, commandsRunning: false, workJoined: true,
+      receipt: 'SYNTHETIC fresh exact owner temporary pause/all-command join observation.' },
+    unionFrozen: true, exclusivity: { complete: true, reservations: heldReservations(state, item.key),
+      receipt: 'SYNTHETIC complete current retained guards.' },
+    receipt: 'SYNTHETIC non-incident prospective addition; no outside-scope writes.',
+    repository: 'roryprimrose/Kora', coordinator: state.coordinator, checkpointRevision: revision, head: state.head,
+    source: { owner: item.owner, worktree: 'Q:\\Synthetic\\Mutable', branch: 'synthetic-mutable', head: item.head,
+      receipt: 'SYNTHETIC independently verified exact source identity.' },
+    expectedItemDigest: digest(item), reconciliation: { kind: 'human-approved-source-fence',
+      pendingInstructions: 'UNKNOWN', processingInstructions: 'UNKNOWN', fence,
+      receipt: 'SYNTHETIC explicit human-approved reconciliation; host queue enumeration remains unavailable.' } };
+  return rebindFencedExtension({ id: `synthetic-fenced-extension-${revision}`, type: 'extend-scopes',
+    key: item.key, owner: item.owner, expectedScopeRevision: proof.scopeRevision, proof,
+    acknowledgment: { id: `synthetic-fenced-owner-ack-${revision}`, owner: item.owner, key: item.key,
+      scopeRevision: proof.scopeRevision, proofDigest: '', workJoined: true, staleAuthorityRejected: true,
+      fence: structuredClone(fence), receipt: 'SYNTHETIC fresh whole-final-proof owner response.' },
+    authorization: { kind: 'explicit-human-scope-extension-decision', id: `synthetic-human-decision-${revision}`,
+      actor: 'SYNTHETIC original human', decision: 'prospective-coverage-only', subjectDigest: '',
+      receipt: 'SYNTHETIC final-proof decision, not actual consent or implementation approval.' } });
+}
+
+function fencedExtensionContext(event) {
+  return { revision: event.proof.checkpointRevision, extensionEvidence: {
+    kind: 'host-verified-fenced-scope-extension', coordinator: event.proof.coordinator,
+    checkpointRevision: event.proof.checkpointRevision, proofDigest: digest(event.proof),
+    ownerResponseId: event.acknowledgment.id, humanDecisionId: event.authorization.id,
+    humanDecisionDigest: digest(event.authorization), sourceIdentityVerified: true,
+    sourcePauseVerified: true, commandsJoinedVerified: true, instructionAuthorityVerified: true,
+    receipt: 'SYNTHETIC independent human/owner/source/pause/join/fence host readback, not authentication.' } };
+}
+
+function fencedExtensionContinuation(state, revision = 42) {
+  const item = state.items.find(value => value.key === 'mutable');
+  const record = item.scopeAmendments.at(-1);
+  const request = { version: 1, kind: 'exact-extended-owner-continuation',
+    coordinator: state.coordinator, head: state.head,
+    source: Object.fromEntries(['owner', 'worktree', 'branch', 'head'].map(name => [name, record.proof.source[name]])),
+    checkpointRevision: revision, key: item.key, owner: item.owner, expectedItemDigest: digest(item),
+    scopeRevision: item.scopeRevision, coverageDigest: digest(record),
+    fence: structuredClone(record.proof.reconciliation.fence),
+    acknowledgment: { id: `synthetic-separate-continuation-${revision}`, owner: item.owner, requestDigest: '',
+      coverageDigest: digest(record), fence: structuredClone(record.proof.reconciliation.fence),
+      workJoined: true, staleAuthorityRejected: true, receipt: 'SYNTHETIC distinct whole-request acknowledgment; no execution.' } };
+  request.acknowledgment.requestDigest = recoveryContinuationDigest(request);
+  return request;
+}
+
 module.exports = { refinementFixture, refinementEvent, rebind, tamperedStates, head, owner,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent, rebindSupersession,
-  supersessionBeneficiaryFixture };
+  supersessionBeneficiaryFixture, fencedExtensionFixture, fencedExtensionEvent, rebindFencedExtension,
+  fencedExtensionContext, fencedExtensionContinuation };

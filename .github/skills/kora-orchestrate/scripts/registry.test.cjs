@@ -6,17 +6,248 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { createState, applyEvent, validate, digest, heldReservations,
-  supersessionAcknowledgmentDigest, validateRecoveryContinuation, recoveryContinuationDigest } = require('./registry.cjs');
+  supersessionAcknowledgmentDigest, validateRecoveryContinuation, recoveryContinuationDigest,
+  validateScopeExtensionContinuation } = require('./registry.cjs');
 const { incidentFixture, recoveryEvent, rebindRecovery, recoveryContext, continuation,
   paths: incidentPaths, renewalFixture, renewalEvent, renewalContext, rebindRenewal } = require('./incident-recovery-fixture.cjs');
 const { refinementFixture, refinementEvent, rebind, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
-  rebindSupersession, supersessionBeneficiaryFixture } = require('./refinement-fixture.cjs');
+  rebindSupersession,   supersessionBeneficiaryFixture, fencedExtensionFixture, fencedExtensionEvent, rebindFencedExtension,
+  fencedExtensionContext, fencedExtensionContinuation } = require('./refinement-fixture.cjs');
 
 const sha = number => number.toString(16).padStart(40, '0');
 const coordinator = 'agent-host-session://coordinator';
 const planner = 'agent-host-session://coordinator?chat=planner';
 const owner = key => `agent-host-session://coordinator?chat=${key}`;
+
+test('non-incident fenced extension preserves partial writes and UNKNOWN, emits no actions and needs separate exact continuation', () => {
+  const state = fencedExtensionFixture();
+  state.planner.requested = true;
+  const before = structuredClone(state);
+  const event = fencedExtensionEvent(state);
+  const result = applyEvent(state, event, fencedExtensionContext(event));
+  assert.deepEqual(state, before);
+  assert.deepEqual(result.actions, []);
+  assert.deepEqual(result.state.planner, state.planner);
+  const item = result.state.items[0];
+  assert.equal(result.state.version, 8);
+  assert.deepEqual(result.state.recoveries, []);
+  assert.deepEqual(item.scopes, [...state.items[0].scopes, 'src\\shared-review.cs']);
+  for (const name of ['owner', 'head', 'phase', 'blocker', 'publication', 'pr']) {
+    assert.deepEqual(item[name], state.items[0][name]);
+  }
+  assert.deepEqual(result.state.items[1].scopes, state.items[1].scopes);
+  assert.deepEqual(item.scopeAmendments[0].proof.preservation, event.proof.preservation);
+  const request = fencedExtensionContinuation(result.state);
+  assert.deepEqual(validateScopeExtensionContinuation(result.state, request, { revision: 42 }),
+    { coverageVerified: true, blockers: item.blocker, sourceExecutionAuthorized: false });
+  assert.throws(() => applyEvent(result.state, event, fencedExtensionContext(event)), /cannot be replayed/);
+  assert.throws(() => applyEvent(result.state, { id: event.id, type: 'pause' }), /cannot be replayed/);
+  const legacy = extensionEvent(state, 'mutable', ['src\\legacy-review.cs']);
+  legacy.proof.quiescence.pendingInstructions = 'UNKNOWN';
+  assert.throws(() => applyEvent(state, rebind(legacy)), /pending-zero/);
+});
+
+test('fenced extension rejects missing, stale, foreign, unfinished, outside-authority and conflicting proof without mutation', () => {
+  const state = fencedExtensionFixture();
+  for (const change of [
+    e => { e.proof.repository = 'foreign/repository'; },
+    e => { e.proof.coordinator = 'foreign-coordinator'; },
+    e => { e.proof.checkpointRevision--; },
+    e => { e.proof.head = sha(8); },
+    e => { e.proof.expectedItemDigest = '0'.repeat(64); },
+    e => { e.owner = 'foreign-owner'; },
+    e => { e.proof.source.owner = 'foreign-owner'; },
+    e => { e.proof.source.head = sha(8); },
+    e => { e.proof.source.worktree = 'relative'; },
+    e => { e.proof.fromScopes.pop(); },
+    e => { e.proof.toScopes.pop(); },
+    e => { e.proof.scopeRevision++; },
+    e => { e.proof.quiescence.paused = false; },
+    e => { e.proof.quiescence.workJoined = false; },
+    e => { e.proof.quiescence.commandsRunning = true; },
+    e => { e.proof.reconciliation.pendingInstructions = 0; },
+    e => { e.proof.reconciliation.processingInstructions = 0; },
+    e => { e.proof.reconciliation.fence.established = false; },
+    e => { e.proof.reconciliation.fence.revokesEarlierSourceAuthority = false; },
+    e => { e.proof.reconciliation.fence.nonce = ''; },
+    e => { e.proof.reconciliation.fence.epoch = 0; },
+    e => { e.proof.manifest.actual.push('src\\shared-review.cs');
+      e.proof.preservation.retained.push({ path: 'src\\shared-review.cs', receipt: 'SYNTHETIC unauthorized write.' }); },
+    e => { e.proof.exclusivity.reservations = []; },
+    e => { e.proof.additionalScopes = ['src\\held.cs']; e.proof.toScopes = [...e.proof.fromScopes, 'src\\held.cs'];
+      e.proof.manifest.planned = ['src\\held.cs']; },
+    e => { e.acknowledgment.workJoined = false; },
+    e => { e.acknowledgment.staleAuthorityRejected = false; },
+    e => { e.acknowledgment.fence = null; },
+    e => { e.authorization.kind = 'implementation-approval'; },
+    e => { e.authorization.actor = ''; }
+  ]) {
+    const event = fencedExtensionEvent(state);
+    change(event); rebindFencedExtension(event);
+    const before = JSON.stringify(state);
+    assert.throws(() => applyEvent(state, event, { ...fencedExtensionContext(event), revision: 41 }),
+      undefined, change.toString());
+    assert.equal(JSON.stringify(state), before);
+  }
+  const event = fencedExtensionEvent(state);
+  assert.throws(() => applyEvent(state, event), /checkpoint/);
+  assert.throws(() => applyEvent(state, event, { revision: 41 }), /fields/);
+  for (const name of ['sourceIdentityVerified', 'sourcePauseVerified', 'commandsJoinedVerified', 'instructionAuthorityVerified']) {
+    const context = fencedExtensionContext(event); context.extensionEvidence[name] = false;
+    assert.throws(() => applyEvent(state, event, context), /Independent host readback/);
+  }
+  for (const name of ['proofDigest', 'ownerResponseId', 'humanDecisionId', 'humanDecisionDigest', 'coordinator', 'checkpointRevision']) {
+    const context = fencedExtensionContext(event); context.extensionEvidence[name] = 'stale';
+    assert.throws(() => applyEvent(state, event, context), /Independent host readback/);
+  }
+  event.authorization.subjectDigest = '0'.repeat(64);
+  assert.throws(() => applyEvent(state, event, fencedExtensionContext(event)), /human extension decision/);
+});
+
+test('fenced continuation rejects stale source, checkpoint, union, guards, fence and reused owner response', () => {
+  const before = fencedExtensionFixture(), event = fencedExtensionEvent(before);
+  const state = applyEvent(before, event, fencedExtensionContext(event)).state;
+  for (const change of [
+    r => { r.checkpointRevision--; }, r => { r.owner = 'foreign'; },
+    r => { r.source.head = sha(8); }, r => { r.source.worktree = 'Q:\\Other'; },
+    r => { r.source.branch = 'other'; }, r => { r.source.owner = 'other'; },
+    r => { r.coverageDigest = '0'.repeat(64); }, r => { r.expectedItemDigest = '0'.repeat(64); },
+    r => { r.scopeRevision++; }, r => { r.fence.epoch++; },
+    r => { r.acknowledgment.id = event.acknowledgment.id; },
+    r => { r.acknowledgment.workJoined = false; }, r => { r.acknowledgment.staleAuthorityRejected = false; }
+  ]) {
+    const request = fencedExtensionContinuation(state);
+    change(request); request.acknowledgment.requestDigest = recoveryContinuationDigest(request);
+    assert.throws(() => validateScopeExtensionContinuation(state, request, { revision: 42 }));
+  }
+  const stale = fencedExtensionContinuation(state);
+  assert.throws(() => validateScopeExtensionContinuation(state, stale, { revision: 43 }));
+  const held = applyEvent(state, { id: 'later-held', type: 'adopt', key: 'later', owner: 'later-owner',
+    outcome: 'Another retained source', head: state.head, pool: 'ready', kind: 'feature',
+    scopes: ['src\\later.cs'], evidence: 'SYNTHETIC new current exclusive guard.' }).state;
+  assert.throws(() => validateScopeExtensionContinuation(held, fencedExtensionContinuation(held), { revision: 42 }));
+  const refreshed = applyEvent(state, { id: 'later-main', type: 'refresh', head: sha(8) }).state;
+  assert.throws(() => validateScopeExtensionContinuation(refreshed, fencedExtensionContinuation(refreshed), { revision: 42 }));
+});
+
+test('fenced extension history cannot downgrade to zero or reuse authority and survives legitimate publication/cleanup', () => {
+  const before = fencedExtensionFixture(), first = fencedExtensionEvent(before);
+  const state = applyEvent(before, first, fencedExtensionContext(first)).state;
+  const zero = extensionEvent(state, 'mutable', ['src\\next.cs'], 'later-zero');
+  zero.proof.manifest.planned.unshift('src\\shared-review.cs');
+  assert.throws(() => applyEvent(state, rebind(zero)), /cannot be dropped/);
+  for (const change of [
+    e => { e.authorization.id = first.authorization.id; },
+    e => { e.acknowledgment.id = first.acknowledgment.id; },
+    e => { e.proof.reconciliation.fence.epoch--; },
+    e => { e.proof.reconciliation.fence.nonce = first.proof.reconciliation.fence.nonce; },
+    e => { e.proof.source.branch = 'other'; },
+    e => { e.proof.manifest.actual = []; e.proof.preservation.retained = []; }
+  ]) {
+    const second = fencedExtensionEvent(state, 43, ['src\\next.cs']);
+    change(second); rebindFencedExtension(second);
+    assert.throws(() => applyEvent(state, second, fencedExtensionContext(second)));
+  }
+  const second = fencedExtensionEvent(state, 43, ['src\\next.cs']);
+  const accepted = applyEvent(state, second, fencedExtensionContext(second)).state;
+  assert.deepEqual(accepted.items[0].scopeAmendments[0], state.items[0].scopeAmendments[0]);
+  assert.equal(validateScopeExtensionContinuation(accepted, fencedExtensionContinuation(accepted, 44),
+    { revision: 44 }).sourceExecutionAuthorized, false);
+  for (const change of [
+    s => { s.version = 7; }, s => { s.items[0].scopeAmendments = []; },
+    s => { s.items[0].scopeAmendments[0].hostEvidence.commandsJoinedVerified = false; },
+    s => { s.items[0].scopeAmendments[0].before.blocker = null; },
+    s => { s.items[0].scopeAmendments[0].authorization.receipt = 'altered'; }
+  ]) {
+    const altered = structuredClone(accepted); change(altered); assert.throws(() => validate(altered));
+  }
+  let published = applyEvent(accepted, { id: 'fenced-publish', type: 'published', key: 'mutable',
+    owner: 'synthetic-mutable-owner', proof: { pushedHead: sha(9), remoteHead: sha(9),
+      pr: 900, ready: true, enrolled: true } }).state;
+  published = applyEvent(published, { id: 'fenced-cleanup', type: 'completed', key: 'mutable',
+    owner: 'synthetic-mutable-owner', proof: { remoteHead: sha(9), stoppedWriting: true,
+      branchAbsent: true, worktreeAbsent: true, pendingInstructions: 0 } }).state;
+  assert.deepEqual(published.items[0].scopeAmendments, accepted.items[0].scopeAmendments);
+  assert.throws(() => validateScopeExtensionContinuation(published, fencedExtensionContinuation(published, 45),
+    { revision: 45 }));
+});
+
+test('fenced extension migrates v1-v7 without changing old protocols and cannot bypass retirement or a newer fence', () => {
+  const v2 = applyEvent(refinementFixture(), refinementEvent(refinementFixture())).state;
+  let v3 = applyEvent(v2, { id: 'legacy-owner', type: 'adopt', key: 'legacy', owner: 'legacy-owner',
+    outcome: 'Legacy unrelated amendment', head: v2.head, scopes: ['legacy\\original.cs'],
+    pool: 'ready', kind: 'feature', evidence: 'SYNTHETIC legacy migration.' }).state;
+  v3 = applyEvent(v3, extensionEvent(v3, 'legacy', ['legacy\\next.cs'])).state;
+  const incident = incidentFixture(), recovery = recoveryEvent(incident);
+  const v6 = applyEvent(incident, recovery, recoveryContext(recovery)).state;
+  const renewal = renewalFixture(), renewalProof = renewalEvent(renewal);
+  const v7 = applyEvent(renewal, renewalProof, renewalContext(renewalProof)).state;
+  const candidate = candidateFixture(true);
+  const v4 = applyEvent(candidate, candidateEvent(candidate)).state;
+  const supersession = supersessionFixture();
+  const v5 = applyEvent(supersession, supersessionEvent(supersession), { revision: 41 }).state;
+  const versions = [createState('legacy-coordinator', sha(1), 'delivery'), v2, v3,
+    v4, v5, v6, v7];
+  assert.deepEqual(versions.map(state => state.version), [1, 2, 3, 4, 5, 6, 7]);
+  for (let state of versions) {
+    const old = structuredClone(state);
+    state = applyEvent(state, { id: 'new-mutable-migration-owner', type: 'adopt', key: 'mutable',
+      owner: 'synthetic-mutable-owner', outcome: 'Synthetic new migration target',
+      head: state.head, pool: 'ready', kind: 'feature', scopes: ['src\\owned.cs', 'tests\\owned.test.cs'],
+      evidence: 'SYNTHETIC independent mutable owner.' }).state;
+    const event = fencedExtensionEvent(state);
+    const accepted = applyEvent(state, event, fencedExtensionContext(event)).state;
+    assert.equal(accepted.version, 8);
+    for (const previous of old.items) {
+      const current = accepted.items.find(item => item.key === previous.key);
+      for (const name of Object.keys(previous)) assert.deepEqual(current[name], previous[name]);
+    }
+    for (const name of ['refinements', 'amendments', 'recoveries', 'recoveryRenewals', 'supersessions', 'readmissions']) {
+      if (Object.hasOwn(old, name)) {
+        assert.deepEqual(name === 'amendments' ? accepted[name].slice(0, -1) : accepted[name], old[name]);
+      }
+    }
+  }
+  const retired = v2;
+  const event = fencedExtensionEvent(fencedExtensionFixture());
+  event.key = 'holding'; event.owner = retired.items[0].owner;
+  assert.throws(() => applyEvent(retired, event, fencedExtensionContext(event)), /nonretired/);
+  const p = v6.recoveries[0].event.proof;
+  const afterRecovery = fencedExtensionEvent(fencedExtensionFixture(), 43, ['src\\new-review.cs']);
+  afterRecovery.key = p.key; afterRecovery.owner = p.owner;
+  const item = v6.items.find(value => value.key === p.key);
+  afterRecovery.expectedScopeRevision = item.scopeRevision;
+  Object.assign(afterRecovery.proof, { key: p.key, owner: p.owner, expectedItemDigest: digest(item),
+    coordinator: v6.coordinator, head: v6.head, scopeRevision: item.scopeRevision, fromScopes: item.scopes,
+    toScopes: [...item.scopes, 'src\\new-review.cs'], reservation: p.reservation, source: p.source,
+    manifest: p.manifest, preservation: p.preservation,
+    exclusivity: { complete: true, reservations: heldReservations(v6, p.key), receipt: 'SYNTHETIC current guards.' } });
+  afterRecovery.proof.manifest = structuredClone(p.manifest);
+  afterRecovery.proof.manifest.planned.push('src\\new-review.cs');
+  afterRecovery.proof.reconciliation.fence.epoch = p.reconciliation.fence.epoch + 1;
+  Object.assign(afterRecovery.acknowledgment, { key: p.key, owner: p.owner, scopeRevision: item.scopeRevision,
+    fence: structuredClone(afterRecovery.proof.reconciliation.fence) });
+  rebindFencedExtension(afterRecovery);
+  const accepted = applyEvent(v6, afterRecovery, fencedExtensionContext(afterRecovery)).state;
+  assert.throws(() => validateRecoveryContinuation(accepted, continuation(accepted, 44), { revision: 44 }),
+    /current grant/);
+});
+
+test('documented fenced mutable example executes in memory and supplies no source execution authority', () => {
+  const root = path.resolve(__dirname, '..', '..', '..', '..');
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  const example = readme.split('### Explicit human-approved UNKNOWN extension')[1]
+    .match(/```javascript\r?\n([\s\S]*?)```/)[1];
+  const result = spawnSync(process.execPath, ['-e', example], { cwd: root, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.deepEqual(output.actions, []);
+  assert.equal(output.event.proof.version, 2);
+  assert.equal(output.event.proof.reconciliation.pendingInstructions, 'UNKNOWN');
+  assert.equal(output.result.coverageVerified, true);
+  assert.equal(output.result.sourceExecutionAuthorized, false);
+});
 
 test('explicit renewal permits compatible main advancement without mutating original grant, source, scopes or fence', () => {
   for (const mode of ['enumerated-pending-zero', 'human-approved-source-fence']) {

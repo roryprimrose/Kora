@@ -61,6 +61,21 @@ instructions without queue enumeration. Acceptance emits no actions or blocker
 clearance. Later exact continuation must revalidate the current grant/fence;
 unestablished pause/join/fence withholds continuation, never invents pending zero.
 
+A non-incident mutable closure omission is distinct: preserve original scopes,
+all partial writes, blockers and exact owner; do not fabricate unauthorized-write
+provenance. With UNKNOWN queue counts, only the separately
+[human-approved version-2 mutable extension](./README.md#explicit-human-approved-unknown-extension)
+can reserve additional coverage after actual source pause/all-work join, effective
+fresh source-authority fence, whole-proof exact-owner acknowledgment, final-proof
+human decision and independent host readback. All actual writes must already be
+within original scopes; current complete item/source/revision/union/held guards
+must match. Report missing facts, never assume them from idle or receipt strings.
+Acceptance emits no actions and releases no blocker or owner. Later continuation
+separately validates latest coverage/fence/current guards and fresh owner response;
+stale instructions cannot restore authority and later zero claims cannot drop the
+fence. Ordinary pending-zero protocols remain unchanged
+([exact contract](./README.md#explicit-human-approved-unknown-extension)).
+
 Unrelated compatible main advancement does not retire or replace a retained
 recovered owner. Report the changed source; only the coordinator's explicit
 [same-owner renewal](./README.md#same-owner-continuation-renewal) with fresh

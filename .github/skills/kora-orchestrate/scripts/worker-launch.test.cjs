@@ -10,7 +10,8 @@ const { incidentFixture, recoveryEvent, recoveryContext,
   renewalFixture, renewalEvent, renewalContext } = require('./incident-recovery-fixture.cjs');
 const { refinementFixture, refinementEvent, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
-  supersessionBeneficiaryFixture } = require('./refinement-fixture.cjs');
+  supersessionBeneficiaryFixture, fencedExtensionFixture, fencedExtensionEvent,
+  fencedExtensionContext } = require('./refinement-fixture.cjs');
 
 const head = '1'.repeat(40);
 const settings = {
@@ -19,6 +20,26 @@ const settings = {
   productionWorkspace: 'Q:\\Repos\\Kora',
   scratch: 'Q:\\Repos\\Kora.worktrees\\control\\.scratch\\run'
 };
+
+test('fenced mutable history is validated by launch consumers without relaunch or lost guards', () => {
+  const before = fencedExtensionFixture(), event = fencedExtensionEvent(before);
+  const result = applyEvent(before, event, fencedExtensionContext(event));
+  assert.deepEqual(result.actions, []);
+  assert.throws(() => workerLaunch(result.state, { type: 'launch', key: 'mutable', pool: 'ready' }, settings),
+    /reservation/);
+  let state = applyEvent(result.state, { id: 'fenced-launch-planner', type: 'planner', owner: 'planner' }).state;
+  const candidate = applyEvent(state, { id: 'fenced-launch-candidate', type: 'candidate', owner: 'planner', pass: 1,
+    key: 'new', outcome: 'Synthetic disjoint launch', pool: 'ready', kind: 'feature', head: state.head,
+    scopes: ['other\\new.cs'], evidence: 'SYNTHETIC separately admitted disjoint source.' });
+  const action = candidate.actions.find(value => value.type === 'launch');
+  const prompt = workerLaunch(candidate.state, action, settings).prompt;
+  assert.match(prompt, /proof version 2/);
+  assert.match(prompt, /validateScopeExtensionContinuation/);
+  assert.ok(prompt.includes('src\\shared-review.cs'));
+  state = structuredClone(candidate.state);
+  state.items[0].scopeAmendments[0].hostEvidence.sourcePauseVerified = false;
+  assert.throws(() => workerLaunch(state, action, settings));
+});
 
 test('launch validates renewal history, retains exact recovered exclusions and never converts renewal into launch', () => {
   const initial = renewalFixture();

@@ -71,6 +71,8 @@ function validateCheckpoint(value) {
       const record = supersessions.find(record => record.event.id === event.id);
       const actions = value.actions.filter(action => action.id.startsWith(`${event.id}:`));
       return record && event.digest === digest(record) &&
+        (record.event.proof.version !== 2 || record.event.proof.checkpointRevision < value.revision &&
+          event.commands?.length === 0 && actions.length === 0) &&
         Array.isArray(event.commands) && digest(event.commands) === digest(record.commands) &&
         event.commands.every((command, index) =>
           actions[index]?.id === `${event.id}:${index}` &&
@@ -106,7 +108,7 @@ function checkpoint(file, input, io = fs) {
       requireValue(value, 'Checkpoint is not initialized.');
       const result = applyEvent(value.state, input.event, {
         revision: value.revision, recoveryEvidence: input.recoveryEvidence, renewalEvidence: input.renewalEvidence,
-        extensionEvidence: input.extensionEvidence
+        extensionEvidence: input.extensionEvidence, supersessionEvidence: input.supersessionEvidence
       });
       if (result.duplicate) return value;
       value.state = result.state;

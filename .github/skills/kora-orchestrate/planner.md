@@ -76,6 +76,20 @@ stale instructions cannot restore authority and later zero claims cannot drop th
 fence. Ordinary pending-zero protocols remain unchanged
 ([exact contract](./README.md#explicit-human-approved-unknown-extension)).
 
+For conflicts with retained published local holders, report the exact current
+beneficiary operation/source/complete manifest, all overlapping holder identities/
+histories and full effective guards. UNKNOWN queues permit only the explicit
+[human-fenced supersession version-2 path](./README.md#human-fenced-local-holder-handoff):
+actual preservation/stopped/joined work, fresh cooperative revocation fences,
+whole-proof holder responses, new exact human decision and independent host
+readback. Do not infer consent or physical facts from idle, merges, UI or receipts.
+It preserves slots/blockers/cleanup/untransferred exclusions and permanently retires
+entire prior source identities, while acceptance emits no actions or execution.
+Do not treat preparation or published tooling as a live transfer. Wait for separately
+authorized guarded dispatch/attachment and actual beneficiary source/owner checks;
+external preparation is nonactivating and never an UNKNOWN workaround
+([schemas and limits](./README.md#human-fenced-local-holder-handoff)).
+
 Unrelated compatible main advancement does not retire or replace a retained
 recovered owner. Report the changed source; only the coordinator's explicit
 [same-owner renewal](./README.md#same-owner-continuation-renewal) with fresh

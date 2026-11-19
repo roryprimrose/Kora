@@ -5,7 +5,7 @@ const { test } = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { createState, applyEvent, validate, digest, heldReservations,
+const { createState, applyEvent, validate, digest, heldReservations, supersededWriter,
   supersessionAcknowledgmentDigest, validateRecoveryContinuation, recoveryContinuationDigest,
   validateScopeExtensionContinuation } = require('./registry.cjs');
 const { incidentFixture, recoveryEvent, rebindRecovery, recoveryContext, continuation,
@@ -13,12 +13,240 @@ const { incidentFixture, recoveryEvent, rebindRecovery, recoveryContext, continu
 const { refinementFixture, refinementEvent, rebind, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
   rebindSupersession,   supersessionBeneficiaryFixture, fencedExtensionFixture, fencedExtensionEvent, rebindFencedExtension,
-  fencedExtensionContext, fencedExtensionContinuation } = require('./refinement-fixture.cjs');
+  fencedExtensionContext, fencedExtensionContinuation, fencedSupersessionEvent,
+  rebindFencedSupersession, fencedSupersessionContext } = require('./refinement-fixture.cjs');
 
 const sha = number => number.toString(16).padStart(40, '0');
 const coordinator = 'agent-host-session://coordinator';
 const planner = 'agent-host-session://coordinator?chat=planner';
 const owner = key => `agent-host-session://coordinator?chat=${key}`;
+
+test('UNKNOWN holder handoff is prospective, preserves published owners and guards, and emits no actions', () => {
+  const before = supersessionFixture(), event = fencedSupersessionEvent(before);
+  const unchanged = structuredClone(before);
+  const result = applyEvent(before, event, fencedSupersessionContext(event));
+  const state = result.state;
+  assert.deepEqual(before, unchanged);
+  assert.equal(state.version, 9);
+  assert.deepEqual(result.actions, []);
+  assert.deepEqual(state.planner, before.planner);
+  assert.deepEqual(state.supersessions[0].commands, []);
+  assert.equal(state.items.find(item => item.key === 'successor').phase, 'candidate');
+  for (const original of before.items.filter(item => item.owner)) {
+    const current = state.items.find(item => item.key === original.key);
+    for (const name of Object.keys(original)) assert.deepEqual(current[name], original[name]);
+    assert.equal(supersededWriter(state, original.key), true);
+    assert.equal(current.sourceWritesRetired, false);
+  }
+  for (const holder of state.supersessions[0].event.proof.holders) {
+    assert.equal(holder.reconciliation.pendingInstructions, 'UNKNOWN');
+    assert.equal(holder.reconciliation.processingInstructions, 'UNKNOWN');
+    assert.equal(Object.hasOwn(holder.stopped, 'sourceInstructionsCleared'), false);
+  }
+  assert.deepEqual(heldReservations(state, 'successor').filter(item => item.scopes.length)
+    .map(item => item.scopes), [['docs\\retained.md']]);
+  assert.throws(() => applyEvent(state, { id: 'premature-owner', type: 'attached',
+    key: 'successor', owner: 'new-owner' }), /reservation/);
+  const launch = applyEvent(state, { id: 'separately-authorized-dispatch', type: 'refresh', head: state.head });
+  assert.deepEqual(launch.actions.filter(action => action.type === 'launch'),
+    [{ type: 'launch', key: 'successor', pool: 'ready' }]);
+  const attached = applyEvent(launch.state, { id: 'new-owner-attached', type: 'attached',
+    key: 'successor', owner: 'new-source-owner' }).state;
+  assert.equal(attached.items.find(item => item.key === 'successor').owner, 'new-source-owner');
+  assert.deepEqual(attached.supersessions, state.supersessions);
+  const mutable = fencedExtensionFixture().items[0];
+  const withMutable = applyEvent(attached, { ...mutable, id: 'later-independent-mutable', type: 'adopt' }).state;
+  const extension = fencedExtensionEvent(withMutable, 42);
+  const extended = applyEvent(withMutable, extension, fencedExtensionContext(extension)).state;
+  assert.equal(extended.version, 9);
+  assert.deepEqual(extended.supersessions, state.supersessions);
+  for (const change of [
+    e => { e.proof.reconciliation.fence.nonce = event.proof.holders[0].reconciliation.fence.nonce;
+      e.acknowledgment.fence = structuredClone(e.proof.reconciliation.fence); },
+    e => { e.authorization.id = event.authorization.id; }
+  ]) {
+    const replay = structuredClone(extension); change(replay); rebindFencedExtension(replay);
+    assert.throws(() => applyEvent(withMutable, replay, fencedExtensionContext(replay)), /nonce|decision replay/);
+  }
+  const published = applyEvent(attached, { id: 'future-owner-published', type: 'published',
+    key: 'successor', owner: 'new-source-owner', proof: { pushedHead: attached.head, remoteHead: attached.head,
+      pr: 953, ready: true, enrolled: true } }).state;
+  const complete = applyEvent(published, { id: 'future-owner-cleaned', type: 'completed',
+    key: 'successor', owner: 'new-source-owner', proof: { remoteHead: published.head, stoppedWriting: true,
+      worktreeAbsent: true, branchAbsent: true, pendingInstructions: 0 } }).state;
+  assert.deepEqual(complete.supersessions, state.supersessions);
+  assert.equal(supersededWriter(complete, 'prior-0'), true);
+  assert.deepEqual(heldReservations(complete).filter(item => item.scopes.length)
+    .map(item => item.scopes), [['docs\\retained.md']]);
+  for (const replay of [event, { ...event, type: 'pause' }, { ...event, authorization: {
+    ...event.authorization, receipt: 'changed payload' } }]) {
+    assert.throws(() => applyEvent(state, replay, fencedSupersessionContext(event)), /cannot be replayed/);
+  }
+  validate(JSON.parse(JSON.stringify(state)));
+});
+
+test('documented UNKNOWN handoff example is synthetic, exact and nonexecuting', () => {
+  const root = path.resolve(__dirname, '..', '..', '..', '..');
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  const example = readme.split('### Human-fenced local holder handoff')[1]
+    .match(/```javascript\r?\n([\s\S]*?)```/)[1];
+  const result = spawnSync(process.execPath, ['-e', example], { cwd: root, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.version, 9);
+  assert.equal(output.beneficiaryPhase, 'candidate');
+  assert.deepEqual(output.actions, []);
+  assert.equal(output.input.expectedRevision, 41);
+  for (const holder of output.input.event.proof.holders) {
+    assert.equal(holder.reconciliation.pendingInstructions, 'UNKNOWN');
+    assert.equal(holder.reconciliation.processingInstructions, 'UNKNOWN');
+    assert.equal(Object.hasOwn(holder.stopped, 'sourceInstructionsCleared'), false);
+  }
+});
+
+test('fenced handoff rejects stale, foreign, incomplete, mixed, unjoined or unauthenticated proof before mutation', () => {
+  const state = supersessionFixture(), original = structuredClone(state);
+  const changes = [
+    e => { e.proof.coordinator = 'foreign'; }, e => { e.proof.head = sha(9); },
+    e => { e.proof.checkpointRevision--; }, e => { e.proof.expectedStateDigest = '0'.repeat(64); },
+    e => { e.proof.candidate.outcome = 'different operation'; },
+    e => { e.proof.candidate.scopes.push('src\\new.cs'); },
+    e => { e.proof.beneficiaryManifest.actual.push('src\\shared.cs'); },
+    e => { e.proof.beneficiaryManifest.planned.pop(); },
+    e => { e.proof.localReservations.pop(); }, e => { e.proof.effectiveReservations.pop(); },
+    e => { e.proof.holders.pop(); }, e => { e.proof.holders.reverse(); },
+    e => { e.proof.holders[0].paths = ['src']; },
+    e => { e.proof.holders[0].owner = 'foreign'; },
+    e => { e.proof.holders[0].stopped.commandsRunning = true; },
+    e => { e.proof.holders[1].stopped.workJoined = false; },
+    e => { e.proof.holders[0].stopped.sourceInstructionsCleared = true; },
+    e => { e.proof.holders[0].source.head = sha(9); },
+    e => { e.proof.holders[0].source.worktree = '..\\foreign'; },
+    e => { e.proof.holders[0].reconciliation.pendingInstructions = 0; },
+    e => { e.proof.holders[1].reconciliation.processingInstructions = 0; },
+    e => { e.proof.holders[0].reconciliation.fence.established = false; },
+    e => { e.proof.holders[0].reconciliation.fence.revokesEarlierSourceAuthority = false; },
+    e => { e.proof.holders[1].reconciliation.fence.nonce = e.proof.holders[0].reconciliation.fence.nonce; },
+    e => { e.proof.holders[0].acknowledgment.kind = 'revocation'; },
+    e => { e.proof.holders[0].acknowledgment.owner = 'foreign'; },
+    e => { e.proof.holders[0].acknowledgment.staleAuthorityRejected = false; },
+    e => { e.proof.holders[0].preservation.unpreserved.push({
+      path: 'src\\shared.cs', receipt: 'unpreserved actual effect' }); },
+    e => { e.authorization.kind = 'implementation-approval'; },
+    e => { e.authorization.actor = ''; },
+    e => { e.proof.mode = 'prepare-external'; e.proof.authority.singleLedger = false; }
+  ];
+  for (const change of changes) {
+    const event = fencedSupersessionEvent(state); change(event);
+    for (const holder of event.proof.holders) {
+      holder.acknowledgment.fence = structuredClone(holder.reconciliation.fence);
+    }
+    rebindFencedSupersession(event);
+    const context = fencedSupersessionContext(event);
+    context.revision = 41;
+    assert.throws(() => applyEvent(state, event, context));
+    assert.deepEqual(state, original);
+  }
+  for (const change of [
+    c => { delete c.supersessionEvidence; },
+    c => { c.supersessionEvidence.humanAuthorizationVerified = false; },
+    c => { c.supersessionEvidence.humanDecisionDigest = '0'.repeat(64); },
+    c => { c.supersessionEvidence.ledgerAuthorityVerified = false; },
+    c => { c.supersessionEvidence.beneficiarySourceVerified = false; },
+    c => { c.supersessionEvidence.holders.pop(); },
+    c => { c.supersessionEvidence.holders[0].ownerResponseId = 'foreign'; },
+    c => { c.supersessionEvidence.holders[0].sourceIdentityVerified = false; },
+    c => { c.supersessionEvidence.holders[1].preservationVerified = false; },
+    c => { c.supersessionEvidence.holders[0].sourceStoppedVerified = false; },
+    c => { c.supersessionEvidence.holders[1].commandsJoinedVerified = false; },
+    c => { c.supersessionEvidence.holders[0].instructionAuthorityVerified = false; }
+  ]) {
+    const event = fencedSupersessionEvent(state), context = fencedSupersessionContext(event);
+    change(context);
+    assert.throws(() => applyEvent(state, event, context));
+    assert.deepEqual(state, original);
+  }
+  const legacy = supersessionEvent(state);
+  legacy.proof.holders[0].stopped.pendingInstructions = 'UNKNOWN';
+  rebindSupersession(legacy);
+  assert.throws(() => applyEvent(state, legacy, { revision: 41 }), /reconciliation/);
+});
+
+test('handoff coexists with immutable v8 mutable/recovery fences and cannot revive prior source authority', () => {
+  let state = fencedExtensionFixture();
+  const extension = fencedExtensionEvent(state);
+  state = applyEvent(state, extension, fencedExtensionContext(extension)).state;
+  const oldContinuation = fencedExtensionContinuation(state);
+  assert.equal(validateScopeExtensionContinuation(state, oldContinuation, { revision: 42 }).coverageVerified, true);
+  const incidentOwner = incidentFixture().items[0];
+  state = applyEvent(state, { ...incidentOwner, id: 'new-incident-owner', type: 'adopt' }).state;
+  const recovery = recoveryEvent(state, 42, 'human-approved-source-fence');
+  state = applyEvent(state, recovery, recoveryContext(recovery)).state;
+  for (const key of ['mutable', incidentOwner.key]) {
+    const item = state.items.find(value => value.key === key);
+    state = applyEvent(state, { id: `preserved-publication-${key}`, type: 'published', key,
+      owner: item.owner, proof: { pushedHead: item.head, remoteHead: item.head,
+        pr: key === 'mutable' ? 951 : 952, ready: true, enrolled: true } }).state;
+  }
+  if (!state.planner.owner) {
+    state = applyEvent(state, { id: 'handoff-planner', type: 'planner', owner: 'handoff-planner' }).state;
+  }
+  const scopes = ['src\\owned.cs', recovery.proof.incident.unauthorizedPaths[0]];
+  state = applyEvent(state, { id: 'handoff-successor', type: 'candidate', key: 'successor',
+    owner: state.planner.owner ?? 'planner', pass: state.planner.pass,
+    outcome: 'Synthetic exact same-ledger handoff', pool: 'ready', kind: 'feature',
+    head: state.head, scopes, evidence: 'SYNTHETIC current-source complete operation.' }).state;
+  const event = fencedSupersessionEvent(state, 43);
+  for (const holder of event.proof.holders) {
+    const original = holder.key === 'mutable' ? extension.proof : recovery.proof;
+    holder.source = structuredClone(original.source);
+    if (!holder.preservation.commits.some(commit => commit.head === holder.source.head)) {
+      holder.preservation.commits.push({ head: holder.source.head, paths: [],
+        receipt: 'SYNTHETIC retained original source base alongside publication.' });
+    }
+    holder.reconciliation.fence.epoch = original.reconciliation.fence.epoch + 1;
+    holder.acknowledgment.fence = structuredClone(holder.reconciliation.fence);
+  }
+  rebindFencedSupersession(event);
+  const original = structuredClone(state);
+  const result = applyEvent(state, event, fencedSupersessionContext(event));
+  assert.deepEqual(result.actions, []);
+  assert.equal(result.state.version, 9);
+  assert.deepEqual(result.state.recoveries, state.recoveries);
+  assert.deepEqual(result.state.recoveryRenewals, state.recoveryRenewals);
+  assert.deepEqual(result.state.items.filter(item => item.owner), state.items.filter(item => item.owner));
+  assert.equal(result.state.supersessions[0].before.version, 8);
+  for (const change of [
+    e => { e.proof.holders[0].reconciliation.fence.epoch = 1; },
+    e => { e.proof.holders[0].reconciliation.fence.nonce = extension.proof.reconciliation.fence.nonce; },
+    e => { e.proof.holders[0].source.branch = 'different-source'; },
+    e => { e.proof.holders[0].acknowledgment.id = extension.acknowledgment.id; },
+    e => { e.authorization.id = recovery.authorization.id; }
+  ]) {
+    const altered = structuredClone(event); change(altered);
+    for (const holder of altered.proof.holders) {
+      holder.acknowledgment.fence = structuredClone(holder.reconciliation.fence);
+    }
+    rebindFencedSupersession(altered);
+    assert.throws(() => applyEvent(state, altered, fencedSupersessionContext(altered)));
+    assert.deepEqual(state, original);
+  }
+  const resurrected = structuredClone(result.state);
+  resurrected.items.find(item => item.key === 'mutable').phase = 'running';
+  assert.throws(() => validateScopeExtensionContinuation(resurrected, oldContinuation, { revision: 44 }));
+  assert.throws(() => applyEvent(resurrected, extension, fencedExtensionContext(extension)));
+  for (const change of [
+    s => { s.version = 8; },
+    s => { s.supersessions[0].before.recoveries = []; },
+    s => { s.supersessions[0].event.proof.holders[1].reconciliation.pendingInstructions = 0; },
+    s => { s.supersessions[0].hostEvidence.humanAuthorizationVerified = false; },
+    s => { s.supersessions[0].commands.push({ type: 'resume' }); },
+    s => { s.supersessions = []; }
+  ]) {
+    const altered = structuredClone(result.state); change(altered);
+    assert.throws(() => validate(altered));
+  }
+});
 
 test('non-incident fenced extension preserves partial writes and UNKNOWN, emits no actions and needs separate exact continuation', () => {
   const state = fencedExtensionFixture();

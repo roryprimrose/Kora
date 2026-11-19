@@ -196,6 +196,61 @@ function supersessionBeneficiaryFixture() {
   return { reserved, running, published, completion, complete };
 }
 
+function fencedSupersessionEvent(state, revision = 41) {
+  const event = supersessionEvent(state, revision);
+  const p = event.proof;
+  Object.assign(p, { version: 2, expectedStateDigest: digest(state),
+    effectiveReservations: heldReservations(state, p.candidate.key),
+    beneficiaryManifest: { complete: true, actual: [], planned: [...p.candidate.scopes] } });
+  for (const holder of p.holders) {
+    holder.source = { owner: holder.owner, worktree: `Q:\\synthetic\\${holder.key}`,
+      branch: `synthetic/${holder.key}`, head: holder.preservation.commits[0].head,
+      receipt: 'SYNTHETIC current preserved source identity; not host evidence.' };
+    holder.stopped = { writingStopped: true, commandsRunning: false, workJoined: true,
+      receipt: 'SYNTHETIC actual stopped source and joined owned commands.' };
+    holder.reconciliation = { kind: 'human-approved-source-fence', pendingInstructions: 'UNKNOWN',
+      processingInstructions: 'UNKNOWN', fence: { epoch: 1, nonce: `synthetic-handoff-${holder.key}`,
+        revokesEarlierSourceAuthority: true, established: true,
+        receipt: 'SYNTHETIC cooperative rejection of all earlier broad source grants.' },
+      receipt: 'SYNTHETIC authority reconciliation, no queue enumeration or OS enforcement claimed.' };
+    holder.acknowledgment = { kind: 'owner', id: `synthetic-handoff-response-${holder.key}`,
+      receipt: 'SYNTHETIC exact-holder whole-proof response, not a live response.', proofDigest: '',
+      owner: holder.owner, workJoined: true, staleAuthorityRejected: true,
+      fence: structuredClone(holder.reconciliation.fence) };
+  }
+  Object.assign(event.authorization, { kind: 'explicit-human-reservation-handoff-decision',
+    id: 'synthetic-handoff-human-decision', actor: 'synthetic-human',
+    decision: 'retire-prior-writers-for-exact-beneficiary',
+    receipt: 'SYNTHETIC final-proof human decision, never actual consent.' });
+  return rebindFencedSupersession(event);
+}
+
+function rebindFencedSupersession(event) {
+  for (const holder of event.proof.holders) {
+    holder.acknowledgment.proofDigest = supersessionAcknowledgmentDigest(event.proof, holder);
+  }
+  event.authorization.proofDigest = digest(event.proof);
+  return event;
+}
+
+function fencedSupersessionContext(event) {
+  const p = event.proof, h = event.authorization;
+  return { revision: p.checkpointRevision, supersessionEvidence: {
+    kind: 'host-verified-reservation-handoff', coordinator: p.coordinator,
+    checkpointRevision: p.checkpointRevision, proofDigest: digest(p),
+    humanDecisionId: h.id, humanDecisionDigest: digest(h), humanAuthorizationVerified: true,
+    ledgerAuthorityVerified: true, beneficiarySourceVerified: true,
+    holders: p.holders.map(holder => ({
+      coordinator: holder.coordinator, key: holder.key, owner: holder.owner, itemDigest: holder.itemDigest,
+      ownerResponseId: holder.acknowledgment.id, sourceDigest: digest(holder.source),
+      preservationDigest: digest({ manifest: holder.manifest, preservation: holder.preservation }),
+      fenceDigest: digest(holder.reconciliation.fence), sourceIdentityVerified: true,
+      preservationVerified: true, sourceStoppedVerified: true, commandsJoinedVerified: true,
+      instructionAuthorityVerified: true, receipt: 'SYNTHETIC independent exact-holder host observations.'
+    })), receipt: 'SYNTHETIC independent host human/ledger/beneficiary readback, not authentication.'
+  } };
+}
+
 function fencedExtensionFixture() {
   let state = createState('synthetic-coordinator', head, 'delivery');
   state = applyEvent(state, { id: 'synthetic-mutable-owner', type: 'adopt', key: 'mutable',
@@ -281,4 +336,5 @@ function fencedExtensionContinuation(state, revision = 42) {
 module.exports = { refinementFixture, refinementEvent, rebind, tamperedStates, head, owner,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent, rebindSupersession,
   supersessionBeneficiaryFixture, fencedExtensionFixture, fencedExtensionEvent, rebindFencedExtension,
-  fencedExtensionContext, fencedExtensionContinuation };
+  fencedExtensionContext, fencedExtensionContinuation, fencedSupersessionEvent,
+  rebindFencedSupersession, fencedSupersessionContext };

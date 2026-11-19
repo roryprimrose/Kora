@@ -32,7 +32,8 @@ public sealed partial class ModelTurnHostTests
         await skill.Register();
         var workflow = skill.Workflow();
         using var review = await workflow.ReviewAsync(skill.Reader.Source, skill.Reader.Snapshot(), skill.Eligible, origin, Token);
-        review.Text.Should().Be(skill.Reader.Text);
+        review.Text.Should().Be($"{skill.Reader.Text}\n\nHOST EXECUTION CONSTRAINTS (not skill source)\n"
+            + JsonSerializer.Serialize(ToolFreeSkillConstraints.Instance));
         review.IsEnabled.Should().BeFalse();
         f.Adapter.Calls.Should().Be(0);
         f.RetainCalls.Should().Be(0);
@@ -459,7 +460,24 @@ public sealed partial class ModelTurnHostTests
         internal Func<SharedSkillFileBinding, SharedSkillSnapshot>? ExactSnapshot { get; set; }
         internal SharedSkillFileBinding Binding => new(Source, "concise-review\\SKILL.md", new string('b', 48), new string('c', 48), NativeRevision);
         internal long NativeRevision { get; set; } = 1;
-        internal SharedSkillSnapshot Snapshot() => SharedSkillSnapshot.Parse(Source.Id, "concise-review\\SKILL.md", Encoding.UTF8.GetBytes(Text), OtherFiles);
+        internal string? Reference { get; set; }
+        internal SharedSkillSnapshot Snapshot() => Reference is null
+            ? SharedSkillSnapshot.Parse(Source.Id, "concise-review\\SKILL.md", Encoding.UTF8.GetBytes(Text), OtherFiles)
+            : SharedSkillSnapshot.Parse(Source.Id, "concise-review\\SKILL.md", Encoding.UTF8.GetBytes(Text), true,
+                ["concise-review\\notes.md"]).WithPackageDirectoryIdentity(new string('b', 48));
+        public ValueTask<SharedSkillSnapshot> ReadReferencesAsync(SharedSkillSource source, SharedSkillSnapshot primary,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var candidate = Snapshot();
+            if (source != Source || !primary.Bytes.SequenceEqual(candidate.Bytes))
+            { throw new InvalidOperationException("Exact primary source changed."); }
+            var result = candidate.WithReferenceBundle(SharedSkillReferenceBundle.Create(candidate,
+                new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = Encoding.UTF8.GetBytes(Reference!) }));
+            if (primary.ReferenceBundle is not null && !string.Equals(primary.RevisionDigest, result.RevisionDigest, StringComparison.Ordinal))
+            { throw new InvalidOperationException("Exact reference source changed."); }
+            return ValueTask.FromResult(result);
+        }
         public ValueTask<SharedSkillSource> SelectAsync(string selectedRoot, CancellationToken cancellationToken) => ValueTask.FromResult(Source);
         public ValueTask<SharedSkillCatalogue> DiscoverAsync(SharedSkillSource source, CancellationToken cancellationToken)
         {

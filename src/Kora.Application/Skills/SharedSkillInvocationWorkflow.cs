@@ -276,7 +276,8 @@ public sealed partial class SharedSkillInvocationWorkflow(
                     $"Declared inert local Markdown reference: {reference.RelativePath}\n{reference.Text}", ModelEvidenceDisclosure.LocalOnly)));
         }
         var context = new ModelContextEnvelope(request, Policy, body, evidence,
-            now, expires < now.AddSeconds(15) ? expires : now.AddSeconds(15), ModelToolMode.None);
+            now, expires < now.AddSeconds(15) ? expires : now.AddSeconds(15), ModelToolMode.None,
+            ToolFreeSkillConstraints.Instance);
         context.RequireCompleteInputLimit();
         return context;
     }

@@ -7,7 +7,15 @@ namespace Kora.Application.Dependencies;
 
 public sealed partial class ModelTurnHost : ICopilotTurnAdmission
 {
-    public async Task<ModelTurnAdmission> AdmitCopilotAsync(ModelContextEnvelope context, CancellationToken token)
+    public Task<ModelTurnAdmission> AdmitCopilotAsync(ModelContextEnvelope context, CancellationToken token) =>
+        AdmitCopilotCoreAsync(context, null, null, token);
+
+    public Task<ModelTurnAdmission> AdmitCopilotAsync(ModelContextEnvelope context, CopilotCustomizationSelection selection,
+        Func<CancellationToken, ValueTask<bool>> sourceCurrent, CancellationToken token) =>
+        AdmitCopilotCoreAsync(context, selection, sourceCurrent, token);
+
+    private async Task<ModelTurnAdmission> AdmitCopilotCoreAsync(ModelContextEnvelope context,
+        CopilotCustomizationSelection? selection, Func<CancellationToken, ValueTask<bool>>? sourceCurrent, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(context);
         var issuer = HostActivity.Current;
@@ -17,13 +25,18 @@ public sealed partial class ModelTurnHost : ICopilotTurnAdmission
         { return new(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
         var control = access.ControlRevision;
         bool Live() => Eligible(control) && !issuer.Activity!.IsStopped && issuer.Outcome == HostOperationOutcome.Unknown;
+        if (selection is not null && (context.ToolMode != ModelToolMode.None || sourceCurrent is null
+            || !await sourceCurrent(token).ConfigureAwait(false) || !Live()))
+        { return new(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
         var session = await sessionProfiles.ReadProviderProfile(issuer.Request.SessionId, token).ConfigureAwait(false);
         if (session.Held || !session.Session.IsActive || session.Session.SessionId != issuer.Request.SessionId || !Live())
         { return new(Finish(ModelTurnOutcome.Denied, ModelTurnReason.SessionNotAdmitted)); }
         var resolved = await providerProfileConfiguration.ResolveTurnAsync(Live, session.Desired, token).ConfigureAwait(false);
         if (!Live() || !resolved.Current() || resolved.Tuple is not { Service: ProviderService.Copilot } profile)
         { return new(Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)); }
-        return await AdmitCopilotAsync(hostedReviews.PrepareTurn(context, profile), token).ConfigureAwait(false);
+        if (selection is not null && (!await sourceCurrent!(token).ConfigureAwait(false) || !Live()))
+        { return new(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
+        return await AdmitCopilotAsync(hostedReviews.PrepareTurn(context, profile, selection, sourceCurrent), token).ConfigureAwait(false);
     }
 
     /// <summary>Prepares an explicitly requested Copilot turn. Each final physical transmission still needs its own exact review.</summary>

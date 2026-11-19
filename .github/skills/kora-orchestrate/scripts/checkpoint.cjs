@@ -28,6 +28,14 @@ function validateCheckpoint(value) {
     amendments.every(event => amendmentIndex.some(record => record.eventId === event.id)) &&
     new Set(amendments.map(event => event.id)).size === amendments.length,
   'Checkpoint mutable amendment event/schema binding is inconsistent.');
+  const fencedAmendments = value.state.items.flatMap(item => (item.scopeAmendments ?? [])
+    .filter(record => record.proof.version === 2));
+  requireValue(fencedAmendments.every(record => {
+    const journal = amendments.find(event => event.id === record.eventId);
+    return journal?.digest === digest(record) && record.proof.checkpointRevision < value.revision &&
+      Array.isArray(journal.commands) && journal.commands.length === 0 &&
+      !value.actions.some(action => action.id.startsWith(`${record.eventId}:`));
+  }), 'Checkpoint fenced extension complete history/no-action journal binding is inconsistent.');
   const readmissions = value.events.filter(event => event.type === 'revalidate-candidate');
   const readmissionIndex = value.state.readmissions ?? [];
   requireValue(readmissions.length === readmissionIndex.length &&
@@ -97,12 +105,16 @@ function checkpoint(file, input, io = fs) {
     } else if (input.operation === 'apply') {
       requireValue(value, 'Checkpoint is not initialized.');
       const result = applyEvent(value.state, input.event, {
-        revision: value.revision, recoveryEvidence: input.recoveryEvidence, renewalEvidence: input.renewalEvidence
+        revision: value.revision, recoveryEvidence: input.recoveryEvidence, renewalEvidence: input.renewalEvidence,
+        extensionEvidence: input.extensionEvidence
       });
       if (result.duplicate) return value;
       value.state = result.state;
       const at = new Date().toISOString();
+      const fencedAmendment = input.event.type === 'extend-scopes' && input.event.proof.version === 2
+        ? value.state.items.find(item => item.key === input.event.key).scopeAmendments.at(-1) : null;
       value.events.push({ id: input.event.id, type: input.event.type, at,
+        ...(fencedAmendment ? { digest: digest(fencedAmendment), commands: [] } : {}),
         ...(['supersede-write-reservations', 'recover-scope-incident', 'renew-recovery-continuation'].includes(input.event.type)
           ? { digest: digest(input.event.type === 'renew-recovery-continuation'
             ? value.state.recoveryRenewals.at(-1) : input.event.type === 'recover-scope-incident'

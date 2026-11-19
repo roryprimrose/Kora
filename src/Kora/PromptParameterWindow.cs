@@ -13,7 +13,6 @@ internal sealed class PromptParameterWindow : Window
     internal Button CancelVoice => View.CancelVoice;
     internal TextBlock VoiceStatus => View.VoiceStatus;
     internal Button Preview => View.Preview;
-    internal Button Use => View.Use;
     internal TextBlock Expanded => View.Expanded;
     internal TextBlock Status => View.Status;
     internal ListBox Targets => View.Targets;

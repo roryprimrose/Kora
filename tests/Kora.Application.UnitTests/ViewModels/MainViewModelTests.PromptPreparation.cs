@@ -1,7 +1,6 @@
 ﻿using AwesomeAssertions;
 using Kora.Application.Definitions;
 using Kora.Core.Artifacts;
-using Kora.Core.Dependencies;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
@@ -34,8 +33,7 @@ public sealed partial class MainViewModelTests
             f.ViewModel.CommandText = "changed";
             draft.CanUse.Should().BeFalse();
         }
-        f.ViewModel.ReportPromptUse(new(ModelTurnOutcome.Unavailable, ModelTurnReason.QualificationPending));
-        f.ViewModel.ResponseBody.Should().Contain("No production adapter").And.NotContain("shutdown");
+        f.ViewModel.ResponseBody.Should().NotContain("shutdown");
     }
 
     [Theory]

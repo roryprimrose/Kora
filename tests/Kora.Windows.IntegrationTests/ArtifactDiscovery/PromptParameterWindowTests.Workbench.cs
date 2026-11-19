@@ -60,7 +60,7 @@ public sealed partial class PromptParameterWindowTests
                 TimeProvider.System, NullLogger<SessionConversationService>.Instance);
             var target = await f.Sessions.CreateAsync(new("Exact prompt target"), Kora.Core.Hosting.RequestOrigin.LocalUi, f.Token);
             await using var controller = new PromptParameterController(f.Main, f.ArtifactCatalogue,
-                new(admission, actions, models, f.Audit, TimeProvider.System), new(f.Sessions, conversation),
+                new(f.Sessions, conversation),
                 static () => true, static () => 1, NullLogger<PromptParameterController>.Instance);
             using var responses = new ResponseWindowController(f.Main, NullLogger<ResponseWindowController>.Instance);
             controller.BindWorkbench(responses.PrepareWorkbenchOwner, view =>

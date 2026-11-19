@@ -384,7 +384,7 @@ public sealed partial class CustomizationWindowTests
                             TimeProvider.System, NullLogger<SessionConversationService>.Instance);
                         var target = await f.Sessions.CreateAsync(new("Prompt authored target"), RequestOrigin.LocalUi, f.Token);
                         await using var parameters = new PromptParameterController(f.Main, catalogue,
-                            new(admission, actions, models, f.Audit, TimeProvider.System), new(f.Sessions, conversation),
+                            new(f.Sessions, conversation),
                             () => true, () => ownership, NullLogger<PromptParameterController>.Instance);
                         PromptParameterWindow? parameterWindow = null;
                         using var observeParameters = Window.WindowOpenedEvent.AddClassHandler<PromptParameterWindow>((view, _) => parameterWindow = view);

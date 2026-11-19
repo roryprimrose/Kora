@@ -23,7 +23,6 @@ internal sealed class PromptParameterView : UserControl, IDisposable
     internal readonly Button CancelVoice = new() { Content = "Cancel spoken input" };
     internal readonly TextBlock VoiceStatus = new() { Text = "Voice input is unavailable.", TextWrapping = TextWrapping.Wrap };
     internal readonly Button Preview = new() { Content = "Preview complete expanded USER REQUEST" };
-    internal readonly Button Use = new() { Content = "Use reviewed request (separate admission)", IsEnabled = false };
     internal readonly TextBlock Expanded = new() { TextWrapping = TextWrapping.Wrap };
     internal ReviewContentsLink ContentsLink { get; } = new();
     internal readonly TextBlock Status = new() { TextWrapping = TextWrapping.Wrap };
@@ -54,9 +53,9 @@ internal sealed class PromptParameterView : UserControl, IDisposable
         {
             Text = $"Owned prompt: {draft.Source.Id}\nOriginal digest: {draft.Source.Digest}\nNative revision: {draft.Source.OwnedInstructionRevision}\n"
                 + "Native v2 required literal text only. No defaults, files, secrets, expressions, clipboard reads or recursive substitution. "
-                + "Preview and Use are untrusted ephemeral user data, not retention approval. Editing an input retires review. "
+                + "Preview is untrusted ephemeral user data, not retention approval. Editing an input retires review. "
                 + "Only separate exact-session retention confirmation saves the expanded USER message; form values are not separately saved.\n"
-                + "Production generation is unavailable: no qualified adapter/model. Use checks fresh request admission; it cannot install, authenticate or fall back.",
+                + "Submission uses the existing conversation host. Unqualified generation remains unavailable; no installation, authentication or fallback.",
             TextWrapping = TextWrapping.Wrap,
         });
         var fields = new PrivateLiteralInputControls();
@@ -69,11 +68,9 @@ internal sealed class PromptParameterView : UserControl, IDisposable
         top.Children.Add(VoiceStatus);
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal };
         Preview.Click += (_, _) => run("Preview");
-        Use.Click += (_, _) => run("Use");
         var cancel = new Button { Content = "Cancel", Margin = new(8, 0) };
         cancel.Click += (_, _) => CloseRequested?.Invoke(this, EventArgs.Empty);
         buttons.Children.Add(Preview);
-        buttons.Children.Add(Use);
         buttons.Children.Add(cancel);
         top.Children.Add(buttons);
         top.Children.Add(Status);
@@ -107,7 +104,6 @@ internal sealed class PromptParameterView : UserControl, IDisposable
     {
         ContentsLink.Retire();
         Expanded.Text = string.Empty;
-        Use.IsEnabled = false;
         RetireReview();
     }
 

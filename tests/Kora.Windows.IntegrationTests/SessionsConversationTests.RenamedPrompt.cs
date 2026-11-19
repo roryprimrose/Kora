@@ -200,7 +200,7 @@ public sealed partial class SessionsConversationTests
             var target = await f.Sessions.CreateAsync(new("Exact renamed prompt target"), RequestOrigin.LocalUi, f.Token);
             var unrelated = await f.Sessions.CreateAsync(new("Unrelated target"), RequestOrigin.LocalUi, f.Token);
             await using var parametersController = new PromptParameterController(f.Main, catalogue,
-                new(admission, promptActions, models, f.Audit, TimeProvider.System), new(f.Sessions, conversation),
+                new(f.Sessions, conversation),
                 () => true, () => 1, NullLogger<PromptParameterController>.Instance);
             parametersController.Bind();
             await Run("/prompt example");

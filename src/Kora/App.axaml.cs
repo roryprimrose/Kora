@@ -233,7 +233,6 @@ public sealed partial class App : Avalonia.Application
             responseWindow.OpenCustomizations = customizations.Open;
             BindInstructionUse(viewModel);
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
-                Services.GetRequiredService<Kora.Application.Definitions.PromptRequestConsumer>(),
                 Services.GetRequiredService<Kora.Application.Definitions.PromptConversationSubmission>(),
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,

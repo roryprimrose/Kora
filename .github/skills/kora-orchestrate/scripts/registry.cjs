@@ -464,6 +464,14 @@ function validateRecoveryContinuation(state, request, context = {}) {
 }
 
 function heldReservations(state, key) {
+  if (state?.version === 10) {
+    const p = lifecycleProjection(state);
+    return p.reservations.filter(r => r.key !== key).map(r => {
+      const grant = p.grants.find(g => g.id === r.grantId);
+      return { key: r.key, owner: grant?.owner ?? null, scopes: r.scopes,
+        scopeRevision: r.revision, sourceWritesRetired: grant?.status === 'revoked' };
+    });
+  }
   return [...state.items.filter(item => item.key !== key && holdsSlot(item))
     .map(item => ({ key: item.key, owner: item.owner, scopes: effectiveScopes(state, item),
       scopeRevision: item.scopeRevision ?? 0,
@@ -480,12 +488,18 @@ function heldReservations(state, key) {
 }
 
 function supersededWriter(state, key) {
+  if (state?.version === 10) {
+    const grants = lifecycleProjection(state).grants.filter(g => g.key === key);
+    return grants.length > 0 && grants.every(g => g.status === 'revoked');
+  }
   return (state.supersessions ?? []).some(({ event: { proof } }) =>
     proof.mode === 'activate-local' && proof.holders.some(holder =>
       holder.coordinator === proof.coordinator && holder.key === key));
 }
 
 function effectiveScopes(state, item) {
+  if (state?.version === 10) return [...new Set(lifecycleProjection(state).reservations
+    .filter(r => r.key === item.key).flatMap(r => r.scopes))];
   const transferred = (state.supersessions ?? []).flatMap(({ event: { proof } }) =>
     proof.mode === 'activate-local' ? proof.holders.filter(holder =>
       holder.coordinator === proof.coordinator && holder.key === item.key).flatMap(holder => holder.paths) : []);
@@ -508,6 +522,11 @@ function externalReservations(state) {
 }
 
 function preparedCandidate(state, key) {
+  if (state?.version === 10) {
+    const p = lifecycleProjection(state);
+    return p.reservations.some(r => !p.works.some(w => w.key === r.key) &&
+      overlaps(r.scopes, p.grants.filter(g => g.key === key && lifecycleLive(g)).flatMap(g => g.scopes)));
+  }
   return (state.supersessions ?? []).some(({ event: { proof } }) =>
     proof.mode === 'prepare-external' && proof.candidate.key === key);
 }
@@ -1139,6 +1158,7 @@ function validateReadmissions(state) {
 }
 
 function validate(state) {
+  if (state?.version === 10) { lifecycleProjection(state); return; }
   requireValue([1, 2, 3, 4, 5, 6, 7, 8, 9].includes(state?.version) && typeof state.enabled === 'boolean' &&
     ['observe', 'delivery'].includes(state.mode) &&
     text(state.coordinator) && (state.head === null || head(state.head)) && Array.isArray(state.items) &&
@@ -1280,6 +1300,7 @@ function dispatch(state, actions) {
 }
 
 function applyEvent(current, event, context = {}) {
+  if (current?.version === 10) return applyLifecycleEvent(current, event, context);
   validate(current);
   requireValue(event && text(event.id) && text(event.type), 'Event identity/type missing.');
   requireValue(![REFINEMENT_MARKER, AMENDMENT_MARKER, READMISSION_MARKER, SUPERSESSION_MARKER, RECOVERY_MARKER, RENEWAL_MARKER]
@@ -1732,17 +1753,533 @@ function applyEvent(current, event, context = {}) {
   return { state, actions, duplicate: false };
 }
 
+const LIFECYCLE_COMMANDS = Object.freeze({
+  adopt: 'kind legacyDigest',
+  register: 'kind key outcome pool workKind evidence pr',
+  allocate: 'kind key grantId scopes transfers',
+  dispatch: 'kind grantId',
+  attach: 'kind grantId owner source',
+  ambiguous: 'kind grantId reason',
+  revoke: 'kind grantId reason',
+  publish: 'kind grantId publication',
+  amend: 'kind grantId scopes',
+  refresh: 'kind head',
+  compatible: 'kind grantId head',
+  close: 'kind key outcome releases',
+  release: 'kind releases',
+  repair: 'kind key pr grantId scopes transfers',
+  pause: 'kind reason',
+  recover: 'kind coordinator',
+  resume: 'kind',
+  cleanup: 'kind key worktreeAbsent branchAbsent receipt'
+});
+const lifecycleLive = g => ['allocated', 'reserved', 'ambiguous', 'active', 'unresolved'].includes(g.status);
+const lifecycleAuthority = kind => !['register', 'publish', 'refresh', 'ambiguous', 'pause'].includes(kind);
+const hashValue = value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+
+function lifecycleFields(value, names) {
+  requireValue(value && typeof value === 'object' && !Array.isArray(value) &&
+    equal(Object.keys(value).sort(), names.split(' ').sort()), 'Malformed lifecycle fields.');
+}
+
+function lifecycleSource(source) {
+  lifecycleFields(source, 'worktree branch head');
+  requireValue(typeof source.worktree === 'string' && path.win32.isAbsolute(source.worktree) &&
+    path.win32.normalize(source.worktree) === source.worktree && text(source.branch) && head(source.head),
+  'Exact canonical lifecycle source required.');
+}
+
+function lifecycleCommand(c) {
+  requireValue(c && Object.hasOwn(LIFECYCLE_COMMANDS, c.kind), 'Unknown lifecycle command.');
+  lifecycleFields(c, LIFECYCLE_COMMANDS[c.kind] +
+    (c.kind === 'compatible' && Object.hasOwn(c, 'source') ? ' source' : ''));
+  for (const name of ['key', 'grantId', 'outcome', 'evidence', 'owner', 'reason', 'coordinator', 'receipt']) {
+    if (Object.hasOwn(c, name)) requireValue(text(c[name]), `Lifecycle ${name} required.`);
+  }
+  if (Object.hasOwn(c, 'scopes')) canonicalPaths(c.scopes, true);
+  if (Object.hasOwn(c, 'head')) requireValue(head(c.head), 'Lifecycle source head required.');
+  if (c.source) lifecycleSource(c.source);
+  for (const name of ['transfers', 'releases']) {
+    if (!Object.hasOwn(c, name)) continue;
+    requireValue(Array.isArray(c[name]), 'Explicit lifecycle custody disposition required.');
+    const ids = new Set();
+    for (const d of c[name]) {
+      lifecycleFields(d, 'reservationId paths');
+      requireValue(text(d.reservationId) && !ids.has(d.reservationId), 'Duplicate custody disposition.');
+      ids.add(d.reservationId);
+      canonicalPaths(d.paths, true);
+    }
+  }
+}
+
+function createLifecycleState(coordinator, sourceHead, mode = 'observe') {
+  const state = { version: 10, origin: { coordinator, head: sourceHead, mode,
+    legacy: null, legacyDigest: null }, history: [] };
+  lifecycleProjection(state);
+  return state;
+}
+
+function lifecycleInitial(origin) {
+  lifecycleFields(origin, 'coordinator head mode legacy legacyDigest');
+  requireValue(text(origin.coordinator) && (origin.head === null || head(origin.head)) &&
+    ['observe', 'delivery'].includes(origin.mode), 'Malformed lifecycle origin.');
+  const p = { version: 10, coordinator: origin.coordinator, enabled: true, mode: origin.mode,
+    head: origin.head, sourceRevision: 0, authorityRevision: 0,
+    works: [], grants: [], reservations: [], capacity: { ...LIMITS } };
+  if (origin.legacy === null) {
+    requireValue(origin.legacyDigest === null, 'Unexpected legacy digest.');
+    return p;
+  }
+  requireValue(origin.legacy?.version !== 10, 'Recursive lifecycle adoption forbidden.');
+  validate(origin.legacy);
+  const old = origin.legacy;
+  requireValue(origin.legacyDigest === digest(old) && old.coordinator === origin.coordinator &&
+    old.head === origin.head && old.mode === origin.mode, 'Complete legacy origin/digest mismatch.');
+  p.enabled = old.enabled;
+  for (const item of old.items) {
+    p.works.push({ key: item.key, outcome: item.outcome, pool: item.pool, kind: item.kind,
+      evidence: item.evidence, pr: item.pr, status: item.phase === 'candidate' ? 'candidate' :
+        item.phase === 'complete' ? 'delivered' : 'open',
+      publications: item.publication ? [structuredClone(item.publication)] : [],
+      cleanup: item.cleanup ? structuredClone(item.cleanup) : null });
+    if (item.phase !== 'candidate') p.grants.push({ id: `legacy:${item.key}`, key: item.key,
+      generation: 0, revision: 0, scopes: structuredClone(item.scopes),
+      status: supersededWriter(old, item.key) || item.sourceWritesRetired || item.phase === 'complete'
+        ? 'revoked' : 'unresolved', owner: item.owner, source: null, head: item.head, sourceRevision: -1 });
+  }
+  for (const held of heldReservations(old)) {
+    if (held.scopes.length === 0) continue;
+    const supersession = (old.supersessions ?? []).find(r =>
+      `supersession:${r.event.id}:${r.event.proof.candidate.key}` === held.key);
+    const key = supersession?.event.proof.candidate.key ?? held.key;
+    const id = `legacy:${key}`;
+    const existing = p.reservations.find(r => r.id === id);
+    if (existing) existing.scopes = [...new Set([...existing.scopes, ...held.scopes])];
+    else p.reservations.push({ id, key, grantId: p.grants.find(g => g.key === key)?.id ?? null,
+      scopes: structuredClone(held.scopes), revision: 0, status: 'HELD' });
+  }
+  lifecycleCapacity(p);
+  return p;
+}
+
+function lifecycleCapacity(p) {
+  for (const [pool, limit] of Object.entries(LIMITS)) {
+    p.capacity[pool] = limit - p.works.filter(w => w.pool === pool && w.status === 'open').length;
+    requireValue(p.capacity[pool] >= 0, `Lifecycle ${pool} pool is full.`);
+  }
+}
+
+function previewLifecycleMigration(legacy) {
+  requireValue(legacy?.version !== 10, 'Preview requires accepted legacy version1-9.');
+  validate(legacy);
+  const legacyDigest = digest(legacy);
+  return { version: 10, legacyDigest, activating: false,
+    projection: lifecycleInitial({ coordinator: legacy.coordinator, head: legacy.head,
+      mode: legacy.mode, legacy, legacyDigest }) };
+}
+
+function lifecycleAffected(p, c) {
+  lifecycleCommand(c);
+  const all = ['adopt', 'pause', 'recover', 'resume'].includes(c.kind);
+  const keys = new Set(c.key ? [c.key] : []);
+  const grant = p.grants.find(g => g.id === c.grantId);
+  if (grant) keys.add(grant.key);
+  const representedPr = p.works.find(w => keys.has(w.key))?.pr;
+  if (representedPr !== null && representedPr !== undefined)
+    p.works.filter(w => w.pr === representedPr).forEach(w => keys.add(w.key));
+  const ids = new Set([...(c.transfers ?? []), ...(c.releases ?? [])].map(d => d.reservationId));
+  const paths = [...(c.scopes ?? []), ...(grant?.scopes ?? [])];
+  for (const r of p.reservations) {
+    if (ids.has(r.id) || overlaps(r.scopes, paths)) keys.add(r.key);
+  }
+  const workKeys = all ? p.works.map(w => w.key) : [...keys];
+  const grants = p.grants.filter(g => all || keys.has(g.key));
+  const reservations = p.reservations.filter(r => all || keys.has(r.key) || overlaps(r.scopes, paths));
+  return { sourceRevision: p.sourceRevision, authorityRevision: p.authorityRevision,
+    works: Object.fromEntries(workKeys.sort().map(key => [key, p.works.some(w => w.key === key)
+      ? digest(p.works.find(w => w.key === key)) : null])),
+    grants: Object.fromEntries([...new Set([...grants.map(g => g.id), ...(c.grantId ? [c.grantId] : [])])]
+      .sort().map(id => [id, p.grants.some(g => g.id === id) ? digest(p.grants.find(g => g.id === id)) : null])),
+    reservations: Object.fromEntries(reservations.sort((a, b) => a.id.localeCompare(b.id))
+      .map(r => [r.id, digest(r)])) };
+}
+
+function lifecycleRevisions(state, command) {
+  return lifecycleAffected(lifecycleProjection(state), command);
+}
+
+function lifecycleProofDigest(event) {
+  const value = structuredClone(event);
+  if (value.evidence?.human) delete value.evidence.human.proofDigest;
+  for (const holder of value.evidence?.holders ?? []) delete holder.acknowledgment.proofDigest;
+  return digest(value);
+}
+
+function lifecycleHolders(p, c) {
+  const ids = new Set([...(c.transfers ?? []), ...(c.releases ?? [])].map(d =>
+    p.reservations.find(r => r.id === d.reservationId)?.grantId).filter(Boolean));
+  if (['revoke', 'amend', 'compatible'].includes(c.kind)) ids.add(c.grantId);
+  if (['allocate', 'repair', 'close', 'cleanup'].includes(c.kind)) {
+    p.grants.filter(g => g.key === c.key).forEach(g => ids.add(g.id));
+  }
+  if (['adopt', 'pause', 'recover'].includes(c.kind)) {
+    p.grants.filter(lifecycleLive).forEach(g => ids.add(g.id));
+  }
+  return [...ids].sort().map(id => p.grants.find(g => g.id === id));
+}
+
+function lifecycleEvidence(p, event, e, used) {
+  lifecycleFields(event, 'id type command expected evidence');
+  requireValue(text(event.id) && event.type === 'lifecycle', 'Lifecycle event identity/type required.');
+  const c = event.command;
+  lifecycleCommand(c);
+  requireValue(equal(event.expected, lifecycleAffected(p, c)), 'Stale affected lifecycle revisions.');
+  lifecycleFields(event.evidence, 'human holders receipt');
+  requireValue(text(event.evidence.receipt) && Array.isArray(event.evidence.holders),
+    'Explicit lifecycle evidence required.');
+  lifecycleFields(e, 'kind eventDigest coordinator ledgerAuthorityVerified humanAuthorizationVerified holdersVerified sourceOwnershipVerified deliveryVerified preservationVerified receipt');
+  requireValue(e.kind === 'host-verified-lifecycle' && e.eventDigest === digest(event) &&
+    e.coordinator === p.coordinator && e.ledgerAuthorityVerified === true &&
+    ['humanAuthorizationVerified', 'sourceOwnershipVerified', 'deliveryVerified', 'preservationVerified']
+      .every(name => typeof e[name] === 'boolean') && text(e.receipt),
+  'Independent current host lifecycle readback required.');
+  const binding = lifecycleProofDigest(event), h = event.evidence.human;
+  if (lifecycleAuthority(c.kind)) {
+    lifecycleFields(h, 'id actor proofDigest receipt');
+    requireValue(text(h.id) && text(h.actor) && text(h.receipt) && h.proofDigest === binding &&
+      e.humanAuthorizationVerified === true && !used.decisions.has(h.id),
+    'Fresh exact human lifecycle decision required.');
+  } else requireValue(h === null, 'Bookkeeping must not claim unnecessary human authority.');
+  const required = lifecycleHolders(p, c);
+  requireValue(required.every(Boolean) && equal(required.map(g => g.id),
+    event.evidence.holders.map(v => v.grantId)) && equal(e.holdersVerified, required.map(g => g.id)),
+  'Every affected exact holder requires independent readback.');
+  for (const [index, grant] of required.entries()) {
+    const v = event.evidence.holders[index];
+    lifecycleFields(v, 'grantId owner writingStopped commandsRunning workJoined pendingInstructions processingInstructions fence preservation acknowledgment');
+    lifecycleFields(v.fence, 'epoch nonce established revokesEarlierSourceAuthority');
+    lifecycleFields(v.acknowledgment, 'id proofDigest receipt');
+    requireValue(v.owner === grant.owner && v.writingStopped === true && v.commandsRunning === false &&
+      v.workJoined === true && [0, 'UNKNOWN'].includes(v.pendingInstructions) &&
+      [0, 'UNKNOWN'].includes(v.processingInstructions) && Number.isSafeInteger(v.fence.epoch) &&
+      v.fence.epoch > (used.epochs.get(grant.id) ?? 0) && text(v.fence.nonce) &&
+      !used.nonces.has(v.fence.nonce) && v.fence.established === true &&
+      v.fence.revokesEarlierSourceAuthority === true && text(v.acknowledgment.id) &&
+      !used.acknowledgments.has(v.acknowledgment.id) && v.acknowledgment.proofDigest === binding &&
+      text(v.acknowledgment.receipt),
+    'Fresh exact holder pause/join/source fence/acknowledgment required; UNKNOWN is not zero.');
+    const m = v.preservation;
+    lifecycleFields(m, 'actual planned committed restored retained unpreserved commits bytesPreserved refsPreserved historyPreserved receipt');
+    for (const name of ['actual', 'planned', 'committed', 'restored', 'retained', 'unpreserved'])
+      canonicalPaths(m[name]);
+    requireValue(m.unpreserved.length === 0 && m.bytesPreserved === true && m.refsPreserved === true &&
+      m.historyPreserved === true && text(m.receipt) && Array.isArray(m.commits) &&
+      m.commits.every(commit => {
+        lifecycleFields(commit, 'head ref');
+        return head(commit.head) && text(commit.ref);
+      }) && [...m.committed, ...m.restored].every(value => m.actual.includes(value)) &&
+      [...m.actual, ...m.committed, ...m.restored].every(value => covers(m.retained, value)) &&
+      (m.committed.length === 0 || m.commits.length > 0) && e.preservationVerified === true,
+    'Complete durable lifecycle bytes/refs/history preservation required.');
+    requireValue(c.kind !== 'amend' || [...m.actual, ...m.committed, ...m.restored]
+      .every(value => covers(grant.scopes, value)),
+    'Ordinary lifecycle amendment cannot retroauthorize an outside-scope write.');
+    const prior = used.manifests.get(grant.id);
+    requireValue(!prior || ['actual', 'planned', 'committed', 'restored'].every(name =>
+      prior[name].every(value => (name === 'planned' ? [...m.actual, ...m.planned] : m[name])
+        .includes(value))), 'Lifecycle preservation history was omitted.');
+    used.manifests.set(grant.id, m);
+    used.epochs.set(grant.id, v.fence.epoch);
+    used.nonces.add(v.fence.nonce);
+    used.acknowledgments.add(v.acknowledgment.id);
+  }
+  if (h) used.decisions.add(h.id);
+}
+
+function lifecycleDispose(p, dispositions, targetScopes = null) {
+  for (const d of dispositions) {
+    const r = p.reservations.find(r => r.id === d.reservationId);
+    requireValue(r && p.works.some(w => w.key === r.key) &&
+      d.paths.every(value => r.scopes.includes(value) && (!targetScopes || targetScopes.includes(value))),
+    'Exact local custody disposition required; external preparation cannot activate.');
+    r.scopes = r.scopes.filter(value => !d.paths.includes(value));
+    r.revision++;
+  }
+  p.reservations = p.reservations.filter(r => r.scopes.length);
+}
+
+function lifecycleReduce(p, event, e, used, origin, index) {
+  lifecycleEvidence(p, event, e, used);
+  const c = event.command, actions = [];
+  const work = p.works.find(w => w.key === c.key);
+  const grant = p.grants.find(g => g.id === c.grantId);
+  const revoke = g => { g.status = 'revoked'; g.revision++; };
+  requireValue(!origin.legacy || index > 0 || c.kind === 'adopt',
+    'Legacy shadow must be explicitly adopted before lifecycle operations.');
+  if (['allocate', 'repair', 'dispatch', 'attach', 'amend', 'compatible', 'publish'].includes(c.kind)) {
+    requireValue(p.enabled && p.mode === 'delivery' && head(p.head),
+      'Active lifecycle delivery and verified source required.');
+  }
+  switch (c.kind) {
+    case 'adopt':
+      requireValue(index === 0 && origin.legacy && c.legacyDigest === origin.legacyDigest,
+        'Explicit complete legacy adoption required; never automatic.');
+      break;
+    case 'register':
+      requireValue(!work && !p.works.some(w => w.outcome === c.outcome) &&
+        Object.hasOwn(LIMITS, c.pool) && ['feature', 'maintenance', 'repair'].includes(c.workKind) &&
+        (c.pool === 'repair') === (c.workKind === 'repair') &&
+        (c.pr === null || Number.isSafeInteger(c.pr) && c.pr > 0) &&
+        (c.pool !== 'repair' || c.pr !== null) && !p.works.some(w => c.pr !== null && w.pr === c.pr),
+      'Unique admitted lifecycle outcome/key/PR required; use same-work repair.');
+      p.works.push({ key: c.key, outcome: c.outcome, pool: c.pool, kind: c.workKind,
+        evidence: c.evidence, pr: c.pr, status: 'candidate', publications: [], cleanup: null });
+      break;
+    case 'allocate':
+    case 'repair': {
+      requireValue(work && (c.kind === 'repair' ? ['open', 'delivered', 'cancelled', 'abandoned'].includes(work.status) &&
+        work.pr === c.pr && Number.isSafeInteger(c.pr) && c.pr > 0 : ['candidate', 'open'].includes(work.status)) &&
+        !p.grants.some(g => g.id === c.grantId) && !c.grantId.startsWith('legacy:'),
+      'Fresh bounded execution identity required; retired grants never restart.');
+      requireValue(work.pr === null || !p.works.some(w =>
+        w.key !== work.key && w.pr === work.pr && w.status === 'open'), 'PR already has a current execution.');
+      requireValue(!origin.legacy || !preparedCandidate(origin.legacy, c.key),
+        'Legacy external preparation is nonactivating, not execution authority.');
+      lifecycleHolders(p, c).forEach(revoke);
+      lifecycleDispose(p, c.transfers, c.scopes);
+      requireValue(!p.reservations.some(r => overlaps(r.scopes, c.scopes)),
+        'Lifecycle custody conflicts with retained exclusions.');
+      const generation = Math.max(0, ...p.grants.filter(g => g.key === c.key).map(g => g.generation)) + 1;
+      p.grants.push({ id: c.grantId, key: c.key, generation, revision: 0, scopes: structuredClone(c.scopes),
+        status: 'allocated', owner: null, source: null, head: p.head, sourceRevision: p.sourceRevision });
+      p.reservations.push({ id: `grant:${c.grantId}`, key: c.key, grantId: c.grantId,
+        scopes: structuredClone(c.scopes), revision: 0, status: 'HELD' });
+      work.status = 'open';
+      if (c.kind === 'repair') { work.pool = 'repair'; work.kind = 'repair'; }
+      break;
+    }
+    case 'dispatch':
+      requireValue(grant?.status === 'allocated' && grant.head === p.head &&
+        grant.sourceRevision === p.sourceRevision, 'Only a fresh allocated grant may dispatch once.');
+      grant.status = 'reserved'; grant.revision++;
+      actions.push({ type: 'launch', key: grant.key, pool: p.works.find(w => w.key === grant.key).pool,
+        grantId: grant.id, grantRevision: grant.revision });
+      break;
+    case 'attach':
+      requireValue(grant && ['reserved', 'ambiguous'].includes(grant.status) && grant.owner === null &&
+        e.sourceOwnershipVerified === true &&
+        c.owner !== p.coordinator && !p.grants.some(g => lifecycleLive(g) &&
+          (g.owner === c.owner || g.source &&
+            (g.source.worktree.toLowerCase() === c.source.worktree.toLowerCase() ||
+              g.source.branch === c.source.branch))),
+      'Exact new child and exclusive source attachment required.');
+      grant.owner = c.owner; grant.source = structuredClone(c.source);
+      grant.status = 'active'; grant.revision++;
+      break;
+    case 'ambiguous':
+      requireValue(grant?.status === 'reserved', 'Only an unresolved launch may be ambiguous.');
+      grant.status = 'ambiguous'; grant.revision++;
+      break;
+    case 'revoke':
+      requireValue(grant && lifecycleLive(grant), 'Only a current grant may be revoked.');
+      revoke(grant);
+      break;
+    case 'publish': {
+      const proof = c.publication, current = p.works.find(w => w.key === grant?.key);
+      lifecycleFields(proof, 'pushedHead remoteHead pr ready enrolled receipt');
+      requireValue(grant?.status === 'active' && grant.head === p.head &&
+        grant.sourceRevision === p.sourceRevision && head(proof.pushedHead) &&
+        proof.pushedHead === proof.remoteHead && Number.isSafeInteger(proof.pr) && proof.pr > 0 &&
+        (current.pr === null || current.pr === proof.pr) && proof.ready === true &&
+        proof.enrolled === true && text(proof.receipt) &&
+        !p.works.some(w => w.key !== current.key && w.pr === proof.pr && w.status === 'open'),
+      'Verified same-PR publication required.');
+      current.pr = proof.pr; current.publications.push(structuredClone(proof));
+      used.published.add(grant.id);
+      break;
+    }
+    case 'amend': {
+      requireValue(grant?.status === 'active' && grant.head === p.head &&
+        grant.sourceRevision === p.sourceRevision && grant.scopes.every(s => c.scopes.includes(s)) &&
+        !p.reservations.some(r => r.grantId !== grant.id && overlaps(r.scopes, c.scopes)),
+      'Current source and exclusive complete scope union required.');
+      grant.scopes = structuredClone(c.scopes); grant.revision++;
+      const r = p.reservations.find(r => r.grantId === grant.id);
+      requireValue(r, 'Active grant custody missing.');
+      r.scopes = structuredClone(c.scopes); r.revision++;
+      break;
+    }
+    case 'refresh':
+      if (p.head !== c.head) { p.head = c.head; p.sourceRevision++; }
+      break;
+    case 'compatible':
+      requireValue(grant?.status === 'active' && c.head === p.head && e.sourceOwnershipVerified === true,
+        'Fresh independent current-source compatibility required.');
+      if (c.source) {
+        requireValue(c.source.worktree === grant.source.worktree && c.source.branch === grant.source.branch,
+          'Compatibility cannot replace the attached source identity.');
+        grant.source = structuredClone(c.source);
+      }
+      grant.head = c.head; grant.sourceRevision = p.sourceRevision; grant.revision++;
+      break;
+    case 'close':
+      requireValue(work && work.status === 'open' && ['delivered', 'cancelled', 'abandoned'].includes(c.outcome) &&
+        !p.grants.some(g => g.key === work.key && lifecycleLive(g)) &&
+        (c.outcome !== 'delivered' || work.publications.length > 0 && e.deliveryVerified === true &&
+          used.published.has(p.grants.filter(g => g.key === work.key).at(-1)?.id)) &&
+        e.preservationVerified === true && c.releases.every(d =>
+          p.reservations.find(r => r.id === d.reservationId)?.key === c.key),
+      'Logical closure requires terminated joined authority, delivery and durable preservation.');
+      lifecycleDispose(p, c.releases);
+      work.status = c.outcome;
+      break;
+    case 'release':
+      requireValue(c.releases.length > 0 && c.releases.every(d => {
+        const r = p.reservations.find(r => r.id === d.reservationId);
+        return r && p.grants.find(g => g.id === r.grantId)?.status === 'revoked';
+      }), 'Only explicitly retired remainder custody may be released.');
+      lifecycleDispose(p, c.releases);
+      break;
+    case 'pause':
+      requireValue(p.enabled, 'Lifecycle already paused.');
+      p.enabled = false; p.authorityRevision++;
+      p.grants.filter(lifecycleLive).forEach(revoke);
+      break;
+    case 'recover':
+      requireValue(!p.enabled && c.coordinator !== p.coordinator &&
+        !p.grants.some(lifecycleLive), 'Recovery requires paused joined authority.');
+      p.coordinator = c.coordinator; p.authorityRevision++; p.head = null; p.sourceRevision++;
+      break;
+    case 'resume':
+      requireValue(!p.enabled, 'Lifecycle is not paused.');
+      p.enabled = true; p.authorityRevision++;
+      break;
+    case 'cleanup':
+      requireValue(work && ['delivered', 'cancelled', 'abandoned'].includes(work.status) &&
+        c.worktreeAbsent === true && c.branchAbsent === true && e.preservationVerified === true &&
+        e.sourceOwnershipVerified === true,
+      'Optional physical cleanup needs explicit authority and actual absence evidence.');
+      work.cleanup = { worktreeAbsent: true, branchAbsent: true, receipt: c.receipt };
+      break;
+    default:
+      throw new Error('Unsupported lifecycle command.');
+  }
+  lifecycleCapacity(p);
+  return actions;
+}
+
+function lifecycleReplay(state) {
+  lifecycleFields(state, 'version origin history');
+  requireValue(state.version === 10 && Array.isArray(state.history), 'Malformed lifecycle registry.');
+  const p = lifecycleInitial(state.origin);
+  const used = { decisions: new Set(), acknowledgments: new Set(), nonces: new Set(),
+    epochs: new Map(), manifests: new Map(), published: new Set() };
+  if (state.origin.legacy) {
+    const old = state.origin.legacy;
+    const remember = (key, acknowledgment, authorization, fence) => {
+      if (acknowledgment?.id) used.acknowledgments.add(acknowledgment.id);
+      if (authorization?.id) used.decisions.add(authorization.id);
+      if (fence) {
+        used.nonces.add(fence.nonce);
+        used.epochs.set(`legacy:${key}`, Math.max(used.epochs.get(`legacy:${key}`) ?? 0, fence.epoch));
+      }
+    };
+    for (const item of old.items) for (const r of [...(item.scopeHistory ?? []), ...(item.scopeAmendments ?? [])])
+      remember(item.key, r.acknowledgment, r.authorization, r.proof.reconciliation?.fence);
+    for (const r of [...(old.recoveries ?? []), ...(old.recoveryRenewals ?? [])]) {
+      const event = r.event;
+      remember(event.proof.key, event.acknowledgment, event.authorization, event.proof.reconciliation?.fence);
+    }
+    for (const r of old.supersessions ?? []) for (const h of r.event.proof.holders)
+      remember(h.key, h.acknowledgment, r.event.authorization, h.reconciliation?.fence);
+    for (const item of old.items) {
+      if (item.publication) used.published.add(`legacy:${item.key}`);
+      const manifests = [...(item.scopeHistory ?? []), ...(item.scopeAmendments ?? [])]
+        .map(r => r.proof.manifest);
+      manifests.push(...(old.recoveries ?? []).filter(r => r.event.proof.key === item.key)
+        .map(r => ({ ...r.event.proof.manifest, restored: r.event.proof.workingTree.restored })));
+      manifests.push(...(old.supersessions ?? []).flatMap(r => r.event.proof.holders
+        .filter(h => h.key === item.key && h.coordinator === old.coordinator).map(h => h.manifest))
+        .filter(Boolean));
+      used.manifests.set(`legacy:${item.key}`, Object.fromEntries(['actual', 'planned', 'committed', 'restored']
+        .map(name => [name, [...new Set(manifests.flatMap(m => m[name] ?? []))]])));
+    }
+  }
+  const ids = new Set(state.origin.legacy?.seen ?? []), commands = [];
+  let previous = null;
+  for (const [index, record] of state.history.entries()) {
+    lifecycleFields(record, 'event hostEvidence digest');
+    requireValue(hashValue(record.digest) && record.digest === digest({
+      previous, event: record.event, hostEvidence: record.hostEvidence }) &&
+      !ids.has(record.event.id), 'Lifecycle history digest/replay binding changed.');
+    commands.push(lifecycleReduce(p, record.event, record.hostEvidence, used, state.origin, index));
+    ids.add(record.event.id);
+    previous = record.digest;
+  }
+  return { projection: p, commands };
+}
+
+function lifecycleProjection(state) {
+  return lifecycleReplay(state).projection;
+}
+
+function applyLifecycleEvent(current, event, context) {
+  const replay = lifecycleReplay(current);
+  const prior = current.history.find(r => r.event.id === event?.id);
+  if (prior) {
+    requireValue(equal(prior.event, event) && !lifecycleAuthority(event.command.kind),
+      'Lifecycle authority cannot be replayed; read the accepted checkpoint.');
+    return { state: structuredClone(current), actions: [], duplicate: true };
+  }
+  const state = structuredClone(current);
+  const record = { event: structuredClone(event), hostEvidence: structuredClone(context.lifecycleEvidence) };
+  record.digest = digest({ previous: current.history.at(-1)?.digest ?? null, ...record });
+  state.history.push(record);
+  const checked = lifecycleReplay(state);
+  requireValue(checked.commands.length === replay.commands.length + 1, 'Lifecycle history append failed.');
+  return { state, actions: checked.commands.at(-1), duplicate: false };
+}
+
+function adoptLifecycle(legacy, event, context = {}) {
+  const preview = previewLifecycleMigration(legacy);
+  requireValue(event?.command?.kind === 'adopt', 'Explicit adoption event required.');
+  return applyLifecycleEvent({ version: 10, origin: { coordinator: legacy.coordinator,
+    head: legacy.head, mode: legacy.mode, legacy: structuredClone(legacy),
+    legacyDigest: preview.legacyDigest }, history: [] }, event, context);
+}
+
+function validateSourceGrant(state, request, context = {}) {
+  const p = lifecycleProjection(state);
+  lifecycleFields(request, 'grantId grantRevision owner source head paths');
+  lifecycleSource(request.source);
+  canonicalPaths(request.paths, true);
+  const g = p.grants.find(g => g.id === request.grantId);
+  requireValue(p.enabled && p.mode === 'delivery' && g?.status === 'active' &&
+    g.revision === request.grantRevision && g.owner === request.owner && equal(g.source, request.source) &&
+    head(p.head) && request.head === p.head && g.head === p.head && g.sourceRevision === p.sourceRevision &&
+    request.paths.every(value => covers(g.scopes, value)) &&
+    p.reservations.some(r => r.grantId === g.id && request.paths.every(value => covers(r.scopes, value))) &&
+    !p.reservations.some(r => r.grantId !== g.id && overlaps(r.scopes, request.paths)) &&
+    context.sourceAuthorityVerified === true && text(context.receipt),
+  'Current exact source grant/owner/revision/custody and independent host authority required.');
+  return { valid: true, executionAuthorized: false, grantId: g.id, grantRevision: g.revision };
+}
+
 module.exports = { createState, applyEvent, validate, digest, scope, canonicalPaths, overlaps,
   heldReservations, effectiveScopes, supersededWriter, preparedCandidate,
   supersessionAcknowledgmentDigest, validateRecoveryContinuation, recoveryContinuationDigest,
-  validateScopeExtensionContinuation, LIMITS };
+  validateScopeExtensionContinuation, LIMITS, createLifecycleState, previewLifecycleMigration,
+  adoptLifecycle, lifecycleProjection, lifecycleRevisions, lifecycleProofDigest, validateSourceGrant };
 
 if (require.main === module) {
   try {
     const input = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
     const result = input.operation === 'init'
-      ? { state: createState(input.coordinator, input.head, input.mode), actions: [] }
-      : applyEvent(input.state, input.event);
+      ? { state: (input.lifecycleVersion === 10 ? createLifecycleState : createState)(
+        input.coordinator, input.head, input.mode), actions: [] }
+      : input.operation === 'preview-lifecycle' ? previewLifecycleMigration(input.state)
+      : input.operation === 'adopt-lifecycle' ? adoptLifecycle(input.state, input.event, input.context)
+      : applyEvent(input.state, input.event, input.context);
     console.log(JSON.stringify(result));
   } catch (error) {
     console.error(error);

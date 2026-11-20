@@ -21,6 +21,387 @@ const coordinator = 'agent-host-session://coordinator';
 const planner = 'agent-host-session://coordinator?chat=planner';
 const owner = key => `agent-host-session://coordinator?chat=${key}`;
 
+const { createLifecycleState, lifecycleProjection, lifecycleRevisions, lifecycleProofDigest,
+  previewLifecycleMigration, adoptLifecycle, validateSourceGrant } = require('./registry.cjs');
+const { lifecycleFixture, lifecycleInput } = require('./refinement-fixture.cjs');
+
+function lifecycleRegister(f, key, scopes, transfers = [], start = true) {
+  f.run({ kind: 'register', key, outcome: `SYNTHETIC complete ${key}`, pool: 'ready',
+    workKind: 'feature', evidence: 'SYNTHETIC admitted complete operation.', pr: null });
+  f.run({ kind: 'allocate', key, grantId: key, scopes, transfers });
+  if (start) {
+    f.run({ kind: 'dispatch', grantId: key });
+    f.run({ kind: 'attach', grantId: key, owner: `synthetic-owner-${key}`,
+      source: { worktree: `Q:\\Synthetic\\${key}`, branch: `synthetic/${key}`, head: '1'.repeat(40) } });
+  }
+}
+
+function lifecycleRequest(state, id) {
+  const p = lifecycleProjection(state), g = p.grants.find(g => g.id === id);
+  return { grantId: id, grantRevision: g.revision, owner: g.owner, source: g.source,
+    head: p.head, paths: [g.scopes[0]] };
+}
+
+function lifecycleClose(f, id, pr, releases = []) {
+  f.run({ kind: 'publish', grantId: id, publication: { pushedHead: '2'.repeat(40),
+    remoteHead: '2'.repeat(40), pr, ready: true, enrolled: true, receipt: 'SYNTHETIC remote/PR readback.' } });
+  f.run({ kind: 'revoke', grantId: id, reason: 'SYNTHETIC source stop and join.' });
+  return f.run({ kind: 'close', key: id, outcome: 'delivered', releases });
+}
+
+test('v10 A-to-B-to-C closes retained work without cleanup, transfers custody and rejects every old grant', () => {
+  const f = lifecycleFixture(), paths = ['src\\owned.cs'];
+  const requests = [];
+  for (const [index, key] of ['a', 'b', 'c'].entries()) {
+    const transfers = index ? [{ reservationId: `grant:${['a', 'b'][index - 1]}`, paths }] : [];
+    lifecycleRegister(f, key, paths, transfers);
+    requests.push(lifecycleRequest(f.state, key));
+    assert.equal(validateSourceGrant(f.state, requests.at(-1),
+      { sourceAuthorityVerified: true, receipt: 'SYNTHETIC exact current host grant.' }).valid, true);
+    if (key !== 'c') {
+      const before = f.state.history.length;
+      const result = lifecycleClose(f, key, 100 + index);
+      assert.deepEqual(result.actions, []);
+      assert.equal(result.state.history.length, before + 3);
+      const p = lifecycleProjection(f.state);
+      assert.equal(p.works.find(w => w.key === key).cleanup, null);
+      assert.equal(p.capacity.ready, 10);
+      assert.deepEqual(p.reservations.map(r => r.scopes), [paths]);
+    }
+    for (const old of requests.slice(0, -1)) assert.throws(() =>
+      validateSourceGrant(f.state, old, { sourceAuthorityVerified: true, receipt: 'SYNTHETIC stale host claim.' }));
+  }
+  const p = lifecycleProjection(f.state);
+  assert.deepEqual(p.grants.map(g => g.status), ['revoked', 'revoked', 'active']);
+  assert.deepEqual(p.works.map(w => w.status), ['delivered', 'delivered', 'open']);
+  assert.deepEqual(heldReservations(f.state).map(r => r.scopes), [paths]);
+  assert.equal(p.capacity.ready, 9);
+  assert.equal(f.state.history.some(r => Object.hasOwn(r, 'before')), false);
+  assert.equal(f.state.origin.legacy, null);
+});
+
+test('v10 partial and multi-holder transfer retires entire source grants and explicitly disposes remainders', () => {
+  const f = lifecycleFixture();
+  lifecycleRegister(f, 'a', ['src\\a.cs', 'docs\\retained.md']);
+  lifecycleRegister(f, 'b', ['src\\b.cs']);
+  const a = lifecycleRequest(f.state, 'a'), b = lifecycleRequest(f.state, 'b');
+  lifecycleRegister(f, 'c', ['src\\a.cs', 'src\\b.cs'], [
+    { reservationId: 'grant:a', paths: ['src\\a.cs'] },
+    { reservationId: 'grant:b', paths: ['src\\b.cs'] }
+  ]);
+  let p = lifecycleProjection(f.state);
+  assert.deepEqual(p.reservations.find(r => r.id === 'grant:a').scopes, ['docs\\retained.md']);
+  for (const request of [a, b]) assert.throws(() => validateSourceGrant(f.state, request,
+    { sourceAuthorityVerified: true, receipt: 'SYNTHETIC stale instruction.' }));
+  assert.throws(() => f.run({ kind: 'allocate', key: 'a', grantId: 'a', scopes: ['docs\\retained.md'],
+    transfers: [] }), /Fresh bounded/);
+  assert.deepEqual(f.run({ kind: 'release',
+    releases: [{ reservationId: 'grant:a', paths: ['docs\\retained.md'] }] }).actions, []);
+  p = lifecycleProjection(f.state);
+  assert.equal(p.reservations.some(r => r.key === 'a'), false);
+  assert.equal(p.works.find(w => w.key === 'a').status, 'open');
+  assert.equal(p.capacity.ready, 7);
+});
+
+test('v10 same-PR repair uses a fresh generation and independent repair capacity, not phase resurrection', () => {
+  const f = lifecycleFixture();
+  lifecycleRegister(f, 'a', ['src\\a.cs']);
+  lifecycleClose(f, 'a', 55, [{ reservationId: 'grant:a', paths: ['src\\a.cs'] }]);
+  const original = structuredClone(f.state.history);
+  f.run({ kind: 'repair', key: 'a', pr: 55, grantId: 'repair-a', scopes: ['src\\a.cs'], transfers: [] });
+  let p = lifecycleProjection(f.state);
+  assert.equal(p.capacity.repair, 3);
+  assert.equal(p.capacity.ready, 10);
+  assert.equal(p.works[0].pr, 55);
+  assert.deepEqual(p.grants.map(g => g.generation), [1, 2]);
+  assert.deepEqual(f.state.history.slice(0, original.length), original);
+  f.run({ kind: 'dispatch', grantId: 'repair-a' });
+  f.run({ kind: 'attach', grantId: 'repair-a', owner: 'fresh-repair-owner',
+    source: { worktree: 'Q:\\Synthetic\\repair', branch: 'synthetic/repair', head: '1'.repeat(40) } });
+  f.run({ kind: 'revoke', grantId: 'repair-a', reason: 'SYNTHETIC stopped without a repair publication.' });
+  assert.throws(() => f.run({ kind: 'close', key: 'a', outcome: 'delivered', releases: [] }),
+    /Logical closure/);
+  p = lifecycleProjection(f.state);
+  assert.equal(p.works[0].publications.length, 1);
+  assert.equal(p.grants[0].status, 'revoked');
+});
+
+test('v10 revisions ignore unrelated bookkeeping, but bind affected scopes/source/custody and exact human evidence', () => {
+  const f = lifecycleFixture();
+  lifecycleRegister(f, 'a', ['src\\a.cs']);
+  const command = { kind: 'amend', grantId: 'a', scopes: ['src\\a.cs', 'src\\new.cs'] };
+  const proof = lifecycleInput(f.state, command, 'exact-amend');
+  const before = lifecycleRequest(f.state, 'a');
+  f.run({ kind: 'register', key: 'unrelated', outcome: 'SYNTHETIC unrelated outcome',
+    pool: 'ready', workKind: 'feature', evidence: 'SYNTHETIC other bookkeeping.', pr: null });
+  assert.deepEqual(lifecycleRevisions(f.state, command), proof.event.expected);
+  const accepted = applyEvent(f.state, proof.event, proof);
+  assert.throws(() => validateSourceGrant(accepted.state, before,
+    { sourceAuthorityVerified: true, receipt: 'SYNTHETIC obsolete revision.' }));
+  assert.throws(() => applyEvent(accepted.state, proof.event, proof), /cannot be replayed/);
+  for (const mutate of [
+    x => { x.event.evidence.human.receipt = 'different decision'; },
+    x => { x.event.evidence.holders[0].acknowledgment.id = 'different response'; },
+    x => { x.lifecycleEvidence.humanAuthorizationVerified = false; },
+    x => { x.lifecycleEvidence.eventDigest = '0'.repeat(64); },
+    x => { x.event.command.scopes.push('src\\unapproved.cs'); }
+  ]) {
+    const bad = structuredClone(proof); mutate(bad);
+    assert.throws(() => applyEvent(f.state, bad.event, bad));
+  }
+  f.run({ kind: 'refresh', head: '2'.repeat(40) });
+  assert.throws(() => applyEvent(f.state, proof.event, proof), /Stale affected/);
+  assert.throws(() => validateSourceGrant(f.state, before,
+    { sourceAuthorityVerified: true, receipt: 'SYNTHETIC stale source.' }));
+  f.run({ kind: 'compatible', grantId: 'a', head: '2'.repeat(40) });
+  assert.equal(validateSourceGrant(f.state, lifecycleRequest(f.state, 'a'),
+    { sourceAuthorityVerified: true, receipt: 'SYNTHETIC current-source compatibility.' }).valid, true);
+  const priorSource = lifecycleRequest(f.state, 'a');
+  f.run({ kind: 'compatible', grantId: 'a', head: '2'.repeat(40),
+    source: { ...priorSource.source, head: '3'.repeat(40) } });
+  assert.throws(() => validateSourceGrant(f.state, priorSource,
+    { sourceAuthorityVerified: true, receipt: 'SYNTHETIC old worktree source.' }));
+  assert.equal(validateSourceGrant(f.state, lifecycleRequest(f.state, 'a'),
+    { sourceAuthorityVerified: true, receipt: 'SYNTHETIC exact authorized source advancement.' }).valid, true);
+  assert.throws(() => f.run({ kind: 'compatible', grantId: 'a', head: '2'.repeat(40),
+    source: { ...priorSource.source, worktree: 'Q:\\Synthetic\\different-owner' } }), /source identity/);
+});
+
+test('v10 unknown launch, cancellation, abandonment and coordinator restart retain work and cannot relaunch old grants', () => {
+  const f = lifecycleFixture();
+  lifecycleRegister(f, 'a', ['src\\a.cs'], [], false);
+  f.run({ kind: 'dispatch', grantId: 'a' });
+  f.run({ kind: 'ambiguous', grantId: 'a', reason: 'SYNTHETIC uncertain host result.' });
+  assert.throws(() => f.run({ kind: 'dispatch', grantId: 'a' }), /dispatch once/);
+  assert.throws(() => f.run({ kind: 'close', key: 'a', outcome: 'cancelled', releases: [] }), /Logical closure/);
+  f.run({ kind: 'revoke', grantId: 'a', reason: 'SYNTHETIC independently reconciled launch and joined work.' });
+  f.run({ kind: 'close', key: 'a', outcome: 'cancelled', releases: [] });
+  assert.equal(lifecycleProjection(f.state).capacity.ready, 10);
+  assert.equal(lifecycleProjection(f.state).reservations.length, 1);
+  lifecycleRegister(f, 'b', ['src\\b.cs']);
+  const stale = lifecycleRequest(f.state, 'b');
+  f.run({ kind: 'pause', reason: 'SYNTHETIC explicit interruption; exact joined owners.' });
+  f.run({ kind: 'recover', coordinator: 'synthetic-new-coordinator' });
+  f.run({ kind: 'resume' });
+  f.run({ kind: 'refresh', head: '1'.repeat(40) });
+  assert.throws(() => validateSourceGrant(f.state, stale,
+    { sourceAuthorityVerified: true, receipt: 'SYNTHETIC old coordinator message.' }));
+  f.run({ kind: 'close', key: 'b', outcome: 'abandoned', releases: [] });
+  assert.equal(lifecycleProjection(f.state).reservations.length, 2);
+  assert.equal(f.state.history.some(r => r.event.command.kind === 'cleanup'), false);
+});
+
+test('v10 closure and transfer fail without complete joined preservation or real-shaped independent readback', () => {
+  const f = lifecycleFixture();
+  lifecycleRegister(f, 'a', ['src\\a.cs']);
+  const command = { kind: 'revoke', grantId: 'a', reason: 'SYNTHETIC complete stop.' };
+  const original = JSON.stringify(f.state);
+  for (const mutate of [
+    i => { i.event.evidence.holders[0].pendingInstructions = 1; },
+    i => { i.event.evidence.holders[0].processingInstructions = null; },
+    i => { i.event.evidence.holders[0].fence.established = false; },
+    i => { i.event.evidence.holders[0].workJoined = false; },
+    i => { i.event.evidence.holders[0].preservation.unpreserved = ['src\\a.cs']; },
+    i => { i.event.evidence.holders[0].preservation.retained = []; },
+    i => { i.event.evidence.holders[0].preservation.commits = []; },
+    i => { i.lifecycleEvidence.holdersVerified = []; },
+    i => { delete i.lifecycleEvidence; }
+  ]) {
+    const input = lifecycleInput(f.state, command);
+    mutate(input);
+    if (input.lifecycleEvidence) {
+      const binding = lifecycleProofDigest(input.event);
+      input.event.evidence.human.proofDigest = binding;
+      input.event.evidence.holders.forEach(h => { h.acknowledgment.proofDigest = binding; });
+      input.lifecycleEvidence.eventDigest = digest(input.event);
+    }
+    assert.throws(() => applyEvent(f.state, input.event, input));
+    assert.equal(JSON.stringify(f.state), original);
+  }
+  const extra = structuredClone(f.state); extra.projection = { capacity: { ready: 10 } };
+  assert.throws(() => validate(extra), /Malformed lifecycle/);
+  const altered = structuredClone(f.state); altered.history[0].event.command.evidence = 'rewritten';
+  assert.throws(() => validate(altered), /history digest/);
+});
+
+test('v10 full legacy 1-9 preview and explicit adoption preserve accepted histories and never mint execution', () => {
+  let legacy = refinementFixture(true);
+  const states = [legacy];
+  legacy = applyEvent(legacy, refinementEvent(legacy)).state; states.push(legacy);
+  const base = fencedExtensionFixture();
+  for (let version = 3; version <= 8; version++) {
+    const value = structuredClone(base);
+    value.version = version;
+    value.refinements = []; value.amendments = [];
+    value.items.forEach(i => {
+      i.scopeRevision = 0; i.scopeHistory = []; i.sourceWritesRetired = false; i.scopeAmendments = [];
+    });
+    if (version >= 4) { value.readmissions = []; value.items.forEach(i => { i.admissionHistory = []; }); }
+    if (version >= 5) value.supersessions = [];
+    if (version >= 6) { value.recoveries = []; value.items.forEach(i => { i.scopeRecoveries = []; }); }
+    if (version >= 7) value.recoveryRenewals = [];
+    validate(value); states.push(value);
+  }
+  const before = supersessionFixture(), event = fencedSupersessionEvent(before);
+  states.push(applyEvent(before, event, fencedSupersessionContext(event)).state);
+  assert.deepEqual(states.map(s => s.version), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  for (const old of states) {
+    const bytes = JSON.stringify(old), preview = previewLifecycleMigration(old);
+    assert.equal(preview.activating, false);
+    assert.equal(preview.legacyDigest, digest(old));
+    assert.equal(preview.projection.grants.some(g => g.status === 'active'), false);
+    assert.ok(preview.projection.reservations.every(r => r.status === 'HELD'));
+    const shadow = { version: 10, origin: { coordinator: old.coordinator, head: old.head, mode: old.mode,
+      legacy: old, legacyDigest: digest(old) }, history: [] };
+    const input = lifecycleInput(shadow, { kind: 'adopt', legacyDigest: digest(old) });
+    // The test input must account for already accepted actual/planned manifests.
+    for (const h of input.event.evidence.holders) {
+      const item = old.items.find(i => `legacy:${i.key}` === h.grantId);
+      for (const record of [...(item.scopeHistory ?? []), ...(item.scopeAmendments ?? [])]) {
+        h.preservation.actual = [...new Set([...h.preservation.actual, ...record.proof.manifest.actual])];
+        h.preservation.planned = [...new Set([...h.preservation.planned, ...record.proof.manifest.planned])];
+      }
+      h.preservation.retained = [...new Set([...h.preservation.retained, ...h.preservation.actual])];
+    }
+    const binding = lifecycleProofDigest(input.event);
+    input.event.evidence.human.proofDigest = binding;
+    input.event.evidence.holders.forEach(h => { h.acknowledgment.proofDigest = binding; });
+    input.lifecycleEvidence.eventDigest = digest(input.event);
+    const result = adoptLifecycle(old, input.event, input);
+    assert.equal(JSON.stringify(old), bytes);
+    assert.equal(JSON.stringify(result.state.origin.legacy), bytes);
+    assert.deepEqual(result.actions, []);
+    assert.deepEqual(lifecycleProjection(result.state).reservations, preview.projection.reservations);
+    assert.equal(lifecycleProjection(result.state).grants.some(g => g.status === 'active'), false);
+    assert.throws(() => applyEvent(result.state, input.event, input), /cannot be replayed/);
+  }
+});
+
+test('v10 fresh same-PR grant may reuse a preserved chat/source without reviving its retired grant', () => {
+  const f = lifecycleFixture();
+  lifecycleRegister(f, 'a', ['src\\a.cs']);
+  const stale = lifecycleRequest(f.state, 'a');
+  lifecycleClose(f, 'a', 81, [{ reservationId: 'grant:a', paths: ['src\\a.cs'] }]);
+  f.run({ kind: 'repair', key: 'a', pr: 81, grantId: 'a-generation2', scopes: ['src\\a.cs'], transfers: [] });
+  f.run({ kind: 'dispatch', grantId: 'a-generation2' });
+  f.run({ kind: 'attach', grantId: 'a-generation2', owner: stale.owner, source: stale.source });
+  assert.throws(() => validateSourceGrant(f.state, stale,
+    { sourceAuthorityVerified: true, receipt: 'SYNTHETIC old instruction.' }));
+  assert.equal(validateSourceGrant(f.state, lifecycleRequest(f.state, 'a-generation2'),
+    { sourceAuthorityVerified: true, receipt: 'SYNTHETIC fresh bounded execution authority.' }).valid, true);
+});
+
+test('v10 repair can replace a joined published but not closed execution without inventing delivery completion', () => {
+  const f = lifecycleFixture();
+  lifecycleRegister(f, 'a', ['src\\a.cs']);
+  const original = lifecycleRequest(f.state, 'a');
+  f.run({ kind: 'publish', grantId: 'a', publication: { pushedHead: '2'.repeat(40),
+    remoteHead: '2'.repeat(40), pr: 86, ready: true, enrolled: true, receipt: 'SYNTHETIC current PR.' } });
+  f.run({ kind: 'repair', key: 'a', pr: 86, grantId: 'fresh-open-repair', scopes: ['src\\a.cs'],
+    transfers: [{ reservationId: 'grant:a', paths: ['src\\a.cs'] }] });
+  const p = lifecycleProjection(f.state);
+  assert.equal(p.works[0].status, 'open');
+  assert.equal(p.works[0].pr, 86);
+  assert.deepEqual(p.capacity, { repair: 3, ready: 10 });
+  assert.deepEqual(p.grants.map(g => g.status), ['revoked', 'allocated']);
+  assert.throws(() => validateSourceGrant(f.state, original,
+    { sourceAuthorityVerified: true, receipt: 'SYNTHETIC superseded execution.' }));
+});
+
+test('v10 imports old authority identities without permitting replay or external preparation activation', () => {
+  const before = supersessionFixture(), handoff = fencedSupersessionEvent(before);
+  const old = applyEvent(before, handoff, fencedSupersessionContext(handoff)).state;
+  const shadow = { version: 10, origin: { coordinator: old.coordinator, head: old.head, mode: old.mode,
+    legacy: old, legacyDigest: digest(old) }, history: [] };
+  const adoption = lifecycleInput(shadow, { kind: 'adopt', legacyDigest: digest(old) });
+  const adopted = adoptLifecycle(old, adoption.event, adoption).state;
+  const target = old.items.find(i => i.key === 'successor');
+  const input = lifecycleInput(adopted, { kind: 'allocate', key: target.key,
+    grantId: 'synthetic-fresh-successor', scopes: target.scopes,
+    transfers: [{ reservationId: `legacy:${target.key}`, paths: target.scopes }] });
+  input.event.evidence.human.id = handoff.authorization.id;
+  input.event.evidence.human.proofDigest = lifecycleProofDigest(input.event);
+  input.lifecycleEvidence.eventDigest = digest(input.event);
+  assert.throws(() => applyEvent(adopted, input.event, input), /Fresh exact human/);
+  const duplicateOldId = lifecycleInput(adopted, { kind: 'register', key: 'other',
+    outcome: 'SYNTHETIC other', pool: 'ready', workKind: 'feature', pr: null, evidence: 'SYNTHETIC' },
+  handoff.id);
+  assert.throws(() => applyEvent(adopted, duplicateOldId.event, duplicateOldId), /replay binding/);
+  const externalState = supersessionFixture();
+  externalState.coordinator = 'synthetic-external-coordinator';
+  const external = supersessionEvent(before, 41, 'prepare-external', [{
+    repository: 'roryprimrose/Kora', revision: 1, state: externalState,
+    stateDigest: digest(externalState), receipt: 'SYNTHETIC complete external snapshot.' }]);
+  const prepared = applyEvent(before, external, { revision: external.proof.checkpointRevision }).state;
+  const preview = previewLifecycleMigration(prepared);
+  assert.equal(preview.activating, false);
+  assert.ok(preview.projection.reservations.length > 0);
+  const preparedShadow = { version: 10, origin: { coordinator: prepared.coordinator, head: prepared.head,
+    mode: prepared.mode, legacy: prepared, legacyDigest: digest(prepared) }, history: [] };
+  const adoptionInput = lifecycleInput(preparedShadow, { kind: 'adopt', legacyDigest: digest(prepared) });
+  const imported = adoptLifecycle(prepared, adoptionInput.event, adoptionInput).state;
+  const allocation = lifecycleInput(imported, { kind: 'allocate', key: 'successor',
+    grantId: 'external-successor', scopes: ['src\\disjoint.cs'], transfers: [] });
+  assert.throws(() => applyEvent(imported, allocation.event, allocation), /external preparation/);
+  const disjoint = lifecycleInput(imported, { kind: 'allocate', key: 'prior-0',
+    grantId: 'fresh-disjoint-prior', scopes: ['other\\disjoint.cs'], transfers: [] });
+  const renewed = applyEvent(imported, disjoint.event, disjoint).state;
+  assert.equal(require('./registry.cjs').preparedCandidate(renewed, 'prior-0'), false);
+});
+
+test('v10 documented retained-work example uses public exports and preserves all three closed worktrees', () => {
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  const section = readme.split('### Synthetic retained-work example')[1].split('## Non-writing host probe')[0];
+  const code = section.match(/```javascript\r?\n([\s\S]*?)```/)[1];
+  const result = spawnSync(process.execPath, ['-e', code], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), { closed: ['delivered', 'delivered', 'delivered'],
+    capacity: { repair: 4, ready: 10 }, retained: true, custody: ['c'],
+    grants: ['revoked', 'revoked', 'revoked'] });
+});
+
+test('v10 adoption retains real accepted amendment, admission, recovery, renewal, retirement and cleanup histories', () => {
+  const version3 = candidateFixture(true);
+  const version4 = applyEvent(version3, candidateEvent(version3)).state;
+  const old5 = supersessionFixture();
+  const version5 = applyEvent(old5, supersessionEvent(old5), { revision: 41 }).state;
+  const old6 = incidentFixture(), recovery = recoveryEvent(old6);
+  const version6 = applyEvent(old6, recovery, recoveryContext(recovery)).state;
+  const old7 = renewalFixture(), renewal = renewalEvent(old7);
+  const version7 = applyEvent(old7, renewal, renewalContext(renewal)).state;
+  const old8 = fencedExtensionFixture(), extension = fencedExtensionEvent(old8);
+  const version8 = applyEvent(old8, extension, fencedExtensionContext(extension)).state;
+  for (const old of [version3, version4, version5, version6, version7, version8]) {
+    const bytes = JSON.stringify(old);
+    const shadow = { version: 10, origin: { coordinator: old.coordinator, head: old.head, mode: old.mode,
+      legacy: old, legacyDigest: digest(old) }, history: [] };
+    const input = lifecycleInput(shadow, { kind: 'adopt', legacyDigest: digest(old) });
+    const result = adoptLifecycle(old, input.event, input);
+    assert.equal(JSON.stringify(result.state.origin.legacy), bytes);
+    assert.deepEqual(result.actions, []);
+    assert.equal(lifecycleProjection(result.state).grants.some(g => g.status === 'active'), false);
+    validate(result.state);
+  }
+});
+
+test('v10 optional observed physical cleanup preserves custody/capacity and requires fresh complete preservation', () => {
+  const f = lifecycleFixture();
+  lifecycleRegister(f, 'a', ['src\\a.cs']);
+  lifecycleClose(f, 'a', 92);
+  const before = lifecycleProjection(f.state);
+  const command = { kind: 'cleanup', key: 'a', worktreeAbsent: true, branchAbsent: true,
+    receipt: 'SYNTHETIC separately authorized observed absence, no deletion command.' };
+  const bad = lifecycleInput(f.state, command);
+  bad.lifecycleEvidence.sourceOwnershipVerified = false;
+  assert.throws(() => applyEvent(f.state, bad.event, bad), /physical cleanup/);
+  assert.deepEqual(f.run(command).actions, []);
+  const after = lifecycleProjection(f.state);
+  assert.deepEqual(after.reservations, before.reservations);
+  assert.deepEqual(after.capacity, before.capacity);
+  assert.deepEqual(after.works[0].cleanup,
+    { worktreeAbsent: true, branchAbsent: true, receipt: command.receipt });
+});
+
 test('UNKNOWN holder handoff is prospective, preserves published owners and guards, and emits no actions', () => {
   const before = supersessionFixture(), event = fencedSupersessionEvent(before);
   const unchanged = structuredClone(before);

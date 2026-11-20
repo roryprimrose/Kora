@@ -14,6 +14,151 @@ Child contract links therefore supply behavior, not proof that profiles loaded.
 The caller explicitly permits requested high-reasoning worker definitions with
 unverified effective settings. Report that condition; do not fabricate verification.
 
+## Opt-in version10 lifecycle
+
+The [registry](./scripts/registry.cjs) exports a version10 engineering interface, distinct from legacy versions1-9 below. Loading or merging it performs no migration, adoption, release, host action or source execution. Legacy validation and histories retain their original meanings. All examples in this section are synthetic, not evidence of live consent, quiescence or OS enforcement.
+
+### Public boundary
+
+Use the CommonJS exports in [registry.cjs](./scripts/registry.cjs), [checkpoint.cjs](./scripts/checkpoint.cjs) and [worker-launch.cjs](./scripts/worker-launch.cjs). Missing/malformed/stale authority throws `Error`; CLIs write the error to stderr and exit1. No dependency installation is needed.
+
+| Export | Signature and result |
+| --- | --- |
+| `createLifecycleState` | `(coordinator, head: SHA40|null, mode='observe') -> LifecycleState`; explicit version10, empty history, no grants. |
+| `previewLifecycleMigration` | `(acceptedLegacyState) -> {version:10, legacyDigest, projection, activating:false}`; read-only, every unresolved old exclusion remains `HELD`. |
+| `adoptLifecycle` | `(acceptedLegacyState, adoptionEvent, {lifecycleEvidence}) -> {state, actions:[]}`; complete fresh human/holder/host evidence required. |
+| `lifecycleProjection` | `(state) -> {version:10, coordinator, enabled, mode, head, sourceRevision, authorityRevision, works, grants, reservations, capacity}`; semantic history replay, no trusted cached projection. |
+| `lifecycleRevisions` | `(state, command) -> {sourceRevision, authorityRevision, works, grants, reservations}`; maps of affected IDs to complete canonical digests, absent work/grant IDs to null. |
+| `lifecycleProofDigest` | `(event) -> SHA256`; omits only human/holder `proofDigest` leaves to avoid circularity. All other event fields are bound. |
+| `applyEvent` | `(state, event, {lifecycleEvidence}) -> {state, actions, duplicate}`; version10 uses only lifecycle commands; legacy events cannot bypass the projection. |
+| `validateSourceGrant` | `(state, {grantId,grantRevision,owner,source,head,paths}, {sourceAuthorityVerified:true,receipt}) -> {valid:true,executionAuthorized:false,grantId,grantRevision}`. |
+
+`LifecycleState` has exactly `{version:10, origin:{coordinator,head,mode,legacy,legacyDigest}, history}`. The complete unchanged legacy state is stored once, or both legacy fields are null. Each history record is `{event,hostEvidence,digest}`; its digest binds the previous record digest, event and host evidence. New records contain no recursive before-state or embedded source copies.
+
+The shared projection derives work/PR/publication history, delivery capacity, grant generations and current custody. Work status is `candidate|open|delivered|cancelled|abandoned`.
+Each grant has `{id,key,generation,revision,scopes,status,owner,source,head,sourceRevision}`; status is `allocated|reserved|ambiguous|active|revoked|unresolved`. Each reservation has `{id,key,grantId,scopes,revision,status:'HELD'}`.
+
+New publications have `{pushedHead,remoteHead,pr,ready:true,enrolled:true,receipt}`. Imported publications/cleanup retain their original legacy evidence shape. Work fields are `{key,outcome,pool,kind,evidence,pr,status,publications,cleanup}`.
+Capacity counts open deliveries, not retained directories. Grants are execution identities, not chat identities; a fresh explicitly bounded grant never resurrects an old grant.
+
+### Events and independent evidence
+
+Every event has exactly `{id,type:'lifecycle',command,expected,evidence}`. Obtain `expected` from `lifecycleRevisions` for the final command; do not invent revisions. `evidence` has `{human,holders,receipt}`.
+Authority operations require a fresh exact `{id,actor,proofDigest,receipt}` human decision. Bookkeeping (`register,publish,refresh,ambiguous,pause`) requires `human:null`; pause still requires every live holder's actual stopped/joined proof.
+
+Supply independent context `{lifecycleEvidence:{kind:'host-verified-lifecycle',eventDigest,coordinator,ledgerAuthorityVerified:true,humanAuthorizationVerified,holdersVerified,sourceOwnershipVerified,deliveryVerified,preservationVerified,receipt}}`.
+The digest binds the complete final event, not an earlier draft. All flags are explicit booleans. Host facts must be derived independently; a supplied digest or receipt does not authenticate them.
+
+For `attach`, `sourceOwnershipVerified` includes actual child/worktree/branch/head ownership and compatibility with the admitted base/PR. For `compatible`, it includes exact old/current main and source-head/scopes compatibility, not disjoint-path inference. For `cleanup`, it includes actual absence of all affected paths/refs. `deliveryVerified` includes current execution's delivery.
+
+Each required holder entry has exactly `{grantId,owner,writingStopped:true,commandsRunning:false,workJoined:true,pendingInstructions,processingInstructions,fence,preservation,acknowledgment}`. Counts are verified `0` or literal `'UNKNOWN'`, never defaulted.
+Both modes require a fresh established cooperative fence `{epoch,nonce,established:true,revokesEarlierSourceAuthority:true}` and acknowledgment `{id,proofDigest,receipt}`.
+
+Preservation has `{actual,planned,committed,restored,retained,unpreserved,commits,bytesPreserved:true,refsPreserved:true,historyPreserved:true,receipt}`. Every path list is canonical/unique.
+Unpreserved must be empty; all actual/committed/restored bytes must be retained, and commits require `{head,ref}` anchors. Known earlier actual/restored/committed/planned evidence cannot disappear. Ordinary amendment cannot cover an already unauthorized write.
+
+Holders are sorted by grant ID: transfer/release holders; all grants of an allocated/repaired/closed/physically-cleaned work; named grant for revoke/amend/compatible; all live/unresolved grants for adopt/pause/recover. Retirement covers the entire grant, not only transferred paths. Untransferred scopes remain held. External guards stay nonactivating and cannot be disposed through a local transfer.
+
+| Command `kind` | Other exact fields | Behavior |
+| --- | --- | --- |
+| `adopt` | `legacyDigest` | First event only, explicitly adopts one complete validated controlling legacy ledger; imports no active execution grant. |
+| `register` | `key,outcome,pool,workKind,evidence,pr` | Registers one admitted operation. `pr` is explicit null or positive number; same PR uses repair, not another work. |
+| `allocate` | `key,grantId,scopes,transfers` | Fresh identity/current custody, no launch. Retires all affected old source grants. |
+| `dispatch` | `grantId` | Separately authorized once-only launch action `{type:'launch',key,pool,grantId,grantRevision}`. |
+| `attach` | `grantId,owner,source` | Resolves reserved/ambiguous launch with actual exclusive source/child evidence. Source is `{worktree,branch,head}`. |
+| `ambiguous` | `grantId,reason` | Retains unresolved launch custody and capacity; no retry or replacement. |
+| `revoke` | `grantId,reason` | Actual stop/join/fence/preservation permanently terminates that grant; holds remain. |
+| `publish` | `grantId,publication` | Records verified ready publication; does not release authority, custody or capacity. |
+| `amend` | `grantId,scopes` | Current active source, complete superset/exclusive union, actual temporary pause/join/fence and new revision; no automatic continuation. |
+| `refresh` | `head` | New verified source increments source revision; active grants cannot continue until compatible. |
+| `compatible` | `grantId,head`, optional `source` | Fresh independent compatibility and exact holder/human evidence; increments grant revision. Explicit source-head advancement keeps the exact worktree/branch. |
+| `close` | `key,outcome,releases` | Outcome `delivered|cancelled|abandoned`; every grant terminated/joined, bytes/refs/history preserved, delivered requires latest execution's publication. Releases only explicit exact paths; omitted paths remain held. |
+| `release` | `releases` | Explicitly disposes retired remainder custody, not active writers or external snapshots. |
+| `repair` | `key,pr,grantId,scopes,transfers` | Same work/PR in repair capacity, fresh generation, actual prior-source termination/preservation, no old-grant revival. Supports retained open or closed deliveries. |
+| `pause` | `reason` | Stops dispatch, joins/revokes live grants and retains all work/custody. |
+| `recover` | `coordinator` | Paused, joined old authority only; stays paused and invalidates source freshness. |
+| `resume` | none | Explicit exact current human/host authority; does not revive grants or establish missing source. |
+| `cleanup` | `key,worktreeAbsent:true,branchAbsent:true,receipt` | Separate optional observed physical cleanup of closed work; never automatically deletes/archives anything. |
+
+`transfers` and `releases` are explicit arrays of `{reservationId,paths}`. Only exact held path tokens can move; no ancestor subtraction. `allocate` and `repair` require no remaining overlapping reservation, including retained/external guards. Original item/history bytes are never edited to represent a transfer.
+
+Only the projection drives dispatch, exclusion, amendment, source continuation, repair, recovery, inspection, closure and optional cleanup. No historical-participant ban applies to a fresh version10 grant. Legacy retired grants remain rejected. No expiry reclamation, queue daemon, scheduling, OS isolation or host authentication is supplied.
+
+### Checkpoint and legacy construction
+
+The [checkpoint wrapper](./scripts/checkpoint.cjs) keeps its version1 envelope and global expected revision/lock/atomic replacement. Every write, including unrelated acknowledgments, still requires the actual current checkpoint revision. Authority proofs bind affected source/authority/grant/work/custody revisions, so unrelated bookkeeping does not itself force new approval.
+
+- Default `init` remains legacy version1. Explicit `lifecycleVersion:10` creates a new version10 ledger; it never replaces an existing checkpoint.
+- `read` validates all history and action journals without writes.
+- `preview-lifecycle` reads a legacy checkpoint and returns `previewLifecycleMigration(state)` without writes/revision changes.
+- `adopt-lifecycle` requires `expectedRevision,event,lifecycleEvidence`, validates complete legacy history, and appends the adoption journal without rewriting old events/actions.
+- `apply` forwards `lifecycleEvidence`; only `dispatch` may produce a launch action. `ack` retains its existing concrete-result semantics.
+- Authority replay fails; read accepted state instead. Exact bookkeeping replay returns `duplicate:true` with no actions or persistence. Changed same-ID replay always fails.
+- Missing evidence, stale affected/global revisions, lock contention, malformed projection/history/journal or failed replacement preserve the original checkpoint bytes and actions.
+
+Construct a legacy input using existing `createState` and the applicable version1-9 events below, or use a complete accepted checkpoint's state. Do not assign a larger version number to incomplete fields. Preview first.
+For explicit adoption construct a shadow `{version:10,origin:{coordinator:old.coordinator,head:old.head,mode:old.mode,legacy:old,legacyDigest:digest(old)},history:[]}` solely to obtain `lifecycleRevisions(shadow,{kind:'adopt',legacyDigest:digest(old)})`.
+
+Then obtain actual fresh decision/holder/host evidence for that event and call `adoptLifecycle(old,event,context)` or the checkpoint adoption operation. This is an engineering construction route, not permission to adopt any live ledger. Original retirements, publication, supersession, amendments, recovery/renewal, cleanup and external guards remain intact. Unresolved old grants cannot execute.
+
+### Synthetic retained-work example
+
+Run this example with Node from the repository root. Every human/holder/host fact is intentionally synthetic; no checkpoint, host session, filesystem ownership, consent or live grant is created.
+
+```javascript
+const r = require('./.github/skills/kora-orchestrate/scripts/registry.cjs');
+let state = r.createLifecycleState('SYNTHETIC coordinator', '1'.repeat(40), 'delivery');
+const epochs = new Map();
+function apply(command, holderIds = []) {
+  const p = r.lifecycleProjection(state), id = `synthetic-${state.history.length}`;
+  const human = !['register', 'publish', 'refresh', 'ambiguous', 'pause'].includes(command.kind);
+  const event = { id, type: 'lifecycle', command, expected: r.lifecycleRevisions(state, command),
+    evidence: { human: human ? { id: `${id}-human`, actor: 'SYNTHETIC human',
+      proofDigest: '', receipt: 'SYNTHETIC decision' } : null,
+    holders: holderIds.sort().map(grantId => {
+      const g = p.grants.find(g => g.id === grantId), epoch = (epochs.get(grantId) ?? 0) + 1;
+      epochs.set(grantId, epoch);
+      return { grantId, owner: g.owner, writingStopped: true, commandsRunning: false,
+        workJoined: true, pendingInstructions: 'UNKNOWN', processingInstructions: 'UNKNOWN',
+        fence: { epoch, nonce: `${id}-${grantId}`, established: true, revokesEarlierSourceAuthority: true },
+        preservation: { actual: g.scopes, planned: g.scopes, committed: g.scopes, restored: [],
+          retained: g.scopes, unpreserved: [], commits: [{ head: g.head, ref: `refs/heads/${grantId}` }],
+          bytesPreserved: true, refsPreserved: true, historyPreserved: true, receipt: 'SYNTHETIC preservation' },
+        acknowledgment: { id: `${id}-${grantId}-ack`, proofDigest: '', receipt: 'SYNTHETIC response' } };
+    }), receipt: 'SYNTHETIC complete evidence' } };
+  const binding = r.lifecycleProofDigest(event);
+  if (event.evidence.human) event.evidence.human.proofDigest = binding;
+  for (const h of event.evidence.holders) h.acknowledgment.proofDigest = binding;
+  const result = r.applyEvent(state, event, { lifecycleEvidence: {
+    kind: 'host-verified-lifecycle', eventDigest: r.digest(event), coordinator: p.coordinator,
+    ledgerAuthorityVerified: true, humanAuthorizationVerified: human, holdersVerified: holderIds,
+    sourceOwnershipVerified: true, deliveryVerified: true, preservationVerified: true,
+    receipt: 'SYNTHETIC independent readback, not authentication' } });
+  state = result.state;
+  return result.actions;
+}
+for (const [index, key] of ['a', 'b', 'c'].entries()) {
+  apply({ kind: 'register', key, outcome: `SYNTHETIC ${key}`, pool: 'ready',
+    workKind: 'feature', pr: null, evidence: 'SYNTHETIC complete operation' });
+  const prior = ['a', 'b'][index - 1], scopes = ['src\\synthetic.cs'];
+  apply({ kind: 'allocate', key, grantId: key, scopes,
+    transfers: prior ? [{ reservationId: `grant:${prior}`, paths: scopes }] : [] }, prior ? [prior] : []);
+  apply({ kind: 'dispatch', grantId: key });
+  apply({ kind: 'attach', grantId: key, owner: `SYNTHETIC ${key}`,
+    source: { worktree: `Q:\\Synthetic\\${key}`, branch: `synthetic/${key}`, head: '1'.repeat(40) } });
+  apply({ kind: 'publish', grantId: key, publication: { pushedHead: '2'.repeat(40),
+    remoteHead: '2'.repeat(40), pr: 100 + index, ready: true, enrolled: true, receipt: 'SYNTHETIC PR' } });
+  apply({ kind: 'revoke', grantId: key, reason: 'SYNTHETIC actual stop/join' }, [key]);
+  apply({ kind: 'close', key, outcome: 'delivered', releases: [] }, [key]);
+}
+const p = r.lifecycleProjection(state);
+console.log(JSON.stringify({ closed: p.works.map(w => w.status), capacity: p.capacity,
+  retained: p.works.every(w => w.cleanup === null), custody: p.reservations.map(h => h.key),
+  grants: p.grants.map(g => g.status) }));
+```
+
+The [runtime regressions](./scripts/registry.test.cjs) execute this synthetic example and separately assert stale-grant rejection, partial/multi-holder custody, same-PR repair and fail-closed history/authority behavior. The [checkpoint regressions](./scripts/checkpoint.test.cjs) cover the corresponding persistence boundary; this evidence does not establish live deployment or consent.
+
 ## Non-writing host probe, 2026-11-07
 
 The probe used one nested child, no worktree, no repository writes, no GitHub

@@ -20,6 +20,28 @@ const settings = {
   productionWorkspace: 'Q:\\Repos\\Kora',
   scratch: 'Q:\\Repos\\Kora.worktrees\\control\\.scratch\\run'
 };
+const { lifecycleFixture } = require('./refinement-fixture.cjs');
+
+test('v10 launch needs the exact separately recorded grant and cannot relaunch ambiguous or attached work', () => {
+  const f = lifecycleFixture();
+  f.run({ kind: 'register', key: 'a', outcome: 'SYNTHETIC v10 launch', pool: 'ready',
+    workKind: 'feature', evidence: 'SYNTHETIC admission.', pr: null });
+  f.run({ kind: 'allocate', key: 'a', grantId: 'a', scopes: ['src\\a.cs'], transfers: [] });
+  const action = { type: 'launch', key: 'a', pool: 'ready', grantId: 'a', grantRevision: 1 };
+  assert.throws(() => workerLaunch(f.state, action, settings), /grant|reservation/);
+  assert.deepEqual(f.run({ kind: 'dispatch', grantId: 'a' }).actions, [action]);
+  const launch = workerLaunch(f.state, action, settings);
+  assert.match(launch.prompt, /grantId=a; generation=1; grantRevision=1/);
+  assert.match(launch.prompt, /validateSourceGrant/);
+  assert.match(launch.prompt, /Retain the chat\/worktree\/branch\/refs by default/);
+  assert.equal(launch.worktree, true);
+  assert.throws(() => workerLaunch(f.state, { ...action, grantRevision: 0 }, settings), /grant/);
+  f.run({ kind: 'ambiguous', grantId: 'a', reason: 'SYNTHETIC unknown host create result.' });
+  assert.throws(() => workerLaunch(f.state, action, settings), /grant|reservation/);
+  f.run({ kind: 'attach', grantId: 'a', owner: 'synthetic-new-child',
+    source: { worktree: 'Q:\\Synthetic\\a', branch: 'synthetic/a', head: '1'.repeat(40) } });
+  assert.throws(() => workerLaunch(f.state, action, settings), /grant|reservation/);
+});
 
 test('UNKNOWN handoff cannot launch implicitly; separate guarded launch retains history and rejects forged readback', () => {
   const before = supersessionFixture(), event = fencedSupersessionEvent(before);

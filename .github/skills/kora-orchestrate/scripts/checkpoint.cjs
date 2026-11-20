@@ -3,7 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { createState, applyEvent, validate, digest } = require('./registry.cjs');
+const { createState, applyEvent, validate, digest, createLifecycleState, lifecycleProjection,
+  previewLifecycleMigration, adoptLifecycle } = require('./registry.cjs');
 
 function requireValue(condition, message) {
   if (!condition) throw new Error(message);
@@ -16,6 +17,38 @@ function validateCheckpoint(value) {
   requireValue(value.actions.every(action => typeof action.id === 'string' &&
     ['pending', 'done', 'blocked'].includes(action.status) && action.command &&
     typeof action.command.type === 'string'), 'Malformed action journal.');
+  if (value.state.version === 10) {
+    const records = value.state.history;
+    const journal = value.events.filter(event => event.type === 'lifecycle');
+    requireValue(journal.length === records.length &&
+      new Set(value.actions.map(action => action.id)).size === value.actions.length &&
+      records.every((record, index) => {
+        const event = journal[index];
+        const command = record.event.command;
+        const expected = [];
+        if (command.kind === 'dispatch') {
+          const p = lifecycleProjection({ ...value.state, history: records.slice(0, index + 1) });
+          const g = p.grants.find(g => g.id === command.grantId);
+          expected.push({ type: 'launch', key: g.key, pool: p.works.find(w => w.key === g.key).pool,
+            grantId: g.id, grantRevision: g.revision });
+        }
+        const actions = value.actions.filter(action =>
+          action.id.slice(0, action.id.lastIndexOf(':')) === record.event.id);
+        return event?.id === record.event.id && event.digest === record.digest &&
+          equalCommands(event.commands, expected) && actions.length === expected.length &&
+          expected.every((command, i) => actions[i]?.id === `${event.id}:${i}` &&
+            equalCommands(actions[i].command, command));
+      }), 'Checkpoint lifecycle complete history/action journal binding is inconsistent.');
+    const legacy = value.state.origin.legacy;
+    const legacyEvents = value.events.filter(event => event.type !== 'lifecycle');
+    const ids = new Set(records.map(record => record.event.id));
+    const legacyActions = value.actions.filter(action =>
+      !ids.has(action.id.slice(0, action.id.lastIndexOf(':'))));
+    if (legacy) validateCheckpoint({ ...value, state: legacy, events: legacyEvents, actions: legacyActions });
+    else requireValue(legacyEvents.length === 0 && legacyActions.length === 0,
+      'Unexpected legacy journal in a new lifecycle checkpoint.');
+    return;
+  }
   const refinements = value.events.filter(event => event.type === 'refine-scopes');
   const index = value.state.refinements ?? [];
   requireValue(refinements.length === index.length &&
@@ -81,13 +114,17 @@ function validateCheckpoint(value) {
     }), 'Checkpoint supersession complete history/action journal binding is inconsistent.');
 }
 
+function equalCommands(left, right) {
+  return digest(left) === digest(right);
+}
+
 function checkpoint(file, input, io = fs) {
   requireValue(path.isAbsolute(file) && path.normalize(file) === file &&
     file.split(path.sep).includes('.scratch'), 'Checkpoint must be an absolute canonical ignored scratch path.');
-  if (input.operation === 'read') {
+  if (input.operation === 'read' || input.operation === 'preview-lifecycle') {
     const value = JSON.parse(io.readFileSync(file, 'utf8'));
     validateCheckpoint(value);
-    return value;
+    return input.operation === 'preview-lifecycle' ? previewLifecycleMigration(value.state) : value;
   }
   requireValue(Number.isSafeInteger(input.expectedRevision) && input.expectedRevision >= 0,
     'Expected checkpoint revision required.');
@@ -102,13 +139,17 @@ function checkpoint(file, input, io = fs) {
     requireValue((value?.revision ?? 0) === input.expectedRevision, 'Stale checkpoint revision.');
     if (input.operation === 'init') {
       requireValue(!exists, 'Checkpoint already initialized.');
+      requireValue(input.lifecycleVersion === undefined || input.lifecycleVersion === 10,
+        'Unsupported lifecycle opt-in version.');
       value = { version: 1, revision: 0,
-        state: createState(input.coordinator, input.head, input.mode), actions: [], events: [] };
-    } else if (input.operation === 'apply') {
+        state: (input.lifecycleVersion === 10 ? createLifecycleState : createState)(
+          input.coordinator, input.head, input.mode), actions: [], events: [] };
+    } else if (input.operation === 'apply' || input.operation === 'adopt-lifecycle') {
       requireValue(value, 'Checkpoint is not initialized.');
-      const result = applyEvent(value.state, input.event, {
+      const result = (input.operation === 'adopt-lifecycle' ? adoptLifecycle : applyEvent)(value.state, input.event, {
         revision: value.revision, recoveryEvidence: input.recoveryEvidence, renewalEvidence: input.renewalEvidence,
-        extensionEvidence: input.extensionEvidence, supersessionEvidence: input.supersessionEvidence
+        extensionEvidence: input.extensionEvidence, supersessionEvidence: input.supersessionEvidence,
+        lifecycleEvidence: input.lifecycleEvidence
       });
       if (result.duplicate) return value;
       value.state = result.state;
@@ -116,6 +157,8 @@ function checkpoint(file, input, io = fs) {
       const fencedAmendment = input.event.type === 'extend-scopes' && input.event.proof.version === 2
         ? value.state.items.find(item => item.key === input.event.key).scopeAmendments.at(-1) : null;
       value.events.push({ id: input.event.id, type: input.event.type, at,
+        ...(value.state.version === 10 ? { digest: value.state.history.at(-1).digest,
+          commands: structuredClone(result.actions) } : {}),
         ...(fencedAmendment ? { digest: digest(fencedAmendment), commands: [] } : {}),
         ...(['supersede-write-reservations', 'recover-scope-incident', 'renew-recovery-continuation'].includes(input.event.type)
           ? { digest: digest(input.event.type === 'renew-recovery-continuation'

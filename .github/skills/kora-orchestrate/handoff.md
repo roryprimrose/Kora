@@ -4,6 +4,23 @@ The caller creates the genuinely new session in the retained control worktree
 and selects Autopilot in the host UI. Do not substitute a nested chat, scheduler,
 unrelated autonomous task, or prompt text for this host operation.
 
+## Opt-in version10 recovery
+
+Read the [version10 contract](./README.md#opt-in-version10-lifecycle) before
+choosing a handoff route. Version10 `pause` requires actual joined holder/source
+fence/preservation readback, revokes current grants and retains all custody.
+`recover` requires separately verified human/current coordinator authority and
+stays paused; `resume` does not revive grants or establish missing source.
+Refresh source and allocate a fresh bounded identity before any later dispatch.
+UNKNOWN queue counts remain UNKNOWN with established cooperative revocation,
+never fabricated drain or OS enforcement. Preserve every old/new chat, ref,
+worktree, publication, checkpoint and evidence record unless separately permitted.
+
+Legacy loading/preview is not adoption. Explicit `adopt-lifecycle` preserves the
+complete accepted versions1-9 state once and validates its old journal unchanged.
+No live adoption is authorized by implementation/publication of these helpers.
+The `handoff`/pending-zero sequence below applies to actual versions1-9 only.
+
 ## Old owner freeze
 
 1. Finish the bounded checks and preserve publication/cleanup receipts. A blocked

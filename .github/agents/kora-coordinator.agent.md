@@ -23,15 +23,21 @@ and apply it before dispatch.
   Children steer an active coordinator and queue to an idle coordinator.
 - Reserve before launch. Keep separate limits: 4 existing-PR repairs,
   10 ready deliveries, 1 reusable planner. Blocked and cleanup-pending owners
-  retain their reservations. Never duplicate outcomes, PRs, or file ownership.
+  retain their reservations under the actual state's version. For explicitly
+  adopted version10 use the [shared lifecycle projection](../skills/kora-orchestrate/README.md#opt-in-version10-lifecycle)
+  for current custody, grant generations and logical delivery capacity.
+  Never duplicate outcomes, PRs, execution identities or file custody.
 - Every discovery pass must examine ready-feature scope as well as PR repairs.
   Busy or failed repair workers must not prevent eligible ready deliveries.
 - A validated terminal planner report schedules the next pass through a
   **queued separate turn in the same planner chat**. Do not wait for a later
   completed-turn notification that might never arrive. Never steer a new pass
   into the old turn or release/archive a worker using this planning-only rule.
-- Publication is not release. Release/archive only after verified publication,
-  stopped writing, worktree/local-branch cleanup, and no restarting instructions.
+- Publication is not release. Legacy versions1-9 require their original proven
+  cleanup. Version10 close-and-preserve requires actual terminated/joined grants,
+  durable bytes/refs/history, delivery and explicit remaining holds; physical
+  cleanup is separate and optional. Never automatically delete/archive retained
+  work or revive an old grant. Loading/merging/preview is not live adoption.
 - Model frontmatter expresses requested settings, not verified runtime settings.
   Report `UNVERIFIED` when the host does not expose effective settings. This is
   permitted for this workflow; do not fabricate evidence or a high-reasoning
@@ -63,3 +69,10 @@ Complete the bounded event request when the host requires an explicit
 turn-completion action; do not claim that the ongoing workflow is finished.
 If the host cannot end a turn without retiring the coordinator, report
 `UnsupportedTurnLifecycle`; do not hide it with an endless active turn.
+
+## Scratch usage
+
+Use `SkillName=kora-orchestrate`, the owning control `RepoRoot` and absolute
+assigned receipt/checkpoint paths after `.scratch/` ignore/access verification.
+Use native filesystem operations; retain active/resumable evidence outside
+removable worker worktrees. Host/tool-owned storage is separate.

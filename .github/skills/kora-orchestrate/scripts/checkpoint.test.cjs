@@ -13,6 +13,114 @@ const { refinementFixture, refinementEvent, tamperedStates,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
   supersessionBeneficiaryFixture, fencedExtensionFixture, fencedExtensionEvent,
   fencedExtensionContext, fencedSupersessionEvent, fencedSupersessionContext } = require('./refinement-fixture.cjs');
+const { createLifecycleState, lifecycleProjection } = require('./registry.cjs');
+const { lifecycleInput } = require('./refinement-fixture.cjs');
+
+test('v10 checkpoint binds complete event/host/action history and rejects stale writes, locks and atomic failure', () => {
+  const f = fixture();
+  f.files.set(f.file, JSON.stringify({ version: 1, revision: 1, events: [], actions: [],
+    state: createLifecycleState('synthetic-coordinator', '1'.repeat(40), 'delivery') }));
+  function run(command) {
+    const value = f.run({ operation: 'read' });
+    const input = lifecycleInput(value.state, command);
+    return f.run({ operation: 'apply', expectedRevision: value.revision, ...input });
+  }
+  run({ kind: 'register', key: 'a', outcome: 'SYNTHETIC checkpoint lifecycle', pool: 'ready',
+    workKind: 'feature', pr: null, evidence: 'SYNTHETIC admitted outcome.' });
+  run({ kind: 'allocate', key: 'a', grantId: 'a', scopes: ['src\\a.cs'], transfers: [] });
+  const dispatched = run({ kind: 'dispatch', grantId: 'a' });
+  assert.equal(dispatched.actions.length, 1);
+  assert.deepEqual(dispatched.actions[0].command,
+    { type: 'launch', key: 'a', pool: 'ready', grantId: 'a', grantRevision: 1 });
+  assert.deepEqual(f.run({ operation: 'read' }), dispatched);
+  const original = f.files.get(f.file);
+  const input = lifecycleInput(dispatched.state, { kind: 'ambiguous', grantId: 'a', reason: 'SYNTHETIC unknown send.' });
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: dispatched.revision - 1, ...input }),
+    /Stale checkpoint/);
+  f.files.set(`${f.file}.lock`, 'other writer');
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: dispatched.revision, ...input }), /locked/);
+  f.files.delete(`${f.file}.lock`);
+  assert.equal(f.files.get(f.file), original);
+  for (const change of [
+    v => { v.events.pop(); },
+    v => { v.events.at(-1).commands = []; },
+    v => { v.actions = []; },
+    v => { v.actions[0].command.grantRevision = 0; },
+    v => { v.state.history[0].hostEvidence.ledgerAuthorityVerified = false; },
+    v => { v.state.projection = { reservations: [] }; },
+    v => { v.state.history[0].event.command.evidence = 'rewritten'; }
+  ]) {
+    const changed = structuredClone(dispatched); change(changed);
+    f.files.set(f.file, JSON.stringify(changed));
+    assert.throws(() => f.run({ operation: 'read' }));
+  }
+  f.files.set(f.file, original);
+  f.failReplacement();
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: dispatched.revision, ...input }),
+    /Replacement failed/);
+  assert.equal(f.files.get(f.file), original);
+  assert.equal([...f.files.keys()].some(k => k.endsWith('.lock') || k.endsWith('.tmp')), false);
+});
+
+test('v10 checkpoint adoption is explicit, preview never writes and the legacy action journal remains unchanged', () => {
+  const f = fixture();
+  const original = f.files.get(f.file), old = f.run({ operation: 'read' });
+  const preview = f.run({ operation: 'preview-lifecycle' });
+  assert.equal(preview.activating, false);
+  assert.equal(f.files.get(f.file), original);
+  const shadow = { version: 10, origin: { coordinator: old.state.coordinator, head: old.state.head,
+    mode: old.state.mode, legacy: old.state, legacyDigest: digest(old.state) }, history: [] };
+  const input = lifecycleInput(shadow, { kind: 'adopt', legacyDigest: digest(old.state) });
+  const adopted = f.run({ operation: 'adopt-lifecycle', expectedRevision: old.revision, ...input });
+  assert.deepEqual(adopted.state.origin.legacy, old.state);
+  assert.deepEqual(adopted.actions, old.actions);
+  assert.deepEqual(f.run({ operation: 'read' }), adopted);
+  assert.equal(lifecycleProjection(adopted.state).grants.length, 0);
+  const bytes = f.files.get(f.file);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: adopted.revision, ...input }),
+    /cannot be replayed/);
+  assert.equal(f.files.get(f.file), bytes);
+});
+
+test('v10 checkpoint explicitly initializes without silently changing default legacy initialization', () => {
+  const f = fixture();
+  assert.equal(f.run({ operation: 'read' }).state.version, 1);
+  f.files.delete(f.file);
+  const value = f.run({ operation: 'init', expectedRevision: 0, lifecycleVersion: 10,
+    coordinator: 'synthetic-new', head: '1'.repeat(40), mode: 'delivery' });
+  assert.equal(value.state.version, 10);
+  assert.deepEqual(value.events, []);
+  assert.deepEqual(value.actions, []);
+});
+
+test('v10 adoption preserves nonempty legacy publications and pending journal actions byte-for-byte', () => {
+  const f = fixture();
+  function legacy(event) {
+    const old = f.run({ operation: 'read' });
+    return f.run({ operation: 'apply', expectedRevision: old.revision, event });
+  }
+  legacy({ id: 'legacy-planner', type: 'planner', owner: 'synthetic-planner' });
+  legacy({ id: 'legacy-main', type: 'refresh', head: '1'.repeat(40) });
+  legacy({ id: 'legacy-owner', type: 'adopt', key: 'a', owner: 'synthetic-owner',
+    outcome: 'SYNTHETIC legacy operation', pool: 'ready', kind: 'feature', head: '1'.repeat(40),
+    scopes: ['src\\a.cs'], evidence: 'SYNTHETIC exclusive source.' });
+  const old = legacy({ id: 'legacy-published', type: 'published', key: 'a', owner: 'synthetic-owner',
+    proof: { pushedHead: '2'.repeat(40), remoteHead: '2'.repeat(40), pr: 94, ready: true, enrolled: true } });
+  assert.ok(old.actions.some(a => a.status === 'pending'));
+  const shadow = { version: 10, origin: { coordinator: old.state.coordinator, head: old.state.head,
+    mode: old.state.mode, legacy: old.state, legacyDigest: digest(old.state) }, history: [] };
+  const input = lifecycleInput(shadow, { kind: 'adopt', legacyDigest: digest(old.state) });
+  const bytes = f.files.get(f.file);
+  const missing = { ...input, lifecycleEvidence: undefined };
+  assert.throws(() => f.run({ operation: 'adopt-lifecycle', expectedRevision: old.revision, ...missing }));
+  assert.equal(f.files.get(f.file), bytes);
+  const adopted = f.run({ operation: 'adopt-lifecycle', expectedRevision: old.revision, ...input });
+  assert.equal(JSON.stringify(adopted.state.origin.legacy), JSON.stringify(old.state));
+  assert.equal(JSON.stringify(adopted.events.slice(0, -1)), JSON.stringify(old.events));
+  assert.equal(JSON.stringify(adopted.actions), JSON.stringify(old.actions));
+  assert.equal(lifecycleProjection(adopted.state).grants[0].status, 'unresolved');
+  assert.deepEqual(f.run({ operation: 'read' }), adopted);
+});
 
 function fixture() {
   const files = new Map();

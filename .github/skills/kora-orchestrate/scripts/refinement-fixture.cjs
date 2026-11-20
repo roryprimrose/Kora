@@ -333,8 +333,77 @@ function fencedExtensionContinuation(state, revision = 42) {
   return request;
 }
 
+function lifecycleInput(state, command, id = `synthetic-${state.history.length}-${command.kind}`) {
+  const { lifecycleProjection, lifecycleRevisions, lifecycleProofDigest } = require('./registry.cjs');
+  const p = lifecycleProjection(state), ids = new Set();
+  for (const d of [...(command.transfers ?? []), ...(command.releases ?? [])]) {
+    const r = p.reservations.find(r => r.id === d.reservationId);
+    if (r?.grantId) ids.add(r.grantId);
+  }
+  if (['revoke', 'amend', 'compatible'].includes(command.kind)) ids.add(command.grantId);
+  if (['allocate', 'repair', 'close', 'cleanup'].includes(command.kind))
+    p.grants.filter(g => g.key === command.key).forEach(g => ids.add(g.id));
+  if (['adopt', 'pause', 'recover'].includes(command.kind))
+    p.grants.filter(g => g.status !== 'revoked').forEach(g => ids.add(g.id));
+  const human = !['register', 'publish', 'refresh', 'ambiguous', 'pause'].includes(command.kind);
+  const event = { id, type: 'lifecycle', command: structuredClone(command),
+    expected: lifecycleRevisions(state, command), evidence: {
+      human: human ? { id: `${id}-human`, actor: 'SYNTHETIC human', proofDigest: '',
+        receipt: 'SYNTHETIC exact decision, NOT consent.' } : null,
+      holders: [...ids].sort().map(grantId => {
+        const g = p.grants.find(g => g.id === grantId);
+        const previous = state.history.flatMap(r => r.event.evidence.holders)
+          .filter(h => h.grantId === grantId).at(-1);
+        const old = state.origin.legacy;
+        const item = old?.items.find(i => i.key === g?.key);
+        const oldRecords = [...(item?.scopeHistory ?? []), ...(item?.scopeAmendments ?? []),
+          ...(old?.recoveries ?? []).filter(r => r.event.proof.key === g?.key).map(r => r.event)];
+        const oldFences = [...oldRecords.map(r => r.proof.reconciliation?.fence),
+          ...(old?.supersessions ?? []).flatMap(r => r.event.proof.holders)
+            .filter(h => h.key === g?.key).map(h => h.reconciliation?.fence)].filter(Boolean);
+        const paths = [...new Set([...(previous?.preservation.actual ?? []), ...(g?.scopes ?? []),
+          ...oldRecords.flatMap(r => r.proof.manifest?.actual ?? [])])];
+        const restored = [...new Set([...(previous?.preservation.restored ?? []),
+          ...oldRecords.flatMap(r => r.proof.workingTree?.restored ?? [])])];
+        return { grantId, owner: g?.owner ?? null, writingStopped: true, commandsRunning: false,
+          workJoined: true, pendingInstructions: 'UNKNOWN', processingInstructions: 'UNKNOWN',
+          fence: { epoch: Math.max(previous?.fence.epoch ?? 0, ...oldFences.map(f => f.epoch)) + 1,
+            nonce: `${id}-${grantId}-fence`,
+            established: true, revokesEarlierSourceAuthority: true },
+          preservation: { actual: paths, planned: [...new Set([...(previous?.preservation.planned ?? []), ...paths,
+            ...oldRecords.flatMap(r => r.proof.manifest?.planned ?? [])])],
+            committed: paths, restored, retained: paths, unpreserved: [],
+            commits: [{ head: g?.head ?? '1'.repeat(40), ref: `refs/heads/synthetic-${grantId}` }],
+            bytesPreserved: true, refsPreserved: true, historyPreserved: true,
+            receipt: 'SYNTHETIC retained files, commits, refs and history.' },
+          acknowledgment: { id: `${id}-${grantId}-owner`, proofDigest: '',
+            receipt: 'SYNTHETIC exact whole-proof holder response.' } };
+      }), receipt: 'SYNTHETIC lifecycle input, not host authority.' } };
+  const binding = lifecycleProofDigest(event);
+  if (event.evidence.human) event.evidence.human.proofDigest = binding;
+  for (const h of event.evidence.holders) h.acknowledgment.proofDigest = binding;
+  return { event, lifecycleEvidence: { kind: 'host-verified-lifecycle', eventDigest: digest(event),
+    coordinator: p.coordinator, ledgerAuthorityVerified: true, humanAuthorizationVerified: human,
+    holdersVerified: [...ids].sort(), sourceOwnershipVerified: true, deliveryVerified: true,
+    preservationVerified: true, receipt: 'SYNTHETIC independent observed readback; not authentication.' } };
+}
+
+function lifecycleFixture() {
+  const { createLifecycleState, applyEvent } = require('./registry.cjs');
+  let state = createLifecycleState('synthetic-lifecycle-coordinator', '1'.repeat(40), 'delivery');
+  return {
+    get state() { return state; },
+    run(command, id) {
+      const input = lifecycleInput(state, command, id);
+      const result = applyEvent(state, input.event, input);
+      state = result.state;
+      return result;
+    }
+  };
+}
+
 module.exports = { refinementFixture, refinementEvent, rebind, tamperedStates, head, owner,
   candidateFixture, candidateEvent, supersessionFixture, supersessionEvent, rebindSupersession,
   supersessionBeneficiaryFixture, fencedExtensionFixture, fencedExtensionEvent, rebindFencedExtension,
   fencedExtensionContext, fencedExtensionContinuation, fencedSupersessionEvent,
-  rebindFencedSupersession, fencedSupersessionContext };
+  rebindFencedSupersession, fencedSupersessionContext, lifecycleInput, lifecycleFixture };

@@ -10,6 +10,29 @@ effective model/effort; absent host evidence means UNVERIFIED. Never change host
 permissions or account/global configuration. Honor the supplied publication
 authority and restrictions; agent selection alone does not authorize GitHub writes.
 
+## Version10 execution and retained work
+
+First recover the real ledger version. The
+[version10 contract](./README.md#opt-in-version10-lifecycle) is opt-in; its
+`lifecycleProjection` is authoritative for custody/capacity/execution. Record the
+exact grant ID, generation and revision, actual child, worktree/branch/head.
+After actual attachment, call `validateSourceGrant` with each intended source
+operation's paths and independent current host authority. Its success is a
+deterministic check, not execution permission from a digest.
+
+Use fresh human/holder/host evidence for authority transitions. Temporarily join
+work before amendment/current-source compatibility; validate the new revision
+before continuation. Stop and retain dirty/restored history on an incidental
+unauthorized write; ordinary amendment cannot retroauthorize it. Ambiguous launch,
+cancel/abandon and restart never imply cleanup or slot release.
+
+After publication stop source writes and report durable bytes/refs/history,
+actual joined/stale-authority revocation and exact remaining holds. Logical
+close-and-preserve is distinct from optional physical cleanup; keep worktree,
+branch, chat and receipts unless separately authorized otherwise. No automatic
+archival. A later same-PR repair needs fresh allocation/grant identity, not an
+old grant or a second PR. Legacy protocols below apply only to versions1-9.
+
 ## Implementation and publication
 
 - Before any dependency command inspect and reserve the complete affected tracked
@@ -37,7 +60,8 @@ authority and restrictions; agent selection alone does not authorize GitHub writ
 - Delivery milestone: actual ready same-repository PR to main and verified
   protected squash Auto-merge enrollment. A push or filled form is not publication.
 - Report publication promptly. Do not wait for merge. Stop implementation writes
-  at that milestone; only owned cleanup remains authorized.
+  at that milestone; only the assigned preservation/cleanup report remains.
+  Version10 physical cleanup needs separate explicit authority.
 
 A later CI failure requires a new coordinator allocation after current-head and
 ownership reconciliation. Do not silently start another repair after publication.
@@ -177,6 +201,10 @@ There is no UNKNOWN external takeover or new UNKNOWN revocation route; ordinary
 verified-zero protocols remain unchanged ([exact contract](./README.md#human-fenced-local-holder-handoff)).
 
 ## Cleanup before terminal completion
+
+This legacy versions1-9 sequence is not version10 logical closure. For version10
+use [close-and-preserve](./README.md#opt-in-version10-lifecycle); do not delete
+retained work merely to free capacity. Caller preservation restrictions control.
 
 1. Verify publication/remote-head evidence and retain receipts in the supplied
    ignored scratch outside the worktree being removed.

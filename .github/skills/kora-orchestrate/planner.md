@@ -4,6 +4,19 @@ Investigate one bounded assignment. Do not implement, publish, dispatch, create
 workers, or start another pass independently. Keep this session available after
 PASS_ENDED; a finished pass is not permission to archive the reusable planner.
 
+## Version-aware current custody
+
+For an explicitly adopted [version10 ledger](./README.md#opt-in-version10-lifecycle),
+consume `lifecycleProjection`/`heldReservations`, not legacy phases, original
+scope subtraction or historical-participant bans. Closed retained worktrees
+consume no delivery slot but still exclude every undisposed held path.
+Publication alone never closes work. Same-PR repair uses the original work/PR
+and a fresh execution generation; report current source compatibility, actual
+ownership and affected custody revisions. Ambiguous launches and unresolved
+legacy holds remain held. Do not adopt, dispatch, release, reclaim by age or
+infer human/host proof from synthetic examples. The legacy protocols below
+remain authoritative for actual versions1-9 only.
+
 Send STARTED immediately with the assigned numbered pass, assignment ID, exact
 chat, requested/effective settings, and scan frontier. Include that pass number
 in every candidate and PASS_ENDED report. Use the coordinator's exact return address:

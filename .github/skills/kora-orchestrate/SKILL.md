@@ -9,6 +9,41 @@ description: 'Use for Kora child-chat orchestration, delivery starvation, stalle
 
 Runtime support: `LocalOnly`. Requires a local Windows checkout and discovered host session tools; no Azure SRE-native execution adapter is supplied. Scripts validate local inputs, not host configuration or authority.
 
+## Version selection and preservation
+
+Recover the actual state version before choosing a protocol. The
+[opt-in version10 contract](./README.md#opt-in-version10-lifecycle) separates
+immutable work history, current reservation custody, execution grant generations,
+logical closure and optional physical cleanup. Loading/merging is not adoption.
+Versions1-9 retain the legacy events, slot/cleanup rules and anchors below.
+
+For version10 use only `lifecycleProjection` and `lifecycle` commands from the
+[registry](./scripts/registry.cjs). Register, allocate custody, dispatch once,
+then verify actual attachment and `validateSourceGrant` before source operations.
+An allocated reservation is not execution permission. Every source continuation,
+amendment, compatibility decision, repair, recovery, exclusion and cleanup reads
+that same projection. Legacy continuation/supersession rules cannot bypass it.
+
+Actual final human/holder/independent host evidence remains mandatory. UNKNOWN
+is not zero, a digest is not consent, and cooperative fences are not OS isolation.
+Bind affected revisions; unrelated bookkeeping need not force reapproval, but
+every persistence write still needs the actual global checkpoint revision.
+
+Publication alone is not closure. Version10 closes only after joined terminated
+grants, durable bytes/refs/history, verified delivery (or explicit cancellation/
+abandonment) and exact remaining custody disposition. Retained worktrees/chats
+do not consume delivery capacity after logical closure. Repeated A-to-B-to-C
+transfers and same-PR repair require fresh bounded grants, never old-grant revival.
+Physical cleanup is separate, explicit and optional; no automatic deletion,
+archival, expiry reclamation, queue daemon or live adoption.
+
+## Scratch usage
+
+`SkillName=kora-orchestrate`; `RepoRoot` is the owning control workspace.
+Verify its `.scratch/` ignore rule, then use native filesystem operations for
+absolute assigned receipt/checkpoint paths. Preserve active/resumable records
+outside any removable worker worktree. Tool-owned/host-managed paths are exempt.
+
 ## Bootstrap and transport
 
 1. Discover the exact coordinator chat and existing related owners using host
@@ -259,7 +294,7 @@ Interim `productionWrites=false` is not terminal `stopped_writing=true`.
 If a report is missing, inconsistent, or from an obsolete pass, retain ownership
 and reconcile only on a genuine event; do not infer completion from silence.
 
-After publication, preserve ownership; after proven cleanup, archive the exact
+For legacy versions1-9, after publication preserve ownership; after proven cleanup, archive the exact
 worker chat, communicate released capacity to the planner, and refill. Cancel
 superseded pending instructions using exact IDs/revisions before replacement
 or archival. An already-processing instruction requires steering, not fictional

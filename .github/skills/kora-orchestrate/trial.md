@@ -4,6 +4,23 @@ This is an engineering workflow, not a Kora product feature. Start it only with
 user authority for actual repair/ready-PR delivery. Do not mistake earlier
 discovery-only pilots for that authority.
 
+## Version10 trial boundary
+
+An [opt-in version10](./README.md#opt-in-version10-lifecycle) trial requires a
+separate actual adoption decision; merging its engineering implementation is
+not adoption. Record grant ID/generation/revision and the shared projection's
+custody/capacity at each event. Measure publication-to-logical-close separately
+from optional physical cleanup. Actual source stop/join/fence, bytes/refs/history
+preservation, current execution delivery and exact remaining holds are closure
+evidence; retained directories or idle chats prove none of those facts.
+
+Exercise A-to-B-to-C with retained work, partial/remainder custody, fresh same-PR
+repair and stale-grant rejection only within the caller's exact live authority.
+Do not delete/archive retained work, infer queue-zero, silently adopt old state
+or claim live success from synthetic tests. Legacy cleanup measurements below
+apply to versions1-9; version10 may finish the bounded observation at verified
+logical close-and-preserve with physical cleanup explicitly unperformed.
+
 ## Deployment
 
 - The implementation worktree is the coordinator's owned control checkout.

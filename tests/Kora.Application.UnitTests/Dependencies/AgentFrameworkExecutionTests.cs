@@ -58,14 +58,17 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
     [Theory]
     [InlineData(false, 1)]
     [InlineData(true, 2)]
-    public async Task OtherProvidersAndConstraintVersionsKeepTheirExistingExecutionPath(bool local, int version)
+    public async Task CompatibleBoundedProvidersAndConstraintVersionsUseMaintainedSerialExecution(bool local, int version)
     {
-        await using var f = new Fixture(0, 1, local: local, version: version);
+        await using var f = new Fixture(1, 2, local: local, version: version);
+        f.Transport.Messages = [Call, Answer];
         var result = await f.Run();
         result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         result.Response!.Answer.Should().Be("Exact final answer.");
-        f.PackageInvocations.Should().Be(0);
-        f.Transport.Requests.Single().Provenance.Selection.Provider.Should()
+        f.PackageInvocations.Should().Be(1);
+        f.Invocations.Should().Equal("original-one");
+        f.Transport.Requests[1].Messages.OfType<ModelToolResultMessage>().Single().CallId.Should().Be("original-one");
+        f.Transport.Requests[0].Provenance.Selection.Provider.Should()
             .Be(local ? ModelProviderIdentity.Ollama : ModelProviderIdentity.Copilot);
     }
 
@@ -561,6 +564,40 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
         f.Transport.Requests.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ToolFreeBridgeStreamsOnlyValidatedPrefixesAndJoinsEachPublication(bool replacePrefix)
+    {
+        await using var f = new Fixture(0, 1, version: 2);
+        var published = string.Empty;
+        var transport = new StreamingTransport(() => published, replacePrefix);
+        using var bridge = f.CreateBridge(transport);
+        var updates = bridge.GetStreamingResponseAsync([new(ChatRole.User, "Original task")],
+            new() { Tools = bridge.Tools }, Token);
+        var consume = async () =>
+        {
+            await foreach (var update in updates)
+            { published += update.Text; }
+        };
+        if (replacePrefix)
+        {
+            await consume.Should().ThrowAsync<AgentFrameworkModelChatClient.TurnStoppedException>();
+            published.Should().Be("Exact ");
+        }
+        else
+        {
+            await consume();
+            published.Should().Be("Exact final answer.");
+            bridge.ReadFinalAnswer([new(ChatRole.Assistant, published)])
+                .Should().Be(published);
+        }
+        transport.PublicationJoined.Should().BeTrue();
+        var late = async () => await transport.LatePublication!();
+        await late.Should().ThrowAsync<InvalidDataException>();
+        published.Should().Be(replacePrefix ? "Exact " : "Exact final answer.");
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         internal readonly Clock Time = new();
@@ -603,10 +640,32 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
         }
 
         internal static CapabilityReply Version() => new(CapabilityOutcome.Succeeded, "observed", Version: new("1", "not observed"));
-        internal AgentFrameworkModelChatClient CreateBridge() => new(Transport, Provenance, null,
+        internal AgentFrameworkModelChatClient CreateBridge(IModelToolTransport? transport = null) => new(transport ?? Transport, Provenance, null,
             ModelToolProtocol.ReadContext(envelope.Serialize(), Provenance), (_, _, token) => Tool(token),
             _ => ValueTask.FromResult<ModelProviderReply?>(null), () => { }, _ => { }, (_, _, _, _) => { });
         public ValueTask DisposeAsync() => Adapter.DisposeAsync();
+    }
+
+    private sealed class StreamingTransport(Func<string> published, bool replacePrefix) : IModelToolTransport, IModelAnswerTransport
+    {
+        internal bool PublicationJoined { get; private set; }
+        internal Func<ValueTask>? LatePublication { get; private set; }
+        public Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("This regression requires the real streamed transport seam.");
+
+        public async Task<ModelToolTransportReply> CompleteWithAnswerAsync(ModelToolRequest request,
+            Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken cancellationToken)
+        {
+            LatePublication = () => publish(new(request.Provenance, "Exact final answer. Late"), CancellationToken.None);
+            await publish(new(request.Provenance, "Exact "), cancellationToken);
+            PublicationJoined = string.Equals(published(), "Exact ", StringComparison.Ordinal);
+            await publish(new(request.Provenance, replacePrefix ? "Replacement" : "Exact final answer."), cancellationToken);
+            var message = ModelToolProtocol.ParseAssistant(Encoding.UTF8.GetBytes(Answer));
+            return new(ModelTurnOutcome.Succeeded, request.Provenance, message,
+                new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length));
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class Clock : TimeProvider

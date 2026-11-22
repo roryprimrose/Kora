@@ -387,9 +387,10 @@ function attachExecution(driver, directory, key, grantId, scopes, transfers = []
   const launch = driver.apply({ kind: 'dispatch', grantId }).actions;
   assert.equal(launch.length, 1);
   assert.equal(launch[0].grantId, grantId);
+  const controlWorkspace = 'Q:\\Synthetic\\lifecycle-control';
   const settings = { repository: 'roryprimrose/Kora', publicationAuthorized: true,
-    controlWorkspace: directory, productionWorkspace: path.join(directory, 'production'),
-    scratch: path.join(directory, '.scratch', 'receipts'), expectedPublisher: 'synthetic-publisher' };
+    controlWorkspace, productionWorkspace: 'Q:\\Synthetic\\lifecycle-production',
+    scratch: path.win32.join(controlWorkspace, '.scratch', 'receipts'), expectedPublisher: 'synthetic-publisher' };
   const prompt = workerLaunch(driver.state, launch[0], settings);
   assert(prompt.prompt.includes(grantId), 'Public launch must carry exact source grant identity.');
   const source = { worktree: path.join(directory, key), branch: `synthetic/${key}`, head: 'a'.repeat(40) };

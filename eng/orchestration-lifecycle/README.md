@@ -55,6 +55,8 @@ The [fixture allocator](../../.github/skills/kora-orchestrate/scripts/lifecycle-
 
 Each dataset path is printed. Checkpoints and synthetic retained files are preserved after execution. Fault injection targets only the exported checkpoint's IO seam. The contention test removes only its own simulated lock after closing its handle; no worktree, branch or source dataset is deleted.
 
+Launch-generator inputs use synthetic canonical Windows paths independently of the host-native dataset paths. These inputs are not filesystem operations; Linux policy runners retain their real checkpoints and source fixtures under repository-local ignored scratch without weakening the launch generator's Windows path contract.
+
 The synthetic source driver calls `validateSourceGrant` before creating or writing files and asserts its exact `valid: true, executionAuthorized: false` result. This harness-owned synthetic operation is not live execution authority or a filesystem-wide enforcement mechanism.
 
 ## Validation
@@ -113,3 +115,22 @@ Fixtures now produce canonical refs, retain prior exact head/ref pairs and inclu
 
 The [existing policy runner](../run-policy-tests.cjs) selects acceptance exactly once without selector or workflow edits. All legacy1-9 branches, explicit unexecuted disposition and authority negatives, retained-worktree scenarios and actual checkpoint IO failures pass.
 No provider/hardware trial or .NET build was run for this dependency-free engineering change; no live adoption, release, cleanup, consent or host/OS authority is established.
+
+### Portable launch-fixture repair
+
+PR #954's Ubuntu queue-policy run reported 635 passing and 10 failing tests. All
+10 failures passed host-native POSIX dataset paths into the Windows-only launch
+generator. Launch inputs now use independent synthetic Windows paths; actual
+checkpoint and retained-source operations continue using host-native paths.
+
+Executed locally on Windows on 2026-11-22 after this repair:
+
+| Exact command | Actual result |
+| --- | --- |
+| `node --test .\.github\skills\kora-orchestrate\scripts\lifecycle-acceptance.test.cjs` | Exit 0; 56 passed, 0 failed/skipped. |
+| `node .\eng\run-policy-tests.cjs` | Exit 0; 14 modules, 651 passed, 0 failed/skipped. |
+| `.\eng\Test-WindowsIntegrationScheduling.ps1` | Passed; 2258 assertions. |
+| `.\eng\Test-CiPreflight.ps1` | Passed; 667 assertions. |
+
+Ubuntu execution and hosted CI after this repair were not run. The production
+Windows path validator and all lifecycle boundary assertions remain unchanged.

@@ -1767,6 +1767,7 @@ const LIFECYCLE_COMMANDS = Object.freeze({
   compatible: 'kind grantId head',
   close: 'kind key outcome releases',
   release: 'kind releases',
+  'release-unexecuted': 'kind legacyDigest releases',
   repair: 'kind key pr grantId scopes transfers',
   pause: 'kind reason',
   recover: 'kind coordinator',
@@ -1878,7 +1879,30 @@ function previewLifecycleMigration(legacy) {
       mode: legacy.mode, legacy, legacyDigest }) };
 }
 
-function lifecycleAffected(p, c) {
+function lifecycleUnexecuted(p, c, origin) {
+  requireValue(origin?.legacy && c.legacyDigest === origin.legacyDigest && c.releases.length > 0,
+    'Explicit accepted local unexecuted custody origin required.');
+  const holders = new Set();
+  for (const d of c.releases) {
+    const r = p.reservations.find(r => r.id === d.reservationId);
+    const item = origin.legacy.items.find(i => i.key === r?.key);
+    const record = origin.legacy.supersessions?.find(s => s.event.proof.mode === 'activate-local' &&
+      s.event.proof.candidate.key === r?.key);
+    requireValue(r?.grantId === null && item?.phase === 'candidate' &&
+      p.works.find(w => w.key === r.key)?.status === 'candidate' && !p.grants.some(g => g.key === r.key) &&
+      record?.event.proof.authority.singleLedger === true && record.event.proof.externalCheckpoints.length === 0,
+    'Only known local never-executed future custody may be disposed; external or unresolved authority is retained.');
+    for (const h of record.event.proof.holders) {
+      const grant = p.grants.find(g => g.id === `legacy:${h.key}`);
+      requireValue(h.coordinator === origin.coordinator && grant?.status === 'revoked' &&
+        grant.owner === h.owner, 'Actual local predecessor retirement and preservation required.');
+      holders.add(grant.id);
+    }
+  }
+  return [...holders].sort();
+}
+
+function lifecycleAffected(p, c, origin) {
   lifecycleCommand(c);
   const all = ['adopt', 'pause', 'recover', 'resume'].includes(c.kind);
   const keys = new Set(c.key ? [c.key] : []);
@@ -1888,6 +1912,8 @@ function lifecycleAffected(p, c) {
   if (representedPr !== null && representedPr !== undefined)
     p.works.filter(w => w.pr === representedPr).forEach(w => keys.add(w.key));
   const ids = new Set([...(c.transfers ?? []), ...(c.releases ?? [])].map(d => d.reservationId));
+  if (c.kind === 'release-unexecuted')
+    lifecycleUnexecuted(p, c, origin).forEach(id => keys.add(p.grants.find(g => g.id === id).key));
   const paths = [...(c.scopes ?? []), ...(grant?.scopes ?? [])];
   for (const r of p.reservations) {
     if (ids.has(r.id) || overlaps(r.scopes, paths)) keys.add(r.key);
@@ -1905,7 +1931,7 @@ function lifecycleAffected(p, c) {
 }
 
 function lifecycleRevisions(state, command) {
-  return lifecycleAffected(lifecycleProjection(state), command);
+  return lifecycleAffected(lifecycleProjection(state), command, state.origin);
 }
 
 function lifecycleProofDigest(event) {
@@ -1915,7 +1941,7 @@ function lifecycleProofDigest(event) {
   return digest(value);
 }
 
-function lifecycleHolders(p, c) {
+function lifecycleHolders(p, c, origin) {
   const ids = new Set([...(c.transfers ?? []), ...(c.releases ?? [])].map(d =>
     p.reservations.find(r => r.id === d.reservationId)?.grantId).filter(Boolean));
   if (['revoke', 'amend', 'compatible'].includes(c.kind)) ids.add(c.grantId);
@@ -1925,19 +1951,28 @@ function lifecycleHolders(p, c) {
   if (['adopt', 'pause', 'recover'].includes(c.kind)) {
     p.grants.filter(lifecycleLive).forEach(g => ids.add(g.id));
   }
+  if (c.kind === 'release-unexecuted') lifecycleUnexecuted(p, c, origin).forEach(id => ids.add(id));
   return [...ids].sort().map(id => p.grants.find(g => g.id === id));
 }
 
-function lifecycleEvidence(p, event, e, used) {
+function lifecycleRef(ref) {
+  return typeof ref === 'string' && ref.startsWith('refs/') && ref.length > 5 &&
+    !/[\x00-\x20\x7f~^:?*[\]\\]/.test(ref) && !ref.includes('..') && !ref.includes('@{') &&
+    ref.split('/').every(part => part.length > 0 && !part.startsWith('.') &&
+      !part.endsWith('.') && !part.endsWith('.lock'));
+}
+
+function lifecycleEvidence(p, event, e, used, origin) {
   lifecycleFields(event, 'id type command expected evidence');
   requireValue(text(event.id) && event.type === 'lifecycle', 'Lifecycle event identity/type required.');
   const c = event.command;
   lifecycleCommand(c);
-  requireValue(equal(event.expected, lifecycleAffected(p, c)), 'Stale affected lifecycle revisions.');
+  requireValue(equal(event.expected, lifecycleAffected(p, c, origin)), 'Stale affected lifecycle revisions.');
   lifecycleFields(event.evidence, 'human holders receipt');
   requireValue(text(event.evidence.receipt) && Array.isArray(event.evidence.holders),
     'Explicit lifecycle evidence required.');
-  lifecycleFields(e, 'kind eventDigest coordinator ledgerAuthorityVerified humanAuthorizationVerified holdersVerified sourceOwnershipVerified deliveryVerified preservationVerified receipt');
+  lifecycleFields(e, 'kind eventDigest coordinator ledgerAuthorityVerified humanAuthorizationVerified holdersVerified sourceOwnershipVerified deliveryVerified preservationVerified receipt' +
+    (c.kind === 'release-unexecuted' ? ' unexecutedCustodyVerified' : ''));
   requireValue(e.kind === 'host-verified-lifecycle' && e.eventDigest === digest(event) &&
     e.coordinator === p.coordinator && e.ledgerAuthorityVerified === true &&
     ['humanAuthorizationVerified', 'sourceOwnershipVerified', 'deliveryVerified', 'preservationVerified']
@@ -1950,10 +1985,13 @@ function lifecycleEvidence(p, event, e, used) {
       e.humanAuthorizationVerified === true && !used.decisions.has(h.id),
     'Fresh exact human lifecycle decision required.');
   } else requireValue(h === null, 'Bookkeeping must not claim unnecessary human authority.');
-  const required = lifecycleHolders(p, c);
+  const required = lifecycleHolders(p, c, origin);
   requireValue(required.every(Boolean) && equal(required.map(g => g.id),
     event.evidence.holders.map(v => v.grantId)) && equal(e.holdersVerified, required.map(g => g.id)),
   'Every affected exact holder requires independent readback.');
+  if (c.kind === 'release-unexecuted') requireValue(e.preservationVerified === true &&
+    equal(e.unexecutedCustodyVerified, c.releases.map(d => d.reservationId).sort()),
+  'Independent exact local never-executed custody/preservation readback required.');
   for (const [index, grant] of required.entries()) {
     const v = event.evidence.holders[index];
     lifecycleFields(v, 'grantId owner writingStopped commandsRunning workJoined pendingInstructions processingInstructions fence preservation acknowledgment');
@@ -1972,19 +2010,33 @@ function lifecycleEvidence(p, event, e, used) {
     lifecycleFields(m, 'actual planned committed restored retained unpreserved commits bytesPreserved refsPreserved historyPreserved receipt');
     for (const name of ['actual', 'planned', 'committed', 'restored', 'retained', 'unpreserved'])
       canonicalPaths(m[name]);
+    const prior = used.manifests.get(grant.id);
+    const known = ['actual', 'planned', 'committed', 'restored'].flatMap(name => prior?.[name] ?? []);
+    requireValue(m.actual.every(value => covers(grant.scopes, value) || known.includes(value)) &&
+      m.planned.every(value => covers(c.kind === 'amend' ? c.scopes : grant.scopes, value) || known.includes(value)),
+    'New lifecycle write facts must already be admitted; accepted historical paths confer no new source authority.');
+    const requiredHeads = new Set([...(used.heads.get(grant.id) ?? []),
+      ...(grant.source ? [grant.source.head] : []),
+      ...(c.kind === 'compatible' && c.grantId === grant.id && c.source ? [c.source.head] : [])]);
+    const refs = new Set();
     requireValue(m.unpreserved.length === 0 && m.bytesPreserved === true && m.refsPreserved === true &&
       m.historyPreserved === true && text(m.receipt) && Array.isArray(m.commits) &&
       m.commits.every(commit => {
         lifecycleFields(commit, 'head ref');
-        return head(commit.head) && text(commit.ref);
+        const valid = head(commit.head) && lifecycleRef(commit.ref) && !refs.has(commit.ref);
+        refs.add(commit.ref);
+        return valid;
       }) && [...m.committed, ...m.restored].every(value => m.actual.includes(value)) &&
       [...m.actual, ...m.committed, ...m.restored].every(value => covers(m.retained, value)) &&
       (m.committed.length === 0 || m.commits.length > 0) && e.preservationVerified === true,
     'Complete durable lifecycle bytes/refs/history preservation required.');
+    requireValue([...requiredHeads].every(value => m.commits.some(commit => commit.head === value)) &&
+      (prior?.commits ?? []).every(commit => m.commits.some(current =>
+        current.head === commit.head && current.ref === commit.ref)),
+    'Required current source/publication and historical ref anchors must remain preserved.');
     requireValue(c.kind !== 'amend' || [...m.actual, ...m.committed, ...m.restored]
-      .every(value => covers(grant.scopes, value)),
+      .every(value => covers(grant.scopes, value) || known.includes(value)),
     'Ordinary lifecycle amendment cannot retroauthorize an outside-scope write.');
-    const prior = used.manifests.get(grant.id);
     requireValue(!prior || ['actual', 'planned', 'committed', 'restored'].every(name =>
       prior[name].every(value => (name === 'planned' ? [...m.actual, ...m.planned] : m[name])
         .includes(value))), 'Lifecycle preservation history was omitted.');
@@ -2009,7 +2061,7 @@ function lifecycleDispose(p, dispositions, targetScopes = null) {
 }
 
 function lifecycleReduce(p, event, e, used, origin, index) {
-  lifecycleEvidence(p, event, e, used);
+  lifecycleEvidence(p, event, e, used, origin);
   const c = event.command, actions = [];
   const work = p.works.find(w => w.key === c.key);
   const grant = p.grants.find(g => g.id === c.grantId);
@@ -2096,6 +2148,8 @@ function lifecycleReduce(p, event, e, used, origin, index) {
       'Verified same-PR publication required.');
       current.pr = proof.pr; current.publications.push(structuredClone(proof));
       used.published.add(grant.id);
+      const heads = used.heads.get(grant.id) ?? new Set();
+      heads.add(proof.remoteHead); used.heads.set(grant.id, heads);
       break;
     }
     case 'amend': {
@@ -2140,6 +2194,9 @@ function lifecycleReduce(p, event, e, used, origin, index) {
       }), 'Only explicitly retired remainder custody may be released.');
       lifecycleDispose(p, c.releases);
       break;
+    case 'release-unexecuted':
+      lifecycleDispose(p, c.releases);
+      break;
     case 'pause':
       requireValue(p.enabled, 'Lifecycle already paused.');
       p.enabled = false; p.authorityRevision++;
@@ -2173,7 +2230,7 @@ function lifecycleReplay(state) {
   requireValue(state.version === 10 && Array.isArray(state.history), 'Malformed lifecycle registry.');
   const p = lifecycleInitial(state.origin);
   const used = { decisions: new Set(), acknowledgments: new Set(), nonces: new Set(),
-    epochs: new Map(), manifests: new Map(), published: new Set() };
+    epochs: new Map(), manifests: new Map(), published: new Set(), heads: new Map() };
   if (state.origin.legacy) {
     const old = state.origin.legacy;
     const remember = (key, acknowledgment, authorization, fence) => {
@@ -2194,6 +2251,7 @@ function lifecycleReplay(state) {
       remember(h.key, h.acknowledgment, r.event.authorization, h.reconciliation?.fence);
     for (const item of old.items) {
       if (item.publication) used.published.add(`legacy:${item.key}`);
+      const heads = new Set([item.head, ...(item.publication ? [item.publication.remoteHead] : [])]);
       const manifests = [...(item.scopeHistory ?? []), ...(item.scopeAmendments ?? [])]
         .map(r => r.proof.manifest);
       manifests.push(...(old.recoveries ?? []).filter(r => r.event.proof.key === item.key)
@@ -2201,6 +2259,17 @@ function lifecycleReplay(state) {
       manifests.push(...(old.supersessions ?? []).flatMap(r => r.event.proof.holders
         .filter(h => h.key === item.key && h.coordinator === old.coordinator).map(h => h.manifest))
         .filter(Boolean));
+      for (const record of [...(item.scopeHistory ?? []), ...(item.scopeAmendments ?? []),
+        ...(old.recoveries ?? []).filter(r => r.event.proof.key === item.key).map(r => r.event)]) {
+        for (const commit of record.proof.preservation?.commits ?? []) heads.add(commit.head);
+        if (record.proof.source) heads.add(record.proof.source.head);
+      }
+      for (const h of (old.supersessions ?? []).flatMap(r => r.event.proof.holders)
+        .filter(h => h.key === item.key && h.coordinator === old.coordinator)) {
+        for (const commit of h.preservation?.commits ?? []) heads.add(commit.head);
+        if (h.source) heads.add(h.source.head);
+      }
+      used.heads.set(`legacy:${item.key}`, heads);
       used.manifests.set(`legacy:${item.key}`, Object.fromEntries(['actual', 'planned', 'committed', 'restored']
         .map(name => [name, [...new Set(manifests.flatMap(m => m[name] ?? []))]])));
     }

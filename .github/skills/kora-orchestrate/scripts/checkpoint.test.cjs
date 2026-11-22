@@ -93,6 +93,45 @@ test('v10 checkpoint explicitly initializes without silently changing default le
   assert.deepEqual(value.actions, []);
 });
 
+test('v10 explicit unexecuted custody disposition retains atomic failure and no-action journal boundaries', () => {
+  const f = fixture();
+  function legacy(event) {
+    const before = f.run({ operation: 'read' });
+    return f.run({ operation: 'apply', expectedRevision: before.revision, event });
+  }
+  legacy({ id: 'local-main', type: 'refresh', head: '1'.repeat(40) });
+  legacy({ id: 'local-holder', type: 'adopt', key: 'prior', owner: 'synthetic-prior',
+    outcome: 'SYNTHETIC prior', pool: 'ready', kind: 'feature', head: '1'.repeat(40),
+    scopes: ['src\\local.cs'], evidence: 'SYNTHETIC scope.' });
+  legacy({ id: 'local-planner', type: 'planner', owner: 'synthetic-planner' });
+  let before = legacy({ id: 'local-candidate', type: 'candidate', owner: 'synthetic-planner', pass: 1,
+    key: 'successor', outcome: 'SYNTHETIC successor', pool: 'ready', kind: 'maintenance',
+    head: '1'.repeat(40), scopes: ['src\\local.cs'], evidence: 'SYNTHETIC operation.' });
+  before = legacy(supersessionEvent(before.state, before.revision));
+  const shadow = { version: 10, origin: { coordinator: before.state.coordinator, head: before.state.head,
+    mode: before.state.mode, legacy: before.state, legacyDigest: digest(before.state) }, history: [] };
+  const adoption = lifecycleInput(shadow, { kind: 'adopt', legacyDigest: digest(before.state) });
+  const adopted = f.run({ operation: 'adopt-lifecycle', expectedRevision: before.revision, ...adoption });
+  const input = lifecycleInput(adopted.state, { kind: 'release-unexecuted', legacyDigest: digest(before.state),
+    releases: [{ reservationId: 'legacy:successor', paths: ['src\\local.cs'] }] });
+  const bytes = f.files.get(f.file);
+  f.failReplacement();
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: adopted.revision, ...input }), /Replacement failed/);
+  assert.equal(f.files.get(f.file), bytes);
+  f.failReplacement(false);
+  const missing = structuredClone(input); missing.lifecycleEvidence.unexecutedCustodyVerified = [];
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: adopted.revision, ...missing }),
+    /custody\/preservation readback/);
+  assert.equal(f.files.get(f.file), bytes);
+  const accepted = f.run({ operation: 'apply', expectedRevision: adopted.revision, ...input });
+  assert.deepEqual(accepted.actions, adopted.actions);
+  assert.deepEqual(accepted.events.at(-1).commands, []);
+  assert.deepEqual(f.run({ operation: 'read' }), accepted);
+  const finalBytes = f.files.get(f.file);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: accepted.revision, ...input }), /cannot be replayed/);
+  assert.equal(f.files.get(f.file), finalBytes);
+});
+
 test('v10 adoption preserves nonempty legacy publications and pending journal actions byte-for-byte', () => {
   const f = fixture();
   function legacy(event) {
@@ -153,7 +192,7 @@ function fixture() {
   const run = input => checkpoint(file, input, io);
   run({ operation: 'init', expectedRevision: 0, coordinator: 'fixture-coordinator', head: null,
     mode: 'delivery' });
-  return { files, file, run, failReplacement: () => { failRename = true; } };
+  return { files, file, run, failReplacement: (fail = true) => { failRename = fail; } };
 }
 
 function candidateCheckpoint(released = true) {

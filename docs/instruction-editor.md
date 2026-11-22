@@ -463,6 +463,32 @@ Protected calls, unavailable speech, detected source risk or noncanonical/ambigu
 Accepted Save uses the same writer, complete-byte readback and disabled-revision reconciliation. Cancel before publication leaves the source unchanged. An uncertain publication is held for inspection/reconciliation, not rolled back or retried.
 Create, copy, delete, conflict overwrite, prompts, profile originals, grants and enablement retain their existing native reviews ([writer](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.cs)).
 
+## Use bundled Rewrite for clarity
+
+Type `/prompt rewrite-for-clarity` (or `/rewrite-for-clarity`), or activate
+`Kora, use Rewrite for clarity`. Inspect the complete selected read-only source
+in the parameter form; it is also available under **Customizations > Prompts**.
+The bundled source cannot be edited and is not an owned prompt file.
+
+Enter your text in **text**, then choose **Preview complete expanded USER REQUEST**.
+Your input stays literal, including whitespace and `${input:text}`-like text;
+there is no recursive substitution, file/clipboard read or default value.
+The existing 512-character/2048-byte per-input and complete-request limits apply.
+Nothing has been submitted or sent to a model at this point.
+
+Choose **Refresh session metadata**, explicitly select one existing **Active**
+conversation, then **Review submission to exact Active session**. Review the
+complete unchanged USER request, destination and retention explanation. Choose
+**Submit this expanded request to exact session** once. The normal conversation
+host returns a genuine rewritten answer or a truthful unavailable/failed terminal.
+The prompt does not enable an unqualified model, grant tools, disclose hidden
+history or approve hosted processing. Form values are memory-only; only the
+separately confirmed expanded USER message uses normal conversation retention.
+
+Changing text, target, source/use/catalogue, privacy or presentation retires the
+review. Cancel submits nothing. After an attempted submission, inspect its
+reported receipt rather than replaying the form.
+
 ## Prepare required native prompt inputs
 
 Create/edit a Prompt with `kora-format: 2`, for example this source:

@@ -8,6 +8,38 @@ public sealed partial class MainViewModelTests
 {
     [Theory]
     [InlineData("/prompt example")]
+    [InlineData("Kora, use Example")]
+    public async Task BundledRegistrationOpensSamePrivatePromptRouteAndCannotRetargetAfterRebind(string command)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var registered = new BundledPromptSource("kora.prompt.example", "Kora.Prompts.Example",
+            ArtifactFileDocument.Encode("---\nkora-format: 2\nname: Example\ndescription: Test\n---\nRewrite ${input:text}", false));
+        var source = registered.Definition;
+        f.ArtifactCatalogue.Publish([source]);
+        f.ViewModel.BindBundledPromptSources([registered]);
+        PromptParameterDraft? draft = null;
+        f.ViewModel.PromptPreparationRequested += proposed => { draft = proposed; return Task.CompletedTask; };
+        await f.RunAsync(command);
+        draft.Should().NotBeNull();
+        using (draft)
+        {
+            draft!.SetValue("text", "literal ${input:text}");
+            (await draft.Preview(f.ViewModel.IsPromptSourceCurrent, TestContext.Current.CancellationToken))
+                .UserRequest.Should().Be("Rewrite literal ${input:text}");
+            f.ViewModel.BindBundledPromptSources([]);
+            draft.IsCurrent.Should().BeFalse();
+            (await f.ViewModel.IsPromptSourceCurrent(source, TestContext.Current.CancellationToken)).Should().BeFalse();
+        }
+        f.Reasoner.Requests.Should().BeEmpty();
+        ((Action)(() => f.ViewModel.BindBundledPromptSources([registered, registered])))
+            .Should().Throw<InvalidDataException>();
+        await f.RunAsync(command);
+        f.ViewModel.ResponseBody.Should().Contain("no exact immutable source registration");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("/prompt example")]
     [InlineData("/example")]
     [InlineData("Kora, use example")]
     public async Task ActualOwnedPromptArtifactRoutesOpenNativePreparationWithoutLegacyInference(string command)

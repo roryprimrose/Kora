@@ -12,6 +12,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Commands;
 using Kora.Definitions.Skills;
+using Kora.Definitions.Prompts;
 
 using Microsoft.Extensions.Logging;
 
@@ -397,6 +398,13 @@ internal sealed partial class CustomizationWindowController(
             bundled.Add(item.Id, new(item, package.DeclaredResourceDigest,
                 package.Files.Select(file => new CustomizationFile(file.Name, file.Bytes)).ToArray()));
         }
+        foreach (var prompt in EmbeddedPromptCatalogue.Load())
+        {
+            var item = new CustomizationSource(prompt.Definition.Id, CustomizationKind.Prompt, CustomizationScope.BuiltIn,
+                prompt.Definition.Name, "Bundled with Kora (immutable)", "rewrite-for-clarity.prompt.md", true);
+            bundled.Add(item.Id, new(item, prompt.Definition.Digest,
+                [new CustomizationFile(item.PrimaryFile, prompt.CopyBytes())]));
+        }
         sources = [.. bundled.Values.Select(snapshot => snapshot.Source), .. disk];
         RefreshCapabilityMetadata();
         RenderSources();
@@ -644,7 +652,8 @@ internal sealed partial class CustomizationWindowController(
             await window!.Review(disabled ? $"Disable in {AssistantNameDisplay.Current.Name}" : $"Allow {AssistantNameDisplay.Current.Name} use", selected.Name + "\n" + selected.Location
                 + (disabled ? "\nExclude from new model context, options, capabilities and invocation; keep files."
                     : "\nAllow only this reviewed primary definition revision on this machine. Separate instruction, skill, agent and MCP checks still apply; no tools, authentication or connection are approved.")
-                + (snapshot is null ? string.Empty : "\n\n" + string.Join("\n\n", snapshot.Files.Select(file => file.Name + "\n" + file.Text))),
+                + ((snapshot ?? bundled.GetValueOrDefault(selected.Id)) is not { } reviewedSource ? string.Empty
+                    : "\n\n" + string.Join("\n\n", reviewedSource.Files.Select(file => file.Name + "\n" + file.Text))),
                 admitted, disabled ? "Disable" : "Allow", "Cancel") is "Disable" or "Allow", current, token))
         { ShowDraft(window?.Editor.Text ?? string.Empty); RenderSources(); }
     }

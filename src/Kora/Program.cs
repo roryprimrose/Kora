@@ -821,6 +821,11 @@ internal static class Program
             provider.GetRequiredService<Kora.Application.Context.LocalSourceUsePolicy>());
         services.AddSingleton<Kora.Tools.Files.LocalFileRefresh>();
         services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();
-        services.AddSingleton<MainViewModel>();
+        services.AddSingleton(provider =>
+        {
+            var main = ActivatorUtilities.CreateInstance<MainViewModel>(provider);
+            main.BindBundledPromptSources(Kora.Definitions.Prompts.EmbeddedPromptCatalogue.Load());
+            return main;
+        });
     }
 }

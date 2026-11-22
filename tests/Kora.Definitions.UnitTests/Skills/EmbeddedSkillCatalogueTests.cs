@@ -14,7 +14,7 @@ public sealed class EmbeddedSkillCatalogueTests
     [Fact]
     public void Every_embedded_skill_has_a_source_qualified_invocation_artifact()
     {
-        var artifacts = EmbeddedArtifactCatalogue.Load().Artifacts;
+        var artifacts = EmbeddedArtifactCatalogue.Load().Artifacts.Where(artifact => artifact.Kind == ArtifactKind.Skill).ToArray();
 
         artifacts.Should().HaveCount(3);
         artifacts.Should().OnlyContain(artifact =>

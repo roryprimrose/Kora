@@ -127,12 +127,20 @@ function applyLifecycle(state, event, context) {
   return result;
 }
 
-function writeSyntheticSource(directory, state, request, context, content) {
+function sourceDirectory(directory, worktree) {
   assert(path.isAbsolute(directory) && path.basename(directory).startsWith('acceptance-') &&
     directory.split(path.sep).includes('.scratch'), 'An allocated synthetic workspace is required.');
-  const relative = path.relative(directory, request.source.worktree);
-  assert(relative && !path.isAbsolute(relative) &&
-    !relative.split(path.sep).includes('..'), 'Synthetic source must be inside the allocated dataset.');
+  assert(typeof worktree === 'string' && path.win32.isAbsolute(worktree) &&
+    path.win32.normalize(worktree) === worktree, 'A canonical synthetic Windows source is required.');
+  const root = path.win32.join('Q:\\Synthetic', path.basename(directory));
+  const relative = path.win32.relative(root, worktree);
+  assert(relative && !path.win32.isAbsolute(relative) &&
+    !relative.split('\\').includes('..'), 'Synthetic source must be inside the allocated dataset.');
+  return path.join(directory, ...relative.split('\\'));
+}
+
+function writeSyntheticSource(directory, state, request, context, content) {
+  const worktree = sourceDirectory(directory, request.source.worktree);
   assert.equal(typeof content, 'string', 'Synthetic source content must be explicit.');
   assert(request.paths.length > 0, 'Synthetic source operations must name their paths.');
   registry.canonicalPaths(request.paths, true);
@@ -140,7 +148,7 @@ function writeSyntheticSource(directory, state, request, context, content) {
   assert.deepEqual(result, { valid: true, executionAuthorized: false,
     grantId: request.grantId, grantRevision: request.grantRevision });
   for (const name of request.paths) {
-    const file = path.join(request.source.worktree, ...name.split('\\'));
+    const file = path.join(worktree, ...name.split('\\'));
     let ancestor = file;
     while (!fs.existsSync(ancestor)) ancestor = path.dirname(ancestor);
     assert.equal(fs.realpathSync.native(ancestor).toLowerCase(), ancestor.toLowerCase(),
@@ -450,5 +458,5 @@ function legacyVersionScenario(version) {
 }
 
 module.exports = { legacyScenario, replay, createWorkspace, snapshotTree, checkpointDriver, failingIo,
-  lifecycleEvent, applyLifecycle, writeSyntheticSource, lifecycleDriver, grantRequest, rebindLifecycle,
+  lifecycleEvent, applyLifecycle, sourceDirectory, writeSyntheticSource, lifecycleDriver, grantRequest, rebindLifecycle,
   legacyVersionScenario };

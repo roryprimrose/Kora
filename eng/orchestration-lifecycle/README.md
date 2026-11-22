@@ -57,6 +57,11 @@ Each dataset path is printed. Checkpoints and synthetic retained files are prese
 
 Launch-generator inputs use synthetic canonical Windows paths independently of the host-native dataset paths. These inputs are not filesystem operations; Linux policy runners retain their real checkpoints and source fixtures under repository-local ignored scratch without weakening the launch generator's Windows path contract.
 
+Lifecycle source identities also use canonical synthetic Windows paths. The
+fixture maps only identities beneath the current dataset's synthetic root to
+native files inside that dataset, rejecting other roots, drives and escapes.
+Grant validation still consumes the unchanged Windows identity before writes.
+
 The synthetic source driver calls `validateSourceGrant` before creating or writing files and asserts its exact `valid: true, executionAuthorized: false` result. This harness-owned synthetic operation is not live execution authority or a filesystem-wide enforcement mechanism.
 
 ## Validation
@@ -134,3 +139,18 @@ Executed locally on Windows on 2026-11-22 after this repair:
 
 Ubuntu execution and hosted CI after this repair were not run. The production
 Windows path validator and all lifecycle boundary assertions remain unchanged.
+
+The next Ubuntu run on `157a418b6` passed launch generation but failed the same
+10 scenarios at the lifecycle source validator. Source identities are now
+separate from native filesystem paths as well. Local Windows validation on
+2026-11-22 after this second repair:
+
+| Exact command | Actual result |
+| --- | --- |
+| `node .\eng\run-policy-tests.cjs` | Exit 0; 14 modules, 652 passed, 0 failed/skipped. |
+| `.\eng\Test-WindowsIntegrationScheduling.ps1` | Passed; 2258 assertions. |
+| `.\eng\Test-CiPreflight.ps1` | Passed; 667 assertions. |
+
+This adds one dataset-mapping confinement regression. The production lifecycle
+source validator remains unchanged; local Windows results do not establish an
+Ubuntu CI pass.

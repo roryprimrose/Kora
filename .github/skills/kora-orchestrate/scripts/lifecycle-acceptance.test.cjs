@@ -10,7 +10,7 @@ const { createLifecycleState, lifecycleProjection, lifecycleRevisions, lifecycle
 const { workerLaunch } = require('./worker-launch.cjs');
 const { discoverPolicyTests } = require('../../../../eng/run-policy-tests.cjs');
 const { legacyScenario, replay, createWorkspace, snapshotTree, checkpointDriver, failingIo,
-  lifecycleEvent, writeSyntheticSource, lifecycleDriver, grantRequest, rebindLifecycle, legacyVersionScenario } =
+  lifecycleEvent, sourceDirectory, writeSyntheticSource, lifecycleDriver, grantRequest, rebindLifecycle, legacyVersionScenario } =
   require('./lifecycle-acceptance-fixture.cjs');
 
 const repository = path.resolve(__dirname, '..', '..', '..', '..');
@@ -265,7 +265,7 @@ test('v10 missing host authority cannot register, adopt or write synthetic sourc
 
   const directory = allocate();
   const request = { grantId: 'synthetic-nonexistent-grant', grantRevision: 1,
-    owner: 'synthetic:owner', source: { worktree: path.join(directory, 'source-a'),
+    owner: 'synthetic:owner', source: { worktree: path.win32.join('Q:\\Synthetic', path.basename(directory), 'source-a'),
       branch: 'synthetic-branch-a', head: scenario.head },
     head: scenario.head, paths: ['synthetic\\shared.cjs'] };
   const bytes = snapshotTree(directory);
@@ -393,7 +393,8 @@ function attachExecution(driver, directory, key, grantId, scopes, transfers = []
     scratch: path.win32.join(controlWorkspace, '.scratch', 'receipts'), expectedPublisher: 'synthetic-publisher' };
   const prompt = workerLaunch(driver.state, launch[0], settings);
   assert(prompt.prompt.includes(grantId), 'Public launch must carry exact source grant identity.');
-  const source = { worktree: path.join(directory, key), branch: `synthetic/${key}`, head: 'a'.repeat(40) };
+  const source = { worktree: path.win32.join('Q:\\Synthetic', path.basename(directory), key),
+    branch: `synthetic/${key}`, head: 'a'.repeat(40) };
   driver.apply({ kind: 'attach', grantId, owner: `synthetic:${key}`, source });
   return grantRequest(driver.state, grantId, scopes);
 }
@@ -423,6 +424,26 @@ function refusesUnchanged(driver, prepared, pattern = Error) {
   assert.deepEqual(driver.state, before);
 }
 
+test('synthetic Windows source identities map only to their allocated native dataset', () => {
+  const directory = allocate();
+  const driver = lifecycleDriver(emptyLifecycle());
+  const request = attachExecution(driver, directory, 'mapped', 'mapped-grant', ['synthetic\\mapped.cjs']);
+  writeSyntheticSource(directory, driver.state, request, sourceAuthority, 'mapped source\n');
+  assert.equal(fs.readFileSync(path.join(directory, 'mapped', 'synthetic', 'mapped.cjs'), 'utf8'),
+    'mapped source\n');
+  const bytes = snapshotTree(directory);
+  for (const worktree of [
+    'Q:\\Synthetic\\another-dataset\\mapped',
+    path.win32.join('Q:\\Synthetic', path.basename(directory), '..', 'outside'),
+    path.win32.join('R:\\Synthetic', path.basename(directory), 'mapped')
+  ]) {
+    assert.throws(() => writeSyntheticSource(directory, driver.state,
+      { ...request, source: { ...request.source, worktree } }, sourceAuthority, 'forbidden'),
+    /inside the allocated dataset/);
+  }
+  assert.deepEqual(snapshotTree(directory), bytes);
+});
+
 test('A to B to C executes under fresh grants while old grants and retained worktree bytes stay retired', () => {
   const directory = allocate();
   const driver = lifecycleDriver(emptyLifecycle());
@@ -446,7 +467,7 @@ test('A to B to C executes under fresh grants while old grants and retained work
     retireAndClose(driver, key, grantId);
     assert.equal(driver.projection().capacity.ready, capacity);
     assert.equal(driver.projection().works.find(work => work.key === key).cleanup, null);
-    snapshots.set(key, snapshotTree(request.source.worktree));
+    snapshots.set(key, snapshotTree(sourceDirectory(directory, request.source.worktree)));
     retired.push(request);
     const allBytes = snapshotTree(directory);
     for (const old of retired) {

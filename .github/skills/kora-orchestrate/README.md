@@ -57,6 +57,22 @@ Both modes require a fresh established cooperative fence `{epoch,nonce,establish
 Preservation has `{actual,planned,committed,restored,retained,unpreserved,commits,bytesPreserved:true,refsPreserved:true,historyPreserved:true,receipt}`. Every path list is canonical/unique.
 Unpreserved must be empty; all actual/committed/restored bytes must be retained, and commits require `{head,ref}` anchors. Known earlier actual/restored/committed/planned evidence cannot disappear. Ordinary amendment cannot cover an already unauthorized write.
 
+Preservation validation is tightened by the version1.1 correction contract; this
+is not semantic compatibility with previously malformed version10 evidence.
+Legacy1-9 meanings and accepted bytes are unchanged. New actual/planned tokens
+must be admitted by grant scopes or be exact accepted historical tokens. Planned
+amendment additions may use the final approved union; actual writes still need
+old coverage or accepted history. Empty/unwritten scopes, retained parent tokens
+and dirty uncommitted bytes remain valid; no complete-set equality is required.
+
+Every current source head, compatible source advancement, grant-specific
+publication head and imported legacy source/publication/preserved commit head
+needs a declared valid Git ref under `refs/`. Ref names are unique, and previous
+version10 `{head,ref}` bindings cannot disappear or change. Use durable preserved
+refs rather than pretending one advancing branch points to several old commits.
+An unattached new grant with no source/committed bytes needs no invented commit.
+These facts remain independently verified host inputs, not authenticated strings.
+
 Holders are sorted by grant ID: transfer/release holders; all grants of an allocated/repaired/closed/physically-cleaned work; named grant for revoke/amend/compatible; all live/unresolved grants for adopt/pause/recover. Retirement covers the entire grant, not only transferred paths. Untransferred scopes remain held. External guards stay nonactivating and cannot be disposed through a local transfer.
 
 | Command `kind` | Other exact fields | Behavior |
@@ -74,6 +90,7 @@ Holders are sorted by grant ID: transfer/release holders; all grants of an alloc
 | `compatible` | `grantId,head`, optional `source` | Fresh independent compatibility and exact holder/human evidence; increments grant revision. Explicit source-head advancement keeps the exact worktree/branch. |
 | `close` | `key,outcome,releases` | Outcome `delivered|cancelled|abandoned`; every grant terminated/joined, bytes/refs/history preserved, delivered requires latest execution's publication. Releases only explicit exact paths; omitted paths remain held. |
 | `release` | `releases` | Explicitly disposes retired remainder custody, not active writers or external snapshots. |
+| `release-unexecuted` | `legacyDigest,releases` | Explicit local never-executed future custody disposition; requires accepted origin, real predecessor preservation and independent absence-of-execution authority. |
 | `repair` | `key,pr,grantId,scopes,transfers` | Same work/PR in repair capacity, fresh generation, actual prior-source termination/preservation, no old-grant revival. Supports retained open or closed deliveries. |
 | `pause` | `reason` | Stops dispatch, joins/revokes live grants and retains all work/custody. |
 | `recover` | `coordinator` | Paused, joined old authority only; stays paused and invalidates source freshness. |
@@ -83,6 +100,16 @@ Holders are sorted by grant ID: transfer/release holders; all grants of an alloc
 `transfers` and `releases` are explicit arrays of `{reservationId,paths}`. Only exact held path tokens can move; no ancestor subtraction. `allocate` and `repair` require no remaining overlapping reservation, including retained/external guards. Original item/history bytes are never edited to represent a transfer.
 
 Only the projection drives dispatch, exclusion, amendment, source continuation, repair, recovery, inspection, closure and optional cleanup. No historical-participant ban applies to a fresh version10 grant. Legacy retired grants remain rejected. No expiry reclamation, queue daemon, scheduling, OS isolation or host authentication is supplied.
+
+`release-unexecuted` applies only to a represented candidate's null-grant
+reservation imported from accepted local activating supersession. Both original
+and current candidate are unexecuted, with no grant for that key. Bind the exact
+`origin.legacyDigest` and current affected revisions. Every real local predecessor
+grant must be revoked and supply fresh sorted holder/fence/ack/preservation proof.
+The host adds `unexecutedCustodyVerified`, exactly the sorted disposition IDs,
+and `preservationVerified:true`, with a fresh human decision over the final event.
+No fake grant, launch or capacity credit is created. Unknown, external, unresolved
+or formerly executed custody cannot use this route. Ordinary `release` is unchanged.
 
 ### Checkpoint and legacy construction
 
@@ -118,11 +145,19 @@ function apply(command, holderIds = []) {
     holders: holderIds.sort().map(grantId => {
       const g = p.grants.find(g => g.id === grantId), epoch = (epochs.get(grantId) ?? 0) + 1;
       epochs.set(grantId, epoch);
+      const prior = state.history.flatMap(r => r.event.evidence.holders)
+        .filter(h => h.grantId === grantId).at(-1);
+      const commits = structuredClone(prior?.preservation.commits ?? []);
+      const heads = [g.head, g.source?.head, ...state.history
+        .filter(r => r.event.command.kind === 'publish' && r.event.command.grantId === grantId)
+        .map(r => r.event.command.publication.remoteHead)].filter(Boolean);
+      for (const head of new Set(heads)) if (!commits.some(c => c.head === head))
+        commits.push({ head, ref: `refs/kora/synthetic-preserved/${head}` });
       return { grantId, owner: g.owner, writingStopped: true, commandsRunning: false,
         workJoined: true, pendingInstructions: 'UNKNOWN', processingInstructions: 'UNKNOWN',
         fence: { epoch, nonce: `${id}-${grantId}`, established: true, revokesEarlierSourceAuthority: true },
         preservation: { actual: g.scopes, planned: g.scopes, committed: g.scopes, restored: [],
-          retained: g.scopes, unpreserved: [], commits: [{ head: g.head, ref: `refs/heads/${grantId}` }],
+          retained: g.scopes, unpreserved: [], commits,
           bytesPreserved: true, refsPreserved: true, historyPreserved: true, receipt: 'SYNTHETIC preservation' },
         acknowledgment: { id: `${id}-${grantId}-ack`, proofDigest: '', receipt: 'SYNTHETIC response' } };
     }), receipt: 'SYNTHETIC complete evidence' } };

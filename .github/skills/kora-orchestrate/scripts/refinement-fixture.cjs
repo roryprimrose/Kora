@@ -339,6 +339,11 @@ function lifecycleInput(state, command, id = `synthetic-${state.history.length}-
   for (const d of [...(command.transfers ?? []), ...(command.releases ?? [])]) {
     const r = p.reservations.find(r => r.id === d.reservationId);
     if (r?.grantId) ids.add(r.grantId);
+    if (command.kind === 'release-unexecuted') {
+      const record = state.origin.legacy?.supersessions.find(s =>
+        s.event.proof.mode === 'activate-local' && s.event.proof.candidate.key === r?.key);
+      for (const h of record?.event.proof.holders ?? []) ids.add(`legacy:${h.key}`);
+    }
   }
   if (['revoke', 'amend', 'compatible'].includes(command.kind)) ids.add(command.grantId);
   if (['allocate', 'repair', 'close', 'cleanup'].includes(command.kind))
@@ -365,6 +370,20 @@ function lifecycleInput(state, command, id = `synthetic-${state.history.length}-
           ...oldRecords.flatMap(r => r.proof.manifest?.actual ?? [])])];
         const restored = [...new Set([...(previous?.preservation.restored ?? []),
           ...oldRecords.flatMap(r => r.proof.workingTree?.restored ?? [])])];
+        const heads = [...new Set([g?.head, g?.source?.head,
+          command.kind === 'compatible' ? command.source?.head : null,
+          item?.publication?.remoteHead,
+          ...state.history.filter(r => r.event.command.kind === 'publish' &&
+            r.event.command.grantId === grantId).map(r => r.event.command.publication.remoteHead),
+          ...oldRecords.flatMap(r => (r.proof.preservation?.commits ?? []).map(c => c.head)),
+          ...oldRecords.flatMap(r => r.proof.source ? [r.proof.source.head] : []),
+          ...(old?.supersessions ?? []).flatMap(r => r.event.proof.holders)
+            .filter(h => h.key === g?.key && h.coordinator === old.coordinator)
+            .flatMap(h => (h.preservation?.commits ?? []).map(c => c.head))
+        ].filter(Boolean))];
+        const commits = structuredClone(previous?.preservation.commits ?? []);
+        for (const head of heads) if (!commits.some(c => c.head === head))
+          commits.push({ head, ref: `refs/kora/synthetic-preserved/${head}` });
         return { grantId, owner: g?.owner ?? null, writingStopped: true, commandsRunning: false,
           workJoined: true, pendingInstructions: 'UNKNOWN', processingInstructions: 'UNKNOWN',
           fence: { epoch: Math.max(previous?.fence.epoch ?? 0, ...oldFences.map(f => f.epoch)) + 1,
@@ -373,7 +392,7 @@ function lifecycleInput(state, command, id = `synthetic-${state.history.length}-
           preservation: { actual: paths, planned: [...new Set([...(previous?.preservation.planned ?? []), ...paths,
             ...oldRecords.flatMap(r => r.proof.manifest?.planned ?? [])])],
             committed: paths, restored, retained: paths, unpreserved: [],
-            commits: [{ head: g?.head ?? '1'.repeat(40), ref: `refs/heads/synthetic-${grantId}` }],
+            commits,
             bytesPreserved: true, refsPreserved: true, historyPreserved: true,
             receipt: 'SYNTHETIC retained files, commits, refs and history.' },
           acknowledgment: { id: `${id}-${grantId}-owner`, proofDigest: '',
@@ -385,7 +404,10 @@ function lifecycleInput(state, command, id = `synthetic-${state.history.length}-
   return { event, lifecycleEvidence: { kind: 'host-verified-lifecycle', eventDigest: digest(event),
     coordinator: p.coordinator, ledgerAuthorityVerified: true, humanAuthorizationVerified: human,
     holdersVerified: [...ids].sort(), sourceOwnershipVerified: true, deliveryVerified: true,
-    preservationVerified: true, receipt: 'SYNTHETIC independent observed readback; not authentication.' } };
+    preservationVerified: true, receipt: 'SYNTHETIC independent observed readback; not authentication.',
+    ...(command.kind === 'release-unexecuted' ? {
+      unexecutedCustodyVerified: command.releases.map(d => d.reservationId).sort()
+    } : {}) } };
 }
 
 function lifecycleFixture() {

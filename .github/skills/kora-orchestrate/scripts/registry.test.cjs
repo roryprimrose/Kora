@@ -49,6 +49,88 @@ function lifecycleClose(f, id, pr, releases = []) {
   return f.run({ kind: 'close', key: id, outcome: 'delivered', releases });
 }
 
+function lifecycleRebind(input) {
+  const binding = lifecycleProofDigest(input.event);
+  if (input.event.evidence.human) input.event.evidence.human.proofDigest = binding;
+  input.event.evidence.holders.forEach(h => { h.acknowledgment.proofDigest = binding; });
+  input.lifecycleEvidence.eventDigest = digest(input.event);
+  return input;
+}
+
+test('v10 correction binds preserved source/publication refs and rejects newly unadmitted write facts', () => {
+  const f = lifecycleFixture();
+  lifecycleRegister(f, 'a', ['src\\a.cs']);
+  f.run({ kind: 'publish', grantId: 'a', publication: { pushedHead: '2'.repeat(40),
+    remoteHead: '2'.repeat(40), pr: 111, ready: true, enrolled: true, receipt: 'SYNTHETIC publication.' } });
+  const command = { kind: 'revoke', grantId: 'a', reason: 'SYNTHETIC joined.' };
+  const original = JSON.stringify(f.state);
+  for (const mutate of [
+    m => { m.commits = [{ head: '9'.repeat(40), ref: 'refs/heads/unrelated' }]; },
+    m => { m.commits = m.commits.filter(c => c.head !== '2'.repeat(40)); },
+    m => { m.commits[0].ref = 'not-a-ref'; },
+    m => { m.commits.push({ head: '8'.repeat(40), ref: m.commits[0].ref }); },
+    m => { m.actual.push('outside\\unauthorized.cs'); m.retained.push('outside\\unauthorized.cs'); },
+    m => { m.planned.push('outside\\unapproved.cs'); }
+  ]) {
+    const input = lifecycleInput(f.state, command);
+    mutate(input.event.evidence.holders[0].preservation);
+    assert.throws(() => applyEvent(f.state, lifecycleRebind(input).event, input));
+    assert.equal(JSON.stringify(f.state), original);
+  }
+  const dirty = lifecycleInput(f.state, command, 'preserve-dirty');
+  Object.assign(dirty.event.evidence.holders[0].preservation, {
+    actual: ['src\\a.cs'], planned: [], committed: [], restored: [], retained: ['src']
+  });
+  const revoked = applyEvent(f.state, lifecycleRebind(dirty).event, dirty).state;
+  const close = lifecycleInput(revoked, { kind: 'close', key: 'a', outcome: 'delivered', releases: [] });
+  close.event.evidence.holders[0].preservation.commits[0].ref = 'refs/heads/replacement';
+  assert.throws(() => applyEvent(revoked, lifecycleRebind(close).event, close), /anchor/);
+  const unwritten = lifecycleFixture();
+  lifecycleRegister(unwritten, 'unwritten', ['src\\unwritten.cs'], [], false);
+  const stop = lifecycleInput(unwritten.state, { kind: 'revoke', grantId: 'unwritten', reason: 'SYNTHETIC never launched.' });
+  Object.assign(stop.event.evidence.holders[0].preservation, {
+    actual: [], planned: [], committed: [], restored: [], retained: [], commits: []
+  });
+  assert.doesNotThrow(() => applyEvent(unwritten.state, lifecycleRebind(stop).event, stop));
+});
+
+test('v10 correction releases only independently verified local never-executed custody with real predecessor proof', () => {
+  let old = createState('SYNTHETIC local', '1'.repeat(40), 'delivery');
+  old = applyEvent(old, { id: 'old-holder', type: 'adopt', owner: 'SYNTHETIC old-holder',
+    key: 'prior', outcome: 'SYNTHETIC prior', pool: 'ready', kind: 'feature',
+    head: old.head, scopes: ['src\\local.cs'], evidence: 'SYNTHETIC admission.' }).state;
+  old = applyEvent(old, { id: 'old-planner', type: 'planner', owner: 'SYNTHETIC planner' }).state;
+  old = applyEvent(old, { id: 'old-candidate', type: 'candidate', owner: 'SYNTHETIC planner', pass: 1,
+    key: 'successor', outcome: 'SYNTHETIC successor', pool: 'ready', kind: 'maintenance',
+    head: old.head, scopes: ['src\\local.cs'], evidence: 'SYNTHETIC complete operation.' }).state;
+  old = applyEvent(old, supersessionEvent(old), { revision: 41 }).state;
+  const shadow = { version: 10, origin: { coordinator: old.coordinator, head: old.head, mode: old.mode,
+    legacy: old, legacyDigest: digest(old) }, history: [] };
+  const adoption = lifecycleInput(shadow, { kind: 'adopt', legacyDigest: digest(old) });
+  const state = adoptLifecycle(old, adoption.event, adoption).state;
+  const command = { kind: 'release-unexecuted', legacyDigest: digest(old),
+    releases: [{ reservationId: 'legacy:successor', paths: ['src\\local.cs'] }] };
+  const input = lifecycleInput(state, command);
+  assert.deepEqual(input.event.evidence.holders.map(h => h.grantId), ['legacy:prior']);
+  const result = applyEvent(state, input.event, input);
+  assert.deepEqual(result.actions, []);
+  assert.equal(lifecycleProjection(result.state).reservations.length, 0);
+  assert.deepEqual(lifecycleProjection(result.state).grants, lifecycleProjection(state).grants);
+  assert.equal(lifecycleProjection(result.state).works.find(w => w.key === 'successor').status, 'candidate');
+  for (const mutate of [
+    i => { i.lifecycleEvidence.unexecutedCustodyVerified = []; },
+    i => { i.lifecycleEvidence.preservationVerified = false; },
+    i => { i.event.evidence.holders = []; i.lifecycleEvidence.holdersVerified = []; },
+    i => { i.event.command.legacyDigest = '0'.repeat(64); },
+    i => { i.event.command.releases[0].reservationId = 'legacy:prior'; }
+  ]) {
+    const bad = structuredClone(input); mutate(bad);
+    assert.throws(() => applyEvent(state, lifecycleRebind(bad).event, bad));
+  }
+  assert.throws(() => lifecycleInput(state, { ...command,
+    releases: [{ reservationId: 'external::unknown', paths: ['src\\local.cs'] }] }));
+});
+
 test('v10 A-to-B-to-C closes retained work without cleanup, transfers custody and rejects every old grant', () => {
   const f = lifecycleFixture(), paths = ['src\\owned.cs'];
   const requests = [];

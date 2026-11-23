@@ -130,7 +130,7 @@ public sealed class StandaloneSkillAgentFrameworkTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task OnlySelectedSkillUsesBufferedPackageAndOrdinaryToolFreeRouteRemainsUnchanged(bool skill)
+    public async Task MaintainedExecutionBuffersSelectedSkillAndStreamsOrdinaryToolFreeRoute(bool skill)
     {
         var clock = new SkillClock();
         var transport = new StandaloneSkillTransport();
@@ -140,14 +140,14 @@ public sealed class StandaloneSkillAgentFrameworkTests : IDisposable
             [], clock.Now, clock.Now.AddSeconds(15), ModelToolMode.None);
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), context.Request, ModelProviderSelection.OllamaCandidate);
         using var root = HostActivity.BeginRoot(context.Request, HostActivityLayer.Application, HostOperation.Request);
-        var updates = 0;
+        var updates = new List<ModelAnswerUpdate>();
         var result = await adapter.RunWithAnswerAsync(provenance, null, context.Serialize(), NoTool,
-            _ => ValueTask.FromResult(ModelTurnReason.None), (_, _) => { updates++; return ValueTask.CompletedTask; }, Token);
+            _ => ValueTask.FromResult(ModelTurnReason.None), (update, _) => { updates.Add(update); return ValueTask.CompletedTask; }, Token);
         result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         result.Response!.Answer.Should().Be(StandaloneSkillTransport.Answer);
-        transport.PackageCalls.Should().Be(skill ? 1 : 0);
+        transport.PackageCalls.Should().Be(1);
         transport.StreamingCalls.Should().Be(skill ? 0 : 1);
-        updates.Should().Be(0);
+        updates.Should().Equal(skill ? [] : [new ModelAnswerUpdate(provenance, StandaloneSkillTransport.Answer)]);
     }
 
     private static ModelContextEnvelope Context(SkillClock clock) => OwnedSkillGuidanceContext.Create(

@@ -43,7 +43,8 @@ The repository pins `nuget-license` as a local .NET tool. The license gate:
    `eng/licenses/allowed-licenses.json`;
 4. fails on missing, unknown, or newly introduced license identifiers;
 5. applies only version-specific overrides recorded in
-   `eng/licenses/package-overrides.json`; and
+   `eng/licenses/package-overrides.json` and SHA-256-verified file mappings in
+   [license-file-identities.json](eng/licenses/license-file-identities.json); and
 6. verifies that the generated package report matches
    `THIRD-PARTY-NOTICES.md`.
 
@@ -91,6 +92,15 @@ Metadata overrides are exceptional. Each override must pin an exact package
 version and link to authoritative evidence because it substitutes for missing
 or defective NuGet metadata. A package upgrade will not inherit an old
 override.
+
+SQLite 3.53.4 supplies a `LICENSE.txt` public-domain declaration pointing to
+[SQLite's copyright statement](https://sqlite.org/copyright.html). The
+[reviewed file mapping](eng/licenses/license-file-identities.json) admits only
+that exact version and file digest as `LicenseRef-SQLite-Public-Domain`.
+Changed bytes fail before scanning; other versions require separate review.
+The [native payload contract](eng/NativeInspection.Common.ps1) recognizes this
+package as the owner of `e_sqlite3.dll`; [source staging](eng/SourceBootstrap.Common.ps1)
+still requires its exact identity to match the selected checkout's dependency lock.
 
 The WiX 7 bootstrapper API supplies `OSMFEULA.txt`, which is not a standard SPDX
 licence. The gate maps only the SHA-256-pinned file identified in

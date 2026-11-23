@@ -146,7 +146,7 @@ Expect-PublishFailure 'Wrong dependency RID is rejected' { Inspect-Fixture 'wron
 [IO.File]::WriteAllBytes($depsPath, $depsBytes)
 $deps = Get-Content -LiteralPath $depsPath -Raw | ConvertFrom-Json -AsHashtable
 $target = $deps.targets[$deps.runtimeTarget.name]
-$sqliteLibrary = @($target.Keys | Where-Object { $_ -like 'SQLitePCLRaw.lib.e_sqlite3/*' })[0]
+$sqliteLibrary = (Get-StandardSqliteNativeAsset $manifest.nativeAssets).package
 $target[$sqliteLibrary].native["runtimes/$Rid/native/declared-missing.dll"] = @{}
 Write-ProofJson $deps $depsPath
 Expect-PublishFailure 'Declared native asset missing from actual publish is rejected' { Inspect-Fixture 'missing-declared-native' } 'Declared native asset absent'
@@ -163,6 +163,16 @@ $deps = Get-Content -LiteralPath $depsPath -Raw | ConvertFrom-Json -AsHashtable
 $deps.targets[$deps.runtimeTarget.name][$sqliteLibrary].Remove('native')
 Write-ProofJson $deps $depsPath
 Expect-PublishFailure 'Ambient SQLite without declared package is rejected' { Inspect-Fixture 'ambient-sqlite' } 'Standard SQLite'
+[IO.File]::WriteAllBytes($depsPath, $depsBytes)
+$deps = Get-Content -LiteralPath $depsPath -Raw | ConvertFrom-Json -AsHashtable
+$target = $deps.targets[$deps.runtimeTarget.name]
+$unapprovedSqlite = 'SQLite/99.99.99'
+$target[$unapprovedSqlite] = $target[$sqliteLibrary]
+$target.Remove($sqliteLibrary)
+$deps.libraries[$unapprovedSqlite] = $deps.libraries[$sqliteLibrary]
+$deps.libraries.Remove($sqliteLibrary)
+Write-ProofJson $deps $depsPath
+Expect-PublishFailure 'Unreviewed SQLite native package version is rejected' { Inspect-Fixture 'unreviewed-sqlite' } 'Standard SQLite'
 [IO.File]::WriteAllBytes($depsPath, $depsBytes)
 $clr = Join-Path $copy 'coreclr.dll'
 [IO.File]::WriteAllText($clr, 'Not a runtime; negative fixture only.')

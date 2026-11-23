@@ -39,7 +39,7 @@ foreach ($field in 'schema', 'inspectorVersion', 'inspectionProfile', 'repositor
 }
 $inspection = Read-SourceJson $inspectionPath
 $sqlite = @($inspection.nativeAssets | Where-Object { $_.published -ceq 'e_sqlite3.dll' })[0]
-$sqlite.package = 'SQLitePCLRaw.lib.e_sqlite3/99.99.99'
+$sqlite.package = ($sqlite.package -split '/')[0] + '/99.99.99'
 Expect-InspectionFailure 'Pinned SQLite declaration must match selected checkout lock on initial build and rerun' {
     Assert-SourceSqliteLock $receipt.checkout $inspection
 } 'selected revision dependency lock'

@@ -7,6 +7,31 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData("reload-failed")]
+    [InlineData("use-disabled")]
+    [InlineData("source-replaced")]
+    public async Task BundledPromptSourceFreshnessRejectsUnavailableOrReplacedSelections(string change)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var registered = new BundledPromptSource("kora.prompt.example", "Kora.Prompts.Example",
+            ArtifactFileDocument.Encode("---\nkora-format: 2\nname: Example\ndescription: Test\n---\nRewrite ${input:text}", false));
+        var source = registered.Definition;
+        f.ArtifactCatalogue.Publish([source]);
+        f.ViewModel.BindBundledPromptSources([registered]);
+        (await f.ViewModel.IsPromptSourceCurrent(source, TestContext.Current.CancellationToken)).Should().BeTrue();
+        if (change is "reload-failed")
+        { f.ArtifactCatalogue.ReportReloadFailure(new IOException("Synthetic catalogue reload failure.")); }
+        else if (change is "use-disabled")
+        {
+            source = source with { IsUseEnabled = false };
+            f.ArtifactCatalogue.Publish([source]);
+        }
+        else { f.ArtifactCatalogue.Publish([source with { }]); }
+        (await f.ViewModel.IsPromptSourceCurrent(source, TestContext.Current.CancellationToken)).Should().BeFalse();
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData("/prompt example")]
     [InlineData("Kora, use Example")]
     public async Task BundledRegistrationOpensSamePrivatePromptRouteAndCannotRetargetAfterRebind(string command)

@@ -41,6 +41,8 @@ public sealed partial class ClaudeModelTurnAdapterTests
                     ? ModelTurnReason.HostAdmissionClosed : ModelTurnReason.None),
                 (question, _) =>
                 {
+                    Microsoft.Extensions.AI.FunctionInvokingChatClient.CurrentContext.Should().NotBeNull();
+                    Microsoft.Extensions.AI.FunctionInvokingChatClient.CurrentContext!.CallContent.CallId.Should().Be("question_1");
                     asks++;
                     f.Time.Now += TimeSpan.FromSeconds(fault is "expired" ? 120 : 20);
                     return Task.FromResult(new ModelQuestionAnswerMessage(question, new(["option-1"]), RequestOrigin.ActivatedVoice));

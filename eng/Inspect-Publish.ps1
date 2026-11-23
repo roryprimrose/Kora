@@ -37,10 +37,7 @@ if (Test-Path -LiteralPath (Join-Path $Payload 'coreclr.dll')) {
 $frameworks = @($runtime.runtimeOptions.frameworks)
 $peFiles = @(Get-PublishPeFiles $Payload $Rid)
 $native = @(Get-PublishNativeAssets $Payload $deps $peFiles $Rid)
-$sqlite = @($native | Where-Object published -CEQ 'e_sqlite3.dll')
-if ($sqlite.Count -ne 1 -or $sqlite[0].package -cnotmatch '^SQLitePCLRaw\.lib\.e_sqlite3/\d+\.\d+\.\d+$') {
-    throw 'Standard SQLite must be a pinned declared native payload, not an ambient setup dependency.'
-}
+Get-StandardSqliteNativeAsset $native | Out-Null
 $licences = @(
     foreach ($entry in $deps.libraries.GetEnumerator() | Sort-Object Key) {
         if ($entry.Value.type -cne 'package') { continue }

@@ -181,10 +181,7 @@ function Assert-SourceInspection {
         'SQLitePCLRaw.core.dll', 'SQLitePCLRaw.provider.e_sqlite3.dll', 'e_sqlite3.dll') {
         if (!(Test-Path -LiteralPath (Join-Path $Payload $file) -PathType Leaf)) { throw "Missing launch-critical payload: $file" }
     }
-    $sqlite = @($inspection.nativeAssets | Where-Object { $_.published -ceq 'e_sqlite3.dll' })
-    if ($sqlite.Count -ne 1 -or $sqlite[0].package -cnotmatch '^SQLitePCLRaw\.lib\.e_sqlite3/\d+\.\d+\.\d+$') {
-        throw 'Standard SQLite must be a pinned declared native payload, not an ambient setup dependency.'
-    }
+    Get-StandardSqliteNativeAsset $inspection.nativeAssets | Out-Null
     $resources = @($inspection.peFiles | Where-Object { $_.path -ceq 'Kora.dll' } | ForEach-Object { $_.embeddedResources })
     if ($resources -notcontains '!AvaloniaResources') { throw 'Missing embedded Avalonia resources.' }
     foreach ($name in 'Kora.exe', 'Kora.dll', 'Kora.Core.dll', 'Kora.Application.dll', 'Kora.Tools.dll', 'Kora.Definitions.dll', 'Kora.Windows.dll') {
@@ -207,10 +204,12 @@ function Assert-SourceSqliteLock {
     param([string] $Checkout, $Inspection)
     $lock = Read-SourceJson (Join-Path $Checkout 'src\Kora.Windows\packages.lock.json')
     $sqlite = @($Inspection.nativeAssets | Where-Object { $_.published -ceq 'e_sqlite3.dll' })[0]
-    $versions = @($lock.dependencies.Values | ForEach-Object {
-        if ($_.ContainsKey('SQLitePCLRaw.lib.e_sqlite3')) { $_['SQLitePCLRaw.lib.e_sqlite3'].resolved }
+    $packages = @($lock.dependencies.Values | ForEach-Object {
+        foreach ($name in 'SQLitePCLRaw.lib.e_sqlite3', 'SQLite') {
+            if ($_.ContainsKey($name)) { "$name/$($_[$name].resolved)" }
+        }
     } | Sort-Object -Unique)
-    if ($versions.Count -ne 1 -or $sqlite.package -cne "SQLitePCLRaw.lib.e_sqlite3/$($versions[0])") {
+    if ($packages.Count -ne 1 -or $sqlite.package -cne $packages[0]) {
         throw 'SQLite payload does not match the selected revision dependency lock.'
     }
 }

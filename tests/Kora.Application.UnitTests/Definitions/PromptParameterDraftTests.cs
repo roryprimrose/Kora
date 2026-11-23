@@ -7,6 +7,28 @@ namespace Kora.Application.UnitTests.Definitions;
 
 public sealed class PromptParameterDraftTests
 {
+    [Fact]
+    public async Task BundledPreparationRequiresRegisteredSnapshotAndRetiresWithSourceOrUseChanges()
+    {
+        var registered = new BundledPromptSource("kora.prompt.example", "Kora.Prompts.Example",
+            ArtifactFileDocument.Encode("---\nkora-format: 2\nname: Example\ndescription: Test\n---\n${input:text}", false));
+        var source = registered.Definition;
+        using var catalogue = new ArtifactCatalogue([source]);
+        ((Action)(() => { using var refused = new PromptParameterDraft(source, catalogue, () => true); }))
+            .Should().Throw<InvalidDataException>();
+        ((Action)(() => { using var refused = new PromptParameterDraft(source with { OwnedInstructionName = "fake" },
+            catalogue, () => true, registered); })).Should().Throw<InvalidDataException>();
+        using var draft = new PromptParameterDraft(source, catalogue, () => true, registered);
+        draft.ReviewedSource.Description.Should().Be("Bundled prompt (immutable)");
+        draft.SetValue("text", "${input:text}");
+        (await draft.Preview(Fresh, Token)).UserRequest.Should().Be("${input:text}");
+        catalogue.Publish([source with { IsUseEnabled = false }]);
+        draft.IsCurrent.Should().BeFalse();
+        draft.PreviewText.Should().BeNull();
+        catalogue.Publish([source]);
+        draft.IsCurrent.Should().BeFalse();
+    }
+
     private static CancellationToken Token => TestContext.Current.CancellationToken;
     private static ArtifactDefinition Source() => ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
         "---\nkora-format: 2\nname: example\ndescription: Test\n---\nRequest ${input:topic} / ${input:topic}", true),

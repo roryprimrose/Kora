@@ -17,11 +17,11 @@ project per definition type, and it does not implement C# tool effects.
 | Kind | Purpose | Current source/status |
 |---|---|---|
 | Skills | Versioned outcome, selection guidance, instructions, fixtures and registered task/tool references. | [Skills](Skills): fixed embedded package inspection plus explicit instruction selection for local-model requests; scripts remain unavailable. |
-| Prompts | Reusable bounded task/response templates with explicit inputs. | Planned category when real resources and consumers are implemented; no folder/loader yet. |
+| Prompts | Reusable bounded USER requests with explicit literal inputs. | [Rewrite for clarity](Prompts/rewrite-for-clarity.prompt.md), explicitly registered immutable source using the canonical reviewed conversation submission. |
 | Instructions | Shared scoped guidance reused by tasks or profiles. | Planned category; a skill's own instructions remain in its package. |
 | Agents | Named declarative task profiles referencing guidance, skills, admitted tools and runtime/locality/budget constraints. | Planned/gated; no profile loader or agent runtime exists. |
 
-Do not create empty `Prompts`, `Instructions` or `Agents` folders or placeholder
+Do not create empty `Instructions` or `Agents` folders or placeholder
 loaders. Existing JSON selector/system framing in
 [WindowsOllamaReasoner](../Kora.Windows/Dependencies/WindowsOllamaReasoner.cs)
 remains runtime code; it was not moved to this project. A template cannot
@@ -36,6 +36,9 @@ Skills/
   Shutdown/   manifest.json, skill.md, fixtures.json, entry.ps1
   Restart/    manifest.json, skill.md, fixtures.json, entry.ps1
   session-control.ps1
+Prompts/
+  EmbeddedPromptCatalogue.cs
+  rewrite-for-clarity.prompt.md
 ```
 
 Keep each skill's instructions, fixtures and scripts together. The shared
@@ -54,6 +57,14 @@ discovery or a generic definition loader.
 
 There are **13 distinct immutable embedded resources**: four per package
 (manifest, instructions, fixture, entry script) plus one shared helper.
+This original skill closure is unchanged. One additional prompt is explicitly
+registered as `Kora.Prompts.RewriteForClarity`, with exact source SHA-256
+`824ac4c32d5907add04e1b06dfe4ddf59dc94f632850b376fe843683f4a3e295`.
+[EmbeddedPromptCatalogue](Prompts/EmbeddedPromptCatalogue.cs) checks its separate
+one-resource map and reviewed digest; Core
+[BundledPromptSource](../Kora.Core/ArtifactInvocation/BundledPromptSource.cs)
+preserves original bytes and literal v2 grammar without inventing an owned-file
+revision. No file is extracted or made editable.
 
 | Folder | Skill ID | Declared action | Resource ID prefixes |
 |---|---|---|---|
@@ -152,6 +163,14 @@ Delivered consumers are native immutable package inspection and
 for the existing local-model request. **Every bundled script action is unavailable**;
 PowerShell readiness, package review and model selection do not enable a runner.
 Follow [script admission](../../Design/Built_In_Skills.md#script-admission-and-execution).
+
+The bundled prompt instead uses the same complete literal-input preview,
+exact Active-conversation retention review and real
+[PromptConversationSubmission](../Kora.Application/Definitions/PromptConversationSubmission.cs)
+as owned v2 prompts. See [Rewrite for clarity](../../docs/instruction-editor.md#use-bundled-rewrite-for-clarity).
+Its content is USER text, not system guidance, model qualification or tool
+authority. Unknown model readiness returns the existing truthful unavailable
+terminal; no alternate built-in executor or provider fallback is introduced.
 
 Bundled resources are distinct from untrusted
 [disk instructions](../Kora.Windows/ArtifactDiscovery/WindowsDiskArtifactDiscovery.cs),

@@ -384,7 +384,7 @@
       "kora.windows": {
         "type": "Project",
         "dependencies": {
-          "Anthropic": "[13.6.0, )",
+          "Anthropic": "[13.8.0, )",
           "GitHub.Copilot.SDK": "[1.0.34, )",
           "KokoroSharp": "[0.8.4, )",
           "Kora.Core": "[0.1.0, )",
@@ -401,9 +401,9 @@
       },
       "Anthropic": {
         "type": "CentralTransitive",
-        "requested": "[13.6.0, )",
-        "resolved": "13.6.0",
-        "contentHash": "KPmqMhlU3Q2hOlslb4TgRMgQGDzf5v4qW/1bgE+D8dK5BbB1v3Ml40eMGmktmwm+5FPL9arV5MgXWoMBJLHniw==",
+        "requested": "[13.8.0, )",
+        "resolved": "13.8.0",
+        "contentHash": "N1+grCB2HdfsFsuRVVjBgN0evlxtdvSBw26P7rvaVGHrqgnr00Llw8sPuOP8w8akKzcN5tOd+3I75iEeERJbEQ==",
         "dependencies": {
           "Microsoft.Extensions.AI.Abstractions": "10.5.1"
         }

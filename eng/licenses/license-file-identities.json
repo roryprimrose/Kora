@@ -5,5 +5,12 @@
     "File": "OSMFEULA.txt",
     "License": "LicenseRef-WiX-7-OSMF",
     "Sha256": "3358AF585772039E45D1192213838F906A478463AC3BB4DA208EC0D874C2219B"
+  },
+  {
+    "Id": "SQLite",
+    "Version": "3.53.4",
+    "File": "LICENSE.txt",
+    "License": "LicenseRef-SQLite-Public-Domain",
+    "Sha256": "99464C3A88DF7B708CE59E462CDCB85F72DFC9B1335B4FCC68BE56131B634B95"
   }
 ]

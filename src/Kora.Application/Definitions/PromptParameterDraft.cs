@@ -2,7 +2,7 @@
 
 namespace Kora.Application.Definitions;
 
-/// <summary>One private, ephemeral preparation of one exact source-qualified owned prompt revision.</summary>
+/// <summary>One private, ephemeral preparation of one exact source-qualified prompt revision.</summary>
 public sealed class PromptParameterDraft : IDisposable
 {
     private readonly ArtifactCatalogue catalogue;
@@ -16,21 +16,20 @@ public sealed class PromptParameterDraft : IDisposable
     private ExpandedPromptRequest? preview;
     private ExpandedPromptRequest? conversationAttempt;
 
-    public PromptParameterDraft(ArtifactDefinition source, ArtifactCatalogue catalogue, Func<bool> eligible)
+    public PromptParameterDraft(ArtifactDefinition source, ArtifactCatalogue catalogue, Func<bool> eligible,
+        BundledPromptSource? bundled = null)
     {
-        if (source.Kind != ArtifactKind.Prompt || !string.Equals(source.Source, "kora-profile", StringComparison.Ordinal)
-            || source.OwnedInstructionName is null || source.OwnedInstructionRevision is null
-            || !source.RequiresInstructionReview || source.PromptTemplate is null)
-        { throw new InvalidDataException("Preparation requires an exact native v2 owned prompt revision."); }
+        ReviewedSource = new(source, bundled);
         Source = source;
         this.catalogue = catalogue;
         this.eligible = eligible;
         candidates = catalogue.Candidates;
         failureRevision = catalogue.ReloadFailureRevision;
-        foreach (var name in source.PromptTemplate.RequiredNames) { values.Add(name, string.Empty); }
+        foreach (var name in source.PromptTemplate!.RequiredNames) { values.Add(name, string.Empty); }
     }
 
     public ArtifactDefinition Source { get; }
+    public ReviewedPromptSource ReviewedSource { get; }
     public IReadOnlyList<string> RequiredNames => Source.PromptTemplate!.RequiredNames;
     private bool Current() => !disposed && eligible() && !catalogue.IsReloadUnavailable
         && failureRevision == catalogue.ReloadFailureRevision && ReferenceEquals(candidates, catalogue.Candidates)

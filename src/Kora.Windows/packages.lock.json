@@ -13,9 +13,9 @@
       },
       "GitHub.Copilot.SDK": {
         "type": "Direct",
-        "requested": "[1.0.29, )",
-        "resolved": "1.0.29",
-        "contentHash": "QKRUZR0L5lRx4mog85lnXS2nue89iGAizPMiogtwDudIMESqxuGHJpndcNolpRByA28U4Wes/CE5FoGGDk8QEg==",
+        "requested": "[1.0.34, )",
+        "resolved": "1.0.34",
+        "contentHash": "HtvvUiVpNsewkGkwKNVODt1TC8lnvQdIu5eHGApbm15M9AV+GgT9rluRZIzAiLe4ZlW0zTmrl25NIlkNuXPTKA==",
         "dependencies": {
           "Microsoft.Extensions.AI.Abstractions": "10.11.0"
         }
@@ -36,9 +36,9 @@
       },
       "Meziantou.Analyzer": {
         "type": "Direct",
-        "requested": "[3.0.320, )",
-        "resolved": "3.0.320",
-        "contentHash": "yKkD+uA684so6/ct3dcGm8H2esrLn/gAS9qYbAcis216gBx+o5LWm5ou/BZDIDg6TTzr5ayojv9cgpoHSasxOw=="
+        "requested": "[3.0.341, )",
+        "resolved": "3.0.341",
+        "contentHash": "zpogT6IwYBgNRa9+oETzs7aTU6Te3M/Osdkk/HN1TlJTDjz9dZwoUgh/yWqovT3jTofQGGLB1JqEK8I4uA6+yA=="
       },
       "Microsoft.Extensions.AI.Abstractions": {
         "type": "Direct",

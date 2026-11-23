@@ -35,6 +35,8 @@ public sealed partial class ModelTurnHostTests
         var receipt = await QuestionService(f, host).SubmitReadOnlyWithClarificationAsync(new(f.Session, null),
             "Original ask_user request", static () => true, async (request, _, spec, expiry, _, token) =>
             {
+                Microsoft.Extensions.AI.FunctionInvokingChatClient.CurrentContext.Should().NotBeNull();
+                Microsoft.Extensions.AI.FunctionInvokingChatClient.CurrentContext!.CallContent.CallId.Should().Be("ask_1");
                 f.Questions.Change(snapshot => snapshot with { Intent = f.Task!.Task, Session = f.Session });
                 spec.Kind.Should().Be(text ? QuestionKind.Text : QuestionKind.MultipleChoice);
                 var questions = new HostQuestionService(f.Questions, f.Time);
@@ -75,10 +77,18 @@ public sealed partial class ModelTurnHostTests
         await using var loop = CreateLoop(f, transport);
         var host = f.ConfiguredProfiles(adapter: loop);
         var reads = 0;
-        f.OnVersion = () => reads++;
+        f.OnVersion = () =>
+        {
+            Microsoft.Extensions.AI.FunctionInvokingChatClient.CurrentContext.Should().NotBeNull();
+            reads++;
+        };
         var service = QuestionService(f, host);
         var receipt = await service.SubmitReadOnlyWithClarificationAsync(new(f.Session, null), "Which observation do I need?",
-            static () => true, (request, _, spec, expiry, _, token) => AnswerReadOnlyQuestion(f, request, spec, expiry, channel, token),
+            static () => true, (request, _, spec, expiry, _, token) =>
+            {
+                Microsoft.Extensions.AI.FunctionInvokingChatClient.CurrentContext.Should().NotBeNull();
+                return AnswerReadOnlyQuestion(f, request, spec, expiry, channel, token);
+            },
             Token, origin: channel);
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         receipt.Message.AssistantResponse!.Body.Should().Be("The observed version is 1.0.");

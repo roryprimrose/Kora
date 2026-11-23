@@ -10,6 +10,15 @@ public sealed partial class MainViewModel
     public event EventHandler? PromptPreparationSuperseded;
     private long promptInputRevision;
     private Func<Task>? promptPreparationShutdown;
+    private IReadOnlyList<BundledPromptSource> bundledPromptSources = [];
+
+    public void BindBundledPromptSources(IReadOnlyList<BundledPromptSource> sources)
+    {
+        if (sources.Select(source => source.Definition.Id).Distinct(StringComparer.Ordinal).Count() != sources.Count)
+        { throw new InvalidDataException("Bundled prompt registrations must have unique identities."); }
+        bundledPromptSources = sources.ToArray();
+        RetirePromptPreparationForNewInput();
+    }
 
     public void BindPromptPreparationShutdown(Func<Task>? shutdown) => promptPreparationShutdown = shutdown;
     private Task ClosePromptPreparation() => promptPreparationShutdown?.Invoke() ?? Task.CompletedTask;
@@ -42,13 +51,22 @@ public sealed partial class MainViewModel
         { ReportHostInteractionFailure("Native prompt preparation is unavailable in the current private host."); return; }
         if (!string.IsNullOrWhiteSpace(invocation.Request))
         { ReportHostInteractionFailure("Required prompt inputs must be entered in the native form, not inline command or voice text."); return; }
-        var draft = new PromptParameterDraft(invocation.Artifact, artifactCatalogue, eligible);
+        var registered = bundledPromptSources.SingleOrDefault(source => source.Matches(invocation.Artifact));
+        if (invocation.Artifact.Source is "bundled" && registered is null)
+        { ReportHostInteractionFailure("The bundled prompt has no exact immutable source registration."); return; }
+        var draft = new PromptParameterDraft(invocation.Artifact, artifactCatalogue, eligible, registered);
         await handler(draft);
     }
 
     public async Task<bool> IsPromptSourceCurrent(ArtifactDefinition source, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (source.Source is "bundled")
+        {
+            return !artifactCatalogue.IsReloadUnavailable && source.IsUseEnabled
+                && artifactCatalogue.Candidates.Any(candidate => ReferenceEquals(candidate, source))
+                && bundledPromptSources.Any(registered => registered.Matches(source));
+        }
         var current = ownedInstructionFreshness;
         return current is not null && await current(source, token) && !token.IsCancellationRequested;
     }

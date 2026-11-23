@@ -233,11 +233,17 @@ public sealed partial class IndependentEvidenceLoggerProviderTests
                 if (index == 0) { await projection.Started.Task.WaitAsync(Deadline, TestContext.Current.CancellationToken); }
                 await copy.NextDeliveryAsync();
             }
+            copy.Release.Reset();
             copy.FailGaps = true;
             CompleteActivity();
+            copy.Release.Set();
             await copy.NextDeliveryAsync();
         }
-        finally { projection.Release.Set(); }
+        finally
+        {
+            copy.Release.Set();
+            projection.Release.Set();
+        }
         var dispose = async () => await provider.DisposeAsync();
         await dispose.Should().ThrowAsync<IOException>();
         copy.Activities.Should().ContainSingle();

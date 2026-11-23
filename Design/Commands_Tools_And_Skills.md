@@ -45,6 +45,7 @@ available from the typed composer and activated voice:
 
 - direct slash command: `/lock`, `/restart`, or `/shutdown`;
 - kind-qualified slash command: `/skill lock`;
+- bundled USER prompt: `/prompt rewrite-for-clarity` (or `/rewrite-for-clarity`);
 - activated voice: `Kora, run lock`, `Kora, use the restart skill`, or
   `Kora, use <artifact> to <request>`.
 
@@ -57,12 +58,23 @@ The same `ArtifactCommandRouter` parses typed and voice input, so adding future
 instruction or prompt registrations does not create another presentation-only
 dispatcher.
 
-Selection produces a `LocalModelArtifact` that is passed separately from user
+Non-parameterized artifact selection produces a `LocalModelArtifact` that is passed separately from user
 text to the qualified local-model adapter. The adapter puts source-qualified
 artifact instructions in the system context and keeps the user's request in
 the request prompt. Clarification turns retain the exact selected artifact.
 Unknown or incomplete slash commands fail closed and are not reinterpreted as
 free-form model requests.
+
+The immutable bundled **Rewrite for clarity** prompt and owned native v2 prompts
+instead enter the existing private parameter form. Inspect the selected source,
+enter literal text, preview the complete unchanged expanded USER request, select
+one exact existing Active conversation, review retention and separately confirm.
+The canonical conversation submission retains that USER message and returns a
+genuine answer or truthful terminal; selection and preview make no model call.
+The resource is explicitly registered in Definitions, never a fake owned file,
+system-policy injection, writable extraction or separate built-in execution.
+Source/use/catalogue, input, target, privacy and channel changes retire consent.
+See [complete bundled operation](../docs/instruction-editor.md#use-bundled-rewrite-for-clarity).
 
 The response composer binds its `/` dropdown to that same catalogue. A bare
 slash lists all available artifacts; command text and optional

@@ -1,5 +1,6 @@
 using Kora.Core.Artifacts;
 using Kora.Definitions.Skills;
+using Kora.Definitions.Prompts;
 
 namespace Kora.Definitions.Artifacts;
 
@@ -37,6 +38,6 @@ public static class EmbeddedArtifactCatalogue
                 package.DefinitionDigest,
                 instructions.Text);
         }).ToArray();
-        return new ArtifactCatalogue(artifacts);
+        return new ArtifactCatalogue([.. artifacts, .. EmbeddedPromptCatalogue.Load().Select(prompt => prompt.Definition)]);
     }
 }

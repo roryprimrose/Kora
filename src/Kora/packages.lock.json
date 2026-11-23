@@ -489,7 +489,7 @@
         "type": "Project",
         "dependencies": {
           "Anthropic": "[13.6.0, )",
-          "GitHub.Copilot.SDK": "[1.0.29, )",
+          "GitHub.Copilot.SDK": "[1.0.34, )",
           "KokoroSharp": "[0.8.4, )",
           "Kora.Core": "[0.1.0, )",
           "Microsoft.Extensions.AI.Abstractions": "[10.11.0, )",
@@ -514,9 +514,9 @@
       },
       "GitHub.Copilot.SDK": {
         "type": "CentralTransitive",
-        "requested": "[1.0.29, )",
-        "resolved": "1.0.29",
-        "contentHash": "QKRUZR0L5lRx4mog85lnXS2nue89iGAizPMiogtwDudIMESqxuGHJpndcNolpRByA28U4Wes/CE5FoGGDk8QEg==",
+        "requested": "[1.0.34, )",
+        "resolved": "1.0.34",
+        "contentHash": "HtvvUiVpNsewkGkwKNVODt1TC8lnvQdIu5eHGApbm15M9AV+GgT9rluRZIzAiLe4ZlW0zTmrl25NIlkNuXPTKA==",
         "dependencies": {
           "Microsoft.Extensions.AI.Abstractions": "10.11.0"
         }

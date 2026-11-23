@@ -9,6 +9,13 @@ Long results can have [a brief and full Details](#brief-answers-and-full-details
 workflows below describe their reviews and limits; their controls do not enable
 a model. Built-in command responses and local speech still work.
 
+In an independently admitted model turn, a clarification question or bounded
+local form still belongs to the original request. Answering supplies user data,
+not new tool permission or hosted-send consent. A streamed answer remains
+provisional until the genuine final result is validated; cancellation or lost
+permission suppresses late output and waits for the owned work to finish.
+Reviewed skill turns that require a buffered answer remain buffered.
+
 ## Navigate headings in a final Markdown answer
 
 In an already opened final Markdown **Details** view, expand **Document headings (Alt+H)**. Each entry shows its position, heading level and complete heading text, including duplicate titles. Click an entry, or focus it and press Enter or Space, to move to and focus that exact heading. Alt+H focuses the first index entry again ([native interaction](../src/Kora/NativeDocumentInteraction.cs)).

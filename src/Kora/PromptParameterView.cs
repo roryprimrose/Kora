@@ -51,11 +51,18 @@ internal sealed class PromptParameterView : UserControl, IDisposable
         var top = new StackPanel { Margin = new(12), Spacing = 8 };
         top.Children.Add(new TextBlock
         {
-            Text = $"Owned prompt: {draft.Source.Id}\nOriginal digest: {draft.Source.Digest}\nNative revision: {draft.Source.OwnedInstructionRevision}\n"
+            Text = $"{draft.ReviewedSource.Description}: {draft.Source.Name}\n"
+                + (draft.Source.OwnedInstructionRevision is null ? "Read-only bundled source; no owned-file revision.\n"
+                    : $"Native revision: {draft.Source.OwnedInstructionRevision}\n")
                 + "Native v2 required literal text only. No defaults, files, secrets, expressions, clipboard reads or recursive substitution. "
                 + "Preview is untrusted ephemeral user data, not retention approval. Editing an input retires review. "
                 + "Only separate exact-session retention confirmation saves the expanded USER message; form values are not separately saved.\n"
                 + "Submission uses the existing conversation host. Unqualified generation remains unavailable; no installation, authentication or fallback.",
+            TextWrapping = TextWrapping.Wrap,
+        });
+        top.Children.Add(new TextBlock
+        {
+            Text = "Inspect the complete selected source before entering text:\n\n" + draft.ReviewedSource.SourceText,
             TextWrapping = TextWrapping.Wrap,
         });
         var fields = new PrivateLiteralInputControls();

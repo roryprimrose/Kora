@@ -20,6 +20,29 @@ namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
 {
+    [Fact]
+    public async Task ImmutableBundledPromptFreshnessUsesRegisteredResourceAndExistingUseMasksWithoutDiskImpersonation()
+    {
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var preferences = new Preferences(new([], [], [], [], [], [], false));
+        var profile = Path.Combine(root, "profile");
+        var use = new ArtifactUsePreferences(paths);
+        using var embedded = EmbeddedArtifactCatalogue.Load();
+        using var catalogue = new ArtifactCatalogue(embedded.Artifacts, use);
+        using var reload = new ArtifactCatalogueReloadService(catalogue, paths, preferences,
+            new ArtifactDirectoryConfigurationService(preferences, new Audit()),
+            CreateIsolatedMcp(paths, preferences, profile), NullLogger<ArtifactCatalogueReloadService>.Instance,
+            profileRoamingRoot: profile, use: use);
+        var original = catalogue.Artifacts.Single(item => item.Kind == ArtifactKind.Prompt);
+        (await reload.IsCurrentAsync(original, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
+        use.SetDisabled(original.Id, true);
+        (await reload.IsCurrentAsync(original, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
+        use.SetDisabled(original.Id, false);
+        reload.ReloadNow().Should().BeTrue();
+        catalogue.Artifacts.Single(item => item.Kind == ArtifactKind.Prompt).OwnedInstructionRevision.Should().BeNull();
+        Directory.Exists(Path.Combine(paths.RoamingRoot, "Prompts")).Should().BeFalse();
+    }
+
     private readonly string root = Path.Combine(
         Path.GetTempPath(),
         "Kora.Windows.IntegrationTests",

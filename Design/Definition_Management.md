@@ -313,7 +313,7 @@ admission. Full Validate and exact save/use reviews remain independent.
 
 | Source | Skills | Prompts | Instructions | Agent profiles | Mutation boundary |
 |---|---|---|---|---|---|
-| Bundled `Kora.Definitions` resources | Explicit embedded packages | Actual embedded templates when introduced | Actual embedded scoped guidance when introduced | Actual embedded profiles when qualified | Immutable; inspect and create a distinct declarative adaptation, never overwrite or extract writable executable content. |
+| Bundled `Kora.Definitions` resources | Explicit embedded packages | Immutable Rewrite for clarity USER prompt | Actual embedded scoped guidance when introduced | Actual embedded profiles when qualified | Immutable; no overwrite, fabricated owned revision or writable extraction. Existing skill adaptations remain distinct. |
 | Kora-owned roaming data | `Skills` | `Prompts` | `Instructions` | `Agents` | Create/edit/rename/delete supported declarative definitions through the dedicated writer; save and activation are separate. |
 | Explicitly registered personal profile files/roots | Versioned compatible `SKILL.md` packages | Versioned compatible prompt files | Versioned compatible instruction files | Versioned compatible agent/profile files | First-class editable originals through the dedicated declarative writer; normal exact-change confirmation, with an optional Kora-owned fork. |
 
@@ -326,6 +326,18 @@ do not create empty bundled folders or imply resources currently exist.
 Device-local registrations, enablement, source bindings,
 reconciliation state, and audit live under the verified local application
 data boundary. No definition metadata roams authority or credentials.
+
+The bundled prompt's exact resource bytes/digest and literal v2 grammar are
+registered separately from the unchanged 13-resource skill closure.
+Customizations presents its complete read-only source. Explicit
+`/prompt rewrite-for-clarity` uses the same private parameter form and
+[real conversation submission](../src/Kora.Application/Definitions/PromptConversationSubmission.cs)
+as owned prompts: complete source inspection and expanded USER preview, exact
+Active target, retention review, one confirmation and genuine answer or truthful
+terminal. No content grants tool/effect authority, implicit hosted disclosure,
+new session, model qualification or hidden history. Catalogue/source/use changes
+retire review; permission/privacy/channel/focus cancellation and resource joins
+remain owned by the existing consumer.
 
 Profile means the user's personal customization locations, not permission to
 scan the whole profile, workspace, repository, or another user's files.

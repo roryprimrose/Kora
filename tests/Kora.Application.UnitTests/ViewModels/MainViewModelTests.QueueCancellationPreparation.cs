@@ -288,7 +288,7 @@ public sealed partial class MainViewModelTests
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             if (state is IEnumerable<KeyValuePair<string, object?>> fields)
-            { Entries.Add((eventId, fields.ToDictionary(), Activity.Current?.TraceId ?? default, HostActivity.Current?.Request)); }
+            { Entries.Add((eventId, fields.ToDictionary(StringComparer.Ordinal), Activity.Current?.TraceId ?? default, HostActivity.Current?.Request)); }
         }
     }
 }

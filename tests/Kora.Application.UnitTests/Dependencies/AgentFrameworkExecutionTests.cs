@@ -359,19 +359,23 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
     [InlineData("extra-tools")]
     [InlineData("substituted-tools")]
     [InlineData("pending")]
+    [InlineData("pending-question")]
     [InlineData("final")]
     public async Task PackageCannotSubstituteFunctionsOrRequestAnotherUnfinishedOrTerminalExchange(string fault)
     {
         await using var f = new Fixture(1, 2);
-        using var bridge = f.CreateBridge();
+        using var bridge = f.CreateBridge(ask: fault is "pending-question"
+            ? (question, _) => Task.FromResult(new ModelQuestionAnswerMessage(question, new(["option-1"]), RequestOrigin.LocalUi))
+            : null);
         var seed = new ChatMessage(ChatRole.User, "Original task");
         var options = new ChatOptions { Tools = bridge.Tools };
         List<ChatMessage> messages = [seed];
-        if (fault is "pending" or "final")
+        if (fault is "pending" or "pending-question" or "final")
         {
             f.Transport.Messages = [fault is "pending" ? Call : Answer];
+            if (fault is "pending-question") { SetQuestion(f, correlated: true); }
             var response = await bridge.GetResponseAsync(messages, options, Token);
-            if (fault is "pending") { messages.AddRange(response.Messages); }
+            if (fault is "pending" or "pending-question") { messages.AddRange(response.Messages); }
         }
         else
         {
@@ -386,7 +390,7 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
         var act = () => bridge.GetResponseAsync(messages, options, Token);
         (await act.Should().ThrowAsync<AgentFrameworkModelChatClient.TurnStoppedException>())
             .Which.Reason.Should().Be(ModelTurnReason.InvalidProviderResponse);
-        f.Transport.Requests.Should().HaveCount(fault is "pending" or "final" ? 1 : 0);
+        f.Transport.Requests.Should().HaveCount(fault is "pending" or "pending-question" or "final" ? 1 : 0);
     }
 
     [Theory]
@@ -519,6 +523,7 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
     [Theory]
     [InlineData("pending")]
     [InlineData("no-final")]
+    [InlineData("pending-question")]
     [InlineData("empty")]
     [InlineData("role")]
     [InlineData("contents")]
@@ -527,11 +532,14 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
     public async Task PackageCannotClaimATerminalAnswerWithoutTheExactAdmittedFinalMessage(string fault)
     {
         await using var f = new Fixture(1, 2);
-        using var bridge = f.CreateBridge();
+        using var bridge = f.CreateBridge(ask: fault is "pending-question"
+            ? (question, _) => Task.FromResult(new ModelQuestionAnswerMessage(question, new(["option-1"]), RequestOrigin.LocalUi))
+            : null);
         var messages = new List<ChatMessage>();
         if (fault is not "no-final")
         {
             f.Transport.Messages = [fault is "pending" ? Call : Answer];
+            if (fault is "pending-question") { SetQuestion(f, correlated: true); }
             var response = await bridge.GetResponseAsync([new(ChatRole.User, "Original task")],
                 new() { Tools = bridge.Tools }, Token);
             messages.AddRange(response.Messages);
@@ -598,6 +606,290 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
         published.Should().Be(replacePrefix ? "Exact " : "Exact final answer.");
     }
 
+    [Theory]
+    [InlineData("null")]
+    [InlineData("foreign-question")]
+    [InlineData("budget")]
+    [InlineData("host-fault")]
+    public async Task QuestionAnswerRequiresExactHostQuestionAndRemainingBudget(string fault)
+    {
+        await using var f = new Fixture(1, 2);
+        SetQuestion(f, correlated: true, exhaustOutput: fault is "budget");
+        var asks = 0;
+        using var bridge = f.CreateBridge(ask: (question, _) =>
+        {
+            asks++;
+            if (fault is "host-fault") { throw new IOException("Synthetic question host failure."); }
+            return Task.FromResult(fault is "null" ? null! : new ModelQuestionAnswerMessage(
+                fault is "foreign-question" ? new(question.Question, question.CallId) : question,
+                new(["option-1"]), RequestOrigin.LocalUi));
+        });
+        using var functions = new ModelChatMessageProjection.QuestionContinuationClient(bridge)
+        { MaximumConsecutiveErrorsPerRequest = 0, AdditionalTools = bridge.QuestionTools };
+        var act = () => functions.GetResponseAsync([new(ChatRole.User, "Original task")], new() { Tools = bridge.Tools }, Token);
+        (await act.Should().ThrowAsync<AgentFrameworkModelChatClient.TurnStoppedException>())
+            .Which.Reason.Should().Be(fault is "budget" ? ModelTurnReason.ToolLoopBudgetExceeded
+                : fault is "host-fault" ? ModelTurnReason.HostAdmissionClosed : ModelTurnReason.InvalidProviderResponse);
+        asks.Should().Be(1);
+        f.Transport.Requests.Should().ContainSingle();
+        f.Invocations.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false, "missing-question")]
+    [InlineData(false, "question-role")]
+    [InlineData(false, "question-type")]
+    [InlineData(false, "question-text")]
+    [InlineData(false, "missing-call")]
+    [InlineData(false, "call-role")]
+    [InlineData(false, "call-type")]
+    [InlineData(false, "call-id")]
+    [InlineData(false, "call-name")]
+    [InlineData(false, "call-arguments")]
+    [InlineData(false, "missing-answer")]
+    [InlineData(false, "answer-role")]
+    [InlineData(false, "answer-type")]
+    [InlineData(false, "answer-text")]
+    [InlineData(true, "missing-answer")]
+    [InlineData(true, "missing-call")]
+    [InlineData(true, "call-role")]
+    [InlineData(true, "call-type")]
+    [InlineData(true, "call-id")]
+    [InlineData(true, "call-name")]
+    [InlineData(true, "call-arguments")]
+    [InlineData(true, "answer-role")]
+    [InlineData(true, "answer-type")]
+    [InlineData(true, "answer-id")]
+    [InlineData(true, "answer-result")]
+    [InlineData(true, "answer-exception")]
+    public async Task QuestionTranscriptCannotReplaceQuestionOrHostAnswer(bool correlated, string fault)
+    {
+        await using var f = new Fixture(1, 2);
+        SetQuestion(f, correlated);
+        var asks = 0;
+        using var bridge = f.CreateBridge(ask: (question, _) =>
+        {
+            asks++;
+            return Task.FromResult(new ModelQuestionAnswerMessage(question, new(["option-1"]), RequestOrigin.LocalUi));
+        });
+        using var mutating = new MutatingChatClient(bridge, messages =>
+        {
+            if (messages.Count < 3) { return; }
+            var index = fault.Contains("question", StringComparison.Ordinal)
+                || fault.StartsWith("call-", StringComparison.Ordinal) || fault is "missing-call" ? 1 : messages.Count - 1;
+            var message = messages[index];
+            if (fault is "missing-call") { message.Contents.RemoveAt(message.Contents.Count - 1); return; }
+            if (fault.StartsWith("missing-", StringComparison.Ordinal)) { messages.RemoveAt(index); return; }
+            if (fault.EndsWith("-role", StringComparison.Ordinal)) { message.Role = ChatRole.System; return; }
+            if (fault.EndsWith("-type", StringComparison.Ordinal))
+            {
+                message.Contents[fault is "call-type" ? message.Contents.Count - 1 : 0] = fault is "call-type"
+                    ? new TextContent("substituted") : new FunctionCallContent("foreign", "foreign");
+                return;
+            }
+            if (fault.EndsWith("-text", StringComparison.Ordinal)) { message.Contents[0] = new TextContent("substituted"); return; }
+            if (fault.StartsWith("call-", StringComparison.Ordinal))
+            {
+                var call = (FunctionCallContent)message.Contents[^1];
+                message.Contents[^1] = new FunctionCallContent(fault is "call-id" ? "foreign" : call.CallId,
+                    fault is "call-name" ? "foreign" : call.Name, fault is "call-arguments" ? null : call.Arguments);
+            }
+            else
+            {
+                var result = (FunctionResultContent)message.Contents[0];
+                message.Contents[0] = new FunctionResultContent(fault is "answer-id" ? "foreign" : result.CallId,
+                    fault is "answer-result" ? "substituted" : result.Result)
+                { Exception = fault is "answer-exception" ? new IOException("Synthetic result fault.") : null };
+            }
+        });
+        using var functions = new ModelChatMessageProjection.QuestionContinuationClient(mutating)
+        { MaximumConsecutiveErrorsPerRequest = 0, AdditionalTools = bridge.QuestionTools };
+        var act = () => functions.GetResponseAsync([new(ChatRole.User, "Original task")], new() { Tools = bridge.Tools }, Token);
+        (await act.Should().ThrowAsync<AgentFrameworkModelChatClient.TurnStoppedException>())
+            .Which.Reason.Should().Be(ModelTurnReason.InvalidProviderResponse);
+        asks.Should().Be(1);
+        f.Transport.Requests.Should().ContainSingle();
+        f.Invocations.Should().BeEmpty();
+    }
+
+    private static void SetQuestion(Fixture fixture, bool correlated, bool exhaustOutput = false)
+    {
+        fixture.Transport.Messages = [Answer, Answer];
+        fixture.Transport.Transform = (request, reply) =>
+        {
+            if (request.Round != 1) { return reply; }
+            var question = new ModelClarificationQuestion(new("Choose", ["A", "B"]), correlated ? "question-one" : null);
+            return reply with { Message = question, Usage = reply.Usage! with
+            { OutputUtf8Bytes = exhaustOutput ? request.Budget.OutputUtf8Bytes : ModelToolProtocol.SerializeMessage(question).Length } };
+        };
+    }
+
+    [Theory]
+    [InlineData("no-pending")]
+    [InlineData("no-context")]
+    [InlineData("function")]
+    [InlineData("count")]
+    [InlineData("index")]
+    [InlineData("id")]
+    [InlineData("name")]
+    [InlineData("arguments")]
+    public async Task QuestionInvocationRequiresOriginalSerialPackageCorrelation(string fault)
+    {
+        await using var f = new Fixture(1, 2);
+        SetQuestion(f, correlated: true);
+        var asks = 0;
+        using var bridge = f.CreateBridge(ask: (question, _) =>
+        {
+            asks++;
+            return Task.FromResult(new ModelQuestionAnswerMessage(question, new(["option-1"]), RequestOrigin.LocalUi));
+        });
+        var function = (AIFunction)bridge.QuestionTools.Single();
+        if (fault is "no-pending" or "no-context")
+        {
+            if (fault is "no-context")
+            { await bridge.GetResponseAsync([new(ChatRole.User, "Original task")], new() { Tools = bridge.Tools }, Token); }
+            Func<Task> invoke = async () => await function.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal), Token);
+            await invoke.Should().ThrowAsync<AgentFrameworkModelChatClient.TurnStoppedException>();
+        }
+        else
+        {
+            using var functions = new ModelChatMessageProjection.QuestionContinuationClient(bridge)
+            { MaximumConsecutiveErrorsPerRequest = 0, AdditionalTools = bridge.QuestionTools };
+            functions.FunctionInvoker = (invocation, token) =>
+            {
+                if (fault is "function") { invocation.Function = AIFunctionFactory.Create(() => "foreign"); }
+                if (fault is "count") { invocation.FunctionCount = 2; }
+                if (fault is "index") { invocation.FunctionCallIndex = 1; }
+                if (fault is "id" or "name")
+                { invocation.CallContent = new(fault is "id" ? "foreign" : invocation.CallContent.CallId,
+                    fault is "name" ? "foreign" : invocation.CallContent.Name, invocation.CallContent.Arguments); }
+                var arguments = new AIFunctionArguments(invocation.Arguments, StringComparer.Ordinal);
+                if (fault is "arguments") { arguments["foreign"] = true; }
+                return function.InvokeAsync(arguments, token);
+            };
+            var invoke = () => functions.GetResponseAsync([new(ChatRole.User, "Original task")], new() { Tools = bridge.Tools }, Token);
+            await invoke.Should().ThrowAsync<AgentFrameworkModelChatClient.TurnStoppedException>();
+        }
+        asks.Should().Be(0);
+        f.Invocations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CancelledQuestionHostDoesNotContinueModelOrInvokeTools()
+    {
+        await using var f = new Fixture(1, 2);
+        SetQuestion(f, correlated: true);
+        using var bridge = f.CreateBridge(ask: (_, _) => throw new OperationCanceledException());
+        using var functions = new ModelChatMessageProjection.QuestionContinuationClient(bridge)
+        { MaximumConsecutiveErrorsPerRequest = 0, AdditionalTools = bridge.QuestionTools };
+        var invoke = () => functions.GetResponseAsync([new(ChatRole.User, "Original task")], new() { Tools = bridge.Tools }, Token);
+        await invoke.Should().ThrowAsync<OperationCanceledException>();
+        f.Transport.Requests.Should().ContainSingle();
+        f.Invocations.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("question")]
+    [InlineData("tools")]
+    [InlineData("provider")]
+    [InlineData("transport")]
+    public async Task StreamingRequiresLocalToolFreeTransportWithoutQuestionOwner(string fault)
+    {
+        await using var f = new Fixture(fault is "tools" ? 1 : 0, fault is "tools" ? 2 : 1,
+            local: fault is not "provider", version: 2);
+        using var bridge = f.CreateBridge(fault is "transport" ? null : new StreamingTransport(() => "", false),
+            ask: fault is "question" ? (_, _) => throw new InvalidOperationException("No question may open.") : null);
+        var invoke = () => bridge.GetStreamingResponseAsync([new(ChatRole.User, "Original task")],
+            new() { Tools = bridge.Tools }, Token);
+        invoke.Should().Throw<NotSupportedException>();
+        f.Transport.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DisposingOrCancellingStreamJoinsTransportWithoutAcceptingLaterPublication(bool cancel)
+    {
+        await using var f = new Fixture(0, 1, version: 2);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var transport = new StreamingTransport(() => "", false);
+        using var bridge = f.CreateBridge(transport);
+        var enumerator = bridge.GetStreamingResponseAsync([new(ChatRole.User, "Original task")],
+            new() { Tools = bridge.Tools }, cancellation.Token).GetAsyncEnumerator(cancellation.Token);
+        (await enumerator.MoveNextAsync()).Should().BeTrue();
+        enumerator.Current.Text.Should().Be("Exact ");
+        if (cancel) { await cancellation.CancelAsync(); }
+        if (cancel)
+        {
+            Func<Task> dispose = () => enumerator.DisposeAsync().AsTask();
+            await dispose.Should().ThrowAsync<OperationCanceledException>();
+        }
+        else { await enumerator.DisposeAsync(); }
+        var late = async () => await transport.LatePublication!();
+        if (cancel) { await late.Should().ThrowAsync<OperationCanceledException>(); }
+        else { await late.Should().ThrowAsync<InvalidDataException>(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NonAnswerPackageUpdatesNeverReachTheHostPublisher(bool foreignRole)
+    {
+        await using var f = new Fixture(0, 1);
+        using var bridge = f.CreateBridge();
+        var published = new List<ModelAnswerUpdate>();
+        var update = new Microsoft.Agents.AI.AgentResponseUpdate
+        {
+            Role = foreignRole ? ChatRole.User : ChatRole.Assistant,
+            Contents = foreignRole ? [new TextContent("foreign")] : [new FunctionCallContent("foreign", "foreign")],
+        };
+        async IAsyncEnumerable<Microsoft.Agents.AI.AgentResponseUpdate> Updates()
+        {
+            await Task.CompletedTask;
+            yield return update;
+        }
+        Func<Task> consume = async () =>
+        {
+            await foreach (var _ in BoundedModelTurnAdapter.PublishAsync(Updates(), f.Provenance,
+                (answer, _) => { published.Add(answer); return ValueTask.CompletedTask; }, bridge, Token)) { }
+        };
+        await consume.Should().ThrowAsync<InvalidDataException>();
+        published.Should().BeEmpty();
+        f.Transport.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task StreamDisposalSurfacesTransportJoinFailureInsteadOfReportingCleanCancellation()
+    {
+        await using var f = new Fixture(0, 1, version: 2);
+        var transport = new StreamingTransport(() => "", false, failOnJoin: true);
+        using var bridge = f.CreateBridge(transport);
+        var enumerator = bridge.GetStreamingResponseAsync([new(ChatRole.User, "Original task")],
+            new() { Tools = bridge.Tools }, Token).GetAsyncEnumerator(Token);
+        (await enumerator.MoveNextAsync()).Should().BeTrue();
+        Func<Task> dispose = () => enumerator.DisposeAsync().AsTask();
+        await dispose.Should().ThrowAsync<IOException>().WithMessage("Synthetic transport join failure.");
+    }
+
+    [Fact]
+    public async Task TransportCancellationDuringEnumerationPreservesAcceptedPrefixAndRemainsAFailure()
+    {
+        await using var f = new Fixture(0, 1, version: 2);
+        var published = string.Empty;
+        var transport = new StreamingTransport(() => published, false, cancelBeforeReply: true);
+        using var bridge = f.CreateBridge(transport);
+        Func<Task> consume = async () =>
+        {
+            await foreach (var update in bridge.GetStreamingResponseAsync([new(ChatRole.User, "Original task")],
+                new() { Tools = bridge.Tools }, Token))
+            { published += update.Text; }
+        };
+        await consume.Should().ThrowAsync<OperationCanceledException>();
+        published.Should().Be("Exact ");
+        var late = async () => await transport.LatePublication!();
+        await late.Should().ThrowAsync<InvalidDataException>();
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         internal readonly Clock Time = new();
@@ -640,13 +932,15 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
         }
 
         internal static CapabilityReply Version() => new(CapabilityOutcome.Succeeded, "observed", Version: new("1", "not observed"));
-        internal AgentFrameworkModelChatClient CreateBridge(IModelToolTransport? transport = null) => new(transport ?? Transport, Provenance, null,
+        internal AgentFrameworkModelChatClient CreateBridge(IModelToolTransport? transport = null,
+            Func<ModelClarificationQuestion, CancellationToken, Task<ModelQuestionAnswerMessage>>? ask = null) => new(transport ?? Transport, Provenance, null,
             ModelToolProtocol.ReadContext(envelope.Serialize(), Provenance), (_, _, token) => Tool(token),
-            _ => ValueTask.FromResult<ModelProviderReply?>(null), () => { }, _ => { }, (_, _, _, _) => { });
+            _ => ValueTask.FromResult<ModelProviderReply?>(null), () => { }, _ => { }, (_, _, _, _) => { }, ask);
         public ValueTask DisposeAsync() => Adapter.DisposeAsync();
     }
 
-    private sealed class StreamingTransport(Func<string> published, bool replacePrefix) : IModelToolTransport, IModelAnswerTransport
+    private sealed class StreamingTransport(Func<string> published, bool replacePrefix, bool failOnJoin = false,
+        bool cancelBeforeReply = false) : IModelToolTransport, IModelAnswerTransport
     {
         internal bool PublicationJoined { get; private set; }
         internal Func<ValueTask>? LatePublication { get; private set; }
@@ -657,8 +951,11 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
             Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken cancellationToken)
         {
             LatePublication = () => publish(new(request.Provenance, "Exact final answer. Late"), CancellationToken.None);
-            await publish(new(request.Provenance, "Exact "), cancellationToken);
+            try { await publish(new(request.Provenance, "Exact "), cancellationToken); }
+            catch (OperationCanceledException exception) when (failOnJoin)
+            { throw new IOException("Synthetic transport join failure.", exception); }
             PublicationJoined = string.Equals(published(), "Exact ", StringComparison.Ordinal);
+            if (cancelBeforeReply) { throw new OperationCanceledException("Synthetic transport cancellation."); }
             await publish(new(request.Provenance, replacePrefix ? "Replacement" : "Exact final answer."), cancellationToken);
             var message = ModelToolProtocol.ParseAssistant(Encoding.UTF8.GetBytes(Answer));
             return new(ModelTurnOutcome.Succeeded, request.Provenance, message,

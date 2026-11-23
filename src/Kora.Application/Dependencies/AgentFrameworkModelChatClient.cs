@@ -223,7 +223,7 @@ internal sealed class AgentFrameworkModelChatClient : IChatClient
         await CheckAsync(token).ConfigureAwait(false);
         var invocation = FunctionInvokingChatClient.CurrentContext;
         if (pendingQuestion is not { } question || ask is null || invocation is null
-            || !ReferenceEquals(function, questionFunction) || !ReferenceEquals(invocation.Function, function)
+            || !ReferenceEquals(invocation.Function, function)
             || invocation.FunctionCount != 1 || invocation.FunctionCallIndex != 0
             || !MatchesQuestion(question, invocation.CallContent)
             || !SameArguments(Encoding.UTF8.GetString(ModelToolProtocol.SerializeQuestionArguments(question.Question)), arguments))
@@ -351,15 +351,12 @@ internal sealed class AgentFrameworkModelChatClient : IChatClient
         var channel = Channel.CreateBounded<StreamItem>(new BoundedChannelOptions(1)
         { SingleReader = true, SingleWriter = true, FullMode = BoundedChannelFullMode.Wait });
         var producer = ProduceAsync();
-        StreamItem? current = null;
         try
         {
             await foreach (var item in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
-                current = item;
                 yield return item.Update;
                 item.Accepted.TrySetResult();
-                current = null;
             }
             await producer.ConfigureAwait(false);
         }
@@ -367,10 +364,8 @@ internal sealed class AgentFrameworkModelChatClient : IChatClient
         {
             Volatile.Write(ref closed, true);
             await lifetime.CancelAsync().ConfigureAwait(false);
-            current?.Accepted.TrySetCanceled(lifetime.Token);
-            while (channel.Reader.TryRead(out var item)) { item.Accepted.TrySetCanceled(lifetime.Token); }
             try { await producer.ConfigureAwait(false); }
-            catch (OperationCanceledException) when (lifetime.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             { /* Enumeration disposal cancels publication but still joins the physical transport. */ }
         }
 

@@ -60,7 +60,7 @@ internal sealed partial class BoundedModelTurnAdapter
         }
     }
 
-    private static async IAsyncEnumerable<AgentResponseUpdate> PublishAsync(
+    internal static async IAsyncEnumerable<AgentResponseUpdate> PublishAsync(
         IAsyncEnumerable<AgentResponseUpdate> updates, ModelTurnProvenance provenance,
         Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, AgentFrameworkModelChatClient bridge,
         [EnumeratorCancellation] CancellationToken token)

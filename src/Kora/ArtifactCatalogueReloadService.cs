@@ -4,6 +4,7 @@ using Kora.Core.Artifacts;
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Definitions.Artifacts;
+using Kora.Definitions.Prompts;
 using Kora.Windows.Artifacts;
 
 using Microsoft.Extensions.Logging;
@@ -223,6 +224,11 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
                     || !catalogue.IsCurrent(selected.Id, selected.Digest)) { return false; }
                 try
                 {
+                    if (selected.Source is "bundled")
+                    {
+                        return EmbeddedPromptCatalogue.Load().Any(prompt => prompt.Matches(selected))
+                            && eligible() && !disposed && selected.IsUseEnabled;
+                    }
                     var disk = Discovery(preferences.Load()).Load();
                     token.ThrowIfCancellationRequested();
                     var exact = disk.SingleOrDefault(item =>

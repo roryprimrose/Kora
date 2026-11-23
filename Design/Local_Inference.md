@@ -372,19 +372,27 @@ affect later turns, not the captured tuple. Deterministic
 cover retained original input through the real bounded loop and registry, plus
 authority loss before and after a tool; this is not provider qualification.
 
-Only existing Version-1 constrained Ollama agent turns use
+Compatible operations already owned by the bounded model adapter use
 [`ChatClientAgent` with MEAI function continuation](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.AgentFramework.cs).
 Each invocation creates one volatile package session; no package persistence,
 source discovery, nested agent or new authority is configured. The
 [typed chat bridge](../src/Kora.Application/Dependencies/AgentFrameworkModelChatClient.cs)
 keeps the original immutable context, exact reviewed tool descriptors and call
 IDs. It validates complete batches before any callback and checks package
-history against the canonical host exchange history. Kora retains all
+history against the canonical host exchange history. This includes existing
+Ollama modes and Claude observation/explicit hosted clarification consumers;
+ordinary Claude and native Copilot runtime composition remains unchanged.
+The package invokes an already issued host question through an internal
+function, without adding transport tool authority. Original non-tool question
+answers remain USER data; native question calls retain their exact correlation.
+Local tool-free streaming retains validated provisional prefixes and physically
+joined publication; Version-1 constrained reviewed skill turns remain buffered.
+Kora retains all
 continuation admission, serial call/round/physical-and-logical byte charges,
 token accounting, the profile deadline and actual transport/callback joins.
 Already-consented instruction and shared-skill evidence stays inert LocalOnly
-context; ordinary conversations, authoring, standalone skills and hosted
-providers keep their existing execution paths. These
+context. No native MAF skill provider, discovery tools, replacement skill engine
+or second continuation around native Copilot is introduced. These
 [deterministic package regressions](../tests/Kora.Application.UnitTests/Dependencies/AgentFrameworkExecutionTests.cs)
 do not qualify a model or enable concurrent execution.
 

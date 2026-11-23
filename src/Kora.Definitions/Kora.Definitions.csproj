@@ -23,5 +23,6 @@
     <EmbeddedResource Include="Skills\Restart\fixtures.json" LogicalName="Kora.Skills.Session.Restart.Fixtures" />
     <EmbeddedResource Include="Skills\Restart\entry.ps1" LogicalName="Kora.Scripts.Session.Restart" />
     <EmbeddedResource Include="Skills\session-control.ps1" LogicalName="Kora.Scripts.Shared.SessionControl" />
+    <EmbeddedResource Include="Prompts\rewrite-for-clarity.prompt.md" LogicalName="Kora.Prompts.RewriteForClarity" />
   </ItemGroup>
 </Project>

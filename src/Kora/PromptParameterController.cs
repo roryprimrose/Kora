@@ -168,7 +168,7 @@ internal sealed partial class PromptParameterController(
                 opened.ContentsLink.Offer(
                     Kora.Core.Presentation.ReviewContents.FromText(expanded.Source.Name, "request.md", expanded.UserRequest, expanded.Digest),
                     () => Eligible(captured) && ReferenceEquals(window, opened));
-                opened.Status.Text = $"Complete expanded USER REQUEST; digest {expanded.Digest}. Preview is not submission or model/tool approval. Select an exact Active session, review retention and separately confirm.";
+                opened.Status.Text = "Complete expanded USER REQUEST. Preview is not submission or model/tool approval. Select an exact Active session, review retention and separately confirm.";
             }
             else if (action is "RefreshTargets" or "NextTargets")
             {

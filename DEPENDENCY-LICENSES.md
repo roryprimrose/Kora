@@ -98,6 +98,9 @@ SQLite 3.53.4 supplies a `LICENSE.txt` public-domain declaration pointing to
 [reviewed file mapping](eng/licenses/license-file-identities.json) admits only
 that exact version and file digest as `LicenseRef-SQLite-Public-Domain`.
 Changed bytes fail before scanning; other versions require separate review.
+The [native payload contract](eng/NativeInspection.Common.ps1) recognizes this
+package as the owner of `e_sqlite3.dll`; [source staging](eng/SourceBootstrap.Common.ps1)
+still requires its exact identity to match the selected checkout's dependency lock.
 
 The WiX 7 bootstrapper API supplies `OSMFEULA.txt`, which is not a standard SPDX
 licence. The gate maps only the SHA-256-pinned file identified in

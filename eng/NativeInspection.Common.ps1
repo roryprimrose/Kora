@@ -3,6 +3,17 @@
 $script:PublishInspectionVersion = '1.0.0'
 $script:PublishInspectionProfile = 'windows-framework-dependent-v1'
 
+function Get-StandardSqliteNativeAsset {
+    param($NativeAssets)
+    $sqlite = @($NativeAssets | Where-Object published -CEQ 'e_sqlite3.dll')
+    if ($sqlite.Count -ne 1 -or
+        ($sqlite[0].package -cnotmatch '^SQLitePCLRaw\.lib\.e_sqlite3/\d+\.\d+\.\d+$' -and
+            $sqlite[0].package -cne 'SQLite/3.53.4')) {
+        throw 'Standard SQLite must be a pinned declared native payload, not an ambient setup dependency.'
+    }
+    $sqlite[0]
+}
+
 function Get-NativeImports {
     param([System.Reflection.PortableExecutable.PEReader] $Reader)
     $rva = $Reader.PEHeaders.PEHeader.ImportTableDirectory.RelativeVirtualAddress

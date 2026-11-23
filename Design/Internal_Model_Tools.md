@@ -195,6 +195,19 @@ uses the existing admitted `ModelTurnHost` callback only. It never creates a
 registry caller, invokes an action directly, fabricates an invocation/session
 identity or dispatches legacy action, grant or question responses.
 
+Its compatible consumers now share maintained
+[MEAI/MAF execution](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.AgentFramework.cs),
+not a parallel handwritten continuation loop. The
+[bridge](../src/Kora.Application/Dependencies/AgentFrameworkModelChatClient.cs)
+keeps canonical chronological provider messages, exact native question/tool
+correlation and USER-role non-tool answers. Package question invocation is
+internal handling of an already validated question, not a new advertised
+capability or approval route. Local forms and Claude's separate physical-send
+reviews keep their existing owners. Tool-free local provisional updates remain
+prefix-validated and joined; reviewed Version-1 constrained skills retain their
+buffered execution. Native Copilot and ordinary Claude runtime ownership is
+unchanged, and this implementation does not enable or qualify any provider.
+
 An entire provider message is validated before any member executes. Exact
 case-sensitive IDs/fields, strict UTF-8/Unicode, duplicate detection, known
 shapes/enums, exact evidence/request provenance and the complete current

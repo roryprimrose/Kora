@@ -500,7 +500,7 @@
         "dependencies": {
           "Avalonia.Desktop": "[12.1.6, )",
           "Avalonia.Fonts.Inter": "[12.1.6, )",
-          "Avalonia.Themes.Fluent": "[12.1.5, )",
+          "Avalonia.Themes.Fluent": "[12.1.6, )",
           "Kora.Application": "[0.1.0, )",
           "Kora.Core": "[0.1.0, )",
           "Kora.Definitions": "[0.1.0, )",
@@ -539,7 +539,7 @@
         "dependencies": {
           "Avalonia.Desktop": "[12.1.6, )",
           "Avalonia.Fonts.Inter": "[12.1.6, )",
-          "Avalonia.Themes.Fluent": "[12.1.5, )",
+          "Avalonia.Themes.Fluent": "[12.1.6, )",
           "Kora.Application": "[0.1.0, )",
           "Kora.Windows": "[0.1.0, )",
           "WixToolset.BootstrapperApplicationApi": "[7.0.0, )"
@@ -603,11 +603,11 @@
       },
       "Avalonia.Themes.Fluent": {
         "type": "CentralTransitive",
-        "requested": "[12.1.5, )",
-        "resolved": "12.1.5",
-        "contentHash": "FGjtJEpeVIbth+u4r507c9nbm1NQWLTvT3RC4e/yqDceRC4crAl37zVUloElA6rexDz69y0WvDfMLGX+t12yBQ==",
+        "requested": "[12.1.6, )",
+        "resolved": "12.1.6",
+        "contentHash": "CafSFU8q6I2ij7VRWy3D5qw3ObrDEOXRqIvFqVuEh7vqk1EC9ob94KYRmbHLZRsyj3Ob2xsF/tgcF5YF2uiKzQ==",
         "dependencies": {
-          "Avalonia": "12.1.5"
+          "Avalonia": "12.1.6"
         }
       },
       "GitHub.Copilot.SDK": {

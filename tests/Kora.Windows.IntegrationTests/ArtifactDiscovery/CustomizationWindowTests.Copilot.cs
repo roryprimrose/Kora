@@ -28,6 +28,9 @@ public sealed partial class CustomizationWindowTests
     [InlineData("retention")]
     [InlineData("changed-task")]
     [InlineData("complete")]
+    [InlineData("dirty-draft")]
+    [InlineData("missing-source")]
+    [InlineData("workflow-unavailable")]
     public Task SelectedCopilotNativeUiRequiresAllSeparateDecisionsBeforeCanonicalRetention(string stop) =>
         HeadlessSession.RunAsync(async () =>
         {
@@ -60,7 +63,8 @@ public sealed partial class CustomizationWindowTests
             var authoring = new Authoring();
             using var controller = new CustomizationWindowController(f.Main, management, authoring, catalogue, reload,
                 () => true, () => 1, NullLogger<CustomizationWindowController>.Instance,
-                copilotWorkflow: () => new(management, f.Sessions, conversation, models, f.Audit, f.Time));
+                copilotWorkflow: stop is "workflow-unavailable" ? null
+                    : () => new(management, f.Sessions, conversation, models, f.Audit, f.Time));
             CustomizationWindow? editor = null;
             var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) =>
@@ -69,8 +73,12 @@ public sealed partial class CustomizationWindowTests
                 else { next.TrySetResult(view); }
             });
             controller.Bind();
-            f.Main.CommandText = "edit reviewed agent";
-            await f.Main.RunTypedCommand.ExecuteAsync();
+            if (stop is "missing-source") { controller.Open(); }
+            else
+            {
+                f.Main.CommandText = "edit reviewed agent";
+                await f.Main.RunTypedCommand.ExecuteAsync();
+            }
             await controller.WaitForOperation();
             editor.Should().NotBeNull();
             async Task<Window> NextReview()
@@ -82,7 +90,24 @@ public sealed partial class CustomizationWindowTests
             editor!.View.CopilotTarget.Text = target.Metadata!.Name.Value;
             const string body = "  original UI task\r\n unchanged  ";
             editor.Request.Text = body;
+            if (stop is "dirty-draft") { editor.Editor.Text += "\nUnsent draft change."; }
             Choose(editor, "Run selected with Copilot");
+            if (stop is "dirty-draft" or "missing-source" or "workflow-unavailable")
+            {
+                await controller.WaitForOperation();
+                editor.Status.Text.Should().Be(stop switch
+                {
+                    "dirty-draft" => "Save or reload the current customization draft before running the selected source with Copilot. No request was submitted.",
+                    "missing-source" => "Select and load one saved exact source before running it with Copilot. No request was submitted.",
+                    _ => "Selected Copilot workflow is unavailable. No source was read or request submitted.",
+                });
+                next.Task.IsCompleted.Should().BeFalse();
+                (await f.Interactions.ReadConversationPageAsync(target.Authority.SessionId, null, 25, f.Token)).Messages.Should().BeEmpty();
+                (await File.ReadAllBytesAsync(source.Location, f.Token)).Should().Equal(original.CopyBytes());
+                authoring.Calls.Should().Be(0);
+                controller.Dispose();
+                return;
+            }
             var read = await NextReview();
             ReadText(read).Should().Contain(source.Location).And.Contain(source.PrimaryFile);
             if (stop is "read") { Choose(read, "Cancel"); }

@@ -57,7 +57,7 @@ public sealed partial class App : Avalonia.Application
     private readonly DispatcherTimer presenceRendererTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private Func<HostActivity>? rendererSwitchContext;
 
-    private static AssistantWindowTitles? assistantWindowTitles;
+    private AssistantWindowTitles? assistantWindowTitles;
     internal static ServiceProvider Services { get; set; } = null!;
     internal static Task DetailPreferenceQuiescence { get; private set; } = Task.CompletedTask;
     internal static bool IsManualStartup { get; set; }
@@ -522,6 +522,8 @@ public sealed partial class App : Avalonia.Application
 
     internal void DisposeDesktopControllers()
     {
+        assistantWindowTitles?.Dispose();
+        assistantWindowTitles = null;
         desktopLifetime?.Dispose();
         desktopLifetime = null;
         installerShutdownHost?.BindInstallerShutdown(null);

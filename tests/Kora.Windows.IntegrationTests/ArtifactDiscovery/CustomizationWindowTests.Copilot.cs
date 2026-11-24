@@ -81,6 +81,15 @@ public sealed partial class CustomizationWindowTests
             }
             await controller.WaitForOperation();
             editor.Should().NotBeNull();
+            if (stop is not "missing-source")
+            {
+                editor!.Details.Text.Should().Contain(source.Location,
+                    "the typed command must select the exact fixture source before Copilot dispatch; selection status: {0}",
+                    editor.Status.Text);
+                editor.Editor.Text.Should().Be(original.Text,
+                    "the selected source must load completely before Copilot dispatch; selection status: {0}",
+                    editor.Status.Text);
+            }
             async Task<Window> NextReview()
             {
                 await Task.WhenAny(next.Task, controller.WaitForOperation()).WaitAsync(f.Token);

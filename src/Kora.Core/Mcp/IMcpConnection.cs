@@ -5,6 +5,7 @@ namespace Kora.Core.Mcp;
 /// <summary>A single owned authenticated transport. Identity reports are observations, not grants.</summary>
 public interface IMcpConnection : IAsyncDisposable
 {
+    McpConnectionIdentity Identity => new(Account);
     McpAccountReference Account { get; }
     McpEndpoint Endpoint { get; }
     IReadOnlyList<IPAddress> RemoteAddresses { get; }

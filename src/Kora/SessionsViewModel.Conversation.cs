@@ -225,8 +225,8 @@ internal sealed partial class SessionsViewModel
             ? await conversation!.SubmitMcpAsync(target, body,
                 mcpServer is { } server && mcpServers.Any(item => ReferenceEquals(item, server)) ? server.Id
                     : throw new InvalidOperationException("Select an actual app-included MCP server from refreshed options."),
-                mcpAccount is { } account && mcpAccounts.Any(item => ReferenceEquals(item, account)) ? account.Reference
-                    : throw new InvalidOperationException("Select an actual delegated MCP account from refreshed options."),
+                await conversation.ResolveMcpIdentityAsync(mcpServer!.Id,
+                    mcpAccount is { } account && mcpAccounts.Any(item => ReferenceEquals(item, account)) ? account.Reference : null, mcpToken),
                 McpPresenter ?? throw new InvalidOperationException("The exact native MCP review presenter is unavailable."),
                 McpSelector ?? throw new InvalidOperationException("The exact native MCP tool selector is unavailable."),
                 () => live() && Interlocked.Read(ref mcpSelectionRevision) == mcpRevision

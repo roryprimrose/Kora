@@ -28,7 +28,8 @@ internal sealed partial class SessionsViewModel
         && source.Control == access.ControlRevision && selected == source.Target
         && selectionEpoch == mcpObservationEpoch && mcpSelectionRevision == mcpObservationSelection
         && HasCurrentMcpOptions && ReferenceEquals(mcpResult, source.Result) && mcpResultRequest == source.Request
-        && string.Equals(mcpServer?.Id, source.ServerId, StringComparison.Ordinal) && mcpAccount?.Reference == source.Mapping.Account;
+        && string.Equals(mcpServer?.Id, source.ServerId, StringComparison.Ordinal)
+        && (source.Mapping.Identity.Account is null || mcpAccount?.Reference == source.Mapping.Identity.Account);
     public bool CanEditMcpResultFollowUp => CanCompose && McpObservationCurrent && !IsMcpActive
         && mcpFollowUpWorkflow?.IsRunning != true
         && mcpFollowUpWorkflow?.Held != true;
@@ -62,10 +63,10 @@ internal sealed partial class SessionsViewModel
     private void CaptureMcpResultFollowUp()
     {
         if (mcpResult is not { } result || mcpResultRequest is not { } request || selected is not { } target
-            || mcpServer is not { } server || mcpAccount is not { } account)
+            || mcpServer is not { } server || mcpResultCapture.Identity is not { } identity)
         { return; }
         mcpObservation = mcpResultCapture.Capture(target, request, result, mcpResultControl,
-            server.Id, server.Name, account.Reference);
+            server.Id, server.Name, identity);
         if (mcpObservation is null) { return; }
         mcpObservationSelection = mcpSelectionRevision;
         mcpObservationEpoch = selectionEpoch;

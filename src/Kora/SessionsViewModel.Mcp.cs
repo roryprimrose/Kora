@@ -66,6 +66,7 @@ internal sealed partial class SessionsViewModel
         {
             if (ReferenceEquals(mcpServer, value)) { return; }
             mcpServer = value;
+            if (value?.Transport is "stdio") { SelectedMcpAccount = null; }
             mcpResult = null;
             OnPropertyChanged(nameof(McpResultText));
             Interlocked.Increment(ref mcpSelectionRevision);
@@ -98,7 +99,7 @@ internal sealed partial class SessionsViewModel
         SelectedMcpAccount = null;
         OnPropertyChanged(nameof(McpServers));
         OnPropertyChanged(nameof(McpAccounts));
-        conversationStatus = "Choose an app-included HTTPS server and a delegated account. "
+        conversationStatus = "Choose an app-included server. HTTPS requires a delegated account; stdio requires exact installed-process review. "
             + "Connection, exact schema/tool selection and outgoing arguments still require separate native review. Nothing connected.";
     }, sourceRead: true);
 
@@ -168,10 +169,10 @@ internal sealed partial class SessionsViewModel
             await RunConversationAsync(async (target, live) =>
             {
                 var server = SelectedMcpServer ?? throw new InvalidOperationException("Select an exact app-included MCP server.");
-                var account = SelectedMcpAccount ?? throw new InvalidOperationException("Select an exact delegated MCP account.");
+                var identity = await conversation!.ResolveMcpIdentityAsync(server.Id, SelectedMcpAccount?.Reference, cancellation.Token);
                 var selection = mcpSelectionRevision;
                 bool Current() => live() && (admitted?.Invoke() ?? true) && mcpSelectionRevision == selection;
-                var result = await conversation!.InvokeMcpAsync(target, server.Id, account.Reference,
+                var result = await conversation!.InvokeMcpAsync(target, server.Id, identity,
                     McpPresenter ?? throw new InvalidOperationException("Native MCP review is unavailable."),
                     McpSelector ?? throw new InvalidOperationException("Native MCP selection is unavailable."),
                     McpInput ?? throw new InvalidOperationException("Native schema-bound MCP input is unavailable."),

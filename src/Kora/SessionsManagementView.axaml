@@ -207,7 +207,7 @@
           <Button x:Name="SubmitWebPage" Content="Retrieve and summarize one page locally"
             IsEnabled="{Binding CanSubmitConversation}"
             AutomationProperties.HelpText="Enter get web page followed by one absolute public address. Requires separate exact once-only approval; unqualified local models remain unavailable." />
-          <Button x:Name="ReadMcpOptions" Content="Review HTTPS MCP options" IsEnabled="{Binding CanCompose}" />
+          <Button x:Name="ReadMcpOptions" Content="Review MCP options" IsEnabled="{Binding CanCompose}" />
           <Button x:Name="SubmitMcp" Content="Use reviewed MCP tool locally" IsEnabled="{Binding CanSubmitConversation}" />
           <Button x:Name="InvokeMcp" Content="Invoke reviewed MCP tool without a model" IsEnabled="{Binding CanCompose}"
               AutomationProperties.HelpText="Select one admitted read-only tool, enter required schema-bound arguments, then separately approve the exact destination and arguments. Conversation input is unchanged." />
@@ -225,10 +225,10 @@
           <Button x:Name="CancelRunningConversation" Content="Cancel this running conversation task" IsEnabled="{Binding CanCancelRunningConversation}"
               AutomationProperties.Name="Deliberately request cancellation of the displayed exact running conversation task; waits for owned resources, never rolls back a committed answer" />
         </WrapPanel>
-        <TextBlock Text="HTTPS MCP requires an explicitly configured server, delegated account and host-owned read-only tool mapping. The unqualified production connector remains unavailable. No anonymous fallback, stdio process or hosted-result disclosure." TextWrapping="Wrap" />
+        <TextBlock Text="HTTPS requires a delegated account; its unqualified connector remains unavailable. Local stdio requires an exact installed executable and separate native launch/owned-root cleanup consent. Processes are not sandboxed. Both require trusted host tool mappings; unknown tools stay unavailable. No hosted-result disclosure." TextWrapping="Wrap" />
         <ComboBox ItemsSource="{Binding McpServers}" SelectedItem="{Binding SelectedMcpServer, Mode=TwoWay}"
             IsEnabled="{Binding CanCompose}" PlaceholderText="Choose an app-included server" DisplayMemberBinding="{Binding Display}"
-            AutomationProperties.Name="Exact configured HTTPS MCP server for this session operation; no default or connection" />
+            AutomationProperties.Name="Exact configured MCP server for this session operation; no default or connection" />
         <ComboBox ItemsSource="{Binding McpAccounts}" SelectedItem="{Binding SelectedMcpAccount, Mode=TwoWay}"
             IsEnabled="{Binding CanCompose}" PlaceholderText="Choose a delegated account" DisplayMemberBinding="{Binding DisplayName}"
             AutomationProperties.Name="Explicit delegated MCP account; never inherits a model account or ambient credentials" />

@@ -56,13 +56,13 @@ internal sealed partial class SessionsViewModel
             await RunConversationAsync(async (target, live) =>
             {
                 var server = SelectedMcpServer ?? throw new InvalidOperationException("Select an exact app-included MCP server.");
-                var account = SelectedMcpAccount ?? throw new InvalidOperationException("Select an exact delegated MCP account.");
+                var identity = await conversation!.ResolveMcpIdentityAsync(server.Id, SelectedMcpAccount?.Reference, cancellation.Token);
                 var selection = mcpSelectionRevision;
                 bool Current() => live() && (admitted?.Invoke() ?? true) && mcpSelectionRevision == selection;
                 var present = McpPresenter ?? throw new InvalidOperationException("Native MCP review is unavailable.");
                 if (kind is null)
                 {
-                    var inventory = await conversation!.DiscoverMcpCapabilitiesAsync(target, server.Id, account.Reference,
+                    var inventory = await conversation!.DiscoverMcpCapabilitiesAsync(target, server.Id, identity,
                         present, Current, cancellation.Token, origin);
                     if (!Current()) { throw new OperationCanceledException("MCP inventory presentation was retired.", cancellation.Token); }
                     McpCapabilityObserved?.Invoke(inventory);
@@ -83,7 +83,7 @@ internal sealed partial class SessionsViewModel
                 if (useModel)
                 {
                     var body = originalBody ?? composerBody;
-                    var receipt = await conversation!.SubmitMcpContentAsync(target, body, server.Id, account.Reference,
+                    var receipt = await conversation!.SubmitMcpContentAsync(target, body, server.Id, identity,
                         kind.Value, present, selector, input, Current, cancellation.Token, origin,
                         (_, result) => observed = result);
                     if (!Current()) { throw new OperationCanceledException("The original MCP content answer was retired."); }
@@ -95,7 +95,7 @@ internal sealed partial class SessionsViewModel
                 }
                 else
                 {
-                    var result = await conversation!.ReadMcpContentAsync(target, server.Id, account.Reference,
+                    var result = await conversation!.ReadMcpContentAsync(target, server.Id, identity,
                         kind.Value, present, selector, input, Current, cancellation.Token, origin);
                     if (!Current()) { throw new OperationCanceledException("The original MCP content presentation was retired."); }
                     observed = result.Content;

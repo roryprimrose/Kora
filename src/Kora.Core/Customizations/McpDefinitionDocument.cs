@@ -108,6 +108,33 @@ public sealed class McpDefinitionDocument
         { throw new InvalidDataException("The selected HTTPS MCP entry must be strict UTF-8.", exception); }
     }
 
+    public static McpStdioEndpoint ValidateStdioServer(ReadOnlySpan<byte> definition)
+    {
+        if (definition.Length is 0 or > 64 * 1024)
+        { throw new InvalidDataException("The selected stdio entry exceeds its byte bound or is empty."); }
+        try
+        {
+            _ = StrictUtf8.GetCharCount(definition);
+            using var document = JsonDocument.Parse(definition.ToArray(), new JsonDocumentOptions
+            { MaxDepth = 16, CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+            var root = document.RootElement;
+            RequireUniqueProperties(root);
+            if (root.ValueKind != JsonValueKind.Object
+                || root.EnumerateObject().Any(property => property.Name is not ("type" or "command" or "args" or "cwd" or "env"))
+                || root.TryGetProperty("type", out var type) && (type.ValueKind != JsonValueKind.String || !string.Equals(type.GetString(), "stdio", StringComparison.Ordinal))
+                || !root.TryGetProperty("command", out var command) || command.ValueKind != JsonValueKind.String
+                || !root.TryGetProperty("cwd", out var cwd) || cwd.ValueKind != JsonValueKind.String
+                || !root.TryGetProperty("args", out var args) || args.ValueKind != JsonValueKind.Array
+                || args.EnumerateArray().Any(item => item.ValueKind != JsonValueKind.String)
+                || !root.TryGetProperty("env", out var env) || env.ValueKind != JsonValueKind.Object
+                || env.EnumerateObject().Any(item => item.Value.ValueKind != JsonValueKind.String))
+            { throw new InvalidDataException("Stdio requires only command, literal args, cwd, explicit env and optional type stdio."); }
+            return new(command.GetString()!, args.EnumerateArray().Select(item => item.GetString()!), cwd.GetString()!,
+                env.EnumerateObject().ToDictionary(item => item.Name, item => item.Value.GetString()!, StringComparer.Ordinal));
+        }
+        catch (JsonException exception) { throw new InvalidDataException("The selected stdio entry is malformed.", exception); }
+        catch (DecoderFallbackException exception) { throw new InvalidDataException("The selected stdio entry must be strict UTF-8.", exception); }
+    }
     public byte[] Read(string name)
     {
         var entry = entries.SingleOrDefault(entry => string.Equals(entry.Name, name, StringComparison.Ordinal))

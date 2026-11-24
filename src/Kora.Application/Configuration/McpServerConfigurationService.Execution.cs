@@ -8,10 +8,12 @@ namespace Kora.Application.Configuration;
 
 public sealed partial class McpServerConfigurationService
 {
-    internal async Task<McpConnectionDescriptor> ResolveHttpsAsync(string serverId,
-        McpAccountReference account, CancellationToken token)
+    internal Task<McpConnectionDescriptor> ResolveHttpsAsync(string serverId,
+        McpAccountReference account, CancellationToken token) => ResolveAsync(serverId, new(account), token);
+
+    internal async Task<McpConnectionDescriptor> ResolveAsync(string serverId,
+        McpConnectionIdentity? identity, CancellationToken token)
     {
-        ArgumentNullException.ThrowIfNull(account);
         token.ThrowIfCancellationRequested();
         var useRevision = UseControlRevision;
         McpServerConfigurationSummary? selected;
@@ -40,9 +42,21 @@ public sealed partial class McpServerConfigurationService
             var root = document.RootElement;
             var servers = root.TryGetProperty("servers", out var value) ? value : root.GetProperty("mcpServers");
             var definition = servers.GetProperty(selected.Name);
-            var endpoint = McpDefinitionDocument.ValidateHttpsServer(System.Text.Encoding.UTF8.GetBytes(definition.GetRawText()));
-            if (endpoint != account.Destination)
-            { throw new InvalidOperationException("The explicitly selected delegated account belongs to a different destination."); }
+            var raw = System.Text.Encoding.UTF8.GetBytes(definition.GetRawText());
+            McpConnectionIdentity resolved;
+            if (definition.TryGetProperty("command", out _))
+            {
+                resolved = new(McpDefinitionDocument.ValidateStdioServer(raw));
+                if (identity is not null && identity != resolved)
+                { throw new InvalidOperationException("The exact local MCP profile differs from the selected identity."); }
+            }
+            else
+            {
+                var endpoint = McpDefinitionDocument.ValidateHttpsServer(raw);
+                if (identity?.Account is not { } account || endpoint != account.Destination)
+                { throw new InvalidOperationException("Select the exact delegated account for this HTTPS destination."); }
+                resolved = identity;
+            }
             token.ThrowIfCancellationRequested();
             if (!preferences.Load().IncludedMcpServerIds.Contains(serverId, StringComparer.Ordinal)
                 || !SourceFiles.Contains(path, StringComparer.OrdinalIgnoreCase)
@@ -54,19 +68,19 @@ public sealed partial class McpServerConfigurationService
                 Path.GetFullPath(Path.Combine(paths.RoamingRoot, "Mcp", "mcp.json")), StringComparison.OrdinalIgnoreCase)
                 ? CustomizationScope.Kora : CustomizationScope.User;
             return new(serverId, selected.Name, path, Convert.ToHexStringLower(SHA256.HashData(bytes)),
-                endpoint, account, useRevision, scope, sourceControlRevision);
+                resolved, useRevision, scope, sourceControlRevision);
         }
         throw new InvalidOperationException("The selected MCP source is no longer configured.");
     }
 
     internal async Task ValidateCurrentAsync(McpConnectionDescriptor descriptor, CancellationToken token)
     {
-        var current = await ResolveHttpsAsync(descriptor.ServerId, descriptor.Account, token).ConfigureAwait(false);
+        var current = await ResolveAsync(descriptor.ServerId, descriptor.Identity, token).ConfigureAwait(false);
         if (!string.Equals(current.SourceRevision, descriptor.SourceRevision, StringComparison.Ordinal)
             || !string.Equals(current.SourcePath, descriptor.SourcePath, StringComparison.OrdinalIgnoreCase)
             || current.UseControlRevision != descriptor.UseControlRevision
             || current.SourceControlRevision != descriptor.SourceControlRevision
-            || current.Endpoint != descriptor.Endpoint)
+            || current.Identity != descriptor.Identity)
         { throw new InvalidOperationException("The exact MCP source revision changed; review and discovery must be repeated."); }
     }
 

@@ -14,7 +14,7 @@ public sealed partial class SessionConversationService
 {
     /// <summary>Original-user MCP execution through the canonical task, approval, transport and cancellation owners; no model turn.</summary>
     public async Task<McpExplicitResult> InvokeMcpAsync(SessionWorkspaceEntry target, string serverId,
-        McpAccountReference account, McpApprovalPresenter present, McpToolSelector select,
+        McpConnectionIdentity account, McpApprovalPresenter present, McpToolSelector select,
         McpArgumentsPresenter input, Func<bool> admitted, CancellationToken token,
         RequestOrigin origin = RequestOrigin.LocalUi) =>
         await InvokeMcpCoreAsync(target, serverId, account, present, select,
@@ -25,7 +25,7 @@ public sealed partial class SessionConversationService
             }, admitted, origin, token).ConfigureAwait(false);
 
     private async Task<McpExplicitResult> InvokeMcpCoreAsync(SessionWorkspaceEntry target, string serverId,
-        McpAccountReference account, McpApprovalPresenter present, McpToolSelector? select,
+        McpConnectionIdentity account, McpApprovalPresenter present, McpToolSelector? select,
         Func<McpInvocation, CancellationToken, Task<CapabilityReply>> execute,
         Func<bool> admitted, RequestOrigin origin, CancellationToken token)
     {

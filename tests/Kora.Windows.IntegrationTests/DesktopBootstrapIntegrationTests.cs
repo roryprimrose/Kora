@@ -62,8 +62,15 @@ public sealed class DesktopBootstrapIntegrationTests
             fixture.ForbiddenNetworkCalls.Should().Be(0);
             fixture.PowerShell.ForbiddenCalls.Should().Be(0);
 
+            var ownedWindow = new Window { Title = "Owned fixture" };
+            ownedWindow.Title.Should().Be("Kora - Owned fixture");
             await fixture.StopDesktopAsync();
 
+            ownedWindow.Title = "Released fixture";
+            ownedWindow.Title.Should().Be("Released fixture");
+            var laterWindow = new Window { Title = "Independent fixture" };
+            laterWindow.Title.Should().Be("Independent fixture",
+                "desktop teardown must release process-wide title subscriptions");
             fixture.Ownership.IsReady.Should().BeFalse();
             fixture.Lifecycle.HasInstallerBinding.Should().BeFalse();
             fixture.Calls.SubscriberCount.Should().Be(0);

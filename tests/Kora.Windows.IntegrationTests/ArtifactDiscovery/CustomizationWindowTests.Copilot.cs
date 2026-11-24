@@ -1,3 +1,5 @@
+using System.Security.Principal;
+
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -15,6 +17,7 @@ using Kora.Core.Hosting;
 using Kora.Definitions.Artifacts;
 using Kora.NativeUxFixture;
 using Kora.Windows.Artifacts;
+using Kora.Windows.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -41,8 +44,11 @@ public sealed partial class CustomizationWindowTests
             var store = new WindowsCustomizationStore(f, profile, Path.Combine(f.LocalRoot, "copilot-user"));
             var source = await store.Create(CustomizationKind.Agent, CustomizationScope.Kora, "reviewed", f.Token);
             var original = OwnedAgentProfileDocument.ProposeToolFree("reviewed", string.Empty, "Reviewed", "Use brief paragraphs.").Document;
-            Directory.CreateDirectory(Path.GetDirectoryName(source.Location)!);
-            await File.WriteAllBytesAsync(source.Location, original.CopyBytes(), f.Token);
+            using var identity = WindowsIdentity.GetCurrent();
+            var owner = identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable.");
+            if (!Directory.Exists(f.RoamingRoot)) { RestrictedStorageDirectory.CreateRestrictedDirectory(f.RoamingRoot, owner); }
+            RestrictedStorageDirectory.CreateRestrictedDirectory(Path.GetDirectoryName(source.Location)!, owner);
+            WindowsOwnedInstructionStoreTests.WriteOwnedFile(source.Location, original.CopyBytes());
             var use = new ArtifactUsePreferences(f);
             using var catalogue = EmbeddedArtifactCatalogue.Load();
             var management = new CustomizationManagementService(store, admission, use, catalogue, f.Audit);

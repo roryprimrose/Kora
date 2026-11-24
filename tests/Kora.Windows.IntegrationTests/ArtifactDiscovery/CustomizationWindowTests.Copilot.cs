@@ -66,10 +66,19 @@ public sealed partial class CustomizationWindowTests
                 copilotWorkflow: stop is "workflow-unavailable" ? null
                     : () => new(management, f.Sessions, conversation, models, f.Audit, f.Time));
             CustomizationWindow? editor = null;
+            var selectionStatuses = new List<string?>();
             var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) =>
             {
-                if (view is CustomizationWindow selected) { editor = selected; }
+                if (view is CustomizationWindow selected)
+                {
+                    editor = selected;
+                    selected.Status.PropertyChanged += (_, change) =>
+                    {
+                        if (change.Property == TextBlock.TextProperty && selectionStatuses.Count < 16)
+                        { selectionStatuses.Add(selected.Status.Text); }
+                    };
+                }
                 else { next.TrySetResult(view); }
             });
             controller.Bind();
@@ -84,8 +93,8 @@ public sealed partial class CustomizationWindowTests
             if (stop is not "missing-source")
             {
                 editor!.Details.Text.Should().Contain(source.Location,
-                    "the typed command must select the exact fixture source before Copilot dispatch; selection status: {0}",
-                    editor.Status.Text);
+                    "the typed command must select the exact fixture source before Copilot dispatch; selection status: {0}; initial statuses: {1}; visible inventory: {2}",
+                    editor.Status.Text, string.Join(" -> ", selectionStatuses), editor.View.FilterSummary.Text);
                 editor.Editor.Text.Should().Be(original.Text,
                     "the selected source must load completely before Copilot dispatch; selection status: {0}",
                     editor.Status.Text);

@@ -497,9 +497,9 @@
         "type": "Project",
         "dependencies": {
           "Anthropic": "[13.8.0, )",
-          "GitHub.Copilot.SDK": "[1.0.34, )",
           "KokoroSharp": "[0.8.4, )",
           "Kora.Core": "[0.1.0, )",
+          "Microsoft.Copilot.SDK": "[2.0.1, )",
           "Microsoft.Extensions.AI.Abstractions": "[11.0.0, )",
           "Microsoft.ML.OnnxRuntime": "[1.31.1, )",
           "Microsoft.Win32.SystemEvents": "[10.0.14, )",
@@ -518,15 +518,6 @@
         "contentHash": "N1+grCB2HdfsFsuRVVjBgN0evlxtdvSBw26P7rvaVGHrqgnr00Llw8sPuOP8w8akKzcN5tOd+3I75iEeERJbEQ==",
         "dependencies": {
           "Microsoft.Extensions.AI.Abstractions": "10.5.1"
-        }
-      },
-      "GitHub.Copilot.SDK": {
-        "type": "CentralTransitive",
-        "requested": "[1.0.34, )",
-        "resolved": "1.0.34",
-        "contentHash": "HtvvUiVpNsewkGkwKNVODt1TC8lnvQdIu5eHGApbm15M9AV+GgT9rluRZIzAiLe4ZlW0zTmrl25NIlkNuXPTKA==",
-        "dependencies": {
-          "Microsoft.Extensions.AI.Abstractions": "10.11.0"
         }
       },
       "KokoroSharp": {
@@ -557,6 +548,15 @@
           "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0"
+        }
+      },
+      "Microsoft.Copilot.SDK": {
+        "type": "CentralTransitive",
+        "requested": "[2.0.1, )",
+        "resolved": "2.0.1",
+        "contentHash": "SQGOlI/M429CEHBwwf9UxVMUwZLx6uKrbNT/F6FgYyEgO7xHf5xRLV6JiaNv8fmH8k5d4rvmOXpqnY6aiBtmsA==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0"
         }
       },
       "Microsoft.Data.Sqlite": {

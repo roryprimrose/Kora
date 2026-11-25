@@ -1,4 +1,5 @@
-using GitHub.Copilot;
+using Microsoft.Copilot;
+using Microsoft.Copilot.Rpc;
 using Kora.Core.Dependencies;
 
 namespace Kora.Windows.Dependencies;
@@ -7,8 +8,8 @@ internal sealed class CopilotSdkClient(CopilotClientOptions options) : ICopilotS
 {
     private readonly CopilotClient client = new(options);
     public Task<GetAuthStatusResponse> AuthenticateAsync(CancellationToken token) => client.GetAuthStatusAsync(token);
-    public Task<IList<ModelInfo>> ModelsAsync(CancellationToken token) => client.ListModelsAsync(token);
-    public async Task<ICopilotSdkSession> CreateAsync(SessionConfig configuration, CancellationToken token) =>
+    public Task<IList<Model>> ModelsAsync(CancellationToken token) => client.ListModelsAsync(token);
+    public async Task<ICopilotSdkSession> CreateAsync(CreateSessionOptions configuration, CancellationToken token) =>
         new Session(await client.CreateSessionAsync(configuration, token).ConfigureAwait(false), configuration.Model!);
 
     public Task StopAsync() => client.ForceStopAsync();

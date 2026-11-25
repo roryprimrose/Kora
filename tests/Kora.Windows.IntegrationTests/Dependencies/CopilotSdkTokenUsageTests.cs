@@ -1,5 +1,5 @@
 using AwesomeAssertions;
-using GitHub.Copilot;
+using Microsoft.Copilot;
 using Kora.Core.Dependencies;
 using Kora.Windows.Dependencies;
 

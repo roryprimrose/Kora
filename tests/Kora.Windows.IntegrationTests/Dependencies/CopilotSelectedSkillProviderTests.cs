@@ -5,7 +5,7 @@ using Kora.Windows.Dependencies;
 
 namespace Kora.Windows.IntegrationTests.Dependencies;
 
-#pragma warning disable GHCP001 // Native callback contract, with no process, filesystem or model activity.
+#pragma warning disable MCPSDK001 // Native callback contract, with no process, filesystem or model activity.
 [Collection("Host tracing")]
 public sealed class CopilotSelectedSkillProviderTests
 {
@@ -35,4 +35,4 @@ public sealed class CopilotSelectedSkillProviderTests
         public void Dispose() { }
     }
 }
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001

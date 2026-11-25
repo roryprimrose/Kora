@@ -92,7 +92,7 @@ public sealed partial class SessionsConversationTests
                 stored.Outcome.Should().Be(terminal is "complete" ? ModelTurnOutcome.Succeeded
                     : terminal is "cancel" ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.DeniedEgress);
                 sdk.Network.Sends.Should().Be(terminal is "deny" ? 0 : 1);
-                sdk.Client.Configuration!.Streaming.Should().BeTrue();
+                sdk.Client.Configuration!.Events.Streaming.Should().BeTrue();
                 composed.Turns.IsQuiescent.Should().BeTrue();
                 runtime.IsQuiescent.Should().BeTrue();
             }

@@ -8,7 +8,7 @@ using Kora.Windows.Dependencies;
 
 namespace Kora.Windows.IntegrationTests.Dependencies;
 
-#pragma warning disable GHCP001 // Exercises the same pinned final-request boundary as production, without starting an SDK runtime.
+#pragma warning disable MCPSDK001 // Exercises the same pinned final-request boundary as production, without starting an SDK runtime.
 public sealed class CopilotFinalRequestHandlerTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
@@ -167,4 +167,4 @@ public sealed class CopilotFinalRequestHandlerTests
         }
     }
 }
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001

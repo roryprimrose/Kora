@@ -55,12 +55,12 @@ public sealed class CopilotCustomizationWorkflowTests
         sdk.Client.BeforeSend = async token =>
         {
             var configuration = sdk.Client.Configuration!;
-            var agent = configuration.CustomAgents!.Single();
+            var agent = configuration.Agents.Definitions!.Single();
             var native = agent.Prompt;
-#pragma warning disable GHCP001 // Simulates the native SDK's selected agent preloading the single provider skill.
+#pragma warning disable MCPSDK001 // Simulates the native SDK's selected agent preloading the single provider skill.
             if (skill)
             {
-                var provider = configuration.SkillProvider!;
+                var provider = configuration.Skills.Provider!;
                 Task<string?> callback;
                 using (ExecutionContext.SuppressFlow())
                 {
@@ -72,15 +72,15 @@ public sealed class CopilotCustomizationWorkflowTests
                 }
                 native = await callback;
             }
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001
             using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.githubcopilot.com/chat/completions")
             {
                 Headers = { Authorization = new("Bearer", "synthetic") },
                 Content = new StringContent(JsonSerializer.Serialize(new { model = SessionsConversationTests.SelectedCopilotProfile.Model.Value, messages = new[] { native, sdk.Client.Prompt } })),
             };
-#pragma warning disable GHCP001 // Real final-byte boundary, synthetic network transport.
-            var handler = (CopilotFinalRequestHandler)sdk.Options!.RequestHandler!;
-#pragma warning restore GHCP001
+#pragma warning disable MCPSDK001 // Real final-byte boundary, synthetic network transport.
+            var handler = (CopilotFinalRequestHandler)sdk.Options!.Models.RequestHandler!;
+#pragma warning restore MCPSDK001
             using var response = await handler.SendFinalAsync(request, sdk.Client.SessionId, null, request.RequestUri!.AbsoluteUri, token);
         };
         using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);

@@ -2,7 +2,8 @@
 using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
-using GitHub.Copilot;
+using Microsoft.Copilot;
+using Microsoft.Copilot.Rpc;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -76,13 +77,26 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
     public async Task Missing_or_denied_model_policy_does_not_create_a_session(string? state)
     {
         var fixture = new Fixture();
-        fixture.Client.Models[0].Policy = state is null ? null : new() { State = state };
+        fixture.Client.Models[0].Policy = state is null ? null : new() { State = new ModelPolicyState(state) };
         using var root = fixture.Root();
         (await fixture.Run(Token)).Outcome.Should().Be(ModelTurnOutcome.Unavailable);
         fixture.Client.Configuration.Should().BeNull();
     }
 
-#pragma warning disable GHCP001 // Supplies actual SDK callback context to the deterministic client boundary.
+    [Fact]
+    public async Task Missing_catalogue_capabilities_never_create_a_session()
+    {
+        var fixture = new Fixture();
+        // Simulate malformed RPC data despite the SDK's non-nullable contract.
+        fixture.Client.Models[0].Capabilities = null!;
+        using var root = fixture.Root();
+        (await fixture.Run(Token)).Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+        fixture.Client.Configuration.Should().BeNull();
+        fixture.Client.Prompt.Should().BeNull();
+        fixture.Network.Sends.Should().Be(0);
+    }
+
+#pragma warning disable MCPSDK001 // Supplies actual SDK callback context to the deterministic client boundary.
     [Theory]
     [InlineData("valid")]
     [InlineData("foreign-session")]
@@ -104,7 +118,7 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
         };
         fixture.Client.Send = async token =>
         {
-            var function = fixture.Client.Configuration!.Tools!.Single(item =>
+            var function = fixture.Client.Configuration!.Tools.Definitions!.Single(item =>
                 string.Equals(item.Name, "kora_application_get_version", StringComparison.Ordinal)).Should().BeAssignableTo<AIFunction>().Which;
             var arguments = new AIFunctionArguments(StringComparer.Ordinal)
             {
@@ -133,7 +147,36 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
         await fixture.Run(Token);
         calls.Should().Be(string.Equals(scenario, "valid", StringComparison.Ordinal) ? 1 : 0);
     }
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001
+
+#pragma warning disable MCPSDK001 // Exercises the configured native permission boundary without a runtime process.
+    [Theory]
+    [InlineData("read")]
+    [InlineData("write")]
+    [InlineData("shell")]
+    [InlineData("mcp")]
+    public async Task Native_permission_requests_remain_rejected_without_invoking_host_tools(string kind)
+    {
+        var fixture = new Fixture();
+        var calls = 0;
+        fixture.Tool = (_, _, _) =>
+        {
+            calls++;
+            return ValueTask.FromResult(new CapabilityReply(CapabilityOutcome.Succeeded, "must-not-run"));
+        };
+        fixture.Client.Send = async _ =>
+        {
+            var decision = await fixture.Client.Configuration!.Permissions.OnRequest!(
+                new() { Kind = kind }, new() { SessionId = fixture.Client.SessionId });
+            decision.Should().BeEquivalentTo(PermissionDecision.Reject("Kora does not admit SDK-native permissions."));
+            return "bounded-answer";
+        };
+        using var root = fixture.Root();
+        (await fixture.Run(Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        calls.Should().Be(0);
+        fixture.Runtime.IsQuiescent.Should().BeTrue();
+    }
+#pragma warning restore MCPSDK001
 
     [Fact]
     public async Task Sdk_advertises_only_the_host_selected_capabilities()
@@ -144,9 +187,9 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
         };
         using var root = fixture.Root();
         (await fixture.Run(Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
-        fixture.Client.Configuration!.AvailableTools.Should().Equal("kora_application_get_version");
-        fixture.Client.Configuration.Tools.Should().ContainSingle();
-        fixture.Client.Configuration.ExcludedTools.Should().Equal("builtin:*", "mcp:*");
+        fixture.Client.Configuration!.Tools.AvailableTools.Should().Equal("kora_application_get_version");
+        fixture.Client.Configuration.Tools.Definitions.Should().ContainSingle();
+        fixture.Client.Configuration.Tools.ExcludedTools.Should().Equal("builtin:*", "mcp:*");
     }
 
     [Fact]
@@ -158,26 +201,42 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
         reply.Should().Be(new CopilotTurnReply(ModelTurnOutcome.Succeeded, "genuine-sdk-boundary-answer"));
         fixture.Client.Prompt.Should().Be(Encoding.UTF8.GetString(fixture.Context));
         fixture.Options!.Mode.Should().Be(CopilotClientMode.Empty);
-        fixture.Options.UseLoggedInUser.Should().BeFalse();
-        fixture.Options.Environment.Should().BeEmpty();
-        fixture.Options.BuiltinPluginDirectories.Should().BeEmpty();
+        fixture.Options.GitHub.UseLoggedInUser.Should().BeFalse();
+        var runtime = fixture.Options.Runtime.Should().BeOfType<SpawnedStdioRuntimeConnection>().Which;
+        runtime.Path.Should().Be(@"Q:\owned\copilot-runtime.exe");
+        runtime.Args.Should().BeEmpty();
+        runtime.Environment.Should().BeEmpty();
+        runtime.WorkingDirectory.Should().Be(@"Q:\owned\working");
+        runtime.BaseDirectory.Should().Be(@"Q:\owned\state");
+        runtime.SessionIdleTimeoutSeconds.Should().Be(0);
+        fixture.Options.Plugins.BuiltinDirectories.Should().BeEmpty();
         var configuration = fixture.Client.Configuration!;
         configuration.SessionId.Should().Be(fixture.Provenance.Turn.Value.ToString("D"));
-        configuration.AvailableTools.Should().HaveCount(ReadOnlyCapabilityCatalog.Descriptors.Count);
-        configuration.ExcludedTools.Should().Equal("builtin:*", "mcp:*");
+        configuration.Tools.AvailableTools.Should().HaveCount(ReadOnlyCapabilityCatalog.Descriptors.Count);
+        configuration.Tools.ExcludedTools.Should().Equal("builtin:*", "mcp:*");
         configuration.EnableConfigDiscovery.Should().BeFalse();
-        configuration.SkipCustomInstructions.Should().BeTrue();
-        configuration.EnableSessionStore.Should().BeFalse();
-        configuration.EnableSkills.Should().BeFalse();
-        configuration.EnableSessionTelemetry.Should().BeFalse();
-        configuration.EnableHostGitOperations.Should().BeFalse();
-        configuration.EnableFileHooks.Should().BeFalse();
-        configuration.SkipEmbeddingRetrieval.Should().BeTrue();
-        configuration.InfiniteSessions!.Enabled.Should().BeFalse();
-        configuration.McpServers.Should().BeEmpty();
-        configuration.CustomAgents.Should().BeEmpty();
-        configuration.PluginDirectories.Should().BeEmpty();
-        configuration.CreateSessionFsProvider.Should().NotBeNull();
+        configuration.Instructions.SkipCustomInstructions.Should().BeTrue();
+        configuration.Instructions.OnDemandDiscovery.Should().BeFalse();
+        configuration.State.EnableCrossSessionStore.Should().BeFalse();
+        configuration.Skills.Enabled.Should().BeFalse();
+        configuration.GitHub.TelemetryEnabled.Should().BeFalse();
+        configuration.Git.EnableHostGitOperations.Should().BeFalse();
+        configuration.Git.CoauthorEnabled.Should().BeFalse();
+        configuration.Hooks.EnableRepositoryHooks.Should().BeFalse();
+        configuration.State.SkipEmbeddingRetrieval.Should().BeTrue();
+        configuration.State.EmbeddingCacheStorage.Should().Be(EmbeddingCacheStorageMode.InMemory);
+        configuration.State.Memory!.Enabled.Should().BeFalse();
+        configuration.State.InfiniteSessions!.Enabled.Should().BeFalse();
+        configuration.Mcp.Servers.Should().BeEmpty();
+        configuration.Mcp.DisabledServers.Should().Equal("github");
+        configuration.Agents.Definitions.Should().BeEmpty();
+        configuration.Agents.IncludedBuiltInAgents.Should().BeEmpty();
+        configuration.Skills.IncludedBuiltinSkills.Should().BeEmpty();
+        configuration.Plugins.Directories.Should().BeEmpty();
+        configuration.Tools.ManageScheduleEnabled.Should().BeFalse();
+        configuration.Events.IncludeSubAgentStreamingEvents.Should().BeFalse();
+        configuration.Filesystem.TrackFileChanges.Should().BeFalse();
+        configuration.State.CreateSessionFsProvider.Should().NotBeNull();
         fixture.Runtime.IsQuiescent.Should().BeTrue();
     }
 
@@ -188,7 +247,7 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
     {
         var fixture = new Fixture();
         fixture.Client.TokenUsage = new(25, 5, 25, 100);
-        fixture.Client.Models[0].Capabilities.Limits.MaxPromptTokens = 100;
+        fixture.Client.Models[0].Capabilities!.Limits!.MaxPromptTokens = 100;
         if (rejectAnswer) { fixture.Client.Send = _ => Task.FromResult<string?>(null); }
         using var root = fixture.Root();
         var reply = await fixture.Run(Token);
@@ -364,9 +423,9 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
             Client.BeforeSend = async token =>
             {
                 if (BypassTransmission) { return; }
-#pragma warning disable GHCP001 // Calls the same pinned final-request gate through the deterministic SDK boundary.
-                var gate = Options!.RequestHandler.Should().BeOfType<CopilotFinalRequestHandler>().Which;
-#pragma warning restore GHCP001
+#pragma warning disable MCPSDK001 // Calls the same pinned final-request gate through the deterministic SDK boundary.
+                var gate = Options!.Models.RequestHandler.Should().BeOfType<CopilotFinalRequestHandler>().Which;
+#pragma warning restore MCPSDK001
                 using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.githubcopilot.com/chat/completions")
                 {
                     Headers = { Authorization = new("Bearer", "synthetic-credential") },
@@ -389,9 +448,9 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
     {
         internal GetAuthStatusResponse Auth { get; set; } = new()
         { IsAuthenticated = true, Login = "selected-user", AuthType = "token", Host = "github.com" };
-        internal IList<ModelInfo> Models { get; set; } = [new() { Id = "model-1", Policy = new() { State = "enabled" },
+        internal IList<Model> Models { get; set; } = [new() { Id = "model-1", Policy = new() { State = ModelPolicyState.Enabled },
             Capabilities = new() { Limits = new() { MaxContextWindowTokens = 8192 } } }];
-        internal SessionConfig? Configuration { get; private set; }
+        internal CreateSessionOptions? Configuration { get; private set; }
         internal string? Prompt { get; private set; }
         internal bool ForeignSession { get; set; }
         internal bool Sent { get; private set; }
@@ -409,9 +468,9 @@ public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
         internal TimeSpan? WaitTimeout { get; private set; }
         public string SessionId => ForeignSession ? "foreign-session" : Configuration!.SessionId!;
         public Task<GetAuthStatusResponse> AuthenticateAsync(CancellationToken token) => Task.FromResult(Auth);
-        public Task<IList<ModelInfo>> ModelsAsync(CancellationToken token)
+        public Task<IList<Model>> ModelsAsync(CancellationToken token)
         { ModelReads++; return Task.FromResult(Models); }
-        public Task<ICopilotSdkSession> CreateAsync(SessionConfig configuration, CancellationToken token)
+        public Task<ICopilotSdkSession> CreateAsync(CreateSessionOptions configuration, CancellationToken token)
         { Configuration = configuration; return Task.FromResult<ICopilotSdkSession>(this); }
         public async Task<string?> SendAsync(string prompt, TimeSpan timeout, CancellationToken token)
         {

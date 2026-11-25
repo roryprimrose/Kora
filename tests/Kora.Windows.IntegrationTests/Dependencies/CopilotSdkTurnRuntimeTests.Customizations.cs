@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 
 using AwesomeAssertions;
-using GitHub.Copilot;
+using Microsoft.Copilot;
 using Kora.Core.Dependencies;
 using Kora.Windows.Dependencies;
 
@@ -25,29 +25,29 @@ public sealed partial class CopilotSdkTurnRuntimeTests
         fixture.Client.BeforeSend = async token =>
         {
             var configuration = fixture.Client.Configuration!;
-            configuration.Agent.Should().Be(skill ? "kora-reviewed-skill" : selection.Name);
-            var agent = configuration.CustomAgents!.Should().ContainSingle().Subject;
-            agent.Name.Should().Be(configuration.Agent);
+            configuration.Agents.Selected.Should().Be(skill ? "kora-reviewed-skill" : selection.Name);
+            var agent = configuration.Agents.Definitions!.Should().ContainSingle().Subject;
+            agent.Name.Should().Be(configuration.Agents.Selected);
             agent.Tools.Should().BeEmpty();
             agent.Infer.Should().BeFalse();
             agent.Model.Should().BeNull();
             agent.ReasoningEffort.Should().BeNull();
-            configuration.AvailableTools.Should().BeEmpty();
-            configuration.ExcludedTools.Should().Equal("builtin:*", "mcp:*");
-            configuration.SkillDirectories.Should().BeEmpty();
-            configuration.AgentDirectories.Should().BeEmpty();
+            configuration.Tools.AvailableTools.Should().BeEmpty();
+            configuration.Tools.ExcludedTools.Should().Equal("builtin:*", "mcp:*");
+            configuration.Skills.Directories.Should().BeEmpty();
+            configuration.Agents.Directories.Should().BeEmpty();
             var nativeContent = agent.Prompt;
-#pragma warning disable GHCP001 // Exercises the configured native eager-preload callback, not source text in the user prompt.
+#pragma warning disable MCPSDK001 // Exercises the configured native eager-preload callback, not source text in the user prompt.
             if (skill && preload)
             {
-                var provider = configuration.SkillProvider!;
+                var provider = configuration.Skills.Provider!;
                 var descriptor = (await provider.ListSkillsAsync(token)).Should().ContainSingle().Subject;
                 descriptor.Directory.Should().BeNull();
                 descriptor.Name.Should().Be(selection.Name);
                 agent.Skills.Should().Equal(selection.Name);
                 nativeContent = await provider.ReadSkillAsync(agent.Skills![0], token);
             }
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001
             using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.githubcopilot.com/chat/completions")
             {
                 Headers = { Authorization = new("Bearer", "synthetic-credential") },
@@ -57,9 +57,9 @@ public sealed partial class CopilotSdkTurnRuntimeTests
                     messages = new[] { include ? nativeContent : "native-definition-was-not-consumed", fixture.Client.Prompt },
                 })),
             };
-#pragma warning disable GHCP001 // Same final physical-send boundary used by the pinned SDK client.
-            var gate = (CopilotFinalRequestHandler)fixture.Options!.RequestHandler!;
-#pragma warning restore GHCP001
+#pragma warning disable MCPSDK001 // Same final physical-send boundary used by the pinned SDK client.
+            var gate = (CopilotFinalRequestHandler)fixture.Options!.Models.RequestHandler!;
+#pragma warning restore MCPSDK001
             using var response = await gate.SendFinalAsync(request, fixture.Client.SessionId, null, request.RequestUri!.AbsoluteUri, token);
         };
         using var root = fixture.Root();
@@ -91,9 +91,9 @@ public sealed partial class CopilotSdkTurnRuntimeTests
                 Headers = { Authorization = new("Bearer", "synthetic") },
                 Content = new StringContent(JsonSerializer.Serialize(new { model = fixture.Profile.Model.Value, messages = new[] { selection.SourceText } })),
             };
-#pragma warning disable GHCP001 // Pinned final-request test seam.
-            var gate = (CopilotFinalRequestHandler)fixture.Options!.RequestHandler!;
-#pragma warning restore GHCP001
+#pragma warning disable MCPSDK001 // Pinned final-request test seam.
+            var gate = (CopilotFinalRequestHandler)fixture.Options!.Models.RequestHandler!;
+#pragma warning restore MCPSDK001
             using var response = await gate.SendFinalAsync(request, fixture.Client.SessionId, null, request.RequestUri!.AbsoluteUri, token);
         };
         using var root = fixture.Root();
@@ -117,9 +117,9 @@ public sealed partial class CopilotSdkTurnRuntimeTests
         fixture.Client.BeforeSend = async token =>
         {
             block = true;
-#pragma warning disable GHCP001 // Exercises the owned native callback, deliberately ignoring cancellation inside its source seam.
-            await fixture.Client.Configuration!.SkillProvider!.ReadSkillAsync(selection.Name, token);
-#pragma warning restore GHCP001
+#pragma warning disable MCPSDK001 // Exercises the owned native callback, deliberately ignoring cancellation inside its source seam.
+            await fixture.Client.Configuration!.Skills.Provider!.ReadSkillAsync(selection.Name, token);
+#pragma warning restore MCPSDK001
         };
         using var root = fixture.Root();
         var operation = fixture.Runtime.RunSelectedAsync(fixture.Provenance, fixture.Profile, fixture.Context,

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-using GitHub.Copilot;
+using Microsoft.Copilot;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Providers;
@@ -23,21 +23,21 @@ public sealed partial class CopilotSdkTurnRuntime
             admitTransmission, null, cancellationToken, selection, sourceCurrent);
     }
 
-#pragma warning disable GHCP001 // Pinned native ephemeral skill provider; no discovery roots or native tools.
-    internal static CopilotSelectedSkillProvider? ConfigureSelection(SessionConfig configuration,
+#pragma warning disable MCPSDK001 // Pinned native ephemeral skill provider; no discovery roots or native tools.
+    internal static CopilotSelectedSkillProvider? ConfigureSelection(CreateSessionOptions configuration,
         CopilotCustomizationSelection selection, Func<CancellationToken, ValueTask<bool>> current,
         Func<IDisposable> enter, Func<HostActivity> continuation, CancellationToken turnToken)
     {
         CopilotSelectedSkillProvider? provider = selection.IsSkill ? new(selection, current, enter, continuation, turnToken) : null;
-        configuration.EnableSkills = selection.IsSkill;
-        configuration.SkillProvider = provider;
-        configuration.IncludedBuiltinSkills = [];
-        configuration.Agent = selection.IsSkill ? "kora-reviewed-skill" : selection.Name;
-        configuration.CustomAgents =
+        configuration.Skills.Enabled = selection.IsSkill;
+        configuration.Skills.Provider = provider;
+        configuration.Skills.IncludedBuiltinSkills = [];
+        configuration.Agents.Selected = selection.IsSkill ? "kora-reviewed-skill" : selection.Name;
+        configuration.Agents.Definitions =
         [
             new()
             {
-                Name = configuration.Agent,
+                Name = configuration.Agents.Selected,
                 Description = selection.Description,
                 Prompt = selection.IsSkill
                     ? "Use only the one explicitly preloaded reviewed skill for the original host request. Return text only."
@@ -50,7 +50,7 @@ public sealed partial class CopilotSdkTurnRuntime
         ];
         return provider;
     }
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001
 
     private static bool SelectedContentPresent(CopilotTransmission transmission,
         CopilotCustomizationSelection selection, CopilotSelectedSkillProvider? provider)

@@ -1,10 +1,10 @@
 using System.Text;
-using GitHub.Copilot;
-using GitHub.Copilot.Rpc;
+using Microsoft.Copilot;
+using Microsoft.Copilot.Rpc;
 
 namespace Kora.Windows.Dependencies;
 
-#pragma warning disable GHCP001 // The pinned SDK's typed virtual-filesystem protocol, with no disk fallback.
+#pragma warning disable MCPSDK001 // The pinned SDK's typed virtual-filesystem protocol, with no disk fallback.
 /// <summary>One turn's bounded virtual filesystem. No path is ever resolved against the host filesystem.</summary>
 internal sealed class CopilotVolatileSessionFiles : SessionFsProvider, ISessionFsSqliteProvider, ISessionFsBinaryProvider, IDisposable
 {
@@ -25,7 +25,7 @@ internal sealed class CopilotVolatileSessionFiles : SessionFsProvider, ISessionF
         foreach (var directory in missing) { entries.Add(directory, null); }
     }
 
-    protected override Task<string> ReadFileAsync(string path, CancellationToken cancellationToken)
+    protected override Task<string> ReadFileAsync(string path, CancellationToken cancellationToken = default)
     {
         lock (gate)
         {
@@ -35,10 +35,10 @@ internal sealed class CopilotVolatileSessionFiles : SessionFsProvider, ISessionF
         }
     }
 
-    protected override Task WriteFileAsync(string path, string content, int? mode, CancellationToken cancellationToken) =>
+    protected override Task WriteFileAsync(string path, string content, int? mode, CancellationToken cancellationToken = default) =>
         Write(path, content, append: false, cancellationToken);
 
-    protected override Task AppendFileAsync(string path, string content, int? mode, CancellationToken cancellationToken) =>
+    protected override Task AppendFileAsync(string path, string content, int? mode, CancellationToken cancellationToken = default) =>
         Write(path, content, append: true, cancellationToken);
 
     private Task Write(string path, string content, bool append, CancellationToken token)
@@ -63,12 +63,12 @@ internal sealed class CopilotVolatileSessionFiles : SessionFsProvider, ISessionF
         }
     }
 
-    protected override Task<bool> ExistsAsync(string path, CancellationToken cancellationToken)
+    protected override Task<bool> ExistsAsync(string path, CancellationToken cancellationToken = default)
     {
         lock (gate) { path = Check(path, cancellationToken); return Task.FromResult(entries.ContainsKey(path)); }
     }
 
-    protected override Task<SessionFsStatResult> StatAsync(string path, CancellationToken cancellationToken)
+    protected override Task<SessionFsStatResult> StatAsync(string path, CancellationToken cancellationToken = default)
     {
         lock (gate)
         {
@@ -79,7 +79,7 @@ internal sealed class CopilotVolatileSessionFiles : SessionFsProvider, ISessionF
         }
     }
 
-    protected override Task MakeDirectoryAsync(string path, bool recursive, int? mode, CancellationToken cancellationToken)
+    protected override Task MakeDirectoryAsync(string path, bool recursive, int? mode, CancellationToken cancellationToken = default)
     {
         lock (gate)
         {
@@ -94,7 +94,7 @@ internal sealed class CopilotVolatileSessionFiles : SessionFsProvider, ISessionF
         }
     }
 
-    protected override Task<IList<string>> ReadDirectoryAsync(string path, CancellationToken cancellationToken)
+    protected override Task<IList<string>> ReadDirectoryAsync(string path, CancellationToken cancellationToken = default)
     {
         lock (gate)
         {
@@ -106,7 +106,7 @@ internal sealed class CopilotVolatileSessionFiles : SessionFsProvider, ISessionF
         }
     }
 
-    protected override Task<IList<SessionFsReaddirWithTypesEntry>> ReadDirectoryWithTypesAsync(string path, CancellationToken cancellationToken)
+    protected override Task<IList<SessionFsReaddirWithTypesEntry>> ReadDirectoryWithTypesAsync(string path, CancellationToken cancellationToken = default)
     {
         lock (gate)
         {
@@ -122,7 +122,7 @@ internal sealed class CopilotVolatileSessionFiles : SessionFsProvider, ISessionF
         }
     }
 
-    protected override Task RemoveAsync(string path, bool recursive, bool force, CancellationToken cancellationToken)
+    protected override Task RemoveAsync(string path, bool recursive, bool force, CancellationToken cancellationToken = default)
     {
         lock (gate)
         {
@@ -135,7 +135,7 @@ internal sealed class CopilotVolatileSessionFiles : SessionFsProvider, ISessionF
         }
     }
 
-    protected override Task RenameAsync(string src, string dest, CancellationToken cancellationToken)
+    protected override Task RenameAsync(string src, string dest, CancellationToken cancellationToken = default)
     {
         lock (gate)
         {
@@ -205,4 +205,4 @@ internal sealed class CopilotVolatileSessionFiles : SessionFsProvider, ISessionF
         lock (gate) { disposed = true; entries.Clear(); }
     }
 }
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001

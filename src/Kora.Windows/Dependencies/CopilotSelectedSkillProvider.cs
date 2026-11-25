@@ -1,10 +1,10 @@
-using GitHub.Copilot;
+using Microsoft.Copilot;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 
 namespace Kora.Windows.Dependencies;
 
-#pragma warning disable GHCP001 // One ephemeral reviewed native provider binding; no filesystem identity.
+#pragma warning disable MCPSDK001 // One ephemeral reviewed native provider binding; no filesystem identity.
 internal sealed class CopilotSelectedSkillProvider(CopilotCustomizationSelection selection,
     Func<CancellationToken, ValueTask<bool>> current, Func<IDisposable> enter,
     Func<HostActivity> continuation, CancellationToken turnToken) : ISkillProvider
@@ -12,11 +12,11 @@ internal sealed class CopilotSelectedSkillProvider(CopilotCustomizationSelection
     private int read;
     internal bool WasRead => Volatile.Read(ref read) != 0;
 
-    public Task<IReadOnlyList<SkillProviderDescriptor>> ListSkillsAsync(CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<SkillProviderDescriptor>> ListSkillsAsync(CancellationToken cancellationToken = default) =>
         Call<IReadOnlyList<SkillProviderDescriptor>>(_ => Task.FromResult<IReadOnlyList<SkillProviderDescriptor>>(
             [new() { Name = selection.Name, Description = selection.Description }]), cancellationToken);
 
-    public Task<string?> ReadSkillAsync(string name, CancellationToken cancellationToken) =>
+    public Task<string?> ReadSkillAsync(string name, CancellationToken cancellationToken = default) =>
         Call<string?>(async token =>
         {
             if (!string.Equals(name, selection.Name, StringComparison.Ordinal)) { return null; }
@@ -49,4 +49,4 @@ internal sealed class CopilotSelectedSkillProvider(CopilotCustomizationSelection
         token.ThrowIfCancellationRequested();
     }
 }
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001

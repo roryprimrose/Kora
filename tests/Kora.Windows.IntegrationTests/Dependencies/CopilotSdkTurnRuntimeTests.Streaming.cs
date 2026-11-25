@@ -27,8 +27,8 @@ public sealed partial class CopilotSdkTurnRuntimeTests
             }, Token);
         reply.Should().Be(new CopilotTurnReply(ModelTurnOutcome.Succeeded, "genuine answer"));
         answers.Should().Equal("genuine", "genuine answer");
-        fixture.Client.Configuration!.Streaming.Should().BeTrue();
-        fixture.Client.Configuration.Tools.Should().BeEmpty();
+        fixture.Client.Configuration!.Events.Streaming.Should().BeTrue();
+        fixture.Client.Configuration.Tools.Definitions.Should().BeEmpty();
         fixture.Runtime.IsQuiescent.Should().BeTrue();
     }
 

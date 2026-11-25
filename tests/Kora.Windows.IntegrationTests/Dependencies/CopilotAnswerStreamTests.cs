@@ -1,5 +1,5 @@
 using AwesomeAssertions;
-using GitHub.Copilot;
+using Microsoft.Copilot;
 using Kora.Windows.Dependencies;
 
 namespace Kora.Windows.IntegrationTests.Dependencies;
@@ -50,9 +50,7 @@ public sealed class CopilotAnswerStreamTests
         });
         if (fault is "foreign-message") { delta.Data.MessageId = "foreign"; }
         if (fault is "subagent") { delta.AgentId = "subagent"; }
-#pragma warning disable GHCP001 // Regression for deprecated tool-origin metadata on the pinned SDK event.
-        if (fault is "tool") { delta.Data.ParentToolCallId = "tool-call"; }
-#pragma warning restore GHCP001
+        if (fault is "tool") { delta.AgentId = "tool-origin-agent"; }
         stream.Observe(delta);
         stream.Complete();
         await Assert.ThrowsAsync<InvalidDataException>(() => stream.PublishAsync(

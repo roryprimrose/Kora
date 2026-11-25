@@ -33,6 +33,7 @@ public sealed partial class App
             () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
             () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
+            Services.GetRequiredService<TimeProvider>(),
             Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<BundledFixedActionController>>());
     }
 }

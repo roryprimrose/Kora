@@ -822,6 +822,7 @@ Quoted text, instructions found in a document/tool result, or a question about h
 - Exact "lock the machine" routing selects the original bundled registration locally, without inference.
 - A natural-language variation such as "Please lock my computer" can be interpreted using the advertised skill summary, with clarification if the target or intent is unclear.
 - Both routes resolve the same task, complete embedded script set and definition digest, dependencies, parameters, and execution context under the common grant gate. Shared helpers are included, not only the entry point.
+- Bundled proposal expiry uses the composed host `TimeProvider`, shared with the native permission presenter and authorization store; it does not introduce an independent wall clock ([controller](../src/Kora/BundledFixedActionController.cs), [composition](../src/Kora/ApplicationLifecycle/App.ApplicationLifecycle.cs)).
 - Once applies to one invocation; Session binds the operation to its identified Kora work session; Always/Perpetual is independently retained without expiry or eviction. None approves another task or changed implementation.
 - The user can review every exact script and the combined script-set hash before approving through deliberate voice or UI. Selecting/enabling the skill or opening review does not authorise execution.
 - A changed script, manifest/invocation, adapter, or executable dependency invalidates affected grants; the host computes identity and never accepts a model-supplied hash.

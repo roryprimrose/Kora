@@ -36,6 +36,7 @@ internal sealed partial class BundledFixedActionController : IDisposable
     private readonly Func<Window> owner;
     private readonly Func<bool> ownsHost;
     private readonly Func<long> ownershipRevision;
+    private readonly TimeProvider time;
     private readonly ILogger<BundledFixedActionController> logger;
     private Task active = Task.CompletedTask;
     private CancellationTokenSource? lifetime;
@@ -51,7 +52,7 @@ internal sealed partial class BundledFixedActionController : IDisposable
         NativeQuestionHost questions, ApplicationLifecycleController lifecycle, WindowsSqliteHostInteractionStore store,
         HostTaskCoordinator tasks, HostAuthorizationService authorization, IBundledScriptWorker worker,
         FixedSessionActionBroker broker, NativeDetailRenderer renderer, Func<Window> owner,
-        Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<BundledFixedActionController> logger)
+        Func<bool> ownsHost, Func<long> ownershipRevision, TimeProvider time, ILogger<BundledFixedActionController> logger)
     {
         this.main = main;
         this.sources = sources;
@@ -66,6 +67,7 @@ internal sealed partial class BundledFixedActionController : IDisposable
         this.owner = owner;
         this.ownsHost = ownsHost;
         this.ownershipRevision = ownershipRevision;
+        this.time = time;
         this.logger = logger;
         main.BindBundledActions(RequestAsync, JoinAsync, () => Status);
         main.PrivacyClosureRequested += OnPrivacyClosed;
@@ -176,7 +178,7 @@ internal sealed partial class BundledFixedActionController : IDisposable
                         }),
                         () => Dispatcher.UIThread.Invoke(prepared.Dispose));
                 }),
-                TimeProvider.System);
+                time);
             Status = "Reviewing exact scripts and effect. Nothing has been requested from Windows.";
             FixedSessionEffectResult result;
             using (var executing = HostActivity.BeginRoot(request, HostActivityLayer.Desktop, HostOperation.Tool,

@@ -62,7 +62,7 @@ public sealed partial class SessionsConversationTests
                 storage.Store, new(storage.Tasks), storage.Authorization,
                 qualified ? worker : new WindowsBundledScriptWorker(),
                 new(new WindowsFixedSessionEffect(platform), new BundledNativeAudit(), NullLogger<FixedSessionActionBroker>.Instance),
-                renderer, () => owner, () => true, () => 1, NullLogger<BundledFixedActionController>.Instance);
+                renderer, () => owner, () => true, () => 1, storage.Time, NullLogger<BundledFixedActionController>.Instance);
             SkillPackagesWindow? inspector = null;
             var openedQuestions = 0;
             var questionOpened = new TaskCompletionSource<QuestionWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -84,10 +84,10 @@ public sealed partial class SessionsConversationTests
                         if (await Task.WhenAny(questionOpened.Task, controller.ActiveOperation) == controller.ActiveOperation)
                         { await controller.ActiveOperation; questionOpened.Task.IsCompleted.Should().BeTrue(controller.Status); }
                         var question = await questionOpened.Task.WaitAsync(storage.Token);
-                        await BundledButtonEnabled(question.FindControl<Button>("ReviewQuestion")!).WaitAsync(storage.Token);
+                        await BundledButtonEnabled(question.FindControl<Button>("ReviewQuestion")!, storage.Token, controller);
                         question.GetLogicalDescendants().OfType<RadioButton>().Single(item => item.Content is "This session").IsChecked = true;
                         question.FindControl<Button>("ReviewQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                        await BundledButtonEnabled(question.FindControl<Button>("SubmitAnswer")!).WaitAsync(storage.Token);
+                        await BundledButtonEnabled(question.FindControl<Button>("SubmitAnswer")!, storage.Token, controller);
                         question.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     }
                     await controller.ActiveOperation;
@@ -109,13 +109,28 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    private static Task BundledButtonEnabled(Button button)
+    private static async Task BundledButtonEnabled(Button button, CancellationToken token,
+        BundledFixedActionController? controller = null)
     {
-        if (button.IsEnabled) { return Task.CompletedTask; }
+        if (button.IsEnabled) { return; }
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        button.PropertyChanged += (_, args) =>
-        { if (args.Property == Avalonia.Input.InputElement.IsEnabledProperty && button.IsEnabled) { ready.TrySetResult(); } };
-        return ready.Task;
+        void Changed(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
+        { if (args.Property == Avalonia.Input.InputElement.IsEnabledProperty && button.IsEnabled) { ready.TrySetResult(); } }
+        button.PropertyChanged += Changed;
+        try
+        {
+            if (controller is null) { await ready.Task.WaitAsync(token); }
+            else
+            {
+                await Task.WhenAny(ready.Task, controller.ActiveOperation).WaitAsync(token);
+                if (!button.IsEnabled)
+                {
+                    await controller.ActiveOperation;
+                    throw new InvalidOperationException($"Bundled operation ended before {button.Name} became enabled: {controller.Status}");
+                }
+            }
+        }
+        finally { button.PropertyChanged -= Changed; }
     }
 
     [Theory]
@@ -161,7 +176,7 @@ public sealed partial class SessionsConversationTests
                 storage.Store, new(storage.Tasks), storage.Authorization,
                 outcome is "unavailable" ? new WindowsBundledScriptWorker() : worker,
                 new(new WindowsFixedSessionEffect(platform), audit, NullLogger<FixedSessionActionBroker>.Instance),
-                renderer, () => owner, () => true, () => 1, NullLogger<BundledFixedActionController>.Instance);
+                renderer, () => owner, () => true, () => 1, storage.Time, NullLogger<BundledFixedActionController>.Instance);
             var grantQuestion = new TaskCompletionSource<QuestionWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
             var powerQuestion = new TaskCompletionSource<QuestionWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var observe = Window.WindowOpenedEvent.AddClassHandler<QuestionWindow>((window, _) =>
@@ -183,10 +198,10 @@ public sealed partial class SessionsConversationTests
                         grantQuestion.Task.IsCompleted.Should().BeTrue(controller.Status + "\n" + native.Main.ResponseBody);
                     }
                     var grant = await grantQuestion.Task.WaitAsync(storage.Token);
-                    await BundledButtonEnabled(grant.FindControl<Button>("ReviewQuestion")!).WaitAsync(storage.Token);
+                    await BundledButtonEnabled(grant.FindControl<Button>("ReviewQuestion")!, storage.Token, controller);
                     grant.GetLogicalDescendants().OfType<RadioButton>().Single(button => button.Content is "Once").IsChecked = true;
                     grant.FindControl<Button>("ReviewQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                    await BundledButtonEnabled(grant.FindControl<Button>("SubmitAnswer")!).WaitAsync(storage.Token);
+                    await BundledButtonEnabled(grant.FindControl<Button>("SubmitAnswer")!, storage.Token, controller);
                     platform.Requests.Should().BeEmpty();
                     grant.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     if (await Task.WhenAny(powerQuestion.Task, running) == running)
@@ -195,7 +210,7 @@ public sealed partial class SessionsConversationTests
                         powerQuestion.Task.IsCompleted.Should().BeTrue(controller.Status);
                     }
                     var power = await powerQuestion.Task.WaitAsync(storage.Token);
-                    await BundledButtonEnabled(power.FindControl<Button>("CancelQuestion")!).WaitAsync(storage.Token);
+                    await BundledButtonEnabled(power.FindControl<Button>("CancelQuestion")!, storage.Token, controller);
                     worker.Calls.Should().Be(1);
                     platform.Requests.Should().BeEmpty();
                     if (outcome is "cancelled")
@@ -204,7 +219,7 @@ public sealed partial class SessionsConversationTests
                     {
                         power.GetLogicalDescendants().OfType<RadioButton>().Single(button =>
                             button.Content is "Confirm shutdown" or "Confirm computer restart").IsChecked = true;
-                        await BundledButtonEnabled(power.FindControl<Button>("SubmitAnswer")!).WaitAsync(storage.Token);
+                        await BundledButtonEnabled(power.FindControl<Button>("SubmitAnswer")!, storage.Token, controller);
                         power.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                         if (await Task.WhenAny(clock.Started.Task, running) == running) { await running; }
                         await clock.Started.Task.WaitAsync(storage.Token);
@@ -398,7 +413,7 @@ public sealed partial class SessionsConversationTests
                             try
                             {
                                 platform.Requests.Should().BeEmpty();
-                                await BundledButtonEnabled(window.FindControl<Button>("ReviewQuestion")!).WaitAsync(token);
+                                await BundledButtonEnabled(window.FindControl<Button>("ReviewQuestion")!, token);
                                 if (grant)
                                 {
                                     state.Edit(new(["once"]));
@@ -445,7 +460,7 @@ public sealed partial class SessionsConversationTests
                         worker.Calls.Should().Be(1);
                         platform.Requests.Should().BeEmpty();
                         var cancel = question.FindControl<Button>("CancelQuestion")!;
-                        await BundledButtonEnabled(cancel).WaitAsync(storage.Token);
+                        await BundledButtonEnabled(cancel, storage.Token);
                         if (reviewTimeout)
                         {
                             clock.Advance(TimeSpan.FromSeconds(59));
@@ -462,7 +477,7 @@ public sealed partial class SessionsConversationTests
                             question.GetLogicalDescendants().OfType<RadioButton>().Single(button =>
                                 button.Content is "Confirm shutdown" or "Confirm computer restart").IsChecked = true;
                             var submit = question.FindControl<Button>("SubmitAnswer")!;
-                            await BundledButtonEnabled(submit).WaitAsync(storage.Token);
+                            await BundledButtonEnabled(submit, storage.Token);
                             submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                             if (await Task.WhenAny(clock.Started.Task, running) == running) { await running; }
                             await clock.Started.Task.WaitAsync(storage.Token);

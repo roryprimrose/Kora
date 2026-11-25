@@ -747,6 +747,8 @@ public sealed partial class ModelTurnHostTests
     {
         internal bool Deny { get; init; }
         internal McpReviewStage? DeniedStage { get; init; }
+        internal string? DeniedProcessAction { get; init; }
+        internal List<string> ProcessActions { get; } = [];
         internal string? Fault { get; init; }
         internal HostOperationProposal? LastProposal { get; private set; }
         internal McpReview? LastReview { get; private set; }
@@ -770,7 +772,11 @@ public sealed partial class ModelTurnHostTests
                 InvocationReview = review;
             }
             if (Fault is "io") { throw new IOException("synthetic approval storage unavailable"); }
-            review.NativeText.Should().Contain("Test delegated user").And.Contain("https://example.com/mcp");
+            if (review.Identity.Stdio is null)
+            { review.NativeText.Should().Contain("Test delegated user").And.Contain("https://example.com/mcp"); }
+            else
+            { review.NativeText.Should().Contain("Local stdio").And.Contain("server.exe"); }
+            if (review.ProcessAction is { } processAction) { ProcessActions.Add(processAction); }
             Stages.Add(review.Stage);
             var previous = Snapshots.GetValueOrDefault(proposal.Request);
             Snapshots[proposal.Request] = new(f.Task!.Task, f.Session, new(true, true, false, true), proposal,
@@ -785,7 +791,9 @@ public sealed partial class ModelTurnHostTests
             if (decision.Outcome == HostInteractionOutcome.Consumed) { return new(null, decision); }
             var initial = decision.Question!;
             Questions++;
-            var completed = Deny || DeniedStage == review.Stage ? new(HostInteractionOutcome.Denied, "user-denied")
+            var completed = Deny || DeniedStage == review.Stage || review.ProcessAction is not null
+                && string.Equals(DeniedProcessAction, review.ProcessAction, StringComparison.Ordinal)
+                ? new(HostInteractionOutcome.Denied, "user-denied")
                 : await authorization.ApproveAsync(initial.Key,
                     new([review.Stage == McpReviewStage.ResultContinuation ? ContinuationChoice : Choice]),
                     RequestOrigin.LocalUi, token);

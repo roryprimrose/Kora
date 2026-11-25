@@ -1,4 +1,4 @@
-# Read-only MCP HTTPS transport
+# Governed MCP transports
 
 ## Built-in Kora capabilities
 
@@ -30,9 +30,10 @@ The private MCP observation interface and provider adapters use the existing typ
 Kora's first supported connection is read-only and uses HTTPS. It is not a
 general remote-command runner.
 
-**Connections are unavailable in this build:** no delegated MCP account is
-enabled. Adding a server, enabling hosted models or signing in to another app
-does not enable it. The review steps below cannot bypass that restriction.
+**HTTPS accounts remain unavailable in this build:** no delegated MCP account is
+enabled. Local stdio has a separate credential-free installed-process path,
+described below. Neither configuration nor server annotations create trusted
+read-only tool mappings; unknown tools remain unavailable.
 
 Kora's reviewed MCP workflow can use a narrow, destination-bound HTTPS
 transport. Select an included configured server and an explicitly delegated
@@ -65,7 +66,7 @@ Its existing Search field also filters those rows by name, exact item identity, 
 Select an admitted capability row and choose **Review selected server capabilities** to edit that server's saved parent/category/item choices through the shared manager. The built-in catalogue needs no delegated account or invented HTTPS endpoint.
 External editing still requires its original current discovery receipt; expired or retired metadata cannot authorize a save ([native workflow](../src/Kora/CustomizationWindowController.Tools.cs)).
 
-After **Review HTTPS MCP options**, select an included server and delegated account, then choose **Manage MCP capabilities**. Approve connection and bounded metadata discovery; this does not read resource bodies, retrieve prompt messages or invoke tools ([workflow](../src/Kora.Application/Hosting/SessionConversationService.McpCapabilities.cs)).
+After **Review MCP options**, select an included server and, for HTTPS only, a delegated account, then choose **Manage MCP capabilities**. Approve connection and bounded metadata discovery; this does not read resource bodies, retrieve prompt messages or invoke tools ([workflow](../src/Kora.Application/Hosting/SessionConversationService.McpCapabilities.cs)).
 
 The private manager groups **Tools**, **Resources** (including resource templates), and **Prompts**. Capability preferences default enabled. A server's master enabled choice suppresses all categories without discarding child selections.
 **Enable all / Disable all** within a category replaces its individual exceptions and sets the default for newly discovered entries. Individual checkboxes produce a mixed selection ([selection rules](../src/Kora.Core/Mcp/McpCapabilitySelection.cs)).
@@ -80,7 +81,7 @@ Discovery is explicit, private and volatile; saved choices contain hashed item i
 
 ## Read resources and use prompts
 
-With an exact server/account selected in Sessions:
+With an exact server and transport identity selected in Sessions (an account is required only for HTTPS):
 
 - **Read MCP resource** selects and reviews one enabled text resource, retrieves it and displays the actual text without a model ([resource workflow](../src/Kora.Application/Mcp/McpInvocation.Capabilities.cs)).
 - **Read MCP resource template** additionally accepts a JSON object of string parameters and reviews the expanded resource URI before reading. Scalar URI-template expansion is supported; compound parameter values are rejected ([expansion](../src/Kora.Core/Mcp/McpResourceTemplate.cs)).
@@ -96,11 +97,11 @@ After disabling all Resources, enabling one template permits that template's rev
 This profile accepts text and embedded text resources only. Binary resources, image/audio blocks, unsupported roles and mixed unsupported replies reject the whole operation without partial application. Prompt roles are untrusted template data, not genuine previous conversation messages or host instructions ([content parser](../src/Kora.Core/Mcp/McpCapabilityProtocol.cs)).
 
 The equivalent foreground typed/activated commands are `manage selected mcp capabilities`, `read selected mcp resource`, `read selected mcp resource template`, `preview selected mcp prompt`, and `use selected mcp resource|resource template|prompt <task>`.
-These require exact prior server/account selection and the same native reviews; they do not choose a default target ([command parser](../src/Kora.Application/Mcp/McpCommand.cs)).
+These require exact prior server/transport selection and the same native reviews; they do not choose a default target ([command parser](../src/Kora.Application/Mcp/McpCommand.cs)).
 
 ## Separately review the result before model continuation
 
-For **Use reviewed MCP tool locally** and the reviewed declarative MCP skill, successful execution alone does not let the model receive the result. After the authenticated transport finishes, a separate native review shows the complete unchanged text and structured JSON, observation time, configured source/server, delegated account, exact schema, original conversation/task/channel and retention ([review](../src/Kora.Application/Mcp/McpReview.cs)).
+For **Use reviewed MCP tool locally** and the reviewed declarative MCP skill, successful execution alone does not let the model receive the result. After the admitted transport finishes, a separate native review shows the complete unchanged text and structured JSON, observation time, configured source/server, exact transport identity (including the delegated account for HTTPS), exact schema, original conversation/task/channel and retention ([review](../src/Kora.Application/Mcp/McpReview.cs)).
 
 Review the complete record, then choose **Consent to one local continuation**. This approves only the same bounded original local model task using that exact inert result. Earlier Once/This session/Always invocation grants do not supply this consent; no hosted transfer, new MCP call, source refresh, memory write or export is approved ([owner](../src/Kora.Application/Mcp/McpInvocation.cs)).
 
@@ -110,8 +111,8 @@ Credential risk denies result use without override; incomplete screening remains
 
 ## Invoke without a model
 
-In Sessions, choose **Review HTTPS MCP options**, then explicitly select the
-included server and delegated account. Choose **Invoke reviewed MCP tool without
+In Sessions, choose **Review MCP options**, then explicitly select the
+included server and (for HTTPS) delegated account. Choose **Invoke reviewed MCP tool without
 a model**, or type `invoke selected mcp tool` while that exact session is
 foreground. Review the configured server name, configuration source and connection,
 select one admitted read-only tool and review
@@ -279,12 +280,65 @@ destination and its permission to send information. Changed account or
 destination details require new admission. Unknown readiness stays unavailable;
 configuration and successful tests are not a real signed-in account.
 
-## Supported profile
+## Reviewed local stdio profile
+
+The Sessions **Review MCP options** flow also accepts an included, credential-free
+local profile. It does not install servers or run package managers. Configure an
+already-installed fixed-drive `.exe`, literal argument array, canonical working
+directory and explicit environment:
+
+```json
+{
+  "servers": {
+    "local-reference": {
+      "type": "stdio",
+      "command": "C:\\Installed\\Reference\\server.exe",
+      "args": ["--stdio"],
+      "cwd": "C:\\ReferenceWorkspace",
+      "env": {}
+    }
+  }
+}
+```
+
+Only `command`, `args`, `cwd`, `env` and optional `"type": "stdio"` are accepted.
+No shell expansion, relative/PATH lookup, UNC/reparse traversal, inline
+credentials, inherited profile/proxy variables or automatic installer is used.
+The first profile permits only explicit `SystemRoot`, `WINDIR`, `DOTNET_ROOT`,
+`DOTNET_ROOT_X64`, `LANG` and `LC_ALL` environment entries. The host supplies
+restricted per-process TEMP/TMP directories.
+
+Select the server; no delegated account is used. Review the exact configuration,
+then separately approve **launch once** and **owned-root cleanup once** in native
+UI. The host holds the installed executable and working-directory path identities
+through review/start. Launch/cleanup consent cannot be Session/Always, supplied
+by voice, inferred from a generic read grant or reused from an earlier request.
+Tool/schema selection and exact outgoing arguments still need their own reviews.
+
+**The process is not sandboxed.** It runs with the user's OS rights and may
+mutate files, access the network or create descendants. A host read-only mapping
+classifies only a reviewed tool operation, not the executable or all its tools.
+Unknown mappings remain unavailable; server annotations cannot supply them.
+
+The official SDK stream transport shares strict correlation, schema and
+complete-response bounds with HTTPS. Standard error is never decoded, logged or
+included in exceptions: reads are at most 4,096 bytes and byte 65,537 retires
+admission after a 65,536-byte lifetime budget. Cancellation is not rollback.
+
+Shutdown closes stdin and waits five seconds. Only the separately consented,
+still-owned root may then be terminated; descendants are never enumerated or
+tree-killed. Root exit alone is not proof of pipe or descendant exit. Unconfirmed
+root exit or physical I/O joins retain ownership and report shutdown unconfirmed,
+without retry/reconnect or an inferred clean shutdown. Source/session/privacy,
+one-call model budgets, result consent and retention remain unchanged. The
+declarative skill bridge retains its existing HTTPS/account-specific contract.
+
+## Supported HTTPS profile
 
 The official C# MCP SDK is the sole production request-construction path for external initialization, discovery, tool calls
 and text reads. Kora still owns connection permission, exact source/account
 selection, bounded content admission, native reviews and result consent.
-Using the SDK does not enable external accounts or additional transports
+Using the SDK does not enable external accounts or arbitrary transports
 ([SDK boundary](../src/Kora.Windows/Mcp/McpHttpConnection.Sdk.cs)).
 
 Strict raw response validation and physical HTTPS policy remain host-owned; SDK projection does not replace byte, identity, schema, deadline or account checks ([request admission](../src/Kora.Windows/Mcp/McpSdkRequestHandler.cs), [physical transport](../src/Kora.Windows/Mcp/McpHttpConnection.cs)).
@@ -309,7 +363,7 @@ and connects only to the first one, retaining normal HTTPS hostname/certificate
 validation. It never re-resolves while sending. Each POST uses only the
 explicit account's bearer credential at its exact endpoint. Proxies, cookies,
 ambient credentials, redirects, trace-header forwarding and anonymous fallback
-are disabled. No stdio process is started.
+are disabled. This HTTPS route never starts a process.
 
 Kora rechecks account and transmission permission throughout the connection.
 Withdrawal or cancellation stops further use and requests cancellation of the

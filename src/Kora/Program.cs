@@ -347,7 +347,9 @@ internal static class Program
         services.AddSingleton<Kora.Application.Definitions.ProfileInstructionEditorWorkflow>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationAuthoringService>();
         services.AddSingleton<McpServerConfigurationService>();
-        services.AddSingleton<Kora.Core.Mcp.IMcpConnectionBroker, Kora.Windows.Mcp.WindowsMcpConnectionBroker>();
+        services.AddSingleton<Kora.Windows.Mcp.WindowsMcpLaunchAuthority>();
+        services.AddSingleton<Kora.Core.Mcp.IMcpConnectionBroker>(provider => new Kora.Windows.Mcp.WindowsMcpConnectionBroker(
+            provider.GetRequiredService<Kora.Windows.Mcp.WindowsMcpLaunchAuthority>()));
         services.AddSingleton(new Kora.Application.Mcp.McpReadOnlyPolicy([]));
         services.AddSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>();
         services.AddKeyedSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt,

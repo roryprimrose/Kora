@@ -37,11 +37,11 @@ internal sealed class McpResultCapture
     }
 
     internal McpResultObservation? Capture(SessionWorkspaceEntry target, HostRequest request,
-        McpModelResult result, long control, string serverId, string serverName, McpAccountReference account,
+        McpModelResult result, long control, string serverId, string serverName, McpConnectionIdentity identity,
         Func<CancellationToken, Task>? validateSource = null, DateTimeOffset? sourceExpiresAt = null,
         ConversationSubmissionReceipt? sourceReceipt = null)
     {
-        if (proposal is not { } approved || mapping is not { } reviewed || reviewed.Account != account)
+        if (proposal is not { } approved || mapping is not { } reviewed || reviewed.Identity != identity)
         { return null; }
         return new(target, request, result, approved, reviewed, generation, control, serverId, serverName, cause,
             validateSource, sourceExpiresAt, sourceReceipt);
@@ -53,4 +53,6 @@ internal sealed class McpResultCapture
         mapping = null;
         cause = default;
     }
+
+    internal McpConnectionIdentity? Identity => mapping?.Identity;
 }

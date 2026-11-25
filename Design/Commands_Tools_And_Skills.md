@@ -198,6 +198,30 @@ policy state excludes the server and its capabilities. Model awareness never
 comes from raw configuration JSON and cannot itself include a server, create a
 grant, connect, or invoke a capability.
 
+#### Governed local stdio execution profile
+
+The separate installed-process profile uses the official SDK `StreamClientTransport`
+and the same strict request/response admission, tool/schema mappings, original-user
+task owner and result-continuation policy as HTTPS. Its truthful transport identity
+is a credential-free executable/arguments/cwd/explicit-environment digest, never a
+fabricated delegated account. Unknown host tool mappings remain unavailable.
+
+Only an exact installed fixed-drive executable, literal arguments, canonical cwd
+and bounded explicit environment are admitted. Windows holds native executable
+and directory identities before native review. Separate fresh native LocalUi/Once
+launch and owned-root cleanup proposals bind that held identity; reusable grants
+and generic bounded reads cannot supply either authority. The process is not
+sandboxed and may mutate, network or spawn descendants under the user's rights.
+
+The host owns the root and all physical stream work. Stderr is undecoded,
+content-free and bounded to 4,096-byte reads/65,536 lifetime bytes; byte 65,537
+retires admission. Shutdown closes stdin, waits five seconds and only then may use
+separately current consent to terminate the still-owned root, never its process
+tree. Unknown exit or stream joins retain ownership and report unconfirmed.
+No automatic runtime/package installation, reconnect or provider trial is added.
+See [local stdio guidance](../docs/mcp-transport.md#reviewed-local-stdio-profile).
+The declarative MCP skill bridge remains HTTPS/account-specific.
+
 #### First HTTPS read-only execution profile
 
 The first admitted execution profile is user-configured HTTPS with an explicit

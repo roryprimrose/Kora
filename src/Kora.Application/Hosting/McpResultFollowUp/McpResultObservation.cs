@@ -42,7 +42,7 @@ internal sealed class McpResultObservation
         ValidateSource = validateSource;
         SourceReceipt = sourceReceipt;
         ExpiresAt = sourceExpiresAt is { } expiry && expiry < invocation.ExpiresAt ? expiry : invocation.ExpiresAt;
-        Provenance = new(serverName, mapping.Endpoint.AbsoluteUri, mapping.AccountDisplayName, mapping.ToolName, request.Origin);
+        Provenance = new(serverName, mapping.Identity.NativeDestination, mapping.AccountDisplayName, mapping.ToolName, request.Origin);
     }
 
     internal Guid Nonce { get; } = Guid.NewGuid();

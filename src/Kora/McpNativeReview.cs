@@ -14,7 +14,7 @@ internal sealed class McpNativeReview(QuestionWindowController questions, Func<W
     internal async Task<McpApprovalPresentation> PresentAsync(HostOperationProposal proposal, HostRevision generation,
         McpReview review, Func<bool> admitted, CancellationToken token)
     {
-        var spec = new QuestionSpec("Exact HTTPS MCP approval", QuestionKind.SingleChoice, [new("once", "Approve once")]);
+        var spec = new QuestionSpec("Exact MCP approval", QuestionKind.SingleChoice, [new("once", "Approve once")]);
         var receipt = await questions.AskConversationAsync(owner(), proposal.Request, generation, spec,
             proposal.ExpiresAt, admitted, token, webProposal: proposal, mcpReview: review);
         return new(receipt.Presented, receipt.Completed);

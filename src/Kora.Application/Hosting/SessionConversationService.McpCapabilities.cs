@@ -14,14 +14,14 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionConversationService
 {
-    public Task<McpExplicitResult> ReadMcpContentAsync(SessionWorkspaceEntry target, string serverId, McpAccountReference account,
+    public Task<McpExplicitResult> ReadMcpContentAsync(SessionWorkspaceEntry target, string serverId, McpConnectionIdentity account,
         McpCapabilityKind kind, McpApprovalPresenter present, McpCapabilitySelector select, McpContentInputPresenter input,
         Func<bool> admitted, CancellationToken token, RequestOrigin origin = RequestOrigin.LocalUi) =>
         InvokeMcpCoreAsync(target, serverId, account, present, null,
             (invocation, cancellation) => invocation.ReadContentAsync(kind, select, input, cancellation), admitted, origin, token);
 
     public async Task<McpCapabilityInventory> DiscoverMcpCapabilitiesAsync(SessionWorkspaceEntry target, string serverId,
-        McpAccountReference account, McpApprovalPresenter present, Func<bool> admitted, CancellationToken token,
+        McpConnectionIdentity account, McpApprovalPresenter present, Func<bool> admitted, CancellationToken token,
         RequestOrigin origin = RequestOrigin.LocalUi)
     {
         var control = access.ControlRevision;
@@ -80,7 +80,7 @@ public sealed partial class SessionConversationService
     }
 
     public async Task<ConversationSubmissionReceipt> SubmitMcpContentAsync(SessionWorkspaceEntry target, string body,
-        string serverId, McpAccountReference account, McpCapabilityKind kind, McpApprovalPresenter present,
+        string serverId, McpConnectionIdentity account, McpCapabilityKind kind, McpApprovalPresenter present,
         McpCapabilitySelector select, McpContentInputPresenter input, Func<bool> admitted, CancellationToken token,
         RequestOrigin origin = RequestOrigin.LocalUi, Action<HostRequest, McpContentResult>? onResult = null)
     {

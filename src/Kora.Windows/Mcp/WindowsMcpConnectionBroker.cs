@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using Kora.Core.Mcp;
 using Kora.Core.Network;
+using IMcpProcessPreparation = Kora.Core.Mcp.IMcpConnectionBroker.IMcpProcessPreparation;
 
 namespace Kora.Windows.Mcp;
 
@@ -12,8 +13,15 @@ public sealed class WindowsMcpConnectionBroker : IMcpConnectionBroker
     private readonly Func<string, CancellationToken, Task<IPAddress[]>> resolve;
     private readonly Func<McpEndpoint, IReadOnlyList<IPAddress>, HttpMessageHandler> createHandler;
     private readonly TimeProvider time;
+    private readonly WindowsMcpLaunchAuthority? launch;
 
     public WindowsMcpConnectionBroker() : this(new UnavailableAccounts()) { }
+    public WindowsMcpConnectionBroker(WindowsMcpLaunchAuthority launch) : this(new UnavailableAccounts())
+    { this.launch = launch; }
+
+    public Task<IMcpProcessPreparation> PrepareStdioAsync(McpConnectionIdentity identity, CancellationToken token) =>
+        launch?.PrepareAsync(identity, time, token)
+        ?? throw new InvalidOperationException("Native MCP process preparation is unavailable.");
 
     public WindowsMcpConnectionBroker(IQualifiedMcpAccountSource accounts)
         : this(accounts, Dns.GetHostAddressesAsync, CreateHandler) { }

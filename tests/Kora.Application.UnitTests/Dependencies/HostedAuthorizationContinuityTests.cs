@@ -13,6 +13,28 @@ namespace Kora.Application.UnitTests.Dependencies;
 [Collection("Host tracing")]
 public sealed class HostedAuthorizationContinuityTests : IDisposable
 {
+    [Theory]
+    [InlineData("missing-source-validator")]
+    [InlineData("stream")]
+    [InlineData("tools")]
+    [InlineData("evidence")]
+    public void SelectedClaudePreparationCannotCombineCopyWithAnotherProfileOrLoseSourceValidation(string fault)
+    {
+        var f = new ClaudeModelTurnAdapterTests.Fixture();
+        using var root = f.Root();
+        var copy = new SelectedHostedDefinition(Kora.Core.Customizations.CustomizationKind.Skill,
+            "source", "revision", "reviewed", "Description", "Exact source");
+        var context = fault is "tools"
+            ? new(f.Request, "policy", "body", [], f.Time.Now, f.Time.Now.AddMinutes(1), ModelToolMode.ReadOnly)
+            : fault is "evidence"
+            ? new(f.Request, "policy", "body",
+                [new(new(Guid.NewGuid()), f.Request, new(1), "not implicit context", ModelEvidenceDisclosure.HostedEligible)],
+                f.Time.Now, f.Time.Now.AddMinutes(1), ModelToolMode.None) : f.Context;
+        Assert.Throws<InvalidOperationException>(() => f.Reviews.PrepareClaudeTurn(context, f.Profile,
+            streamAnswer: fault is "stream", selection: copy,
+            sourceCurrent: fault is "missing-source-validator" ? null : _ => ValueTask.FromResult(true)));
+    }
+
     private readonly ActivityListener listener = new()
     {
         ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),

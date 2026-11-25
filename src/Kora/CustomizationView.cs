@@ -47,7 +47,7 @@ internal sealed partial class CustomizationView : UserControl, IDisposable
         VerticalAlignment = VerticalAlignment.Stretch,
     };
     internal readonly TextBox Request = new() { PlaceholderText = $"Describe or discuss a change with {AssistantNameDisplay.Current.Name}...", AcceptsReturn = true, MinHeight = 64, MaxHeight = 120 };
-    internal readonly TextBox CopilotTarget = new() { PlaceholderText = "Exact existing Active conversation name for selected Copilot request", IsVisible = false };
+    internal readonly TextBox CopilotTarget = new() { PlaceholderText = "Exact existing Active conversation name for selected hosted request", IsVisible = false };
     private long copilotInputRevision;
     internal long CopilotInputRevision => Volatile.Read(ref copilotInputRevision);
     internal readonly TextBox RequiredPromptInputs = new()
@@ -129,7 +129,7 @@ internal sealed partial class CustomizationView : UserControl, IDisposable
         var sourceActions = new WrapPanel();
         foreach (var action in new[] { "Review original registration", "Withdraw original registration", "Compare external",
             "Review and save", "Reload", "Create Kora copy", "Create Kora adaptation", "Disable", "Enable", "Review recovery", "Delete owned definition",
-            "Run selected with Copilot", "Stop selected Copilot request" })
+            "Run selected with Copilot", "Stop selected Copilot request", "Run selected with Claude", "Stop selected Claude request" })
         { AddButton(sourceActions, action, action, run); }
         header.Children.Add(sourceActions); header.Children.Add(CopilotTarget); header.Children.Add(Files); header.Children.Add(McpFields);
         var components = new WrapPanel();
@@ -163,7 +163,7 @@ internal sealed partial class CustomizationView : UserControl, IDisposable
         AutomationProperties.SetName(Files, "Selected artifact components");
         AutomationProperties.SetName(Editor, "Selected artifact source; untrusted definition content");
         AutomationProperties.SetName(Request, "Definition authoring request");
-        AutomationProperties.SetName(CopilotTarget, "Exact Active conversation name for selected Copilot request");
+        AutomationProperties.SetName(CopilotTarget, "Exact Active conversation name for selected hosted request");
         AutomationProperties.SetName(RequiredPromptInputs, "Host-declared required prompt literals, comma-separated in first-use order, at most eight; no defaults or expressions");
         AutomationProperties.SetName(NewName, "New artifact ID");
         AutomationProperties.SetName(Destination, "New artifact destination");
@@ -247,6 +247,9 @@ internal sealed partial class CustomizationView : UserControl, IDisposable
         actions["Run selected with Copilot"].IsVisible = copilotSelection;
         actions["Stop selected Copilot request"].IsVisible = copilotSelection;
         actions["Run selected with Copilot"].IsEnabled = copilotSelection && !recovery && source?.UnavailableReason is null;
+        actions["Run selected with Claude"].IsVisible = copilotSelection;
+        actions["Stop selected Claude request"].IsVisible = copilotSelection;
+        actions["Run selected with Claude"].IsEnabled = copilotSelection && !recovery && source?.UnavailableReason is null;
         CopilotTarget.IsVisible = copilotSelection;
         CopilotTarget.IsEnabled = copilotSelection && !recovery;
         Request.IsEnabled = (writable || copilotSelection) && !recovery && !mcp;

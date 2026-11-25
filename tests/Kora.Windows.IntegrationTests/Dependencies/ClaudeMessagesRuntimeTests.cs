@@ -188,9 +188,11 @@ public sealed partial class ClaudeMessagesRuntimeTests : IDisposable
         + "\"stop_sequence\":null,\"usage\":{\"input_tokens\":25,\"output_tokens\":5}}";
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Cancel_ignoring_physical_http_stays_owned_and_late_answer_is_never_published(bool revokeAccount)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Cancel_ignoring_physical_http_stays_owned_and_late_answer_is_never_published(bool revokeAccount, bool selected)
     {
         var f = new ClaudeAccountBrokerTests.Fixture();
         await using var broker = f.Create();
@@ -210,8 +212,13 @@ public sealed partial class ClaudeMessagesRuntimeTests : IDisposable
         };
         await using var runtime = new ClaudeMessagesRuntime(broker, f.Time, NullLogger<ClaudeMessagesRuntime>.Instance, f.CreateHttp);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
-        var run = runtime.RunAsync(new(new(Guid.NewGuid()), root.Request, catalogue.Models[0].Selection), profile, context,
-            (_, _) => ValueTask.FromResult(true), _ => ValueTask.FromResult(true), cancellation.Token);
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), root.Request, catalogue.Models[0].Selection);
+        var run = selected
+            ? runtime.RunSelectedAsync(provenance, profile, context,
+                new(Kora.Core.Customizations.CustomizationKind.Skill, "source", "revision", "reviewed", "Description", "Exact source"),
+                (_, _) => ValueTask.FromResult(true), _ => ValueTask.FromResult(true), cancellation.Token)
+            : runtime.RunAsync(provenance, profile, context,
+                (_, _) => ValueTask.FromResult(true), _ => ValueTask.FromResult(true), cancellation.Token);
         await entered.Task.WaitAsync(Token);
         if (revokeAccount) { broker.Revoke(); }
         else { await cancellation.CancelAsync(); }

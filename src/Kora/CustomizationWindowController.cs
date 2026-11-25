@@ -26,7 +26,8 @@ internal sealed partial class CustomizationWindowController(
     Kora.Application.Configuration.McpServerConfigurationService? mcpConfiguration = null,
     Kora.Application.Configuration.ArtifactDirectoryConfigurationService? mcpSettings = null,
     Kora.Application.Hosting.SessionConversationService? mcpConversation = null,
-    Func<CopilotCustomizationWorkflow>? copilotWorkflow = null) : IDisposable
+    Func<CopilotCustomizationWorkflow>? copilotWorkflow = null,
+    Func<HostedCustomizationWorkflow>? claudeWorkflow = null) : IDisposable
 {
     private CustomizationView? window;
     private CustomizationWindow? adapter;
@@ -188,13 +189,16 @@ internal sealed partial class CustomizationWindowController(
         };
         window.Request.PropertyChanged += (_, change) =>
         { if (change.Property == TextBox.TextProperty) { InputChanged(); } };
+        window.CopilotTarget.PropertyChanged += (_, change) =>
+        { if (change.Property == TextBox.TextProperty) { InputChanged(); } };
         window.RequiredPromptInputs.PropertyChanged += (_, change) =>
         { if (change.Property == TextBox.TextProperty) { InputChanged(); } };
         window.NewName.PropertyChanged += (_, change) =>
         { if (change.Property == TextBox.TextProperty) { InputChanged(); } };
         window.Destination.SelectionChanged += (_, _) => InputChanged();
         window.Kinds.SelectionChanged += (_, _) => InputChanged();
-        window.PresentationLost += () => { RetireVoiceTarget(); RetirePromptAuthoring(); };
+        window.PresentationLost += () =>
+        { RetireVoiceTarget(); RetirePromptAuthoring(); selectedCancellation?.Cancel(); };
         window.Activated += (_, _) => PublishVoiceTarget();
         // Activated can precede IsActive; also observe the committed foreground state.
         window.Closing += OnClosing;
@@ -206,7 +210,7 @@ internal sealed partial class CustomizationWindowController(
 
     private void Start(string action)
     {
-        if (action is "Stop selected Copilot request") { StopSelectedCopilot(); return; }
+        if (action is "Stop selected Copilot request" or "Stop selected Claude request") { StopSelected(); return; }
         if (action is "Mcp input") { if (!changingBuffer) { InputChanged(); } return; }
         RetireVoiceTarget();
         if (action is "Cancel prompt authoring")
@@ -245,6 +249,7 @@ internal sealed partial class CustomizationWindowController(
                 case "Command": await RouteCore(pendingCommand!, Current, token); break;
                 case "Refresh": await Refresh(Current, token); break;
                 case "Run selected with Copilot": await RunSelectedCopilot(Current, token); break;
+                case "Run selected with Claude": await RunSelectedClaude(Current, token); break;
                 case "Mcp capabilities": await ManageCapabilities(Current, token); break;
                 case "Select":
                     if (opened.SelectedSource is { } selected && await LeaveDraft(Current, token)) { await Inspect(selected, false, Current, token); }
@@ -288,6 +293,7 @@ internal sealed partial class CustomizationWindowController(
     private void InputChanged()
     {
         draftRevision++;
+        selectedCancellation?.Cancel();
         RetirePromptAuthoring();
         if (!voiceHandoff) { RetireVoiceTarget(); }
         window?.CancelReview();
@@ -880,13 +886,13 @@ internal sealed partial class CustomizationWindowController(
         Interlocked.Increment(ref promptAuthoringRevision);
         RetireCapabilityMetadata(sender, args);
         Dispatcher.UIThread.Post(() =>
-        { if (window is not null) { RetireVoiceTarget(); RenderSources(); PublishVoiceTarget(); } });
+        { if (window is not null) { selectedCancellation?.Cancel(); RetireVoiceTarget(); RenderSources(); PublishVoiceTarget(); } });
     }
     private void OnMainChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName is nameof(MainViewModel.CommandText) or nameof(MainViewModel.CallPolicyRevision)
             or nameof(MainViewModel.ProviderModeConfigurationStatus) or nameof(MainViewModel.ProviderProfileConfigurationStatus))
-        { RetirePromptAuthoring(); }
+        { RetirePromptAuthoring(); selectedCancellation?.Cancel(); }
         if (args.PropertyName is nameof(MainViewModel.CallPolicyRevision) && !Eligible()) { OnPrivacyClosed(sender, EventArgs.Empty); }
     }
     private void OnPrivacyClosed(object? sender, EventArgs args)
@@ -900,7 +906,7 @@ internal sealed partial class CustomizationWindowController(
         RetirePromptAuthoring();
         if (closing || args.Cancel || !busy && !Dirty()) { return; }
         args.Cancel = true;
-        if (selectedCopilotCancellation is not null) { StopSelectedCopilot(); }
+        if (selectedCancellation is not null) { StopSelected(); }
         if (!busy) { active = CloseReviewed(); }
     }
     private async Task CloseReviewed()
@@ -911,7 +917,7 @@ internal sealed partial class CustomizationWindowController(
     internal async Task<bool> PrepareClose()
     {
         if (window is null) { return true; }
-        if (busy) { if (selectedCopilotCancellation is not null) { StopSelectedCopilot(); } window.CancelReview(); return false; }
+        if (busy) { if (selectedCancellation is not null) { StopSelected(); } window.CancelReview(); return false; }
         try { return await LeaveDraft(Eligible, lifetime!.Token); }
         catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException or OperationCanceledException)
         { window?.Status.Text = "Close did not complete: " + exception.Message; return false; }

@@ -9,7 +9,7 @@ using Microsoft.Extensions.AI;
 namespace Kora.Windows.Dependencies;
 
 /// <summary>Bounded, tool-free, stateless native Messages profile. All HTTP work remains owned until joined.</summary>
-public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IClaudeAnswerTurnRuntime, IAsyncDisposable
+public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IClaudeAnswerTurnRuntime, IClaudeCustomizationTurnRuntime, IAsyncDisposable
 {
     private readonly ClaudeAccountBroker accounts;
     private readonly TimeProvider time;
@@ -29,8 +29,14 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
         ILogger<ClaudeMessagesRuntime> logger, Func<HttpClient> create)
     { this.accounts = accounts; this.time = time; this.logger = logger; this.create = create; }
 
-    public async Task<ClaudeTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
+    public Task<ClaudeTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
         ModelContextEnvelope context, Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
+        Func<CancellationToken, ValueTask<bool>> current, CancellationToken token) =>
+        RunCoreAsync(provenance, profile, context, null, admit, current, token);
+
+    private async Task<ClaudeTurnReply> RunCoreAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
+        ModelContextEnvelope context, SelectedHostedDefinition? selection,
+        Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
         Func<CancellationToken, ValueTask<bool>> current, CancellationToken token)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2), time);
@@ -66,15 +72,18 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
                     && await current(ct).ConfigureAwait(false)
                     && !disposed && !quarantined && !ct.IsCancellationRequested && context.ExpiresAt > time.GetUtcNow();
                 using var handler = new ClaudeSdkRequestHandler(sender, account, provenance, profile,
-                    inputLimit.Value, outputLimit, admit, Live, Quarantine, usage => tokenUsage = usage);
+                    inputLimit.Value, outputLimit, admit, Live, Quarantine, usage => tokenUsage = usage,
+                    selectedContext: selection is null ? null : context, selection: selection);
                 using var sdkHttp = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
                 using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential);
                 using var chat = sdk.AsIChatClient(profile.Model.Value, outputLimit);
                 ChatResponse response;
                 try
                 {
-                    response = await chat.GetResponseAsync(
-                        [new ChatMessage(ChatRole.System, context.SystemPolicy), new ChatMessage(ChatRole.User, context.UserRequest)],
+                    List<ChatMessage> messages = [new(ChatRole.System, context.SystemPolicy)];
+                    if (selection is not null) { messages.Add(new(ChatRole.User, selection.SourceText)); }
+                    messages.Add(new(ChatRole.User, context.UserRequest));
+                    response = await chat.GetResponseAsync(messages,
                         CreateChatOptions(profile, outputLimit), token).ConfigureAwait(false);
                 }
                 catch (Exception) when (handler.Denied) { return new(ModelTurnOutcome.DeniedEgress); }

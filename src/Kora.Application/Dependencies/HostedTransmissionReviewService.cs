@@ -29,12 +29,16 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
     }
 
     public ClaudeTurnAuthorization PrepareClaudeTurn(ModelContextEnvelope context, ProviderProfileTuple profile,
-        bool streamAnswer = false)
+        bool streamAnswer = false, SelectedHostedDefinition? selection = null,
+        Func<CancellationToken, ValueTask<bool>>? sourceCurrent = null)
     {
         var current = ValidatePreparation(context, profile, ProviderService.Claude);
         if (!ClaudeObservationTools.Supports(context) || streamAnswer && context.ToolMode != ModelToolMode.None)
         { throw new InvalidOperationException("Claude requires an explicit text, observation or dedicated clarification operation, without evidence; streaming is text-only."); }
-        return new(this, current, context, profile, streamAnswer);
+        if (selection is not null && (sourceCurrent is null || streamAnswer || context.ToolMode != ModelToolMode.None
+            || !context.Evidence.IsEmpty || context.McpTool is not null))
+        { throw new InvalidOperationException("Selected Claude USER copy requires exact source validation and no streaming, tools or evidence."); }
+        return new(this, current, context, profile, streamAnswer, selection, sourceCurrent);
     }
 
     private HostActivity ValidatePreparation(ModelContextEnvelope context, ProviderProfileTuple profile, ProviderService service)

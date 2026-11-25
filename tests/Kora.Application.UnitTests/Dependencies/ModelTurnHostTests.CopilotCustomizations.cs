@@ -298,20 +298,26 @@ public sealed partial class ModelTurnHostTests
         private readonly AudioControlTestStore controls = new();
         private readonly InstructionControlAdmission admission;
         private readonly ArtifactCatalogue catalogue;
+        private readonly CustomizationManagementService management;
+        private readonly SessionConversationService conversation;
+        private readonly ModelTurnHost model;
         internal CopilotCustomizationWorkflow Workflow { get; }
         internal SessionWorkspaceService Workspace { get; }
-        internal SelectedWorkflowFixture()
+        internal SelectedWorkflowFixture(IClaudeTurnRuntime? claude = null)
         {
             Host.Metadata = new(Host.Session.SessionId, new(1), new("Target"));
             Host.MetadataPage = new([new(Host.Session, Host.Metadata)], null);
             admission = new(controls, controls, new(controls));
             catalogue = new([OwnedAgentProfileDocument.Parse("reviewed", Sources.Snapshot.Files[0].Text).Document.Definition]);
-            var management = new CustomizationManagementService(Sources, admission, Use, catalogue, Host);
+            management = new CustomizationManagementService(Sources, admission, Use, catalogue, Host);
             Workspace = new SessionWorkspaceService(Host, new(Host), Host, NullLogger<SessionWorkspaceService>.Instance);
             var reviews = new HostedTransmissionReviewService(Host, Host.Time);
-            var model = Host.CopilotProfiles(new HostedRuntime(), reviews);
-            Workflow = new(management, Workspace, Host.ConversationService(model, execution: model), model, Host, Host.Time);
+            model = claude is null ? Host.CopilotProfiles(new HostedRuntime(), reviews) : Host.ClaudeProfiles(claude, reviews);
+            conversation = Host.ConversationService(model, execution: model);
+            Workflow = new(management, Workspace, conversation, model, Host, Host.Time);
         }
+        internal HostedCustomizationWorkflow ClaudeWorkflow() =>
+            new(management, Workspace, conversation, model, Host, Host.Time, ProviderService.Claude);
         public async ValueTask DisposeAsync()
         {
             await Workflow.DisposeAsync();

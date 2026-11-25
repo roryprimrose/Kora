@@ -87,6 +87,23 @@ session's identifiers. The original body and original channel survive review
 and confirmation. A later native confirmation cannot convert original voice
 eligibility into native authority. Review confirmation is single-use.
 
+## One explicitly selected saved definition
+
+In Customizations, load one saved skill or agent, enter the exact existing Active conversation name and original request, then choose **Run selected with Claude**. Save or reload dirty drafts first; no source or target is substituted ([selected operation](../src/Kora/CustomizationWindowController.Claude.cs), [shared input owner](../src/Kora/CustomizationWindowController.Copilot.cs)).
+
+Review these separate decisions in order ([review owner](../src/Kora.Application/Definitions/HostedCustomizationWorkflow.cs)):
+
+1. Approve reading the exact selected primary source, including bounded freshness rereads for this operation only.
+2. Affirmatively authorize the displayed complete source, unchanged original USER request and exact Active target as one hosted copy.
+3. Separately confirm retention of the original USER request and its answer or truthful HOST outcome.
+4. Approve each actual native Count Tokens and Messages POST independently. Earlier decisions never approve either send ([physical gate](../src/Kora.Windows/Dependencies/ClaudeSdkRequestHandler.cs)).
+
+Only a single-file instruction-compatible skill or reference-free/tool-free v1 agent is compatible. The saved definition stays local and unchanged. Claude receives its complete source as lower-trust USER data, followed by the exact original task as the final USER message; Kora's SystemPolicy is unchanged ([compatibility](../src/Kora.Application/Definitions/CopilotCustomizationSelection.cs), [runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.cs)).
+
+This does not activate a native Claude skill or agent, discover other definitions, add tools/references, or create another executor. Streaming, clarification and observations are separate operations; unavailable accounts, profiles or selected-copy capability stay unavailable without ordinary-text fallback ([typed admission](../src/Kora.Application/Dependencies/ModelTurnHost.Claude.cs), [adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs)).
+
+The selected request displays its genuine retained ASSISTANT answer or exact HOST/task receipt after physical work joins. **Stop selected Claude request**, source/input changes, privacy loss and closing cancel the owned operation; cancellation cannot retract transmitted bytes or release cancellation-ignoring work early. Copilot and Claude share one selected-operation slot ([controller](../src/Kora/CustomizationWindowController.cs), [receipt](../src/Kora/HostedCustomizationController.cs)).
+
 ## Ask one clarification explicitly
 
 In private Sessions or compact view, enter your original message and select **Ask Claude with one clarification (separate disclosure reviews)**. This separate operation allows `ask_user` once, with bounded text, radio-button choices or checkboxes ([native control](../src/Kora/SessionsWindow.axaml)).

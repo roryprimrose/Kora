@@ -63,7 +63,7 @@ public sealed partial class SessionsConversationTests
                 storage.Store, new(storage.Tasks), storage.Authorization,
                 qualified ? worker : new WindowsBundledScriptWorker(),
                 new(new WindowsFixedSessionEffect(platform), audit, NullLogger<FixedSessionActionBroker>.Instance),
-                renderer, () => owner, () => true, () => 1, NullLogger<BundledFixedActionController>.Instance);
+                renderer, () => owner, () => true, () => 1, storage.Time, NullLogger<BundledFixedActionController>.Instance);
             var opened = new TaskCompletionSource<QuestionWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var observe = Window.WindowOpenedEvent.AddClassHandler<QuestionWindow>((window, _) => opened.TrySetResult(window));
             try
@@ -85,7 +85,7 @@ public sealed partial class SessionsConversationTests
                     if (approve)
                     {
                         var review = question.FindControl<Button>("ReviewQuestion")!;
-                        await BundledButtonEnabled(review).WaitAsync(storage.Token);
+                        await BundledButtonEnabled(review, storage.Token, controller);
                         var text = question.FindControl<TextBox>("ExactReview")!;
                         var reviewed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                         void Reviewed(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
@@ -99,9 +99,9 @@ public sealed partial class SessionsConversationTests
                             await reviewed.Task.WaitAsync(storage.Token);
                         }
                         finally { text.PropertyChanged -= Reviewed; }
-                        await BundledButtonEnabled(review).WaitAsync(storage.Token);
+                        await BundledButtonEnabled(review, storage.Token, controller);
                         question.GetLogicalDescendants().OfType<RadioButton>().Single(item => item.Content is "Once").IsChecked = true;
-                        await BundledButtonEnabled(question.FindControl<Button>("SubmitAnswer")!).WaitAsync(storage.Token);
+                        await BundledButtonEnabled(question.FindControl<Button>("SubmitAnswer")!, storage.Token, controller);
                         question.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     }
                     else { question.Close(); }

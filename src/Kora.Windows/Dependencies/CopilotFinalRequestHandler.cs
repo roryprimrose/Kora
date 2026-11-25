@@ -1,12 +1,12 @@
 using System.Net;
 using System.Text.Json;
-using GitHub.Copilot;
+using Microsoft.Copilot;
 using Kora.Core.Dependencies;
 using Kora.Core.Providers;
 
 namespace Kora.Windows.Dependencies;
 
-#pragma warning disable GHCP001 // The pinned SDK's only final-request boundary; no hook-only or native transport fallback is permitted.
+#pragma warning disable MCPSDK001 // The pinned SDK's only final-request boundary; no hook-only or native transport fallback is permitted.
 internal sealed class CopilotFinalRequestHandler : CopilotRequestHandler
 {
     private readonly HttpClient http;
@@ -114,4 +114,4 @@ internal sealed class CopilotFinalRequestHandler : CopilotRequestHandler
         && string.Equals(uri.Host, "api.githubcopilot.com", StringComparison.OrdinalIgnoreCase)
         && uri.AbsolutePath is "/chat/completions" or "/responses";
 }
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001

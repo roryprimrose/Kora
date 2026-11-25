@@ -1,6 +1,6 @@
 using System.Text;
 using System.Threading.Channels;
-using GitHub.Copilot;
+using Microsoft.Copilot;
 using Kora.Core.Dependencies;
 
 namespace Kora.Windows.Dependencies;
@@ -26,12 +26,10 @@ internal sealed class CopilotAnswerStream
             if (closed) { return; }
             try
             {
-#pragma warning disable GHCP001 // Reject deprecated tool-origin metadata too; it cannot widen this pinned text-only profile.
-                if (!string.IsNullOrEmpty(delta.AgentId) || delta.Data.ParentToolCallId is not null
+                if (!string.IsNullOrEmpty(delta.AgentId)
                     || string.IsNullOrWhiteSpace(delta.Data.MessageId)
                     || messageId is not null && !string.Equals(messageId, delta.Data.MessageId, StringComparison.Ordinal))
                 { throw new InvalidDataException("Copilot answer delta belongs to another message or agent."); }
-#pragma warning restore GHCP001
                 if (string.IsNullOrEmpty(delta.Data.DeltaContent) || !events.Add(delta.Id)) { return; }
                 messageId = delta.Data.MessageId;
                 if (delta.Data.DeltaContent.Length > ModelToolProtocol.MaximumOutputUtf8Bytes - text.Length)

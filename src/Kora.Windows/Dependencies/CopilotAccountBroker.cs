@@ -1,4 +1,5 @@
-using GitHub.Copilot;
+using Microsoft.Copilot;
+using Microsoft.Copilot.Rpc;
 using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -138,21 +139,24 @@ public sealed partial class CopilotAccountBroker : ICopilotExecutionAccountSourc
             using var files = new CopilotVolatileSessionFiles(approved.WorkingDirectory);
             using var http = new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false });
             ICopilotSdkClient? client = null;
-            IList<ModelInfo>? models = null;
+            IList<Model>? models = null;
             try
             {
                 client = create(new()
                 {
-                    Mode = CopilotClientMode.Empty, Connection = RuntimeConnection.ForStdio(approved.ExecutablePath),
-                    GitHubToken = credential, UseLoggedInUser = false, Environment = approved.Environment,
-                    BaseDirectory = approved.BaseDirectory, WorkingDirectory = approved.WorkingDirectory,
-                    BuiltinPluginDirectories = [], LogLevel = CopilotLogLevel.None,
-#pragma warning disable GHCP001 // The approved account-management process has virtual session storage and no inference transport.
-                    RequestHandler = new CopilotSetupRequestHandler(http),
+                    Mode = CopilotClientMode.Empty,
+                    Runtime = RuntimeConnection.ForSpawnedStdio(approved.ExecutablePath, args: [],
+                        environment: approved.Environment, workingDirectory: approved.WorkingDirectory,
+                        baseDirectory: approved.BaseDirectory, sessionIdleTimeoutSeconds: 0),
+                    GitHub = new() { Token = credential, UseLoggedInUser = false },
+                    Plugins = new() { BuiltinDirectories = [] },
+                    Observability = new() { LogLevel = CopilotLogLevel.None },
+#pragma warning disable MCPSDK001 // The approved account-management process has virtual session storage and no inference transport.
+                    Models = new() { RequestHandler = new CopilotSetupRequestHandler(http) },
                     SessionFs = new() { InitialWorkingDirectory = approved.WorkingDirectory, SessionStatePath = approved.BaseDirectory,
-                        Conventions = GitHub.Copilot.Rpc.SessionFsSetProviderConventions.Windows,
+                        Conventions = Microsoft.Copilot.Rpc.SessionFsSetProviderConventions.Windows,
                         Capabilities = new() { Sqlite = true, Binary = true } },
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001
                 });
                 heldClient = client;
                 var authTask = client.AuthenticateAsync(token);
@@ -183,8 +187,8 @@ public sealed partial class CopilotAccountBroker : ICopilotExecutionAccountSourc
             var expires = now.AddMinutes(5) < approved.ExpiresAt ? now.AddMinutes(5) : approved.ExpiresAt;
             var accountId = refresh?.Profile.Account ?? new ProviderAccountId(Guid.NewGuid().ToString("N"));
             var next = new HostRevision(checked(++revision));
-            var enabled = models.Where(model => string.Equals(model.Policy?.State, "enabled", StringComparison.Ordinal)
-                && model.Capabilities.Limits.MaxContextWindowTokens > 0).ToArray();
+            var enabled = models.Where(model => model.Policy?.State == ModelPolicyState.Enabled
+                && model.Capabilities?.Limits?.MaxContextWindowTokens is > 0).ToArray();
             if (enabled.Length is 0 or > 64) { throw new InvalidDataException("The authenticated Copilot catalogue is empty or exceeds its bound."); }
             var entries = enabled.Select(model => new ProviderCatalogueModel(new(model.Id), model.Id,
                 new(ModelProviderIdentity.Copilot, new(Guid.NewGuid()), next),

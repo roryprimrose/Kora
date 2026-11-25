@@ -1,11 +1,11 @@
 using AwesomeAssertions;
-using GitHub.Copilot;
-using GitHub.Copilot.Rpc;
+using Microsoft.Copilot;
+using Microsoft.Copilot.Rpc;
 using Kora.Windows.Dependencies;
 
 namespace Kora.Windows.IntegrationTests.Dependencies;
 
-#pragma warning disable GHCP001 // Tests the pinned SDK's actual session-filesystem protocol, with no native filesystem access.
+#pragma warning disable MCPSDK001 // Tests the pinned SDK's actual session-filesystem protocol, with no native filesystem access.
 public sealed class CopilotVolatileSessionFilesTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
@@ -70,4 +70,4 @@ public sealed class CopilotVolatileSessionFilesTests
         await Assert.ThrowsAsync<NotSupportedException>(() => binary.WriteFileBytesAsync("arbitrary", new byte[] { 1 }, null, Token));
     }
 }
-#pragma warning restore GHCP001
+#pragma warning restore MCPSDK001

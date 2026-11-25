@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using AwesomeAssertions;
-using GitHub.Copilot;
+using Microsoft.Copilot;
+using Microsoft.Copilot.Rpc;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -48,7 +49,15 @@ public sealed class CopilotAccountBrokerTests : IDisposable
         var account = await broker.ResolveAsync(profile, Token);
         account.Should().NotBeNull();
         (await broker.ResolveAsync(profile, Token)).Should().BeSameAs(account);
-        f.Options!.UseLoggedInUser.Should().BeFalse();
+        f.Options!.GitHub.UseLoggedInUser.Should().BeFalse();
+        f.Options.Mode.Should().Be(CopilotClientMode.Empty);
+        var runtime = f.Options.Runtime.Should().BeOfType<SpawnedStdioRuntimeConnection>().Which;
+        runtime.Path.Should().Be(@"Q:\owned\copilot.exe");
+        runtime.Args.Should().BeEmpty();
+        runtime.Environment.Should().BeEmpty();
+        runtime.WorkingDirectory.Should().Be(@"Q:\owned\work");
+        runtime.BaseDirectory.Should().Be(@"Q:\owned\state");
+        runtime.SessionIdleTimeoutSeconds.Should().Be(0);
         f.Client.Stops.Should().Be(1);
         f.Client.Disposals.Should().Be(1);
         broker.Revoke();
@@ -60,6 +69,7 @@ public sealed class CopilotAccountBrokerTests : IDisposable
     [InlineData("auth")]
     [InlineData("login")]
     [InlineData("policy")]
+    [InlineData("capabilities")]
     [InlineData("privacy")]
     [InlineData("revoked")]
     public async Task Failed_or_changed_account_evidence_is_not_a_current_catalogue(string fault)
@@ -69,7 +79,9 @@ public sealed class CopilotAccountBrokerTests : IDisposable
         var live = true;
         if (string.Equals(fault, "auth", StringComparison.Ordinal)) { f.Client.Auth.IsAuthenticated = false; }
         if (string.Equals(fault, "login", StringComparison.Ordinal)) { f.Client.Auth.Login = "foreign"; }
-        if (string.Equals(fault, "policy", StringComparison.Ordinal)) { f.Client.Models[0].Policy!.State = "disabled"; }
+        if (string.Equals(fault, "policy", StringComparison.Ordinal)) { f.Client.Models[0].Policy!.State = ModelPolicyState.Disabled; }
+        // Simulate malformed RPC data despite the SDK's non-nullable contract.
+        if (string.Equals(fault, "capabilities", StringComparison.Ordinal)) { f.Client.Models[0].Capabilities = null!; }
         f.Client.OnModels = () =>
         {
             if (string.Equals(fault, "privacy", StringComparison.Ordinal)) { live = false; }
@@ -156,7 +168,7 @@ public sealed class CopilotAccountBrokerTests : IDisposable
     internal sealed class FakeClient : ICopilotSdkClient
     {
         internal GetAuthStatusResponse Auth { get; } = new() { IsAuthenticated = true, Login = "selected-user", Host = "github.com", AuthType = "token" };
-        internal IList<ModelInfo> Models { get; } = [new() { Id = "model-1", Policy = new() { State = "enabled" },
+        internal IList<Model> Models { get; } = [new() { Id = "model-1", Policy = new() { State = ModelPolicyState.Enabled },
             Capabilities = new() { Limits = new() { MaxContextWindowTokens = 8192 } } }];
         internal int Stops { get; private set; }
         internal int Disposals { get; private set; }
@@ -164,8 +176,8 @@ public sealed class CopilotAccountBrokerTests : IDisposable
         internal Func<CancellationToken, Task<GetAuthStatusResponse>>? Authenticate { get; set; }
         internal TaskCompletionSource Stopped { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task<GetAuthStatusResponse> AuthenticateAsync(CancellationToken token) => Authenticate?.Invoke(token) ?? Task.FromResult(Auth);
-        public Task<IList<ModelInfo>> ModelsAsync(CancellationToken token) { OnModels?.Invoke(); return Task.FromResult(Models); }
-        public Task<ICopilotSdkSession> CreateAsync(SessionConfig configuration, CancellationToken token) => throw new NotSupportedException();
+        public Task<IList<Model>> ModelsAsync(CancellationToken token) { OnModels?.Invoke(); return Task.FromResult(Models); }
+        public Task<ICopilotSdkSession> CreateAsync(CreateSessionOptions configuration, CancellationToken token) => throw new NotSupportedException();
         public Task StopAsync() { Stops++; Stopped.TrySetResult(); return Task.CompletedTask; }
         public ValueTask DisposeAsync() { Disposals++; return ValueTask.CompletedTask; }
     }

@@ -162,7 +162,7 @@ public sealed class AccountWorkbenchTests
             using var native = NativeUxTestFixture.Create(OwnedStorageFixture.ScratchParent());
             await native.InitializeAsync();
             var f = new CopilotAccountBrokerTests.Fixture { Approved = action is not "unavailable" };
-            var pending = new TaskCompletionSource<GitHub.Copilot.GetAuthStatusResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var pending = new TaskCompletionSource<Microsoft.Copilot.GetAuthStatusResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
             var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             if (action is "hold-authentication")
             { f.Client.Authenticate = _ => { entered.TrySetResult(); return pending.Task; }; }
@@ -200,7 +200,7 @@ public sealed class AccountWorkbenchTests
                     {
                         await authenticating;
                         f.Starts.Should().Be(1);
-                        f.Options!.UseLoggedInUser.Should().BeFalse();
+                        f.Options!.GitHub.UseLoggedInUser.Should().BeFalse();
                         f.Client.Disposals.Should().Be(1);
                         (await broker.ObserveAsync(native.Token)).Models.Should().NotBeEmpty();
                     }

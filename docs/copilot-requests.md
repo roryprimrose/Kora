@@ -8,8 +8,14 @@ There is no automatic hosted fallback.
 ## Setup and model selection
 
 1. Install a Copilot runtime separately from a trusted source. Kora does not
-   download, bundle or install it. Use a runtime compatible with the
-   [pinned SDK](../Directory.Packages.props); compatibility with another installed version is not guaranteed.
+   download, bundle or install it. The [pinned SDK](../Directory.Packages.props)
+   is `Microsoft.Copilot.SDK` **2.0.1**, with minimum runtime protocol **4**.
+   Its package records CLI **1.0.114**; that metadata is not an installation
+   recommendation or proof that an installed binary is compatible or trusted.
+   Use a compatible installed runtime: a version label or successful byte
+   inspection alone does not establish readiness. Unknown or incompatible
+   runtime readiness leaves the operation unavailable, without automatic
+   installation or provider substitution.
 2. In **Settings > Providers**, select **Set up Copilot live evaluation and
    account**. Enter the absolute path to the actual installed `copilot.exe`,
    not a shell script, directory or remote executable.
@@ -88,8 +94,12 @@ This operation retains the existing [evaluation and qualification limits](#lifet
   Managed immutable strings are not a secure-zeroing guarantee.
 - Runtime working/state/temp directories are newly allocated beneath Kora's
   device-local root with current-user-only permissions, separate from your
-  workspace and ordinary Copilot state. Incidental runtime files may remain
-  there; do not treat evaluation as proven no-write containment.
+  workspace and ordinary Copilot state. Kora explicitly starts an owned stdio
+  process for setup and a separate owned runtime/session for each turn, not
+  the SDK's default in-process runtime or a shared server. It passes only
+  reviewed system/temp paths as the replacement environment, not ambient
+  credentials. SDK download targets are excluded. Incidental runtime files
+  may remain there; do not treat evaluation as proven no-write containment.
 - You must independently accept runtime/account terms, entitlement and possible
   charges. Kora does not enforce a monetary cap. The runtime's all-path network,
   storage and lifecycle qualification remains incomplete; an executable hash

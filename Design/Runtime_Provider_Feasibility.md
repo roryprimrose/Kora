@@ -162,12 +162,67 @@ evaluation profile. Existing host authority, canonical validation, physical byte
 bounds and quiescence remain mandatory. Claude/Codex remain unavailable; no provider
 is automatically enabled. Follow [the complete native setup interaction](../docs/settings.md#optional-ollama-live-evaluation).
 
+### Current Copilot SDK compatibility - 2026-11-25
+
+The Windows boundary now uses released `Microsoft.Copilot.SDK` **2.0.1**
+(`Microsoft.Copilot` namespace), as pinned in
+[central packages](../Directory.Packages.props). The obtained package's
+`CopilotClient.MinProtocolVersion` is **4** and its packaged
+`CopilotCliVersion` is **1.0.114**. Its MIT nuspec identifies
+`github/copilot-agent-runtime` commit
+`780b7b259392066ad0494a65114a9200a5a3234d`. These are package metadata,
+not proof that an installed executable is compatible, trusted or qualified,
+or that any account/model is admitted. Historical protocol-3 evidence below
+does not qualify these new bytes.
+
+Both [account setup](../src/Kora.Windows/Dependencies/CopilotAccountBroker.cs)
+and [turn execution](../src/Kora.Windows/Dependencies/CopilotSdkTurnRuntime.cs)
+explicitly select `CopilotClientMode.Empty` and
+`RuntimeConnection.ForSpawnedStdio`, never the SDK's default in-process runtime,
+an attached server or a shared session. They use the exact host-approved
+existing executable, an empty extra-argument list, explicit owned
+`workingDirectory`/`baseDirectory` and `sessionIdleTimeoutSeconds: 0`.
+The non-null replacement environment is
+[restricted to reviewed operating-system paths](../src/Kora.Windows/Dependencies/CopilotExecutionEnvironment.cs),
+not inherited credentials or ambient settings. The evaluation source supplies
+only `SystemRoot`, `WINDIR`, `TEMP` and `TMP`; an explicitly empty dictionary
+also remains empty, whereas the SDK's null environment would inherit.
+The [Windows package reference](../src/Kora.Windows/Kora.Windows.csproj)
+excludes `build;buildTransitive;contentFiles`, so SDK targets do not acquire a
+runtime. No automatic downloader, installation or provider fallback is enabled.
+
+The host still owns exact account/model/session and current-source admission,
+immutable final-request review and physical send. Nested `GitHub` options
+disable ambient login; `Models.RequestHandler` retains the final HTTP gate.
+`CreateSessionOptions` explicitly denies native permissions, built-ins,
+discovery, cross-session storage and unselected agents/skills. The only
+selected-definition exception remains the separately reviewed single native
+skill or tool-free agent described below. Volatile session storage keeps its
+64-entry/262144-UTF-8-byte bounds, strict paths and explicit SQL/binary refusals
+without disk fallback. Callback, send and runtime cancellation still require
+physical join; no stop acknowledgment or cancelled await proves quiescence.
+
+**Typed streaming limitation:** the 2.0.1 `AssistantMessageDeltaData` projects
+`DeltaContent` and `MessageId`, not the legacy `ParentToolCallId`.
+[`CopilotAnswerStream`](../src/Kora.Windows/Dependencies/CopilotAnswerStream.cs)
+rejects nonempty event `AgentId` and foreign/missing message IDs, but cannot
+independently inspect an unprojected legacy wire field. Do not equate this
+typed check with the older tool-origin check or all-path runtime qualification.
+The actual final-request gate still rejects parent-agent requests and
+WebSockets; provisional prefixes remain volatile and must agree with the
+validated final answer. Deterministic SDK-seam tests are implementation
+evidence only. Compatible installed-runtime setup, current account/model
+admission and every source/retention/transmission decision remain independent
+([operation guide](../docs/copilot-requests.md#setup-and-model-selection)).
+
 ### Maintained Copilot SDK boundary - 2026-10-23
 
-The production source now compiles the Windows
+At this historical baseline, the Windows
 [`CopilotSdkTurnRuntime`](../src/Kora.Windows/Dependencies/CopilotSdkTurnRuntime.cs)
-against released NuGet `GitHub.Copilot.SDK` **1.0.26**, rather than substituting
-the historical source-built experiment package. The portable
+first compiled against released NuGet `GitHub.Copilot.SDK` **1.0.26**, rather
+than substituting the source-built experiment package. The current package
+and typed-streaming differences are recorded above; the maintained host
+controls and subsequent optional workflows are described below. The portable
 [`ICopilotTurnRuntime`](../src/Kora.Core/Dependencies/ICopilotTurnRuntime.cs)
 contract and Application
 [`CopilotModelTurnAdapter`](../src/Kora.Application/Dependencies/CopilotModelTurnAdapter.cs)
@@ -188,7 +243,7 @@ The separately reviewed [single-customization workflow](../src/Kora.Application/
 
 The optional [native selection capability](../src/Kora.Core/Dependencies/ICopilotCustomizationTurnRuntime.cs) binds the reviewed copy to the issued Copilot authorization and current source lifetime. Missing native support is explicitly unavailable, never ordinary-text fallback. The [compatibility reader](../src/Kora.Application/Definitions/CopilotCustomizationSelection.cs) reuses the existing skill/agent parsers and rejects unsupported companions, references, tools and metadata.
 
-The [native configuration](../src/Kora.Windows/Dependencies/CopilotSdkTurnRuntime.Customizations.cs) supplies exactly one custom agent and activates it through `Agent`, with explicit empty tools and `Infer=false`. A selected skill uses one fixed host agent whose `Skills` eagerly preloads only the selected ephemeral [`ISkillProvider`](../src/Kora.Windows/Dependencies/CopilotSelectedSkillProvider.cs) entry. No native skill tool, slash dispatch, directory, broad discovery, model override or bespoke agent executor is admitted.
+The [native configuration](../src/Kora.Windows/Dependencies/CopilotSdkTurnRuntime.Customizations.cs) supplies exactly one custom agent and activates it through `Agents.Selected`, with explicit empty tools and `Infer=false`. A selected skill uses one fixed host agent whose `Skills` eagerly preloads only the selected ephemeral [`ISkillProvider`](../src/Kora.Windows/Dependencies/CopilotSelectedSkillProvider.cs) entry. No native skill tool, slash dispatch, directory, broad discovery, model override or bespoke agent executor is admitted.
 
 Provider callbacks re-enter captured host context, share the runtime callback drain and revalidate source/account authority. Final-send admission also requires the selected content in the actual final JSON, and a selected skill must have been read through its native provider. [Deterministic native-seam tests](../tests/Kora.Windows.IntegrationTests/Dependencies/CopilotSdkTurnRuntimeTests.Customizations.cs) reject unused configuration and omitted selected content, and keep cancellation-ignoring callbacks owned until physical join.
 
@@ -214,8 +269,9 @@ Tool-free conversation turns consume the pinned SDK's answer-delta events throug
 [`ICopilotAnswerTurnRuntime`](../src/Kora.Core/Dependencies/ICopilotAnswerTurnRuntime.cs)
 and the existing host provisional-answer owner. A bounded
 [`CopilotAnswerStream`](../src/Kora.Windows/Dependencies/CopilotAnswerStream.cs)
-coalesces complete prefixes, rejects foreign message/agent/tool metadata and
+coalesces complete prefixes, rejects foreign message/agent metadata and
 invalid Unicode/content, and checks final text against accumulated deltas.
+The current typed tool-origin limitation is recorded above.
 Each publication revalidates the reviewed physical send, current account and
 host continuation; previews are never independently retained. Publication
 failure cancels the owned send and still joins its completion. Tool-bearing
@@ -232,7 +288,8 @@ host disposal may report resource release from a cancelled await alone.
 **I / E / Q boundary:** deterministic tests compile against the real package
 and fake only the SDK/process and HTTP boundaries. They are not live-account,
 installed-runtime or paid-provider evidence. The default runtime/account-use
-deployment approval source is unavailable; no account is inferred from ambient login and no
+deployment approval source is unavailable outside the separately admitted
+live-evaluation route above; no account is inferred from ambient login and no
 runtime is automatically installed or bundled. Terms/cost/account approval,
 an exact current profile and admitted runtime deployment remain E. Live
 offering stays unavailable without those inputs. Generic hosted admission
@@ -247,7 +304,8 @@ entry, gated before accepting credentials by
 [`ICopilotDeploymentApprovalSource`](../src/Kora.Windows/Dependencies/ICopilotDeploymentApprovalSource.cs).
 This source must revalidate the exact approved deployment, private paths and
 account-use terms/cost policy; user preferences and a typed executable path
-cannot supply that authority. The shipped source returns unavailable.
+cannot supply that authority. Without the separately admitted evaluation route,
+the source returns unavailable.
 [`CopilotAccountBroker`](../src/Kora.Windows/Dependencies/CopilotAccountBroker.cs)
 verifies the exact entered login/token with a fresh SDK authentication and
 enabled model catalogue. Setup cannot create an inference session or send

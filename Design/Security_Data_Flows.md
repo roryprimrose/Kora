@@ -1051,6 +1051,26 @@ schema and exact arguments. Connection consent still requires local UI when
 fresh consent is needed. Runtime authentication, source/currentness, privacy,
 revocation and mandatory gates remain independent of saved consent.
 
+For the local MCP stdio profile, launch and cleanup are separately bound native
+LocalUi/Once operations, not reusable HTTPS disclosure grants. The authoritative
+MCP consent owner offers fresh one-use process questions and rejects reusable
+scope or non-native approval for those exact host-bound proposals. The reviewed
+identity includes the literal credential-free profile and held native
+executable/directory identity; source inclusion and exact revision remain live
+checks. No ambient account, credential, proxy or user-profile environment is
+inherited. Host-private TEMP/TMP are supplied separately.
+
+Local MCP execution is not OS containment: a reviewed installed executable can
+mutate, access the network or spawn descendants. Tool read-only classification
+requires trusted host mappings; server annotations and process consent provide
+no tool authority. Stderr is drained undecoded in at most 4,096-byte chunks, with
+a 65,536-byte lifetime budget and typed retirement at byte 65,537; no content or
+tails enter logs, audit or exception diagnostics. EOF starts a five-second root
+exit grace period. Only separately consented still-owned root termination is
+permitted afterward, never tree-kill. Exit and all physical I/O must be joined
+before owner release; unknown exit/drain retains ownership and reports
+shutdown unconfirmed. Root exit does not prove descendant exit.
+
 The [storage contract](../src/Kora.Core/Storage/IHostInteractionStore.cs)
 serializes lifecycle/content/policy/revoke/use changes and atomically commits
 question/grant changes with a typed security audit. Once use increments the

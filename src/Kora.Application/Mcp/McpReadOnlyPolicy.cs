@@ -14,7 +14,7 @@ public sealed class McpReadOnlyPolicy : IDisposable
     public McpReadOnlyPolicy(IEnumerable<McpReadOnlyMapping> mappings) => this.mappings = mappings.ToArray();
 
     internal McpReadOnlyMapping? Find(McpConnectionDescriptor source, McpDiscoveredTool tool) =>
-        mappings.SingleOrDefault(mapping => mapping.Endpoint == source.Endpoint && mapping.Account == source.Account
+        mappings.SingleOrDefault(mapping => mapping.Identity == source.Identity
             && string.Equals(mapping.SourceRevision, source.SourceRevision, StringComparison.Ordinal)
             && string.Equals(mapping.ToolName, tool.Name, StringComparison.Ordinal)
             && string.Equals(mapping.SchemaDigest, tool.Schema.Digest, StringComparison.Ordinal));

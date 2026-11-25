@@ -28,19 +28,38 @@ internal sealed partial class McpInvocation
         if (descriptor is not null)
         { throw new InvalidOperationException("MCP preparation is single-use; start a fresh reviewed request."); }
         await ValidateAsync(token).ConfigureAwait(false);
-        descriptor = await configuration.ResolveHttpsAsync(serverId, account, token).ConfigureAwait(false);
+        descriptor = await configuration.ResolveAsync(serverId, identity, token).ConfigureAwait(false);
         if (category is { } selectedCategory && !configuration.MayConsiderCategory(serverId, selectedCategory))
         { throw new InvalidOperationException("This MCP capability category is disabled."); }
         if (skill is { } binding && (!string.Equals(binding.Reference.ServerId, descriptor.ServerId, StringComparison.Ordinal)
             || !string.Equals(binding.Reference.SourceRevision, descriptor.SourceRevision, StringComparison.Ordinal)))
         { throw new InvalidOperationException("The selected MCP source does not match the skill's exact declared dependency."); }
-        var accounts = await broker.ReadAccountsAsync(token).ConfigureAwait(false);
-        accountChoice = accounts.SingleOrDefault(choice => choice.Reference == account)
-            ?? throw new InvalidOperationException("The explicitly selected delegated MCP account is not available.");
+        if (identity.Account is { } account)
+        {
+            var accounts = await broker.ReadAccountsAsync(token).ConfigureAwait(false);
+            accountChoice = accounts.SingleOrDefault(choice => choice.Reference == account)
+                ?? throw new InvalidOperationException("The explicitly selected delegated MCP account is not available.");
+        }
         await ValidateAsync(token).ConfigureAwait(false);
         await ApproveAsync(McpReviewStage.Connection, null, token).ConfigureAwait(false);
         await ValidateAsync(token).ConfigureAwait(false);
-        connection = await broker.ConnectAsync(account, token).ConfigureAwait(false);
+        if (identity.Stdio is not null)
+        {
+            preparedProcess = await broker.PrepareStdioAsync(identity, token).ConfigureAwait(false);
+            if (preparedProcess.Identity != identity)
+            { throw new InvalidOperationException("The prepared executable differs from the exact selected profile."); }
+            Func<CancellationToken, Task>? launch = null;
+            Func<CancellationToken, Task>? cleanup = null;
+            await ApproveAsync(McpReviewStage.Connection, null, token, processAction: "launch",
+                captureAuthority: value => launch = value).ConfigureAwait(false);
+            await ApproveAsync(McpReviewStage.Connection, null, token, processAction: "cleanup",
+                captureAuthority: value => cleanup = value).ConfigureAwait(false);
+            processAuthorization = new(identity, preparedProcess.NativeIdentity, launch!, cleanup!);
+        }
+        await ValidateAsync(token).ConfigureAwait(false);
+        connection = preparedProcess is not null
+            ? await preparedProcess.ConnectAsync(processAuthorization!, token).ConfigureAwait(false)
+            : await broker.ConnectAsync(identity, null, token).ConfigureAwait(false);
         await ValidateAsync(token).ConfigureAwait(false);
         var initialize = await ExchangeAsync(static (transport, current) => transport.InitializeAsync(current),
             McpProtocol.MaximumDiscoveryUtf8Bytes, token).ConfigureAwait(false);
@@ -171,7 +190,7 @@ internal sealed partial class McpInvocation
     {
         var content = Content ?? throw new InvalidOperationException("No complete MCP text was observed.");
         var risk = LocalSourceRiskPolicy.Evaluate([question, content.Json, Source.ServerName,
-            Source.Endpoint.Address.AbsoluteUri, accountChoice!.DisplayName], token);
+            Source.Identity.NativeDestination, AccountDisplayName], token);
         if (risk != LocalSourceRiskOutcome.AdmittedPrivateLocalOnly)
         { throw new InvalidOperationException("This MCP content is unavailable for private local model use."); }
         contentContinuation = new(contentCapability!, content, ContentObservedAt, question, conversationName,

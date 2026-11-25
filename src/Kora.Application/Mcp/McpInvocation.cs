@@ -1,5 +1,7 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics;
+using McpProcessAuthorization = Kora.Core.Mcp.McpConnectionIdentity.McpProcessAuthorization;
+using IMcpProcessPreparation = Kora.Core.Mcp.IMcpConnectionBroker.IMcpProcessPreparation;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -25,7 +27,7 @@ internal sealed partial class McpInvocation(
     McpServerConfigurationService configuration, IMcpConnectionBroker broker, McpReadOnlyPolicy effects,
     IHostInteractionStore interactions, ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access,
     ISecurityAuditLog audit, TimeProvider time, HostRequest original, HostRevision generation,
-    string serverId, McpAccountReference account, McpApprovalPresenter presenter, McpToolSelector? selectTool,
+    string serverId, McpConnectionIdentity identity, McpApprovalPresenter presenter, McpToolSelector? selectTool,
     Func<bool> admitted, McpSkillBinding? skill = null,
     Func<CancellationToken, Task>? validateSource = null) : IAsyncDisposable
 {
@@ -41,6 +43,9 @@ internal sealed partial class McpInvocation(
     private Task? transportJoin;
     private McpDiscoveredTool? selected;
     private McpAccountChoice? accountChoice;
+    private string AccountDisplayName => accountChoice?.DisplayName ?? "Explicit local stdio profile (no delegated account)";
+    private McpProcessAuthorization? processAuthorization;
+    private IMcpProcessPreparation? preparedProcess;
     private Dependencies.ModelTurn? turn;
     private HostTaskRecord? originalUserTask;
     private McpContinuationReview? resultContinuation;
@@ -171,8 +176,8 @@ internal sealed partial class McpInvocation(
             var source = descriptor!;
             var observedResult = reply.Mcp!;
             var risk = LocalSourceRiskPolicy.Evaluate([modelTurn.Context.UserRequest, observedResult.Text,
-                observedResult.StructuredJson ?? string.Empty, source.ServerName, source.Endpoint.Address.AbsoluteUri,
-                accountChoice!.DisplayName, selected.Schema.Json], token);
+                observedResult.StructuredJson ?? string.Empty, source.ServerName, source.Identity.NativeDestination,
+                AccountDisplayName, selected.Schema.Json], token);
             if (risk != LocalSourceRiskOutcome.AdmittedPrivateLocalOnly)
             {
                 return risk == LocalSourceRiskOutcome.Unavailable
@@ -249,14 +254,16 @@ internal sealed partial class McpInvocation(
         { throw new InvalidOperationException("The original MCP task/session authority is no longer current."); }
         if (descriptor is not null) { await configuration.ValidateCurrentAsync(descriptor, token).ConfigureAwait(false); }
         if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
-        if ((resultContinuation is not null || contentContinuation is not null)
-            && !(await broker.ReadAccountsAsync(token).ConfigureAwait(false)).Any(choice => choice.Reference == account))
+        if (identity.Account is { } delegated && (resultContinuation is not null || contentContinuation is not null)
+            && !(await broker.ReadAccountsAsync(token).ConfigureAwait(false)).Any(choice => choice.Reference == delegated))
         { throw new InvalidOperationException("The separately reviewed result's delegated account is no longer available."); }
         // A faulted connection can only finish without content; session, source and grants still require current authority.
         if (connection is not null && !connectionFaulted)
         {
-            if (connection.Account != account || connection.Endpoint != account.Destination
-                || connection.RemoteAddresses.Count == 0 || connection.RemoteAddresses.Any(address => !WebPageNetworkPolicy.IsPublic(address))
+            if (connection.Identity != identity
+                || identity.Account is { } account && (connection.Account != account || connection.Endpoint != account.Destination
+                    || connection.RemoteAddresses.Count == 0
+                    || connection.RemoteAddresses.Any(address => !WebPageNetworkPolicy.IsPublic(address)))
                 || !await connection.IsCurrentAsync(token).ConfigureAwait(false))
             { throw new InvalidOperationException("The exact delegated account, HTTPS destination or public DNS binding is unavailable."); }
         }
@@ -327,7 +334,8 @@ internal sealed partial class McpInvocation(
     }
 
     private async Task<bool> ApproveAsync(McpReviewStage stage, string? arguments, CancellationToken token,
-        McpContinuationReview? continuation = null, McpContentContinuationReview? contentReview = null)
+        McpContinuationReview? continuation = null, McpContentContinuationReview? contentReview = null,
+        string? processAction = null, Action<Func<CancellationToken, Task>>? captureAuthority = null)
     {
         var invocation = interactionRequest;
         var parent = HostActivity.RequireCurrent();
@@ -338,26 +346,29 @@ internal sealed partial class McpInvocation(
             var source = descriptor!;
             var reviewSource = originalUserTask is null && skill is null && continuation is null && contentCapability is null
                 ? null : new McpReviewSource(source.ServerName, source.SourcePath, source.SourceRevision);
-            var review = new McpReview(stage, source.Endpoint.Address, account, accountChoice!.DisplayName,
+            var review = new McpReview(stage, identity, AccountDisplayName,
                 selected?.Name ?? contentCapability?.Id, selected?.Schema.Json ?? contentCapability?.DefinitionJson, arguments)
             {
                 Source = reviewSource,
                 Skill = skill?.Review,
                 Continuation = continuation,
                 Capability = contentCapability,
-                ContentContinuation = contentReview
+                ContentContinuation = contentReview,
+                ProcessAction = processAction,
+                NativeProcessIdentity = preparedProcess?.NativeIdentity
             };
-            var binding = new ExactOperationBinding("mcp.read-only", "mcp",
-                "https-read-only." + stage.ToString().ToLowerInvariant() + "." + Hash(review.ToolName ?? "connection"),
+            var binding = new ExactOperationBinding(processAction is null ? "mcp.read-only" : "mcp.process." + processAction, "mcp",
+                (identity.Stdio is null ? "https-read-only" : "stdio." + (processAction ?? "read-only")) + "."
+                    + stage.ToString().ToLowerInvariant() + "." + Hash(review.ToolName ?? "connection"),
                 Hash(review.InputSchema ?? "connection"), reviewSource is null ? source.SourceRevision : Hash(JsonSerializer.Serialize(reviewSource)),
                 source.SourceRevision,
                 Hash(typeof(McpInvocation).Module.ModuleVersionId.ToString("D")),
                 review.InvocationDigest,
-                Hash(review.ToolName ?? "connection"), Hash(JsonSerializer.Serialize(account)),
-                account.Destination.Digest, Hash("inert-local-only-result-v1"), new(1),
+                Hash(review.ToolName ?? "connection"), identity.Digest,
+                identity.Account?.Destination.Digest ?? identity.Digest, Hash("inert-local-only-result-v1"), new(1),
                 new(PermissionGrantArtifactKind.McpServer, source.Scope));
             var proposal = new HostOperationProposal(invocation, new(Guid.NewGuid()), new(1), binding,
-                HostOperationEffect.BoundedRead, expiresAt);
+                processAction is null ? HostOperationEffect.BoundedRead : HostOperationEffect.BoundedWrite, expiresAt);
             var presented = await presenter(proposal, generation, review,
                 () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
@@ -369,6 +380,8 @@ internal sealed partial class McpInvocation(
                 activity.Complete(HostOperationOutcome.Failed);
                 return false;
             }
+            if (processAction is not null && presented.Completed.Grant?.Scope != OperationGrantScope.Once)
+            { throw new InvalidOperationException("Native process launch and cleanup each require separate one-use consent."); }
             var authorization = new HostAuthorizationService(interactions, time);
             var consumed = await ExternalOperationGrantUse.ConsumeAsync(authorization, proposal, generation,
                 presented.Presented, presented.Completed, stage == McpReviewStage.Connection, token).ConfigureAwait(false);
@@ -378,7 +391,7 @@ internal sealed partial class McpInvocation(
             var dispatched = await authorization.DispatchAsync(invocation, admission, token).ConfigureAwait(false);
             if (dispatched.Outcome != HostInteractionOutcome.Consumed || dispatched.Admission is not { } dispatch)
             { throw new InvalidOperationException("The exact MCP policy admission was retired before dispatch."); }
-            grants.Add(async checkToken =>
+            async Task Revalidate(CancellationToken checkToken)
             {
                 var current = HostActivity.RequireCurrent();
                 using var validation = HostActivity.BeginRoot(invocation, HostActivityLayer.Application, HostOperation.Policy,
@@ -386,7 +399,9 @@ internal sealed partial class McpInvocation(
                 try
                 {
                     var decision = await new InteractionTransaction(interactions).RunAsync(invocation, "approval.mcp-revalidate", snapshot =>
-                        Live(checkToken) && snapshot.Session.Generation == generation && InteractionTransaction.CanInteract(snapshot)
+                        (processAction is "cleanup" || Live(checkToken))
+                            && snapshot.Session.Generation == generation
+                            && (processAction is "cleanup" || InteractionTransaction.CanInteract(snapshot))
                             && snapshot.Policy.OtherMandatoryGatesSatisfied
                             && snapshot.EffectivePermission == dispatch.Policy && snapshot.Admissions.Contains(dispatch)
                             && snapshot.Grants.SingleOrDefault(item => item.Id == receipt.Id) == receipt
@@ -394,13 +409,20 @@ internal sealed partial class McpInvocation(
                                 ? OperationGrantStatus.Consumed : OperationGrantStatus.Active)
                             ? (snapshot, new(HostInteractionOutcome.Approved, "exact-mcp-use-current"))
                             : InteractionTransaction.Reject(snapshot, "exact-mcp-use-retired"), checkToken).ConfigureAwait(false);
-                    if (decision.Outcome != HostInteractionOutcome.Approved || !Live(checkToken))
+                    if (decision.Outcome != HostInteractionOutcome.Approved
+                        || processAction is not "cleanup" && !Live(checkToken))
                     { throw new InvalidOperationException("The exact MCP approval was revoked, expired or retired."); }
                     validation.Complete(HostOperationOutcome.Completed);
                 }
                 catch (OperationCanceledException) { validation.Complete(HostOperationOutcome.Cancelled); throw; }
                 catch { validation.Complete(HostOperationOutcome.Failed); throw; }
-            });
+            }
+            if (processAction is "cleanup") { captureAuthority!(Revalidate); }
+            else
+            {
+                grants.Add(Revalidate);
+                captureAuthority?.Invoke(Revalidate);
+            }
             activity.Complete(HostOperationOutcome.Completed);
             return true;
         }
@@ -412,7 +434,8 @@ internal sealed partial class McpInvocation(
     {
         guidanceDescriptor?.Retire();
         disposed = true;
-        await JoinTransportAsync().ConfigureAwait(false);
+        try { await JoinTransportAsync().ConfigureAwait(false); }
+        finally { if (preparedProcess is not null) { await preparedProcess.DisposeAsync().ConfigureAwait(false); } }
     }
 
     internal async ValueTask JoinTransportAsync()
@@ -440,6 +463,7 @@ internal sealed partial class McpInvocation(
 
     private async Task ValidateAccountAsync(CancellationToken token)
     {
+        if (identity.Account is not { } account) { return; }
         var accounts = await broker.ReadAccountsAsync(token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
         if (!accounts.Any(choice => choice.Reference == account))

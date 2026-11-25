@@ -106,6 +106,15 @@ public sealed partial class HostAuthorizationService(
         if (!Eligible(snapshot, request) || !review.IsBoundTo(snapshot.Proposal!)
             || snapshot.Questions.Any(question => question.Proposal == snapshot.Proposal))
         { return InteractionTransaction.Reject(snapshot, "exact-mcp-proposal-not-current"); }
+        if (review.ProcessAction is { } processAction)
+        {
+            var processSpec = new QuestionSpec(
+                "Review the complete held local process identity and separate " + processAction
+                + " authority. Native approval permits this exact process operation once only.",
+                QuestionKind.SingleChoice, [new("once", "Approve this process operation once")],
+                purpose: "authorization", sourceId: "mcp-process-" + processAction);
+            return Present(ObserveContent(snapshot, request).Item1, request, consentSpec: processSpec);
+        }
         if (review.Stage == Mcp.McpReviewStage.ResultContinuation)
         {
             var continuationSpec = new QuestionSpec(
@@ -116,11 +125,12 @@ public sealed partial class HostAuthorizationService(
                 purpose: "authorization", sourceId: "mcp-local-result-continuation");
             return Present(ObserveContent(snapshot, request).Item1, request, consentSpec: continuationSpec);
         }
-        var spec = new QuestionSpec("Review the complete exact HTTPS MCP " + review.Stage
-            + " record, including destination, delegated account, schema and any outgoing arguments. "
-            + "Choose a duration for this exact mapping, account, schema and arguments only.",
+        var spec = new QuestionSpec("Review the complete exact " + (review.Identity.Stdio is null ? "HTTPS" : "local stdio") + " MCP " + review.Stage
+            + " record, including destination, transport identity, schema and any outgoing arguments. "
+            + "Choose a duration for this exact mapping, " + (review.Identity.Stdio is null ? "account" : "local profile")
+            + ", schema and arguments only.",
             QuestionKind.SingleChoice, [new("once", "Once"), new("session", "This session"), new("perpetual", "Always")],
-            purpose: "authorization", sourceId: "mcp-https-read-only");
+            purpose: "authorization", sourceId: review.Identity.Stdio is null ? "mcp-https-read-only" : "mcp-stdio-read-only");
         return RequestExternalGrant(snapshot, request, spec);
     }, cancellationToken);
 
@@ -239,6 +249,10 @@ public sealed partial class HostAuthorizationService(
         {
             return InteractionTransaction.Reject(snapshot, "approval-not-applicable");
         }
+        if (IsMcpProcessProposal(question.Proposal)
+            && (channel != RequestOrigin.LocalUi || answer.Choices is not ["once"]
+                || !string.Equals(question.Spec.SourceId, question.Proposal.Binding.ActionId.Replace("mcp.process.", "mcp-process-", StringComparison.Ordinal), StringComparison.Ordinal)))
+        { return InteractionTransaction.Reject(snapshot, "native-once-process-consent-required"); }
         var scope = answer.Choices[0] switch
         {
             "once" => OperationGrantScope.Once,
@@ -289,6 +303,9 @@ public sealed partial class HostAuthorizationService(
         {
             return InteractionTransaction.Reject(snapshot, "grant-not-applicable");
         }
+        if (IsMcpProcessProposal(proposal)
+            && (grant.Scope != OperationGrantScope.Once || grant.CreatorChannel != RequestOrigin.LocalUi))
+        { return InteractionTransaction.Reject(snapshot, "native-once-process-consent-required"); }
         if (snapshot.Admissions.Any(item => item.Proposal == snapshot.Proposal))
         { return InteractionTransaction.Reject(snapshot, "invocation-already-admitted", HostInteractionOutcome.Conflict); }
         var consumed = grant with
@@ -302,6 +319,11 @@ public sealed partial class HostAuthorizationService(
         return Admit(next, Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ExistingGrant,
             HostInteractionOutcome.Consumed, "grant-use-committed", consumed);
     }
+
+    private static bool IsMcpProcessProposal(HostOperationProposal proposal) =>
+        proposal.Effect == HostOperationEffect.BoundedWrite
+        && proposal.Binding.SourcePartition is "mcp"
+        && proposal.Binding.ActionId is "mcp.process.launch" or "mcp.process.cleanup";
 
     public ValueTask<HostInteractionDecision> ObserveContentAsync(HostRequest request, CancellationToken cancellationToken) =>
         transaction.RunAsync(request, "approval.content-change", snapshot => ObserveContent(snapshot, request), cancellationToken);

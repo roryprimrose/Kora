@@ -87,13 +87,15 @@ public sealed partial class HostAuthorizationService(
     public ValueTask<HostInteractionDecision> PresentAsync(HostRequest request, CancellationToken cancellationToken) =>
         transaction.RunAsync(request, "approval.present", snapshot => Present(snapshot, request), cancellationToken);
 
-    /// <summary>Requires a user grant, without automatic session-policy or model-review approval.</summary>
+    /// <summary>Approve all bypasses grants; other levels retain exact grant-or-review behavior.</summary>
     public ValueTask<HostInteractionDecision> RequestGrantAsync(
         HostRequest request, QuestionSpec spec, CancellationToken cancellationToken) =>
         transaction.RunAsync(request, "approval.tool-grant", snapshot =>
         {
             if (!Eligible(snapshot, request))
             { return InteractionTransaction.Reject(snapshot, "operation-not-admitted"); }
+            if (snapshot.EffectivePermission.Level == Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll)
+            { return AutoApprove(snapshot, request, spec.SourceId ?? "host-operation"); }
             var observed = ObserveContent(snapshot, request).Item1;
             var grant = FindApplicableGrant(observed, request);
             return grant is null ? Present(observed, request, consentSpec: spec)
@@ -106,6 +108,12 @@ public sealed partial class HostAuthorizationService(
         if (!Eligible(snapshot, request) || !review.IsBoundTo(snapshot.Proposal!)
             || snapshot.Questions.Any(question => question.Proposal == snapshot.Proposal))
         { return InteractionTransaction.Reject(snapshot, "exact-mcp-proposal-not-current"); }
+        if (snapshot.EffectivePermission.Level == Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll)
+        {
+            return AutoApprove(snapshot, request, review.ProcessAction is not null ? "mcp-local-process"
+                : review.Stage == Mcp.McpReviewStage.ResultContinuation ? "mcp-result-continuation"
+                : review.Identity.Stdio is null ? "mcp-remote-disclosure" : "mcp-stdio-read");
+        }
         if (review.ProcessAction is { } processAction)
         {
             var processSpec = new QuestionSpec(
@@ -141,6 +149,11 @@ public sealed partial class HostAuthorizationService(
             if (!Eligible(snapshot, request) || !WebPageAccessBinding.Matches(snapshot.Proposal!, address)
                 || snapshot.Questions.Any(question => question.Proposal == snapshot.Proposal))
             { return InteractionTransaction.Reject(snapshot, "exact-page-proposal-not-current"); }
+            if (snapshot.EffectivePermission.Level == Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll)
+            {
+                return AutoApprove(snapshot, request, "web-address-disclosure",
+                    automaticApproval: WebDisclosureAudit(snapshot));
+            }
             var spec = new QuestionSpec(
                 "Approve retrieval of this exact public page for the original local model request? "
                 + "Other destinations and redirects are not approved. Page text stays local.\n" + address.AbsoluteUri,
@@ -185,6 +198,8 @@ public sealed partial class HostAuthorizationService(
         {
             return InteractionTransaction.Reject(snapshot, "web-destination-not-admitted");
         }
+        if (snapshot.EffectivePermission.Level == Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll)
+        { return AutoApprove(snapshot, request, "web-address-disclosure", automaticApproval: WebDisclosureAudit(snapshot)); }
         if (preapprovedUris is null)
         {
             return InteractionTransaction.Reject(snapshot, "preapproved-uri-policy-unavailable");
@@ -194,6 +209,16 @@ public sealed partial class HostAuthorizationService(
             return (snapshot, new(HostInteractionOutcome.Approved, "preapproved-address"));
         }
         return Present(snapshot, request, eligibilityConfirmed: true);
+    }
+
+    private static AutomaticApprovalAudit WebDisclosureAudit(HostInteractionSnapshot snapshot)
+    {
+        var proposal = snapshot.Proposal!;
+        var binding = proposal.Binding;
+        return new(proposal.Request, snapshot.EffectivePermission, binding.ActionId, proposal.Effect,
+            "web-address-disclosure", binding.TrackedContentDigest, proposal.ProposalId, proposal.Revision, binding,
+            binding.DestinationDigest, binding.IdentityDigest, binding.DefinitionDigest,
+            Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Array.Empty<byte>())));
     }
 
     private (HostInteractionSnapshot, HostInteractionDecision) Present(
@@ -206,6 +231,8 @@ public sealed partial class HostAuthorizationService(
             return InteractionTransaction.Reject(snapshot, "operation-not-admitted");
         }
         var proposal = snapshot.Proposal!;
+        if (snapshot.EffectivePermission.Level == Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll)
+        { return AutoApprove(snapshot, request, "host-operation"); }
         if (snapshot.Questions.Any(q => q.Proposal == proposal))
         {
             return InteractionTransaction.Reject(snapshot, "duplicate-proposal", HostInteractionOutcome.Conflict);
@@ -227,6 +254,8 @@ public sealed partial class HostAuthorizationService(
     private (HostInteractionSnapshot, HostInteractionDecision) Approve(HostInteractionSnapshot snapshot,
         HostQuestionKey key, QuestionAnswer answer, RequestOrigin channel)
     {
+        if (snapshot.EffectivePermission.Level == Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll)
+        { return InteractionTransaction.Reject(snapshot, "pending-review-retired-by-session-policy"); }
         var index = InteractionTransaction.FindQuestion(snapshot, key);
         if (index < 0)
         {
@@ -274,6 +303,8 @@ public sealed partial class HostAuthorizationService(
     private (HostInteractionSnapshot, HostInteractionDecision) Consume(HostInteractionSnapshot snapshot,
         HostRequest request, HostId<ApprovalIdentity> grantId, HostRevision expectedRevision)
     {
+        if (snapshot.EffectivePermission.Level == Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll)
+        { return AutoApprove(snapshot, request, "host-operation"); }
         var index = snapshot.Grants.FindIndex(grant => grant.Id == grantId);
         if (index < 0)
         {
@@ -334,6 +365,8 @@ public sealed partial class HostAuthorizationService(
         {
             return InteractionTransaction.Reject(snapshot, "operation-not-admitted");
         }
+        if (snapshot.EffectivePermission.Level == Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll)
+        { return (snapshot, new(HostInteractionOutcome.Approved, "grants-not-evaluated")); }
         var grants = snapshot.Grants;
         for (var index = 0; index < grants.Length; index++)
         {

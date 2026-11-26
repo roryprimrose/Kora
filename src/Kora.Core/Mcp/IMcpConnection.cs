@@ -1,4 +1,5 @@
 using System.Net;
+using System.Collections.Immutable;
 
 namespace Kora.Core.Mcp;
 
@@ -11,6 +12,8 @@ public interface IMcpConnection : IAsyncDisposable
     IReadOnlyList<IPAddress> RemoteAddresses { get; }
     CancellationToken AdmissionWithdrawn => new(canceled: true);
     Task<bool> IsCurrentAsync(CancellationToken token);
+    void BindAutomaticDisclosureAuthorization(Func<ImmutableArray<byte>, CancellationToken, ValueTask> authorize) =>
+        throw new InvalidOperationException("This MCP transport cannot audit automatic final-request disclosure.");
     Task<McpConnectionReply<McpServerCapabilities>> InitializeAsync(CancellationToken token);
     Task<McpConnectionReply<McpCapabilityPage>> ListAsync(McpCapabilityKind kind, string? cursor, CancellationToken token);
     Task<McpConnectionReply<McpRemoteResult>> InvokeAsync(string name, McpToolSchema schema, string arguments, CancellationToken token);

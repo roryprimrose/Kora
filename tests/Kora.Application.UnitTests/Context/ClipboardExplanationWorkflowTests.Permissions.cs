@@ -119,6 +119,7 @@ public sealed partial class ClipboardExplanationWorkflowTests
     [InlineData("outcome")]
     [InlineData("proposal")]
     [InlineData("basis")]
+    [InlineData("automatic-attached-grant")]
     [InlineData("grant-id")]
     [InlineData("grant-revision")]
     [InlineData("binding")]
@@ -143,6 +144,8 @@ public sealed partial class ClipboardExplanationWorkflowTests
                     { Proposal = new(receipt.Proposal.Request, new(Guid.NewGuid()), new(1), receipt.Proposal.Binding,
                         receipt.Proposal.Effect, receipt.Proposal.ExpiresAt) } },
                 "basis" => decision with { Admission = receipt with { Basis = SessionPermissionBasis.ApproveAll } },
+                "automatic-attached-grant" => decision with { Grant = null,
+                    Admission = receipt with { Basis = SessionPermissionBasis.ApproveAll } },
                 "grant-id" => decision with { Admission = receipt with { GrantId = new(Guid.NewGuid()) } },
                 "grant-revision" => decision with { Admission = receipt with { GrantRevision = new(99) } },
                 "binding" => decision with { Grant = decision.Grant! with

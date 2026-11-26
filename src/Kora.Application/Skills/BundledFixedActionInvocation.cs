@@ -47,7 +47,8 @@ public sealed class BundledFixedActionInvocation(
         if (!Current()) { throw new InvalidOperationException("The exact bundled package or source authority changed."); }
         var approved = await present(proposal, generation, Current, token).ConfigureAwait(false);
         if (approved is not { Outcome: HostInteractionOutcome.Consumed, Admission: { } admission }
-            || admission.Proposal != proposal || admission.Dispatched || admission.GrantId is null || !Current())
+            || admission.Proposal != proposal || admission.Dispatched
+            || admission.GrantId is null && admission.Basis != SessionPermissionBasis.ApproveAll || !Current())
         { throw new InvalidOperationException("The exact bundled script and effect were not granted by the original user."); }
         if (!await Authorized(admission, token).ConfigureAwait(false))
         { throw new InvalidOperationException("The exact bundled script grant is no longer current."); }

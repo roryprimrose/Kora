@@ -10,6 +10,13 @@ internal static class ExternalOperationGrantUse
         HostOperationProposal proposal, HostRevision generation, HostQuestionRecord? presented,
         HostInteractionDecision decision, bool requireLocalApproval, CancellationToken token)
     {
+        if (presented is null && decision is { Outcome: HostInteractionOutcome.Consumed, Grant: null,
+            Admission: { Basis: Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ApproveAll } automatic }
+            && automatic.Proposal == proposal && automatic.Policy.Generation == generation)
+        {
+            var current = await authorization.ValidateAdmissionAsync(proposal.Request, automatic, token).ConfigureAwait(false);
+            return current.Outcome == HostInteractionOutcome.Approved ? decision : current;
+        }
         if (decision.Grant is not { } grant || grant.ApprovedProposal.Binding != proposal.Binding
             || grant.ApprovedProposal.Effect != proposal.Effect
             || grant.Scope != OperationGrantScope.Perpetual

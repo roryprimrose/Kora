@@ -121,6 +121,8 @@ internal sealed partial class BundledFixedActionController : IDisposable
     private async Task ExecuteAsync(string id, RequestOrigin origin, Func<bool> admitted, WorkSessionAuthorization? target = null)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        var selectedTarget = target is null ? main.CurrentPermissionControlTarget : null;
+        target ??= selectedTarget?.Authority;
         using var cancellation = new CancellationTokenSource();
         lifetime = cancellation;
         var control = new HostRequest(new(Guid.NewGuid()), target?.SessionId ?? new(Guid.NewGuid()), new(Guid.NewGuid()), origin);
@@ -138,6 +140,7 @@ internal sealed partial class BundledFixedActionController : IDisposable
             var script = Resolve(id);
             bool Current() => !disposed && !activity.Activity!.IsStopped && activity.Outcome == HostOperationOutcome.Unknown
                 && !cancellation.IsCancellationRequested && admitted() && ownsHost()
+                && (selectedTarget is null || main.CurrentPermissionControlTarget == selectedTarget)
                 && ownerRevision == ownershipRevision() && main.CallPolicyRevision == call
                 && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible && sources.IsReviewing(script.Package);
             if (!Current()) { throw new InvalidOperationException("The original package review is not current."); }

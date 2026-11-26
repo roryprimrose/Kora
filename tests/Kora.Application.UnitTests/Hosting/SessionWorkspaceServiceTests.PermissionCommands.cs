@@ -11,6 +11,25 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task CurrentApproveAllAutomaticallyCommitsProtectedExactLevelChange(RequestOrigin origin)
+    {
+        using var f = new PermissionFixture();
+        f.Saved = SessionPermissionPolicy.Default(f.Session) with { Level = SessionPermissionLevel.ApproveAll };
+        var changed = new List<SessionPermissionPolicy>();
+        f.Service.SessionPermissionChanged += changed.Add;
+        var commands = new SessionPermissionCommandService(f.Service, f, new RetentionCommandTime());
+        var result = await commands.ExecuteAsync(new(SessionCommandOperation.PermissionReview, f.Session.SessionId.Value)
+            { PermissionLevel = SessionPermissionLevel.ReviewAll }, origin, static () => true, f.Token);
+        result.Outcome.Should().Be("committed");
+        f.Saved.Level.Should().Be(SessionPermissionLevel.ReviewAll);
+        f.PermissionWrites.Should().Be(1);
+        changed.Should().ContainSingle().Which.Should().Be(f.Saved);
+        f.TaskWrites.Should().HaveCount(2).And.OnlyContain(task => task.Request.Origin == origin);
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi, SessionPermissionLevel.ReviewAll)]
     [InlineData(RequestOrigin.ActivatedVoice, SessionPermissionLevel.ModelReview)]
     [InlineData(RequestOrigin.ActivatedVoice, SessionPermissionLevel.ApproveAll)]

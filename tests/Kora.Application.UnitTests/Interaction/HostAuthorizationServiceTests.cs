@@ -12,7 +12,7 @@ public sealed class HostAuthorizationServiceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ToolGrantRequiresActualUserApprovalEvenUnderApproveAll(bool eligible)
+    public async Task ToolGrantSkipsReviewOnlyForAdmittedApproveAll(bool eligible)
     {
         using var fixture = new InteractionFixture();
         fixture.Store.Change(snapshot => snapshot with
@@ -25,9 +25,11 @@ public sealed class HostAuthorizationServiceTests
             [new("once", "Once"), new("session", "This session"), new("perpetual", "Always")]);
         var decision = await fixture.RunAsync(() =>
             fixture.Authorization.RequestGrantAsync(fixture.Request, spec, TestContext.Current.CancellationToken));
-        decision.Outcome.Should().Be(eligible ? HostInteractionOutcome.Presented : HostInteractionOutcome.Denied);
+        decision.Outcome.Should().Be(eligible ? HostInteractionOutcome.Consumed : HostInteractionOutcome.Denied);
         fixture.Store.Snapshot.Grants.Should().BeEmpty();
-        fixture.Store.Snapshot.Admissions.Should().BeEmpty();
+        if (eligible)
+        { decision.Admission!.Basis.Should().Be(Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ApproveAll); }
+        else { fixture.Store.Snapshot.Admissions.Should().BeEmpty(); }
     }
 
     [Theory]

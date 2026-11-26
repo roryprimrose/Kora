@@ -12,6 +12,41 @@ public sealed class McpTransportTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    [Theory]
+    [InlineData("success")]
+    [InlineData("audit-failure")]
+    [InlineData("withdrawal")]
+    public async Task AutomaticDisclosureAuthorizesExactPhysicalBytesAndFailsClosed(string outcome)
+    {
+        using var f = new McpTransportFixture();
+        await using var connection = await f.Broker.ConnectAsync(f.Account, Token);
+        var captured = new List<ImmutableArray<byte>>();
+        connection.BindAutomaticDisclosureAuthorization((wire, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (string.Equals(outcome, "audit-failure", StringComparison.Ordinal))
+            { throw new IOException("Synthetic automatic approval audit failure."); }
+            captured.Add(wire);
+            if (string.Equals(outcome, "withdrawal", StringComparison.Ordinal))
+            { throw new OperationCanceledException("Synthetic permission withdrawal."); }
+            return ValueTask.CompletedTask;
+        });
+        if (string.Equals(outcome, "success", StringComparison.Ordinal))
+        {
+            await connection.InitializeAsync(Token);
+            await connection.ListAsync(McpCapabilityKind.Tool, null, Token);
+            await connection.InvokeAsync("search", new(McpTransportFixture.Schema), """{"query":"exact"}""", Token);
+            captured.Should().HaveCount(4);
+            for (var index = 0; index < captured.Count; index++)
+            { captured[index].Should().Equal(f.Requests[index].Bytes); }
+        }
+        else
+        {
+            await FluentActions.Awaiting(() => connection.InitializeAsync(Token)).Should().ThrowAsync<Exception>();
+            f.Requests.Should().BeEmpty();
+        }
+    }
+
     [Fact]
     public async Task Production_default_is_explicitly_unavailable_before_account_dns_or_http()
     {

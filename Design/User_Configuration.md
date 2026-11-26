@@ -2132,9 +2132,9 @@ recovery still require explicit Enable listening.
 
 ### Session permission levels
 
-[Session Permission Levels](Session_Permission_Levels.md) owns the three levels, separate from Once/Session/Always grant duration and provider mode. The compact/workspace selector names the session and warns that Approve all runs eligible ungranted actions without ordinary review, saves no grants, and cannot bypass independent consent or mandatory boundaries.
+[Session Permission Levels](Session_Permission_Levels.md) owns the three levels, separate from grant duration/provider mode. Chat shows the current exact-session level. Approve all skips Kora-owned action, script, process, protected-control, continuation and disclosure prompts, without evaluating/consuming/creating admission grants; each automatic approval requires trusted audit.
 
-New sessions default Review all. Persist levels in Active-session policy across restart; Done resets Review all and resume restores no old level. Changes require revision-safe audited user confirmation, never model self-approval. Show spoken-approval eligibility separately, default disabled during calls, while grants and the level remain effective.
+Settings > Sessions selects a device-local default for genuinely new sessions, initially Review all; existing sessions change independently. Persist Active-session policy across restart; Done resets Review all and resume restores no old level. Protected changes remain original-user and revision-safe/audited; current Approve all skips their human confirmation ([preferences](../src/Kora.Application/Configuration/SessionPermissionDefaultPreferences.cs)).
 
 Where action approval and disclosure consent cover the same exact operation, offer one host-owned card with distinct typed authority/audit records and explicit scope. Microphone consent and OS/provider authentication remain separate. Exact-session policy/native controls and call-channel migration are implemented; production Model review has no qualified reviewer and requires user approval. Broader execution routes retain their own gates.
 
@@ -2151,7 +2151,7 @@ Intent or source inspection is not approval: expect fresh exact review unless
 an applicable exact grant covers the operation. Retained named Lock preferences
 are neither imported nor upgraded; changed resources, implementation or identity
 cannot reuse old authority. Once/Session/Always retain the same exact-domain rules.
-The mandatory script/native-review boundary applies at every session level;
+The exact script/native review is automatically approved only under current Approve all; runtime containment, exact source validation and physical joins remain;
 the original voice channel remains bound even when native controls answer it.
 Execution stays unavailable without a qualified contained runtime, with no
 native-only fallback. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
@@ -2173,7 +2173,7 @@ Revocation blocks subsequent exact-grant consumption. In-flight work is reported
 On the live native **clipboard read** permission card, choose **Why is this allowed / why does it need approval?**.
 The [host authorization owner](../src/Kora.Application/Interaction/HostAuthorizationService.Explanation.cs) checks the original pending question, exact built-in descriptor, session generation/level and mandatory gates, using the same exact-grant matcher as normal admission.
 The [native presentation](../src/Kora/NativeQuestionViewModel.cs) shows only the safe `clipboard.read` / current plain-text clipboard to volatile native preview label, observed session level, and applicable exact grant scope or independent native permission requirement.
-Review all, Model review and Approve all do not replace this path's exact clipboard-read permission; no reviewer/model is consulted.
+Review all and Model review retain the exact clipboard-read permission card; no reviewer/model is consulted. Approve all instead commits an exact grant-free automatic read admission, so no new pending card/explanation is created ([authorization](../src/Kora.Application/Interaction/HostAuthorizationService.cs)).
 
 This is a **read snapshot**, not current effect authority or permission for later execution.
 It never reads clipboard contents, creates/reserves/consumes a grant, dispatches, revokes content, completes the separate exact-record review, changes the question or renews session activity ([observation transition](../src/Kora.Application/Interaction/HostAuthorizationService.Explanation.cs), [storage transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)).

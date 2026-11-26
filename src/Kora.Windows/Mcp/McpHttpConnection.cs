@@ -18,6 +18,14 @@ internal sealed partial class McpHttpConnection : IMcpConnection
     private readonly Lock sync = new();
     private readonly HashSet<Task> active = [];
     private Task? disposal;
+    private Func<ImmutableArray<byte>, CancellationToken, ValueTask>? automaticDisclosureAuthorization;
+
+    public void BindAutomaticDisclosureAuthorization(Func<ImmutableArray<byte>, CancellationToken, ValueTask> authorize)
+    {
+        ArgumentNullException.ThrowIfNull(authorize);
+        if (Interlocked.CompareExchange(ref automaticDisclosureAuthorization, authorize, null) is not null)
+        { throw new InvalidOperationException("The exact MCP connection already has a disclosure authorization owner."); }
+    }
 
     internal McpHttpConnection(McpAccountReference account, McpAccountLease lease, IPAddress[] addresses,
         HttpMessageHandler handler, TimeProvider? time = null)
@@ -64,6 +72,11 @@ internal sealed partial class McpHttpConnection : IMcpConnection
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
         request.Headers.Add("MCP-Protocol-Version", McpProtocol.Version);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        if (automaticDisclosureAuthorization is { } authorize)
+        {
+            await authorize(wire, token).ConfigureAwait(false);
+            await WindowsMcpConnectionBroker.RequireCurrentAsync(lease, Account, token).ConfigureAwait(false);
+        }
         token.ThrowIfCancellationRequested();
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
         await WindowsMcpConnectionBroker.RequireCurrentAsync(lease, Account, token).ConfigureAwait(false);

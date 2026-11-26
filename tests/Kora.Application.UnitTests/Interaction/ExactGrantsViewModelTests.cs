@@ -3,6 +3,9 @@
 using Kora.Application.Interaction;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Authorization;
+using Kora.Core.Authorization.SessionPermission;
+using Kora.Core.Auditing;
+using Kora.Application.Hosting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -16,6 +19,78 @@ namespace Kora.Application.UnitTests.Interaction;
 [Collection("Host tracing")]
 public sealed partial class ExactGrantsViewModelTests
 {
+    [Fact]
+    public async Task AutomaticManagedScopeKeepsItsOwnExactPolicyWithoutFollowingSelectedConversation()
+    {
+        await using var f = new Fixture(managementView: true, managementSession: new(Guid.NewGuid()), automatic: true);
+        using (HostActivity.BeginRoot(new(new(Guid.NewGuid()), f.PermissionStore!.Subject.SessionId,
+            new(Guid.NewGuid()), RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Policy))
+        {
+            await f.InspectAsync();
+        }
+        f.PermissionTarget = null;
+        f.State.CanRevoke.Should().BeTrue();
+        await f.State.RevokeAsync(f.Token);
+        f.PermissionStore.Audits.Should().ContainSingle().Which.Policy.SessionId.Should().Be(f.PermissionStore.Subject.SessionId);
+        f.Store.Revokes.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task MissingCurrentConversationNeverSuppliesAutomaticGrantManagementAuthority()
+    {
+        await using var f = new Fixture(automatic: true);
+        f.PermissionTarget = null;
+        await f.InspectAsync();
+        f.State.CanRevoke.Should().BeFalse();
+        f.PermissionStore!.Audits.Should().BeEmpty();
+        f.Store.Revokes.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("single")]
+    [InlineData("batch")]
+    [InlineData("audit-failure")]
+    [InlineData("policy")]
+    [InlineData("control-intent-policy")]
+    [InlineData("target")]
+    public async Task AutomaticGrantManagementSkipsConfirmationButRevalidatesAtActualControl(string operation)
+    {
+        await using var f = new Fixture(automatic: true);
+        await f.InspectAsync();
+        f.State.Reviewed.Should().BeFalse();
+        f.State.CanRevoke.Should().BeTrue();
+        if (operation is "batch")
+        {
+            f.State.SetBatchSelection([f.Preview]);
+            await f.State.PreviewBatchAsync(f.Token);
+            f.State.BatchReviewed.Should().BeFalse();
+            f.State.CanRevokeBatch.Should().BeTrue();
+            await f.State.RevokeBatchAsync(f.Token);
+        }
+        else
+        {
+            f.PermissionStore!.FailAudit = operation is "audit-failure";
+            if (operation is "policy")
+            { f.PermissionStore.AfterAudit = () => f.PermissionStore.Policy = f.PermissionStore.Policy with { Revision = new(3) }; }
+            if (operation is "control-intent-policy")
+            { f.Intents.BeforeCommit = _ => f.PermissionStore.Policy = f.PermissionStore.Policy with { Revision = new(3) }; }
+            if (operation is "target") { f.PermissionTarget = null; }
+            var revoke = () => f.State.RevokeAsync(f.Token);
+            if (operation is "single") { await revoke(); }
+            else { await revoke.Should().ThrowAsync<Exception>(); }
+        }
+        if (operation is "single" or "batch")
+        {
+            f.Store.Revokes.Should().Be(1);
+            var audit = f.PermissionStore!.Audits.Should().ContainSingle().Subject;
+            audit.ActionId.Should().Be(operation is "single" ? "grant.revoke" : "grant.revoke-batch");
+            audit.Policy.Level.Should().Be(SessionPermissionLevel.ApproveAll);
+            audit.GrantsEvaluated.Should().BeFalse();
+            audit.ContentDigest.Should().HaveLength(64);
+        }
+        else { f.Store.Revokes.Should().Be(0); }
+    }
+
     [Fact]
     public async Task NativeExplicitCompleteBatchRequiresSeparateConfirmationAndRetainsAllReadbackRevisions()
     {
@@ -577,8 +652,11 @@ public sealed partial class ExactGrantsViewModelTests
         internal HostAuthorizationService Authorization { get; }
         internal ExactGrantControlAdmission Control { get; }
         internal ExactGrantsViewModel State { get; }
+        internal AutomaticControlStore? PermissionStore { get; }
+        internal SessionWorkspaceEntry? PermissionTarget { get; set; }
+        private readonly Func<SessionWorkspaceEntry?>? permissionReader;
         internal Fixture(ILogger<ExactGrantsViewModel>? logger = null, Kora.Core.Network.IPreapprovedUriConfiguration? uris = null,
-            bool managementView = false, HostId<SessionIdentity>? managementSession = null)
+            bool managementView = false, HostId<SessionIdentity>? managementSession = null, bool automatic = false)
         {
             var request = new HostRequest(new(Guid.NewGuid()), new(Guid.NewGuid()), new(Guid.NewGuid()), RequestOrigin.LocalUi, new(Guid.NewGuid()));
             var grant = new OperationGrant(new(Guid.NewGuid()), new(1),
@@ -588,8 +666,17 @@ public sealed partial class ExactGrantsViewModelTests
             Store = new(Intents, Preview);
             Authorization = new(Store, TimeProvider.System);
             Control = new(Intents, Store, new(Intents), Authorization);
+            SessionWorkspaceService? workspace = null;
+            if (automatic)
+            {
+                PermissionStore = new(managementSession);
+                workspace = new(PermissionStore, new(PermissionStore), Access, NullLogger<SessionWorkspaceService>.Instance);
+                PermissionTarget = new(PermissionStore.Subject, null);
+                permissionReader = () => PermissionTarget;
+                workspace.BindPermissionControlTarget(permissionReader);
+            }
             State = new(Store, Control, Access, () => Eligible, logger ?? NullLogger<ExactGrantsViewModel>.Instance,
-                new(Store, uris), () => UriEligible, managementView, managementSession);
+                new(Store, uris), () => UriEligible, managementView, managementSession, workspace);
         }
         internal async Task InspectAsync()
         {
@@ -602,6 +689,36 @@ public sealed partial class ExactGrantsViewModelTests
             State.Dispose();
             await Control.DisposeAsync();
             Tracing.Dispose();
+        }
+
+        internal sealed class AutomaticControlStore : AudioControlTestStore, ISessionPermissionStore
+        {
+            internal WorkSessionAuthorization Subject { get; }
+            internal SessionPermissionPolicy Policy { get; set; }
+            internal List<AutomaticApprovalAudit> Audits { get; } = [];
+            internal bool FailAudit { get; set; }
+            internal Action? AfterAudit { get; set; }
+            internal AutomaticControlStore(HostId<SessionIdentity>? session = null)
+            {
+                Subject = new(session ?? new(Guid.NewGuid()), new(1), true);
+                Policy = SessionPermissionPolicy.Default(Subject) with { Level = SessionPermissionLevel.ApproveAll };
+            }
+            public override ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token) =>
+                ValueTask.FromResult(new SessionWorkspaceEntry(Subject, null));
+            public ValueTask<SessionPermissionPolicy> ReadSessionPermissionAsync(HostId<SessionIdentity> session, CancellationToken token) =>
+                ValueTask.FromResult(Policy);
+            public ValueTask<SessionPermissionPolicy> SetSessionPermissionAsync(HostRequest request, SessionPermissionPolicy expected,
+                SessionPermissionLevel desired, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+            public ValueTask RecordAutomaticApprovalAsync(HostRequest request, SessionPermissionPolicy expected,
+                AutomaticApprovalAudit details, Func<bool> admitted, CancellationToken token)
+            {
+                if (FailAudit) { throw new IOException("Synthetic control audit unavailable."); }
+                if (expected != Policy || !admitted()) { throw new InvalidOperationException("Automatic control policy changed."); }
+                details.Validate();
+                Audits.Add(details);
+                AfterAudit?.Invoke();
+                return ValueTask.CompletedTask;
+            }
         }
     }
 }

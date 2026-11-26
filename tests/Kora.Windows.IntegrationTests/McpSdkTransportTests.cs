@@ -11,6 +11,31 @@ public sealed class McpSdkTransportTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    [Fact]
+    public async Task AutomaticDisclosureIncludesSdkNotificationAndProtocolFieldsAndHasOneOwner()
+    {
+        using var f = new McpTransportFixture();
+        await using var connection = await f.Broker.ConnectAsync(f.Account, Token);
+        var captured = new List<byte[]>();
+        connection.BindAutomaticDisclosureAuthorization((wire, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            captured.Add(wire.ToArray());
+            return ValueTask.CompletedTask;
+        });
+        FluentActions.Invoking(() => connection.BindAutomaticDisclosureAuthorization(static (_, _) => ValueTask.CompletedTask))
+            .Should().Throw<InvalidOperationException>();
+        await connection.InitializeAsync(Token);
+        captured.Should().HaveCount(2);
+        captured[0].Should().Equal(f.Requests[0].Bytes);
+        captured[1].Should().Equal(f.Requests[1].Bytes);
+        using var initialize = JsonDocument.Parse(captured[0]);
+        initialize.RootElement.GetProperty("jsonrpc").GetString().Should().Be("2.0");
+        initialize.RootElement.GetProperty("id").GetInt32().Should().Be(1);
+        using var notification = JsonDocument.Parse(captured[1]);
+        notification.RootElement.GetProperty("method").GetString().Should().Be("notifications/initialized");
+    }
+
     [Theory]
     [InlineData("version")]
     [InlineData("rpc")]

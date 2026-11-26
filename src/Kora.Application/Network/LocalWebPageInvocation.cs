@@ -56,9 +56,10 @@ internal sealed class LocalWebPageInvocation(
             var authorization = new HostAuthorizationService(store, time);
             var consumed = await ExternalOperationGrantUse.ConsumeAsync(authorization, proposal, generation,
                 presented.Presented, presented.Completed, requireLocalApproval: false, token).ConfigureAwait(false);
-            if (consumed.Outcome != HostInteractionOutcome.Consumed || consumed.Grant is not { } receipt
-                || consumed.Admission is not { } admission)
+            if (consumed.Outcome != HostInteractionOutcome.Consumed || consumed.Admission is not { } admission
+                || admission.Basis != Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ApproveAll && consumed.Grant is null)
             { activity.Complete(HostOperationOutcome.Failed); return new(CapabilityOutcome.Denied, "page-approval-not-current"); }
+            var receipt = consumed.Grant;
             var dispatched = await authorization.DispatchAsync(invocation, admission, token).ConfigureAwait(false);
             if (dispatched.Outcome != HostInteractionOutcome.Consumed || dispatched.Admission is not { } dispatch)
             { activity.Complete(HostOperationOutcome.Failed); return new(CapabilityOutcome.Denied, "page-admission-retired"); }
@@ -83,7 +84,8 @@ internal sealed class LocalWebPageInvocation(
                 var transaction = new InteractionTransaction(store);
                 var observed = await transaction.RunAsync(invocation, "approval.web-page-revalidate", snapshot =>
                 {
-                    var current = snapshot.Grants.SingleOrDefault(item => item.Id == receipt.Id);
+                    var automatic = dispatch.Basis == Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ApproveAll;
+                    var current = automatic ? null : snapshot.Grants.SingleOrDefault(item => item.Id == receipt!.Id);
                     // A later finite page observation may replace this proposal, never its consumed grant or exact dispatch.
                     return Live(checkToken) && snapshot.Session.Generation == generation
                         && InteractionTransaction.CanInteract(snapshot) && snapshot.Policy.OtherMandatoryGatesSatisfied
@@ -92,10 +94,11 @@ internal sealed class LocalWebPageInvocation(
                                 && next.Request == invocation && next.ExpiresAt == expiresAt
                                 && next.Effect == HostOperationEffect.BoundedRead && next.Revision == new HostRevision(1)
                                 && workflowScope.Destinations.Any(item => next.Binding == CreateBinding(invocation, item)))
-                        && current == receipt
                         && snapshot.EffectivePermission == dispatch.Policy && snapshot.Admissions.Contains(dispatch)
-                        && current.Status == (current.Scope == OperationGrantScope.Once
-                            ? OperationGrantStatus.Consumed : OperationGrantStatus.Active)
+                        && (automatic && dispatch.GrantId is null && receipt is null
+                            || current is not null && current == receipt
+                                && current.Status == (current.Scope == OperationGrantScope.Once
+                                    ? OperationGrantStatus.Consumed : OperationGrantStatus.Active))
                         ? (snapshot, new(HostInteractionOutcome.Approved, "exact-page-use-current"))
                         : InteractionTransaction.Reject(snapshot, "exact-page-use-retired");
                 }, checkToken).ConfigureAwait(false);

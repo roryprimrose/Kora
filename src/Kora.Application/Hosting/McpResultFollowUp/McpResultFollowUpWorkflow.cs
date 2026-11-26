@@ -1,6 +1,7 @@
 using Kora.Core.Conversation;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Kora.Core.Authorization.SessionPermission;
 
 namespace Kora.Application.Hosting.McpResultFollowUp;
 
@@ -15,6 +16,8 @@ internal sealed class McpResultFollowUpWorkflow(
     private CancellationTokenSource? reviewCancellation;
     private bool held;
     private long revision;
+    private SessionPermissionPolicy? automaticConsent;
+    internal SessionPermissionPolicy? AutomaticConsent { get { lock (gate) { return automaticConsent; } } }
 
     internal bool Held { get { lock (gate) { return held; } } }
     internal bool IsRunning { get { lock (gate) { return reviewing is { IsCompleted: false } || running is { IsCompleted: false }; } } }
@@ -29,6 +32,7 @@ internal sealed class McpResultFollowUpWorkflow(
             { throw new InvalidOperationException("The previous question remains held or still owns provider resources; do not retry."); }
             current?.Dispose();
             current = null;
+            automaticConsent = null;
             running = null;
             var owned = CancellationTokenSource.CreateLinkedTokenSource(token);
             reviewCancellation = owned;
@@ -60,10 +64,12 @@ internal sealed class McpResultFollowUpWorkflow(
         try
         {
             await ValidateAsync(review, Live, token, requireQualified: false).ConfigureAwait(false);
+            var policy = await conversation.ReadMcpResultPermissionAsync(observation.Request.SessionId, token).ConfigureAwait(false);
             lock (gate)
             {
                 if (!Live()) { throw new OperationCanceledException("A newer observation review retired this source."); }
                 current = review;
+                automaticConsent = policy?.Level == SessionPermissionLevel.ApproveAll ? policy : null;
             }
             return review;
         }
@@ -92,7 +98,8 @@ internal sealed class McpResultFollowUpWorkflow(
         {
             await ValidateAsync(review, admitted, owned.Token).ConfigureAwait(false);
             return await conversation.SubmitMcpResultFollowUpAsync(review,
-                () => Current(review, admitted, owned.Token), check => ValidateAsync(review, admitted, check), owned.Token).ConfigureAwait(false);
+                () => Current(review, admitted, owned.Token), check => ValidateAsync(review, admitted, check), owned.Token,
+                AutomaticConsent).ConfigureAwait(false);
         }
         catch (ConversationSubmissionUnconfirmedException)
         {

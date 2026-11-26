@@ -6,7 +6,7 @@ Choose **Read current policy** to refresh an unavailable or stale observation.
 
 1. Select **Review all**, **Model review**, or **Approve all**.
 2. Select **Review change**. Check the named session, old/new level and warning.
-3. Select **Confirm exact-session change**, or **Cancel review**.
+3. Select **Confirm exact-session change**, or **Cancel review**. If the current level is already **Approve all**, **Review change** commits the exact protected change without another prompt, with a required session audit ([control](../src/Kora/SessionPermission/SessionsViewModel.SessionPermission.cs)).
 
 Choosing a level or reading its policy does not change permission, execute an
 action, create a grant, or change another session. Confirmation requires a fresh
@@ -37,9 +37,7 @@ controls instead. Changing channel, policy, lifecycle, private ownership or the
 reviewed source requires a fresh review. Cancel discards only the volatile review.
 A confirmation attempt consumes it even when the outcome is unconfirmed.
 
-These are original-user controls, not model tools. Selection, review, retained
-text, grants and Approve all cannot supply confirmation authority. No command
-executes an action, changes another conversation or enables a provider/reviewer.
+If the current level is already **Approve all**, `session permission review <session-id> <level>` commits the exact change immediately; no separate confirm command is needed. These remain original-user controls, not model tools. Unknown/stale private authority still blocks; no action or provider is enabled ([command owner](../src/Kora.Application/Hosting/SessionPermissionCommandService.cs)).
 
 ## What each level means
 
@@ -49,24 +47,22 @@ executes an action, changes another conversation or enables a provider/reviewer.
   required. No production reviewer transport is qualified in this release:
   selecting this level therefore requires user approval, not executor
   self-assessment, a hosted fallback, or a different execution profile.
-- **Approve all**: actions without applicable grants may run without
-  discretionary safety review or ordinary approval in this session. No grants
-  are saved. Independent consent and mandatory protections still apply.
+- **Approve all**: Kora-owned action, script, local MCP process, protected-control, result-continuation and data-disclosure prompts are automatically approved in this session. Existing admission grants are not evaluated or consumed, and no grants are created. Every automatic approval requires a trusted session audit ([policy](../Design/Session_Permission_Levels.md)).
 
-An existing exact applicable grant takes precedence. An automatic admission
+In Review all and Model review, an existing applicable exact grant takes precedence. In Approve all, it is not evaluated. An automatic admission
 applies to one invocation only, never another action, retry, session or changed
 proposal. Unknown ownership, identity, privacy, containment, authentication,
 prohibited effects and unavailable execution remain blocking conditions.
 
-The existing external-page and HTTPS MCP workflows still require exact
-endpoint/account/tool/argument and disclosure review. Their native consent
-cards remain mandatory at every level. Non-sensitive help and deterministic
+External-page, MCP and hosted Copilot/Claude sends still validate exact destinations/accounts, source/proposal identities and byte bounds. In Approve all, their Kora-owned disclosure cards are skipped, with actual final-request digests audited before every physical send, including follow-ups/retries. Non-sensitive help and deterministic
 stop/mute/cancel controls do not acquire an ordinary action-approval step.
 Selecting a level enables no scripts, generic MCP transport or model provider.
 
 ## Persistence, Done and recovery
 
-New sessions start at Review all. An explicitly selected policy persists only
+In **Settings > Sessions**, choose **Default permission level for new sessions**. The device-local preference initially selects Review all and affects only genuinely new sessions, not existing ones. Chat shows the current session's applied level ([settings](../src/Kora/SettingsView.axaml), [chat controls](../src/Kora/SessionPermission/SessionsViewModel.SessionPermission.cs)).
+
+An explicitly selected policy persists only
 for the same Active session across restart. **Done** resets policy in its
 lifecycle transaction; **Resume** does not restore the former level. Deletion
 removes session policy without deleting independent Always grants.
@@ -86,7 +82,7 @@ existing cancel/stop controls for owned running work.
 ## Spoken approvals during calls
 
 Settings / Calls includes **Allow spoken approvals during calls**, Off by
-default. Review its device-local change, then confirm it explicitly. Enabling
+default. Review its device-local change, then confirm it explicitly unless the current admitted session is Approve all; that mode automatically confirms the exact change with a required session audit. Enabling
 requires fresh native initiation and a visible downgrade warning. Cancel or
 close the settings window to discard the review.
 
@@ -96,8 +92,10 @@ UI available**. Exact grants and session levels remain unchanged. Native UI
 approval still requires independent unlocked ownership and presentation gates.
 Call evidence is rechecked inside the exact authorization commit.
 
+Approve all never bypasses microphone consent, memory admission, credential entry, OS/UAC/provider authentication, privileged lifecycle confirmations, hard denials, exact capture/egress enforcement or physical resource joins. Audit failure blocks automatic admission; no raw content is written into automatic approval records ([audit contract](../src/Kora.Core/Auditing/AutomaticApprovalAudit.cs)).
+
 Enabling this setting does not enable listening, new speech-capture surfaces,
 authentication, model execution or consent. The existing exact web/MCP cards
-remain native-only; this setting does not create a spoken-answer route for
+remain native-only in Review all/Model review; Approve all skips their Kora-owned prompts, but this setting does not create a spoken-answer route for
 them. Automatic call detection remains unavailable where reported. Call
 clearance never accepts rejected speech or replays work.

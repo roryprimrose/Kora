@@ -11,6 +11,35 @@ namespace Kora.Windows.Storage;
 
 public sealed partial class WindowsSqliteHostInteractionStore : ISessionPermissionStore
 {
+    private Func<SessionPermissionLevel>? sessionPermissionDefault;
+
+    public void BindSessionPermissionDefault(Func<SessionPermissionLevel> read)
+    {
+        ArgumentNullException.ThrowIfNull(read);
+        if (Interlocked.CompareExchange(ref sessionPermissionDefault, read, null) is not null)
+        { throw new InvalidOperationException("The session permission default is already bound."); }
+    }
+
+    public async ValueTask RecordAutomaticApprovalAsync(HostRequest request, SessionPermissionPolicy expected,
+        AutomaticApprovalAudit details, Func<bool> admitted, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+        details.Validate();
+        await RunHostMutationAsync(request, "approval.automatic", (connection, transaction, intent, audit) =>
+        {
+            var session = RequireSession(connection, request.SessionId).Authority;
+            var current = ReadSessionPermission(connection, session);
+            if (!session.IsActive || current != expected || current.Level != SessionPermissionLevel.ApproveAll
+                || details.Request != request || details.Policy != current || !admitted())
+            { throw new InvalidOperationException("Automatic approval lost its exact session policy or host authority."); }
+            var automatic = new SecurityAuditEvent(audit.CorrelationId, audit.Category, audit.ActionId,
+                audit.Outcome, audit.Initiator, audit.TargetId, reasonCode: "approve-all", automaticApproval: details);
+            AppendAudit(connection, transaction, intent, session, automatic,
+                requestedAudit: automatic.WithOutcome(SecurityAuditOutcome.Requested), permissionPolicy: current);
+            return true;
+        }, token, admitted, requireIdle: false).ConfigureAwait(false);
+    }
+
     private void MigrateSessionPermission(SqliteConnection connection, SqliteTransaction transaction, CancellationToken token)
     {
         ValidateConsolidatedAuthority(connection);
@@ -50,8 +79,15 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionPermissi
                 .Where(question => question.Status == QuestionStatus.Pending)
                 .Select(question => question with { Key = question.Key.Next(), Status = QuestionStatus.Cancelled }).ToArray();
             var changes = questions.Select(QuestionChange).Append(PermissionChange(next)).ToArray();
-            var sequence = AppendAudit(connection, transaction, intent, session, audit, changes: changes,
-                requestedAudit: audit.WithOutcome(SecurityAuditOutcome.Requested), permissionPolicy: next);
+            var decisionAudit = previous.Level == SessionPermissionLevel.ApproveAll
+                ? new SecurityAuditEvent(audit.CorrelationId, audit.Category, audit.ActionId, audit.Outcome,
+                    audit.Initiator, audit.TargetId, reasonCode: "approve-all",
+                    automaticApproval: new(request, previous, audit.ActionId, HostOperationEffect.VoiceOrCallSettings,
+                        "session-permission-control", Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+                            System.Text.Encoding.UTF8.GetBytes(HostInteractionCodec.Encode(next))))))
+                : audit;
+            var sequence = AppendAudit(connection, transaction, intent, session, decisionAudit, changes: changes,
+                requestedAudit: decisionAudit.WithOutcome(SecurityAuditOutcome.Requested), permissionPolicy: next);
             Execute(connection, transaction, """
                 INSERT INTO session_permission VALUES($id,$generation,$revision,$level,$audit)
                 ON CONFLICT(session_id) DO UPDATE SET generation=excluded.generation,revision=excluded.revision,

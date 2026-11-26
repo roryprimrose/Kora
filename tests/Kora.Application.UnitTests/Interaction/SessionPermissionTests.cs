@@ -12,6 +12,113 @@ public sealed class SessionPermissionTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    [Fact]
+    public async Task QualifiedModelReviewReceiptStaysGrantFreeAcrossValidationAndSingleDispatch()
+    {
+        using var f = new InteractionFixture();
+        SetPolicy(f, SessionPermissionLevel.ModelReview);
+        var admission = (await Authorize(f, new Reviewer())).Admission!;
+        admission.Basis.Should().Be(SessionPermissionBasis.ModelSafe);
+        (await f.RunAsync(() => f.Authorization.ValidateAdmissionAsync(f.Request, admission, Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Approved);
+        var dispatched = (await f.RunAsync(() => f.Authorization.DispatchAsync(f.Request, admission, Token))).Admission!;
+        (await f.RunAsync(() => f.Authorization.ValidateAdmissionAsync(f.Request, dispatched, Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Approved);
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("once")]
+    [InlineData("session")]
+    public async Task ExistingGrantReceiptAllowsOnlyItsOneCommittedDispatch(string scope)
+    {
+        using var f = new InteractionFixture();
+        await f.GrantAsync(scope);
+        var admission = (await Authorize(f)).Admission!;
+        (await f.RunAsync(() => f.Authorization.ValidateAdmissionAsync(f.Request, admission, Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Approved);
+        var dispatched = (await f.RunAsync(() => f.Authorization.DispatchAsync(f.Request, admission, Token))).Admission!;
+        (await f.RunAsync(() => f.Authorization.ValidateAdmissionAsync(f.Request, dispatched, Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Approved);
+        (await f.RunAsync(() => f.Authorization.DispatchAsync(f.Request, dispatched, Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Conflict);
+        f.Store.Snapshot.Grants.Single().UseCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task RetainedTerminalGrantCannotValidateEvenAMatchingReceiptRevision()
+    {
+        using var f = new InteractionFixture();
+        await f.GrantAsync("session");
+        var admission = (await Authorize(f)).Admission!;
+        var retained = f.Store.Snapshot.Grants.Single() with
+        { Status = OperationGrantStatus.Revoked, RevocationReason = "retained-revocation" };
+        f.Store.Change(snapshot => snapshot with { Grants = [retained] });
+        (await f.RunAsync(() => f.Authorization.ValidateAdmissionAsync(f.Request, admission, Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Denied);
+        (await f.RunAsync(() => f.Authorization.DispatchAsync(f.Request, admission, Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Conflict);
+        f.Store.Snapshot.Grants.Should().Equal(retained);
+        f.Store.Snapshot.Admissions.Should().Equal(admission);
+    }
+
+    [Fact]
+    public async Task ExistingGrantDoesNotReplaceIndependentConsentAndDuplicateReviewDoesNotCreateAuthority()
+    {
+        using var f = new InteractionFixture();
+        await f.GrantAsync("session");
+        f.Rebind();
+        SetPolicy(f, SessionPermissionLevel.ModelReview);
+        var grants = f.Store.Snapshot.Grants;
+        (await Authorize(f, consent: true)).Outcome.Should().Be(HostInteractionOutcome.Presented);
+        (await Authorize(f, consent: true)).Outcome.Should().Be(HostInteractionOutcome.Conflict);
+        f.Store.Snapshot.Grants.Should().Equal(grants);
+        f.Store.Snapshot.Admissions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ApproveAllCannotTurnRetainedPendingReviewIntoAGrantOrAnotherAdmission()
+    {
+        using var f = new InteractionFixture();
+        var pending = await f.RunAsync(() => f.Authorization.PresentAsync(f.Request, Token));
+        SetPolicy(f, SessionPermissionLevel.ApproveAll);
+        (await Authorize(f)).Outcome.Should().Be(HostInteractionOutcome.Conflict);
+        var confirmation = await f.RunAsync(() => f.Authorization.ApproveAsync(
+            pending.Question!.Key, new(["once"]), RequestOrigin.LocalUi, Token));
+        confirmation.Reason.Should().Be("pending-review-retired-by-session-policy");
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+        f.Store.Snapshot.Admissions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AutomaticAdmissionRejectsAttachedGrantAuthorityWithoutEvaluatingGrants(bool identifier)
+    {
+        using var f = new InteractionFixture();
+        SetPolicy(f, SessionPermissionLevel.ApproveAll);
+        var valid = (await Authorize(f)).Admission!;
+        var corrupted = identifier ? valid with { GrantId = new(Guid.NewGuid()) }
+            : valid with { GrantRevision = new(1) };
+        f.Store.Change(snapshot => snapshot with { Admissions = [corrupted] });
+        (await f.RunAsync(() => f.Authorization.ValidateAdmissionAsync(f.Request, corrupted, Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Denied);
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AutomaticLegacyConsumeStillRequiresMandatoryHostGates()
+    {
+        using var f = new InteractionFixture();
+        SetPolicy(f, SessionPermissionLevel.ApproveAll);
+        f.Store.Change(snapshot => snapshot with
+        { Policy = snapshot.Policy with { OtherMandatoryGatesSatisfied = false } });
+        (await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, new(Guid.NewGuid()), new(1), Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Denied);
+        f.Store.Snapshot.Admissions.Should().BeEmpty();
+        f.Store.Commits.Should().NotContain(commit => commit.Audit.AutomaticApproval != null);
+    }
+
     [Theory]
     [InlineData(SessionPermissionLevel.ReviewAll, HostInteractionOutcome.Presented)]
     [InlineData(SessionPermissionLevel.ModelReview, HostInteractionOutcome.Presented)]
@@ -45,9 +152,12 @@ public sealed class SessionPermissionTests
         SetPolicy(f, level);
         var reviewer = new Reviewer();
         var decision = await Authorize(f, reviewer, consent: true);
-        decision.Outcome.Should().Be(HostInteractionOutcome.Presented);
+        decision.Outcome.Should().Be(level == SessionPermissionLevel.ApproveAll
+            ? HostInteractionOutcome.Approved : HostInteractionOutcome.Presented);
         reviewer.Calls.Should().Be(0);
-        f.Store.Snapshot.Admissions.Should().BeEmpty();
+        if (level == SessionPermissionLevel.ApproveAll)
+        { f.Store.Snapshot.Admissions.Should().ContainSingle().Which.Basis.Should().Be(SessionPermissionBasis.ApproveAll); }
+        else { f.Store.Snapshot.Admissions.Should().BeEmpty(); }
         f.Store.Snapshot.Grants.Should().BeEmpty();
     }
 

@@ -38,6 +38,8 @@ internal sealed partial class McpInvocation(
     private readonly HostRequest interactionRequest = new(original.RequestId, original.SessionId,
         original.TaskId, original.Origin, new(Guid.NewGuid()));
     private readonly List<Func<CancellationToken, Task>> grants = [];
+    private Kora.Core.Authorization.SessionPermission.SessionPermissionAdmission? initialAutomaticDisclosureAdmission;
+    private Action<Kora.Core.Authorization.SessionPermission.SessionPermissionAdmission>? updateAutomaticDisclosureAdmission;
     private McpConnectionDescriptor? descriptor;
     private IMcpConnection? connection;
     private Task? transportJoin;
@@ -374,23 +376,31 @@ internal sealed partial class McpInvocation(
             token.ThrowIfCancellationRequested();
             if (!Live(token))
             { throw new InvalidOperationException("Exact native MCP endpoint/account/tool/argument approval is required."); }
+            var automatic = presented.Completed is { Outcome: HostInteractionOutcome.Consumed, Grant: null,
+                Admission.Basis: Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ApproveAll };
             if ((continuation is not null || contentReview is not null)
-                && (presented.Presented is null || presented.Completed.Grant?.Scope != OperationGrantScope.Once))
+                && !automatic && (presented.Presented is null || presented.Completed.Grant?.Scope != OperationGrantScope.Once))
             {
                 activity.Complete(HostOperationOutcome.Failed);
                 return false;
             }
-            if (processAction is not null && presented.Completed.Grant?.Scope != OperationGrantScope.Once)
+            if (processAction is not null && !automatic && presented.Completed.Grant?.Scope != OperationGrantScope.Once)
             { throw new InvalidOperationException("Native process launch and cleanup each require separate one-use consent."); }
             var authorization = new HostAuthorizationService(interactions, time);
             var consumed = await ExternalOperationGrantUse.ConsumeAsync(authorization, proposal, generation,
                 presented.Presented, presented.Completed, stage == McpReviewStage.Connection, token).ConfigureAwait(false);
-            if (consumed.Outcome != HostInteractionOutcome.Consumed || consumed.Grant is not { } receipt
-                || consumed.Admission is not { } admission)
+            if (consumed.Outcome != HostInteractionOutcome.Consumed || consumed.Admission is not { } admission
+                || admission.Basis != Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ApproveAll && consumed.Grant is null)
             { throw new InvalidOperationException("The exact MCP approval is no longer current."); }
+            var receipt = consumed.Grant;
             var dispatched = await authorization.DispatchAsync(invocation, admission, token).ConfigureAwait(false);
             if (dispatched.Outcome != HostInteractionOutcome.Consumed || dispatched.Admission is not { } dispatch)
             { throw new InvalidOperationException("The exact MCP policy admission was retired before dispatch."); }
+            if (dispatch.Basis == Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ApproveAll)
+            {
+                if (updateAutomaticDisclosureAdmission is { } update) { update(dispatch); }
+                else { initialAutomaticDisclosureAdmission = dispatch; }
+            }
             async Task Revalidate(CancellationToken checkToken)
             {
                 var current = HostActivity.RequireCurrent();
@@ -404,9 +414,11 @@ internal sealed partial class McpInvocation(
                             && (processAction is "cleanup" || InteractionTransaction.CanInteract(snapshot))
                             && snapshot.Policy.OtherMandatoryGatesSatisfied
                             && snapshot.EffectivePermission == dispatch.Policy && snapshot.Admissions.Contains(dispatch)
-                            && snapshot.Grants.SingleOrDefault(item => item.Id == receipt.Id) == receipt
-                            && receipt.Status == (receipt.Scope == OperationGrantScope.Once
-                                ? OperationGrantStatus.Consumed : OperationGrantStatus.Active)
+                            && (dispatch.Basis == Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ApproveAll
+                                && dispatch.GrantId is null && receipt is null
+                                || receipt is not null && snapshot.Grants.SingleOrDefault(item => item.Id == receipt.Id) == receipt
+                                    && receipt.Status == (receipt.Scope == OperationGrantScope.Once
+                                        ? OperationGrantStatus.Consumed : OperationGrantStatus.Active))
                             ? (snapshot, new(HostInteractionOutcome.Approved, "exact-mcp-use-current"))
                             : InteractionTransaction.Reject(snapshot, "exact-mcp-use-retired"), checkToken).ConfigureAwait(false);
                     if (decision.Outcome != HostInteractionOutcome.Approved
@@ -425,6 +437,38 @@ internal sealed partial class McpInvocation(
             }
             activity.Complete(HostOperationOutcome.Completed);
             return true;
+        }
+        catch (OperationCanceledException) { activity.Complete(HostOperationOutcome.Cancelled); throw; }
+        catch { activity.Complete(HostOperationOutcome.Failed); throw; }
+    }
+
+    private async ValueTask AuthorizeAutomaticDisclosureAsync(ImmutableArray<byte> body,
+        McpAccountReference account, Kora.Core.Authorization.SessionPermission.SessionPermissionAdmission admission,
+        CancellationToken token)
+    {
+        var permissions = interactions as ISessionPermissionStore
+            ?? throw new InvalidOperationException("The authoritative automatic MCP disclosure audit is unavailable.");
+        var parent = HostActivity.RequireCurrent();
+        using var activity = HostActivity.BeginRoot(admission.Proposal.Request, HostActivityLayer.Application,
+            HostOperation.Policy, [new ActivityLink(parent.Activity!.Context)]);
+        var authorization = new HostAuthorizationService(interactions, time);
+        try
+        {
+            if (!Admitted(token) || (await authorization.ValidateAdmissionAsync(admission.Proposal.Request, admission, token)
+                .ConfigureAwait(false)).Outcome != HostInteractionOutcome.Approved)
+            { throw new InvalidOperationException("The exact MCP disclosure policy is no longer current."); }
+            var bodyDigest = Convert.ToHexStringLower(SHA256.HashData(body.AsSpan()));
+            var proposal = admission.Proposal;
+            var details = new AutomaticApprovalAudit(proposal.Request, admission.Policy, proposal.Binding.ActionId,
+                proposal.Effect, "mcp-final-request-disclosure", proposal.Binding.TrackedContentDigest,
+                proposal.ProposalId, proposal.Revision, proposal.Binding, account.Destination.Digest,
+                Hash(JsonSerializer.Serialize(account)), Hash(identity.Digest + Source.SourceRevision), bodyDigest);
+            await permissions.RecordAutomaticApprovalAsync(proposal.Request, admission.Policy, details,
+                () => Admitted(token), token).ConfigureAwait(false);
+            if (!Admitted(token) || (await authorization.ValidateAdmissionAsync(proposal.Request, admission, token)
+                .ConfigureAwait(false)).Outcome != HostInteractionOutcome.Approved)
+            { throw new InvalidOperationException("The MCP disclosure policy changed before sending the final bytes."); }
+            activity.Complete(HostOperationOutcome.Completed);
         }
         catch (OperationCanceledException) { activity.Complete(HostOperationOutcome.Cancelled); throw; }
         catch { activity.Complete(HostOperationOutcome.Failed); throw; }

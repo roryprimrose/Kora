@@ -5,12 +5,93 @@ using Kora.Core.Commands;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Voice;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AutomaticSpokenControlWithoutLiveSelectionStillRequiresExplicitReview(bool released)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var store = BindPermissionCommands(f);
+        var id = store.Session.Authority.SessionId.Value.ToString("D");
+        await f.RunAsync("session permission review " + id + " approve-all");
+        await f.RunAsync("session permission confirm " + id);
+        if (released)
+        {
+            var selector = BindReleasedPermissionTarget(f.ViewModel.SessionControlWorkspace!, store.Session);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            selector.IsAlive.Should().BeFalse();
+        }
+        await f.ViewModel.ReviewSpokenApprovalsCommand.ExecuteAsync();
+        f.CallPreferences.SavedSettings.Should().BeNull();
+        store.AutomaticAudits.Should().BeEmpty();
+        f.ViewModel.SpokenApprovalsStatus.Should().Contain("Review:");
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static WeakReference BindReleasedPermissionTarget(
+        Kora.Application.Hosting.SessionWorkspaceService workspace, Kora.Core.Storage.SessionWorkspaceEntry entry)
+    {
+        Func<Kora.Core.Storage.SessionWorkspaceEntry?> read = () => entry;
+        workspace.BindPermissionControlTarget(read);
+        return new(read);
+    }
+
+    [Theory]
+    [InlineData("success")]
+    [InlineData("native-parent")]
+    [InlineData("audit-failure")]
+    [InlineData("retired")]
+    [InlineData("target-after-read")]
+    public async Task ApproveAllSpokenApprovalControlSkipsConfirmationOnlyWithCurrentAuditedSession(string scenario)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var store = BindPermissionCommands(f);
+        await f.RunAsync("session permission review " + store.Session.Authority.SessionId.Value.ToString("D") + " approve-all");
+        await f.RunAsync("session permission confirm " + store.Session.Authority.SessionId.Value.ToString("D"));
+        store.FailAutomaticAudit = scenario is "audit-failure";
+        store.RetireAfterAutomaticAudit = scenario is "retired";
+        Kora.Core.Storage.SessionWorkspaceEntry? target = store.Session;
+        Func<Kora.Core.Storage.SessionWorkspaceEntry?> selected = () => target;
+        f.ViewModel.SessionControlWorkspace!.BindPermissionControlTarget(selected);
+        f.ViewModel.CurrentPermissionControlTarget.Should().Be(store.Session);
+        var reads = 0;
+        store.AfterPermissionRead = () =>
+        {
+            if (scenario is "target-after-read" && ++reads == 2) { target = null; }
+        };
+        using var parent = scenario is "native-parent" ? HostActivity.BeginRoot(
+            new(new(Guid.NewGuid()), store.Session.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Policy) : null;
+        var review = () => f.ViewModel.ReviewSpokenApprovalsCommand.ExecuteAsync();
+        if (scenario is "success" or "native-parent")
+        {
+            await review();
+            f.CallPreferences.SavedSettings!.AllowSpokenApprovalsDuringCalls.Should().BeTrue();
+            var audit = store.AutomaticAudits.Should().ContainSingle().Subject;
+            audit.Policy.Level.Should().Be(SessionPermissionLevel.ApproveAll);
+            audit.PromptCategory.Should().Be("call-spoken-approval-control");
+            audit.ContentDigest.Should().HaveLength(64);
+            audit.GrantsEvaluated.Should().BeFalse();
+        }
+        else
+        {
+            if (scenario is "audit-failure") { await review.Should().ThrowAsync<IOException>(); }
+            else { await review(); }
+            f.CallPreferences.SavedSettings.Should().BeNull();
+            f.ViewModel.SpokenApprovalsStatus.Should().Contain("Off");
+        }
+        GC.KeepAlive(selected);
+    }
+
     [Fact]
     public async Task Spoken_approval_setting_requires_fresh_native_review_and_explicit_downgrade_confirmation()
     {

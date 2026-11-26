@@ -26,6 +26,14 @@ Jump to [microphone consent](#microphone-consent), [files](#local-file-inspectio
 For a simple overview of local and roaming data, see
 [Data storage and roaming profiles](data-storage.md).
 
+## Approve all and disclosure
+
+The [Approve all session level](session-permission-levels.md) automatically approves Kora-owned action, script, local MCP process, protected-control, result-continuation and data-disclosure prompts. Admission grants are not evaluated, consumed or created. Choose Review all for future manual review; changing a level does not cancel running work or retract information already sent.
+
+Every automatic approval needs a trusted typed session audit. Disclosures record digests of the actual final request and destination/account/profile, together with exact session/task/request, policy and proposal/action/effect identities; never raw question, response, script, definition, clipboard or credential content. Failed audit or stale authority blocks admission ([typed audit](../src/Kora.Core/Auditing/AutomaticApprovalAudit.cs)).
+
+Approve all does not bypass microphone consent, memory admission, credentials, OS/UAC/provider authentication, privileged lifecycle confirmation, source/account/profile validation, byte bounds, egress enforcement, hard denials or physical joins. An unavailable provider/transport/runner stays unavailable ([canonical boundaries](../Design/Session_Permission_Levels.md#grant-and-consent-semantics)).
+
 ## Reviewed session memory controls
 
 Kora has a provider-independent reviewed memory domain and a bounded session-only private durable store.

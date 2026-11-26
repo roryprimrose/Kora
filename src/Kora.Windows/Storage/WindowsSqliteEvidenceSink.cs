@@ -734,7 +734,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IBatchedEvidenceSink
         // Constructor validation remains authoritative, including persisted enum/identifier bounds.
         _ = new Kora.Core.Auditing.SecurityAuditEvent(envelope.Audit.CorrelationId, envelope.Audit.Category,
             envelope.Audit.ActionId, envelope.Audit.Outcome, envelope.Audit.Initiator, envelope.Audit.TargetId,
-            envelope.Audit.ApprovalId, envelope.Audit.ReasonCode);
+            envelope.Audit.ApprovalId, envelope.Audit.ReasonCode, envelope.Audit.AutomaticApproval);
     }
 
     private static void ValidateActivity(CompletedActivityEnvelope envelope)

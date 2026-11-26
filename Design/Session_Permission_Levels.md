@@ -6,17 +6,17 @@ date: 2026-10-10
 
 ## Purpose and Authority
 
-Let the user choose how Kora authorizes otherwise ungranted actions in one identified Kora work session: **Review all**, **Model review**, or **Approve all**. Apply the same decision path to direct commands, native UI actions, model tools, MCP calls, generated scripts, stored scripts, and script-backed skills. A permission level is session policy, not a permission grant.
+Let the user choose how Kora authorizes actions in one identified Kora work session: **Review all**, **Model review**, or **Approve all**. Apply the same decision path to direct commands, native UI actions, model tools, MCP calls, generated scripts, stored scripts, and script-backed skills. A permission level is session policy, not a permission grant.
 
 This document owns level semantics, the reviewer protocol, and call-time approval-channel behavior. [Grant types and inheritance](Security_Data_Flows.md#grant-types-and-inheritance) continues to own exact grant applicability/lifetimes; [interaction and sessions](Interaction_And_Sessions.md#structured-questions-and-mixed-channel-replies) owns question routing and shared voice/UI drafts.
 
-The [exact authorization service](../src/Kora.Application/Interaction/HostAuthorizationService.cs) and [session policy module](../src/Kora.Application/Interaction/SessionPermission/HostAuthorizationService.SessionPermission.cs) implement the grant-first policy and one-invocation admission. This design does not enable scripts, MCP transports, or model execution that have not passed their independent admission gates.
+The [exact authorization service](../src/Kora.Application/Interaction/HostAuthorizationService.cs) and [session policy module](../src/Kora.Application/Interaction/SessionPermission/HostAuthorizationService.SessionPermission.cs) retain grant-first Review all/Model review and grant-free Approve all admission. The [2026-11-26 amendments](Decision_Register.md#grant-free-approve-all-session-mode---2026-11-26) do not enable unqualified scripts, transports or models.
 
 ## Delivered Bounded Implementation
 
 The [native guide](../docs/session-permission-levels.md) describes exact Active-session Read/Review/Confirm/Cancel controls in both session surfaces. Version 13 of the private authority store explicitly migrates older sessions to Review all, persists selected policy independently of grants, and resets it with Done/deletion. Resumption cannot revive it. Audit and admission commit together; policy changes retire pending cards, observations and undispatched receipts.
 
-The current external-page/MCP consumers use the same decision and pre-effect policy-revision path, preserving their independent native-only endpoint/account/tool/argument/disclosure reviews. Existing fixed grant-free help and deterministic stop controls remain unchanged. Separate bounded reviewer protocol and deterministic transport fakes exist; no production reviewer is qualified or selected. Model review therefore requires user approval in production. There is no provider fallback, executor self-assessment or speculative runner enablement.
+The [external-page](../src/Kora.Application/Network/LocalWebPageInvocation.cs) and [MCP consumers](../src/Kora.Application/Mcp/McpInvocation.cs) use the same decision and pre-effect policy revalidation. Approve all skips Kora-owned review and disclosure prompts, not endpoint/account validation or byte/egress gates. Help and deterministic stop controls remain unchanged; an unavailable independent Model review reviewer still requires user approval.
 
 The live call-policy gate serializes exact answer/admission commit with call/setting changes. Native Calls settings provide explicit reviewed spoken-approval enable/disable; default is Off and known older settings migrate Off. Applicable grants and session levels are not withdrawn on call entry. This is deterministic implementation evidence, not automatic detector, physical voice, provider, containment or installed-runtime qualification.
 
@@ -30,44 +30,40 @@ during protected calls. Native confirmation cannot relabel voice or model input;
 the command route retains its original voice audit channel instead.
 Cancel, expired/stale/revoked sources, read completion after retirement and
 uncertain commit never grant permission or replay work.
-No new schema, permission semantics, grants, production reviewer or provider
-qualification is introduced. See the [complete operation](../docs/session-permission-levels.md#typed-and-activated-voice-changes)
+When the current level is Approve all, the exact review command commits the protected change without a separate human confirmation, using the current policy as its audited basis. Other levels keep the two-command operation. See the [complete operation](../docs/session-permission-levels.md#typed-and-activated-voice-changes)
 and [real-store regressions](../tests/Kora.Windows.IntegrationTests/SessionPermissionTests.Commands.cs).
 
 Direct and model-proposed [Lock](Built_In_Skills.md#initial-skill-lock-the-machine)
 share the exact package-grant path rather than named model-action preferences.
-The existing mandatory native script review remains independent of ordinary
-discretionary review at all three levels. Approve all cannot enable the
-unqualified runtime, waive that boundary or mint a script grant; existing exact
-grants retain their ordinary scope/applicability rules. Original voice lineage
+Approve all automatically approves the exact Kora-owned script review without evaluating or minting a grant; contained-runtime admission remains independent. Review all and Model review retain exact script/grant review. Original voice lineage
 survives native approval and the owner's intentional capture/resource closure.
 
 ## Agreed Product Decisions
 
-- New sessions start at Review all. Never inherit a level from another session, selected window, provider conversation, skill, or parent task.
+- Genuinely new sessions start at the device-local Settings default, initially Review all. Never inherit another session's policy; changing the preference leaves existing sessions unchanged.
 - Persist an explicitly selected level for the same Active work session across application restart. Done atomically resets it to Review all; resuming that session does not restore its former level. Deletion removes its policy state, not independent Always grants.
 - Use a separate, tools-disabled reviewer call for Model review, not the executing model's self-assessment. Concern, uncertainty, invalid responses, and reviewer failures require user approval.
 - Outside calls, deliberate voice and native UI can approve Once, This session, or Always. Mandatory authentication remains independent of input channel.
 - During protected calls, disable spoken approvals by default, configurable through settings. Keep existing grants and the selected level unchanged; calls do not force fresh approval or downgrade the level.
 - Combine exact action approval and associated data-disclosure consent in one host-owned card when both describe the same operation. Record their authorities separately.
-- Approve all skips discretionary action safety analysis and ordinary approval. It does not disable mandatory privacy, consent, identity, ownership, containment, authentication, audit, or prohibited-effect boundaries.
+- Approve all skips discretionary action analysis and Kora-owned action, process, script, protected-control, result-continuation and data-disclosure prompts. It does not disable identity, ownership, containment, authentication, microphone, memory, privileged lifecycle, audit or prohibited-effect boundaries.
 
 ## Levels and Decision Order
 
-An applicable grant takes precedence over the level. A stored Active record alone is not applicable: resolve current action/content, parameters, targets, identity, destination, transformation, grant scope, session generation, and host policy before considering it.
+Resolve current mandatory authority and the exact session level first. In Approve all, do not inspect grants for applicability or consume/create them. In Review all/Model review, an applicable exact grant takes precedence; a stored Active record alone is insufficient ([authorization owner](../src/Kora.Application/Interaction/SessionPermission/HostAuthorizationService.SessionPermission.cs)).
 
 | Situation after mandatory validation | Review all | Model review | Approve all |
 |---|---|---|---|
-| Exact applicable grant covers the operation | Use grant; no action review | Use grant; no reviewer call | Use grant; no action review |
+| Exact applicable grant covers the operation | Use grant; no action review | Use grant; no reviewer call | Do not evaluate grant; audited automatic admission |
 | No applicable grant; no independent consent is missing | Ask user | Review exact operation; Safe allows, Concern/Uncertain asks | Allow without discretionary safety analysis or ordinary prompt |
-| Independent disclosure consent is missing | Combined approval/consent card | Combined card, even if reviewer says Safe | Combined card; level cannot supply disclosure consent |
+| Kora-owned disclosure consent is required | Combined approval/consent card | Combined card, even if reviewer says Safe | Audited automatic consent for exact final request; no human prompt |
 | Mandatory gate fails or action is prohibited/unavailable | Deny or block with recovery | Deny or block with recovery | Deny or block with recovery |
-| Approval required while spoken approval is disabled by call policy | UI approval | UI approval | UI consent/mandatory confirmation where required |
+| Approval required while spoken approval is disabled by call policy | UI approval | UI approval | Automatic Kora approval; independent mandatory workflows remain |
 
 1. Resolve original-user intent and durable session/task/invocation identity. Clarify ambiguity before authorization; untrusted content cannot introduce new intent.
 2. Resolve an immutable host-owned operation proposal and its implementation, resources, effect, parameters, identity, destination, transformation, deadlines, and policy revisions. Validate the execution profile and independent boundaries.
-3. Observe relevant content changes and revoke affected exact authorization under the existing grant contract. Never restore old authorization merely because old bytes return.
-4. Look up current applicable grants and separate required consent. Use a complete applicable grant without review or inference; partial authority cannot authorize the entire operation.
+3. In Approve all, skip grant observation/applicability/use and commit trusted automatic approval. In other levels, observe changed content and retire affected exact authorization; old bytes returning never restore it.
+4. In Review all/Model review, look up applicable grants and separate required consent. Partial authority cannot authorize the entire operation.
 5. For missing action authority, apply the selected session level. A required consent/mandatory confirmation card takes precedence; do not make a redundant reviewer call when user confirmation is already unavoidable.
 6. If asking, present one exact host-owned card and bind the answer to its proposal/question revision. A rejection, cancellation, expiry, ambiguous reply, or unavailable approval channel produces no authority.
 7. Immediately before dispatch, atomically revalidate session/control generation, level revision, grant/consent revisions, proposal/content, accepted decision lineage, cancellation, and mandatory policy; commit required authorization/use audit and a single-invocation admission receipt. Call-based voice eligibility is checked at answer acceptance, not used to revoke a committed decision.
@@ -87,7 +83,7 @@ When user approval is needed, offer **Once**, **This session**, **Always**, and 
 
 Reuse the existing [exact grant contract](Security_Data_Flows.md#grant-types-and-inheritance); do not promote legacy action-name preferences to script/content-bound grants. Offer reusable scopes only when the actual operation can be represented exactly; never grant unspecified future files, effects, scripts, accounts, or destinations.
 
-Automatic Safe and Approve-all admissions create **no grant** and do not edit, extend, or reactivate grants. Each produces a one-invocation admission receipt and audit only. Existing grant use retains normal consumption/use-count bookkeeping. Model-review concern followed by explicit user approval can create the chosen grant, exactly as in Review all.
+Automatic Safe and Approve-all admissions create **no grant**. Approve all additionally does not evaluate, consume, edit or retire existing admission grants. Each automatic admission has a one-invocation receipt and trusted audit; normal grant bookkeeping remains in Review all/Model review ([transaction](../src/Kora.Application/Interaction/InteractionTransaction.cs)).
 
 The combined action/disclosure card shows exact sources or snapshots, transformation, destination/account, effect, parameters, script/dependency identities where relevant, and proposed duration. One explicit answer can authorize both, but action authorization and disclosure consent have separate typed bindings and audit identities.
 
@@ -95,7 +91,11 @@ Do not broaden disclosure merely because Always was selected. Show the exact reu
 
 Microphone enablement, credential entry, OS/UAC/provider authentication, memory admission, and privileged lifecycle confirmations keep their independently required workflows. Action policy never supplies those authorities. [Runtime egress enforcement](Security_Data_Flows.md#runtime-egress-enforcement) still applies to reviewer/model, MCP requests, redirects, and every result status.
 
-Grant creation/edit/removal and permission-level or call-approval-setting changes are protected control operations. They require explicit original-user confirmation and cannot be auto-approved by the level being changed or a reviewer verdict. Combined execution approval is the explicit authorized grant-creation path, not model self-authorization.
+Grant management and permission-level/call-approval-setting changes are protected original-user control operations. Current Approve all automatically approves their exact Kora-owned prompt with a fail-closed audit; Review all/Model review retain explicit confirmation. Management does not create an admission grant or confer model self-authorization ([control owner](../src/Kora.Application/Hosting/SessionWorkspaceService.SessionPermission.cs)).
+
+Every automatic approval records the [typed audit](../src/Kora.Core/Auditing/AutomaticApprovalAudit.cs): exact request/session/task, proposal/action/effect, binding/content digests, current policy revision, skipped-prompt category, approve-all basis and grants-not-evaluated. Disclosures bind destination/account/profile and actual request-body digests, never raw content.
+
+Hosted [final-request review](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs) audits each captured physical request, including follow-ups/retries and selected definitions. Remote [MCP disclosure](../src/Kora.Windows/Mcp/McpHttpConnection.cs) hashes immutable SDK-produced bytes immediately before SendAsync, including protocol notifications. Audit failure or stale policy prevents egress.
 
 ## Model Reviewer
 

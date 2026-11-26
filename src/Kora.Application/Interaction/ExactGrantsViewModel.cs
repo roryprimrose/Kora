@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Text;
 
 using Kora.Application.Infrastructure;
+using Kora.Application.Hosting;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Authorization;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -39,11 +41,16 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
     private ExactGrantBatch? batchPreview;
     private bool batchReviewed;
     private long batchControlRevision;
+    private readonly SessionWorkspaceService? permissionWorkspace;
+    private SessionPermissionPolicy? automaticPermission;
+    private bool HasAutomaticPermission => automaticPermission is { } policy
+        && (managementSession ?? permissionWorkspace!.PermissionControlTarget?.Authority.SessionId) == policy.SessionId;
 
     public ExactGrantsViewModel(IExactGrantStore store, ExactGrantControlAdmission control,
         ISessionWorkspaceAccess access, Func<bool> nativeAdmission, ILogger<ExactGrantsViewModel> logger,
         PermissionGrantManagementService? permissions = null, Func<bool>? uriAdmission = null,
-        bool managementView = false, HostId<SessionIdentity>? managementSession = null)
+        bool managementView = false, HostId<SessionIdentity>? managementSession = null,
+        SessionWorkspaceService? permissionWorkspace = null)
     {
         this.store = store;
         this.control = control;
@@ -54,6 +61,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         this.uriAdmission = uriAdmission ?? (() => false);
         this.managementView = managementView;
         this.managementSession = managementSession;
+        this.permissionWorkspace = permissionWorkspace;
         if (managementView) { statusFilter = "Active"; }
         AddUriRuleCommand = new(() => AddUriRuleAsync(), ReportFailure,
             () => CanChangeUriRules && !string.IsNullOrWhiteSpace(UriPatternInput));
@@ -82,7 +90,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
     public AsyncCommand PreviewBatchCommand { get; }
     public AsyncCommand RevokeBatchCommand { get; }
     public bool BatchReviewed { get => batchReviewed; set { SetProperty(ref batchReviewed, value); NotifyCommands(); } }
-    public bool CanRevokeBatch => !disposed && !Busy && BatchReviewed && batchPreview is not null
+    public bool CanRevokeBatch => !disposed && !Busy && (BatchReviewed || HasAutomaticPermission) && batchPreview is not null
         && access.CanControl && nativeAdmission() && batchControlRevision == access.ControlRevision;
     public string BatchInspection => batchPreview is null ? "Select explicit exact IDs in this page (Ctrl/Shift), then preview the complete batch."
         : "Batch preview ID: " + batchPreview.PreviewId.ToString("D") + "; selected records: "
@@ -155,10 +163,11 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         var version = selectionVersion;
         var filters = filterVersion;
         bool Admitted() => !disposed && nativeAdmission() && access.CanControl && access.ControlRevision == revision
-            && selectionVersion == version && ReferenceEquals(batchPreview, exact) && BatchReviewed;
+            && selectionVersion == version && ReferenceEquals(batchPreview, exact) && (BatchReviewed || HasAutomaticPermission);
         try
         {
-            var result = await control.RevokeBatchAsync(exact, Admitted, linked.Token);
+            var result = await control.RevokeBatchAsync(exact, Admitted, linked.Token,
+                HasAutomaticPermission ? check => AuditAutomaticControlAsync("grant.revoke-batch", exact, Admitted, check) : null);
             RequireCurrent(revision, version, controlRequired: true, linked.Token);
             ClearBatch();
             batchSelection = [];
@@ -184,7 +193,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
     public string Message { get => message; private set => SetProperty(ref message, value); }
     public bool Busy { get => busy; private set { SetProperty(ref busy, value); NotifyCommands(); } }
     public bool Reviewed { get => reviewed; set { SetProperty(ref reviewed, value); NotifyCommands(); } }
-    public bool CanRevoke => !disposed && !Busy && Reviewed && preview?.Grant.Status == OperationGrantStatus.Active
+    public bool CanRevoke => !disposed && !Busy && (Reviewed || HasAutomaticPermission) && preview?.Grant.Status == OperationGrantStatus.Active
         && access.CanControl && nativeAdmission() && previewControlRevision == access.ControlRevision;
     public ExactGrantInspection? Selected
     {
@@ -230,6 +239,17 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         {
             var inventory = await permissions.ReadAsync(query, cursor, linked.Token);
             RequireCurrent(revision, version, controlRequired: false, linked.Token);
+            automaticPermission = null;
+            var permissionSession = managementSession ?? permissionWorkspace?.PermissionControlTarget?.Authority.SessionId;
+            if (permissionSession is { } subject && permissionWorkspace is { SupportsSessionPermission: true })
+            {
+                using var observation = HostActivity.HasScope ? null : HostActivity.BeginRoot(
+                    new(new(Guid.NewGuid()), subject, new(Guid.NewGuid()), RequestOrigin.LocalUi),
+                    HostActivityLayer.Application, HostOperation.Storage);
+                var policy = await permissionWorkspace.ReadSessionPermissionAsync(subject, linked.Token);
+                RequireCurrent(revision, version, controlRequired: false, linked.Token);
+                if (policy.Level == SessionPermissionLevel.ApproveAll) { automaticPermission = policy; }
+            }
             var page = inventory.ExactPage;
             Records = page.Records;
             SetPermissionRecords(inventory.Grants);
@@ -287,10 +307,11 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         var version = selectionVersion;
         var filters = filterVersion;
         bool Admitted() => !disposed && nativeAdmission() && access.CanControl && access.ControlRevision == revision
-            && selectionVersion == version && ReferenceEquals(preview, exact) && Reviewed;
+            && selectionVersion == version && ReferenceEquals(preview, exact) && (Reviewed || HasAutomaticPermission);
         try
         {
-            var decision = await control.RevokeAsync(exact, Admitted, linked.Token);
+            var decision = await control.RevokeAsync(exact, Admitted, linked.Token,
+                HasAutomaticPermission ? check => AuditAutomaticControlAsync("grant.revoke", exact, Admitted, check) : null);
             RequireCurrent(revision, version, controlRequired: true, linked.Token);
             preview = null;
             ClearHistory();
@@ -305,6 +326,18 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
             Failed(exception.GetType().Name);
         }
         finally { EndOperation(); }
+    }
+
+    private async Task AuditAutomaticControlAsync<T>(string action, T exact, Func<bool> admitted, CancellationToken token)
+    {
+        if (!HasAutomaticPermission) { return; }
+        var policy = automaticPermission!;
+        var workspace = permissionWorkspace!;
+        var digest = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(exact)));
+        await workspace.RecordAutomaticControlApprovalAsync(policy, action, digest, "grant-management-control", admitted, token);
+        if (!admitted() || await workspace.ReadSessionPermissionAsync(policy.SessionId, token) != policy)
+        { throw new InvalidOperationException("The exact automatic grant-control policy changed before mutation."); }
     }
 
     private CancellationTokenSource Begin(CancellationToken token)

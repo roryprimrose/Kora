@@ -55,6 +55,14 @@ public sealed class SessionPermissionCommandService(
                 }
                 if (!target.Authority.IsActive || command.PermissionLevel is not { } desired || !Enum.IsDefined(desired))
                 { throw new InvalidOperationException("Review requires an Active conversation and an exact supported permission level."); }
+                if (policy.Level == SessionPermissionLevel.ApproveAll)
+                {
+                    var automaticPolicy = await workspace.SetReviewedSessionPermissionAsync(policy, desired, origin,
+                        () => Live() && ReviewSourceLive(), token).ConfigureAwait(false);
+                    activity.Complete(HostOperationOutcome.Completed);
+                    return new("committed", $"Exact conversation {session.Value:D}: {automaticPolicy.DisplayName}. "
+                        + "Approve all skipped the protected-control prompt; policy and required audit committed. No grants or execution created.");
+                }
                 var next = (policy with { Level = desired }).DisplayName;
                 lock (gate)
                 {

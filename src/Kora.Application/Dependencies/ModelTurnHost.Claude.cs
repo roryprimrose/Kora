@@ -6,8 +6,19 @@ namespace Kora.Application.Dependencies;
 
 public sealed partial class ModelTurnHost
 {
-    public async Task<ModelTurnAdmission> AdmitClaudeAsync(ModelContextEnvelope context, CancellationToken token,
-        bool streamAnswer = false)
+    public Task<ModelTurnAdmission> AdmitClaudeAsync(ModelContextEnvelope context, CancellationToken token,
+        bool streamAnswer = false) => AdmitClaudeCoreAsync(context, streamAnswer, null, null, token);
+
+    public Task<ModelTurnAdmission> AdmitClaudeAsync(ModelContextEnvelope context, SelectedHostedDefinition selection,
+        Func<CancellationToken, ValueTask<bool>> sourceCurrent, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        return AdmitClaudeCoreAsync(context, false, selection, sourceCurrent, token);
+    }
+
+    private async Task<ModelTurnAdmission> AdmitClaudeCoreAsync(ModelContextEnvelope context,
+        bool streamAnswer, SelectedHostedDefinition? selection, Func<CancellationToken, ValueTask<bool>>? sourceCurrent,
+        CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(context);
         var issuer = HostActivity.Current;
@@ -19,17 +30,31 @@ public sealed partial class ModelTurnHost
         { return new(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
         var control = access.ControlRevision;
         bool Live() => Eligible(control) && !issuer.Activity!.IsStopped && issuer.Outcome == HostOperationOutcome.Unknown;
+        if (selection is not null && (context.ToolMode != ModelToolMode.None || sourceCurrent is null
+            || !await sourceCurrent(token).ConfigureAwait(false) || !Live()))
+        { return new(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
         var session = await sessionProfiles.ReadProviderProfile(issuer.Request.SessionId, token).ConfigureAwait(false);
         if (session.Held || !session.Session.IsActive || session.Session.SessionId != issuer.Request.SessionId || !Live())
         { return new(Finish(ModelTurnOutcome.Denied, ModelTurnReason.SessionNotAdmitted)); }
         var resolved = await providerProfileConfiguration.ResolveTurnAsync(Live, session.Desired, token).ConfigureAwait(false);
         if (!Live() || !resolved.Current() || resolved.Tuple is not { Service: ProviderService.Claude } profile)
         { return new(Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)); }
-        var authorization = hostedReviews.PrepareClaudeTurn(context, profile, streamAnswer);
+        if (selection is not null && (!await sourceCurrent!(token).ConfigureAwait(false) || !Live()))
+        { return new(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
+        var authorization = hostedReviews.PrepareClaudeTurn(context, profile, streamAnswer, selection, sourceCurrent);
         Volatile.Write(ref authorization.Used, 1);
         var admission = await AdmitConfiguredProfileAsync(ModelTurnChoice.Hosted, context, null, token, authorization).ConfigureAwait(false);
-        if ((streamAnswer || context.ToolMode == ModelToolMode.HostedClarification) && admission.Turn is { } turn)
-        { turn.ValidateAnswerCommit = ct => RevalidateContinuationAsync(turn, ct); }
+        if ((selection is not null || streamAnswer || context.ToolMode == ModelToolMode.HostedClarification) && admission.Turn is { } turn)
+        {
+            turn.ValidateAnswerCommit = async ct =>
+            {
+                var reason = await RevalidateContinuationAsync(turn, ct).ConfigureAwait(false);
+                if (reason != ModelTurnReason.None) { return reason; }
+                if (sourceCurrent is not null && !await sourceCurrent(ct).ConfigureAwait(false))
+                { return ModelTurnReason.EgressNotAdmitted; }
+                return await RevalidateContinuationAsync(turn, ct).ConfigureAwait(false);
+            };
+        }
         return admission;
     }
 }

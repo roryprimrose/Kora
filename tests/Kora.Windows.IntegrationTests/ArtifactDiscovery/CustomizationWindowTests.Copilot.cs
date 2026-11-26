@@ -34,7 +34,13 @@ public sealed partial class CustomizationWindowTests
     [InlineData("dirty-draft")]
     [InlineData("missing-source")]
     [InlineData("workflow-unavailable")]
+    [InlineData("stop-join")]
+    [InlineData("task-join")]
+    [InlineData("close-join")]
     public Task SelectedCopilotNativeUiRequiresAllSeparateDecisionsBeforeCanonicalRetention(string stop) =>
+        SelectedHostedNativeUiRequiresDecisions(stop, "Copilot");
+
+    private Task SelectedHostedNativeUiRequiresDecisions(string stop, string provider) =>
         HeadlessSession.RunAsync(async () =>
         {
             await using var f = new NativeUxFixtureSession(Path.GetTempPath());
@@ -51,7 +57,9 @@ public sealed partial class CustomizationWindowTests
             WindowsOwnedInstructionStoreTests.WriteOwnedFile(source.Location, original.CopyBytes());
             var use = new ArtifactUsePreferences(f);
             using var catalogue = EmbeddedArtifactCatalogue.Load();
-            var management = new CustomizationManagementService(store, admission, use, catalogue, f.Audit);
+            var paused = stop.EndsWith("-join", StringComparison.Ordinal) ? new PausedCustomizationStore(store) : null;
+            ICustomizationStore sources = paused is null ? store : paused;
+            var management = new CustomizationManagementService(sources, admission, use, catalogue, f.Audit);
             var directories = new LocalArtifactDirectoryPreferences(f);
             using var reload = new ArtifactCatalogueReloadService(catalogue, f, directories,
                 new ArtifactDirectoryConfigurationService(directories, f.Audit),
@@ -70,7 +78,9 @@ public sealed partial class CustomizationWindowTests
             using var controller = new CustomizationWindowController(f.Main, management, authoring, catalogue, reload,
                 () => true, () => 1, NullLogger<CustomizationWindowController>.Instance,
                 copilotWorkflow: stop is "workflow-unavailable" ? null
-                    : () => new(management, f.Sessions, conversation, models, f.Audit, f.Time));
+                    : () => new(management, f.Sessions, conversation, models, f.Audit, f.Time),
+                claudeWorkflow: stop is "workflow-unavailable" ? null
+                    : () => new(management, f.Sessions, conversation, models, f.Audit, f.Time, Kora.Core.Providers.ProviderService.Claude));
             CustomizationWindow? editor = null;
             var selectionStatuses = new List<string?>();
             var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -115,16 +125,17 @@ public sealed partial class CustomizationWindowTests
             const string body = "  original UI task\r\n unchanged  ";
             editor.Request.Text = body;
             if (stop is "dirty-draft") { editor.Editor.Text += "\nUnsent draft change."; }
-            Choose(editor, "Run selected with Copilot");
+            if (paused is not null) { paused.Pause = true; }
+            Choose(editor, "Run selected with " + provider);
             if (stop is "dirty-draft" or "missing-source" or "workflow-unavailable")
             {
                 await controller.WaitForOperation();
-                editor.Status.Text.Should().Be(stop switch
+                editor.Status.Text.Should().Be((stop switch
                 {
                     "dirty-draft" => "Save or reload the current customization draft before running the selected source with Copilot. No request was submitted.",
                     "missing-source" => "Select and load one saved exact source before running it with Copilot. No request was submitted.",
                     _ => "Selected Copilot workflow is unavailable. No source was read or request submitted.",
-                });
+                }).Replace("Copilot", provider, StringComparison.Ordinal));
                 next.Task.IsCompleted.Should().BeFalse();
                 (await f.Interactions.ReadConversationPageAsync(target.Authority.SessionId, null, 25, f.Token)).Messages.Should().BeEmpty();
                 (await File.ReadAllBytesAsync(source.Location, f.Token)).Should().Equal(original.CopyBytes());
@@ -139,6 +150,28 @@ public sealed partial class CustomizationWindowTests
             {
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 Choose(read, "Read this exact source");
+                if (paused is not null)
+                {
+                    await paused.Entered.Task.WaitAsync(f.Token);
+                    var owned = controller.WaitForOperation();
+                    try
+                    {
+                        var other = provider is "Claude" ? "Copilot" : "Claude";
+                        Choose(editor, "Run selected with " + other);
+                        paused.PausedReads.Should().Be(1);
+                        if (stop is "task-join") { editor.Request.Text = "Changed original task"; }
+                        else if (stop is "close-join") { editor.Close(); }
+                        else { Choose(editor, "Stop selected " + other + " request"); }
+                        owned.IsCompleted.Should().BeFalse("cancellation or closing cannot release the selected slot before the read joins");
+                        (await f.Interactions.ReadConversationPageAsync(target.Authority.SessionId, null, 25, f.Token)).Messages.Should().BeEmpty();
+                    }
+                    finally { paused.Release.TrySetResult(); }
+                    await owned.WaitAsync(f.Token);
+                    paused.PausedReads.Should().Be(1);
+                    (await f.Interactions.ReadConversationPageAsync(target.Authority.SessionId, null, 25, f.Token)).Messages.Should().BeEmpty();
+                    editor.Close();
+                    return;
+                }
                 var sourceReview = await NextReview();
                 ReadText(sourceReview).Should().Contain(original.Text).And.Contain(body).And.Contain(target.Metadata.Name.Value);
                 (await f.Interactions.ReadConversationPageAsync(target.Authority.SessionId, null, 25, f.Token)).Messages.Should().BeEmpty();

@@ -30,8 +30,7 @@ public sealed partial class ModelTurnHost
         { return new(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
         var control = access.ControlRevision;
         bool Live() => Eligible(control) && !issuer.Activity!.IsStopped && issuer.Outcome == HostOperationOutcome.Unknown;
-        if (selection is not null && (streamAnswer || context.ToolMode != ModelToolMode.None
-            || !context.Evidence.IsEmpty || context.McpTool is not null || sourceCurrent is null
+        if (selection is not null && (context.ToolMode != ModelToolMode.None || sourceCurrent is null
             || !await sourceCurrent(token).ConfigureAwait(false) || !Live()))
         { return new(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
         var session = await sessionProfiles.ReadProviderProfile(issuer.Request.SessionId, token).ConfigureAwait(false);

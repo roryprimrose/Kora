@@ -35,8 +35,7 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
         var current = ValidatePreparation(context, profile, ProviderService.Claude);
         if (!ClaudeObservationTools.Supports(context) || streamAnswer && context.ToolMode != ModelToolMode.None)
         { throw new InvalidOperationException("Claude requires an explicit text, observation or dedicated clarification operation, without evidence; streaming is text-only."); }
-        if (selection is not null && (sourceCurrent is null || streamAnswer || context.ToolMode != ModelToolMode.None
-            || !context.Evidence.IsEmpty || context.McpTool is not null))
+        if (selection is not null && (sourceCurrent is null || streamAnswer || context.ToolMode != ModelToolMode.None))
         { throw new InvalidOperationException("Selected Claude USER copy requires exact source validation and no streaming, tools or evidence."); }
         return new(this, current, context, profile, streamAnswer, selection, sourceCurrent);
     }

@@ -165,26 +165,73 @@ public sealed partial class ModelTurnHostTests
 
     [Theory]
     [InlineData("tools")]
+    [InlineData("evidence")]
+    [InlineData("mcp")]
     [InlineData("missing-validator")]
     [InlineData("source-first")]
+    [InlineData("host-first")]
+    [InlineData("source-last")]
     [InlineData("host-last")]
     public async Task SelectedClaudeAdmissionRevalidatesSourceAndHostAroundProfileResolution(string fault)
     {
         using var f = new Fixture();
         using var root = f.Root();
         var reviews = new HostedTransmissionReviewService(f, f.Time);
-        var host = f.ClaudeProfiles(new ClaudeRuntime(), reviews);
+        var runtime = new ClaudeRuntime();
+        var host = f.ClaudeProfiles(runtime, reviews);
         var copy = new SelectedHostedDefinition(CustomizationKind.Skill, "source", "revision", "reviewed", "Description", "Exact source");
         var checks = 0;
         ValueTask<bool> Current(CancellationToken token)
         {
             checks++;
-            if (fault is "host-last" && checks == 2) { f.ControlRevision++; }
-            return ValueTask.FromResult(fault is not "source-first");
+            if (fault is "host-first" && checks == 1 || fault is "host-last" && checks == 2) { f.ControlRevision++; }
+            return ValueTask.FromResult(!(fault is "source-first" && checks == 1 || fault is "source-last" && checks == 2));
         }
-        var admission = await host.AdmitClaudeAsync(f.Context(toolMode: fault is "tools" ? ModelToolMode.ReadOnly : ModelToolMode.None),
-            copy, fault is "missing-validator" ? null! : Current, Token);
+        ModelContextEnvelope context = fault switch
+        {
+            "tools" => new(f.Request, "policy", "body", [], f.Time.Now, f.Time.Now.AddMinutes(1), ModelToolMode.ReadOnly,
+                ClaudeObservationTools.Constrain([Kora.Core.Tools.ReadOnlyCapabilityCatalog.Version])),
+            "evidence" => new(f.Request, "policy", "body",
+                [new(new(Guid.NewGuid()), f.Request, new(1), "not implicit context", ModelEvidenceDisclosure.HostedEligible)],
+                f.Time.Now, f.Time.Now.AddMinutes(1), ModelToolMode.None),
+            "mcp" => new(f.Request, "policy", "body", [], f.Time.Now, f.Time.Now.AddMinutes(1), ModelToolMode.McpReadOnly,
+                mcpTool: new("mcp.reviewed", McpSchema)),
+            _ => f.Context(toolMode: ModelToolMode.None),
+        };
+        var admission = await host.AdmitClaudeAsync(context, copy, fault is "missing-validator" ? null! : Current, Token);
         admission.Turn.Should().BeNull();
         admission.Result.Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
+        admission.Result.Reason.Should().Be(ModelTurnReason.EgressNotAdmitted);
+        runtime.Calls.Should().Be(0);
+        checks.Should().Be(fault switch
+        {
+            "source-first" or "host-first" => 1,
+            "source-last" or "host-last" => 2,
+            _ => 0,
+        });
+    }
+
+    [Fact]
+    public async Task UnsupportedHostedProviderCannotReadRetainOrPoisonTheSelectedWorkflowOwner()
+    {
+        var runtime = new ClaudeRuntime();
+        await using var f = new SelectedWorkflowFixture(runtime);
+        using var root = f.Host.Root();
+        Action construct = () => f.ClaudeWorkflow(ProviderService.Local);
+        construct.Should().Throw<ArgumentOutOfRangeException>();
+        f.Sources.Reads.Should().Be(0);
+        f.Host.RetainCalls.Should().Be(0);
+        runtime.Calls.Should().Be(0);
+
+        await using var workflow = f.ClaudeWorkflow();
+        var review = await workflow.ReviewAsync(f.Sources.Source, "Target", "original after rejection", RequestOrigin.LocalUi,
+            (_, _) => Task.FromResult(true), () => true, Token);
+        await workflow.ApproveHostedSourceAsync(review.Id, () => true, Token);
+        var receipt = await workflow.ConfirmAsync(review.Id, () => true, Token);
+        receipt.Message.Body.Should().Be("original after rejection");
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+        receipt.Message.AssistantResponse.Should().BeNull("missing selected capability cannot use the ordinary runtime");
+        f.Host.RetainCalls.Should().Be(1);
+        runtime.Calls.Should().Be(0);
     }
 }

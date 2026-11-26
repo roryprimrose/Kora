@@ -197,6 +197,11 @@ public sealed partial class ModelTurnHostTests
         }
         var review = await f.Workflow.ReviewAsync(f.Sources.Source, "Target", "  unchanged task\r\n", RequestOrigin.LocalUi,
             (_, _) => Task.FromResult(true), () => true, Token);
+        review.Snapshot.Should().BeSameAs(f.Sources.Snapshot);
+        review.Selection.SourceId.Should().Be(review.Snapshot.Source.Id);
+        review.Selection.Revision.Should().Be(review.Snapshot.Revision);
+        review.Selection.SourceText.Should().Be(review.Snapshot.Files[0].Text);
+        review.Target.Should().Be(new SessionWorkspaceEntry(f.Host.Session, f.Host.Metadata));
         review.Text.Should().Contain(f.Sources.Snapshot.Files[0].Text).And.Contain("  unchanged task\r\n").And.Contain("Target");
         f.Host.RetainCalls.Should().Be(0);
         if (state is "no-hosted-consent")
@@ -220,7 +225,9 @@ public sealed partial class ModelTurnHostTests
             if (state is "complete" or "complete-skill")
             {
                 var receipt = await f.Workflow.ConfirmAsync(review.Id, () => true, Token);
-                receipt.Message.Body.Should().Be("  unchanged task\r\n");
+                receipt.Message.Body.Should().Be(review.Body).And.Be("  unchanged task\r\n");
+                receipt.Message.Request.Origin.Should().Be(review.Origin).And.Be(RequestOrigin.LocalUi);
+                receipt.Message.Request.SessionId.Should().Be(review.Target.Authority.SessionId);
                 receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unavailable, "missing native capability is not text fallback");
                 receipt.Message.AssistantResponse.Should().BeNull();
                 f.Host.RetainCalls.Should().Be(1);
@@ -316,8 +323,8 @@ public sealed partial class ModelTurnHostTests
             conversation = Host.ConversationService(model, execution: model);
             Workflow = new(management, Workspace, conversation, model, Host, Host.Time);
         }
-        internal HostedCustomizationWorkflow ClaudeWorkflow() =>
-            new(management, Workspace, conversation, model, Host, Host.Time, ProviderService.Claude);
+        internal HostedCustomizationWorkflow ClaudeWorkflow(ProviderService provider = ProviderService.Claude) =>
+            new(management, Workspace, conversation, model, Host, Host.Time, provider);
         public async ValueTask DisposeAsync()
         {
             await Workflow.DisposeAsync();

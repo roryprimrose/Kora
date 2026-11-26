@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Interaction;
 using Kora.Application.UnitTests.Interaction;
 using Kora.Core.Hosting;
@@ -40,7 +40,7 @@ public sealed partial class MainViewModelTests
         accepted.Question.AnswerChannel.Should().Be(RequestOrigin.ActivatedVoice);
         host.Store.Snapshot.Questions.Single().Should().Be(accepted.Question);
         host.Store.Snapshot.Grants.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         f.ClipboardReader.Calls.Should().Be(0);
         f.Voice.IsCaptureQuiescent.Should().BeTrue();
@@ -76,7 +76,7 @@ public sealed partial class MainViewModelTests
         f.Voice.StartCalls.Should().Be(1);
         f.Audit.Events.Should().Contain(item => item.ActionId == "configuration.listening-disabled"
             && item.Initiator == SecurityAuditInitiator.VoiceCommand && item.Outcome == SecurityAuditOutcome.Succeeded);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
     }
 
@@ -102,7 +102,7 @@ public sealed partial class MainViewModelTests
         if (text) { answered.Draft!.Text.Should().Be(transcript); }
         else { answered.Draft!.Choices.Should().Equal("lock"); }
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.IsVoiceEnabled.Should().BeTrue();
         f.Voice.IsCaptureQuiescent.Should().BeTrue();
         f.ViewModel.Dispose();
@@ -150,7 +150,7 @@ public sealed partial class MainViewModelTests
         f.Voice.RaiseTranscript("Kora First", 1);
         f.Voice.RaiseTranscript("Nova First", 1);
         f.Voice.StartCalls.Should().Be(starts);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         f.ViewModel.Dispose();
     }

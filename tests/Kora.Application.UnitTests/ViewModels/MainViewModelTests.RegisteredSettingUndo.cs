@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Application.Hosting;
@@ -58,7 +58,7 @@ public sealed partial class MainViewModelTests
         f.Preferences.LoadSelection().Should().Be(selection);
         model.SelectedSpeechProvider.Should().BeSameAs(provider);
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -95,7 +95,7 @@ public sealed partial class MainViewModelTests
         model.HasVoiceConsent.Should().Be(consent);
         model.IsVoiceEnabled.Should().BeFalse();
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -135,7 +135,7 @@ public sealed partial class MainViewModelTests
         f.AppearancePreferences.Mode.Should().NotBeNull();
         if (loss is not "failure") { f.Audit.Events.Should().HaveCount(writes); }
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.SettingsUndoDescription.Should().Contain("not confirmed");
         await f.RunAsync("cancel settings undo");
         f.ViewModel.SettingsUndoDescription.Should().Contain("cancelled");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
         await FluentActions.Awaiting(() => HostRequestRunner.RunAsync(RequestOrigin.LocalUi, () =>
             f.ViewModel.ExecuteSettingsUndoAsync(RegisteredSettingSuggestionOperation.Review,
@@ -198,7 +198,7 @@ public sealed partial class MainViewModelTests
         f.Preferences.SummaryLimits.Should().Be(confirm ? null : new SpokenSummaryLimits(3, 40));
         model.CanConfirmSettingsUndo.Should().BeFalse();
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -218,7 +218,7 @@ public sealed partial class MainViewModelTests
         if (denial is "unprefixed") { await f.RaiseActivatedTranscriptAsync("confirm settings undo", 1); }
         else { await f.RunAsync("confirm settings undo"); }
         f.Preferences.SummaryLimits.Should().Be(new SpokenSummaryLimits(3, 40));
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -255,36 +255,6 @@ public sealed partial class MainViewModelTests
         finally { release.Set(); }
         await pending;
         f.AppearancePreferences.Mode.Should().BeNull();
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task PendingApprovalOrLostOwnerCannotDiscloseOrConsumeUndo(bool pendingApproval)
-    {
-        var f = new Fixture();
-        await using var admission = f.OutputAdmission;
-        await using var model = f.ViewModel;
-        await model.InitializeAsync();
-        await f.RunAsync("set speech.summary-words to 40");
-        if (pendingApproval)
-        {
-            await model.PrepareGrantChangeAsync(new Kora.Core.Commands.GrantChange(
-                Kora.Core.Commands.GrantChangeOperation.Add, Kora.Core.Commands.BuiltInAction.LockMachine,
-                Kora.Core.Commands.ModelApprovalScope.Session));
-        }
-        else { model.BindCallOwnershipGate(static () => false); }
-        model.CanReviewSettingsUndo.Should().BeFalse();
-        var title = model.ResponseTitle;
-        var body = model.ResponseBody;
-        await f.RunAsync("undo the last settings change");
-        f.Preferences.SummaryLimits.Should().Be(new SpokenSummaryLimits(3, 40));
-        if (pendingApproval)
-        {
-            model.ResponseTitle.Should().Be(title);
-            model.ResponseBody.Should().Be(body);
-            model.IsGrantChangePending.Should().BeTrue();
-        }
     }
 
     [Fact]

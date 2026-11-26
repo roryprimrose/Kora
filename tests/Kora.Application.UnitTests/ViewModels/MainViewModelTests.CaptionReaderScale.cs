@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Voice;
 using Kora.Core.Voice;
@@ -59,6 +59,6 @@ public sealed partial class MainViewModelTests
         caption.RefreshSpeechPlaybackFrame();
         caption.SpeechCaptionText.Should().BeNull();
         caption.IsSpeechCaptionVisible.Should().BeFalse();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Voice;
@@ -67,7 +67,7 @@ public sealed partial class MainViewModelTests
         }
         else { fixture.Voice.StartedPhrases.Should().BeEmpty("saving a typed/native preference does not open capture"); }
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Audit.Events.Should().Contain(item => string.Equals(item.ActionId, "configuration.speech-text", StringComparison.Ordinal)
             && item.Outcome == SecurityAuditOutcome.Succeeded);
         await fixture.RunAsync("status display.speech-text");
@@ -123,7 +123,7 @@ public sealed partial class MainViewModelTests
         await response;
         fixture.ViewModel.SpeechCaptionText.Should().Be(unavailable ? null : map.GetText(next));
         fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.TextToSpeech.SpeakCalls.Should().Be(calls + 1);
         await fixture.RunAsync("reset display.speech-text");
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();

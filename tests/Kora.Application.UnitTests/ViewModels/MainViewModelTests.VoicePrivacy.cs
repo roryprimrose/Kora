@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using AwesomeAssertions;
 using Kora.Application.Communication;
 using Kora.Application.ViewModels;
@@ -53,7 +53,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Kora version");
         fixture.Voice.StartCalls.Should().Be(2);
         fixture.VoiceConsent.Consent.Should().BeTrue();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public sealed partial class MainViewModelTests
         fixture.CallPreferences.SaveCalls.Should().Be(0);
         fixture.VoiceConsent.Consent.Should().BeTrue();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -202,7 +202,7 @@ public sealed partial class MainViewModelTests
         fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
         fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeFalse();
         fixture.CallPreferences.SaveCalls.Should().Be(0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -258,7 +258,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsListening.Should().BeFalse();
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         fixture.Session.LockCalls.Should().Be(0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.CallPreferences.SaveCalls.Should().Be(0);
 
         await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
@@ -1775,104 +1775,6 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData("grant", false)]
-    [InlineData("grant", true)]
-    [InlineData("action", false)]
-    [InlineData("action", true)]
-    public async Task Native_approval_rechecks_session_before_and_after_stopping_the_prompt(string proposal, bool afterStop)
-    {
-        var fixture = CreateVoicePrivacyFixture();
-        fixture.Probe.Status = new DependencyStatus("local.inference", "Inference", DependencyReadiness.Ready, "Ready");
-        if (string.Equals(proposal, "grant", StringComparison.Ordinal))
-        {
-            fixture.Reasoner.GrantChange = new GrantChange(
-                GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always);
-        }
-        else
-        {
-            fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        }
-        await fixture.ViewModel.InitializeAsync();
-        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await fixture.RunAsync("please review this request");
-        await fixture.TextToSpeech.SpeakStarted.Task;
-        if (afterStop)
-        {
-            fixture.TextToSpeech.BeforeStop = () => fixture.Session.IsUnlocked = false;
-        }
-        else
-        {
-            fixture.Session.IsUnlocked = false;
-        }
-
-        if (string.Equals(proposal, "grant", StringComparison.Ordinal))
-        {
-            await fixture.ViewModel.ConfirmGrantChangeAsync();
-        }
-        else
-        {
-            await fixture.ViewModel.ApproveModelActionCommand.ExecuteAsync();
-        }
-        fixture.TextToSpeech.SpeakGate.TrySetResult();
-        await fixture.ViewModel.ActiveReasoningTask!;
-
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
-    }
-
-    [Theory]
-    [InlineData("action")]
-    [InlineData("grant")]
-    [InlineData("question")]
-    public async Task Privacy_closure_clears_each_pending_interaction(string proposal)
-    {
-        var fixture = CreateVoicePrivacyFixture();
-        fixture.Probe.Status = new DependencyStatus("local.inference", "Inference", DependencyReadiness.Ready, "Ready");
-        switch (proposal)
-        {
-            case "action":
-                fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-                break;
-            case "grant":
-                fixture.Reasoner.GrantChange = new GrantChange(
-                    GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always);
-                break;
-            case "question":
-                fixture.Reasoner.Question = new LocalModelQuestion("Which option?", ["One", "Two"]);
-                break;
-        }
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("please review this request");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-
-        fixture.ViewModel.CloseForObservedPrivacyEvent("lock", true);
-        await fixture.ViewModel.PrivacyClosureTask;
-
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeFalse();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task Recognition_failure_explains_an_unanswered_question_without_choosing_it()
-    {
-        var fixture = CreateVoicePrivacyFixture();
-        fixture.Probe.Status = new DependencyStatus("local.inference", "Inference", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Question = new LocalModelQuestion("Which option?", ["One", "Two"]);
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("please ask a question");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        await fixture.ViewModel.BeginPushToTalkAsync();
-        fixture.Voice.RaiseRetiredFailure("no result");
-
-        fixture.ViewModel.ResponseTitle.Should().Be("I didn't catch an option.");
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
-    }
-
-    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Recognition_failure_does_not_reveal_private_content_after_queued_privacy_change(bool holdPresentation)
@@ -2666,30 +2568,6 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.MicrophoneRefreshTask;
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         fixture.Voice.StartCalls.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task Handoff_refuses_synchronous_model_dispatch_and_accepts_only_completed_work()
-    {
-        var fixture = CreateVoicePrivacyFixture();
-        fixture.Probe.Status = new DependencyStatus("local.inference", "Inference", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.ShowHelp;
-        await fixture.ViewModel.InitializeAsync();
-        Task<bool>? handoffDuringDispatch = null;
-        fixture.ViewModel.PropertyChanged += (_, change) =>
-        {
-            if (string.Equals(change.PropertyName, nameof(fixture.ViewModel.IsSpeaking), StringComparison.Ordinal)
-                && fixture.ViewModel.IsSpeaking)
-            {
-                handoffDuringDispatch = fixture.ViewModel.TryPrepareHandoffAsync();
-                handoffDuringDispatch.IsCompletedSuccessfully.Should().BeTrue();
-            }
-        };
-        await fixture.RunAsync("please describe available features");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        handoffDuringDispatch.Should().NotBeNull();
-        (await handoffDuringDispatch!).Should().BeFalse();
-        (await fixture.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue();
     }
 
     [Fact]

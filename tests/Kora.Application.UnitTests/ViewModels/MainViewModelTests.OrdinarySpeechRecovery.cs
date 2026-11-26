@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Core.Voice;
 
 namespace Kora.Application.UnitTests.ViewModels;
@@ -45,65 +45,6 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsSpeechPlaybackActive.Should().BeFalse();
         f.ViewModel.ResponseTitle.Should().Be("Speech is stopped.");
         f.ViewModel.ResponseBody.Should().Be("No speech playback is active.");
-    }
-
-    [Theory]
-    [InlineData("native", "active")]
-    [InlineData("typed", "active")]
-    [InlineData("voice", "active")]
-    [InlineData("tray", "active")]
-    [InlineData("native", "failure")]
-    [InlineData("typed", "failure")]
-    [InlineData("voice", "failure")]
-    [InlineData("tray", "failure")]
-    [InlineData("native", "cancelled")]
-    [InlineData("typed", "cancelled")]
-    [InlineData("voice", "cancelled")]
-    [InlineData("tray", "cancelled")]
-    public async Task OrdinarySpeechRecoveryNeverClaimsStopBeforePhysicalRelease(string route, string result)
-    {
-        var f = await Fixture.CreateInitializedAsync();
-        if (route is "voice")
-        {
-            await f.ViewModel.BeginPushToTalkAsync();
-            await f.ViewModel.EndPushToTalkAsync();
-        }
-        f.TextToSpeech.ReturnWhileSpeaking = true;
-        await f.RunAsync("what power action is pending");
-        f.TextToSpeech.RemainSpeakingOnStop = true;
-        f.TextToSpeech.StopException = result switch
-        {
-            "failure" => new IOException("Synthetic output failure"),
-            "cancelled" => new OperationCanceledException("Synthetic output cancellation"),
-            _ => null,
-        };
-        var stops = f.TextToSpeech.StopCalls;
-        var speaks = f.TextToSpeech.SpeakCalls;
-        f.Reasoner.Requests.Clear();
-
-        await StopOrdinarySpeechAsync(f, route);
-
-        f.TextToSpeech.StopCalls.Should().Be(stops + 1);
-        f.TextToSpeech.IsSpeaking.Should().BeTrue();
-        f.ViewModel.IsSpeaking.Should().BeTrue();
-        f.ViewModel.StopSpeechCommand.CanExecute(null).Should().BeTrue();
-        f.ViewModel.PreviewVoiceCommand.CanExecute(null).Should().BeFalse();
-        f.ViewModel.CanReadCurrentResponse.Should().BeFalse();
-        f.ViewModel.ResponseTitle.Should().Be("Speech output could not be stopped.");
-        f.ViewModel.ResponseBody.Should().NotContain("No speech playback is active");
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.TextToSpeech.SpeakCalls.Should().Be(speaks);
-
-        f.TextToSpeech.RemainSpeakingOnStop = false;
-        f.TextToSpeech.StopException = null;
-        await StopOrdinarySpeechAsync(f, route is "voice" ? "tray" : route);
-
-        f.TextToSpeech.StopCalls.Should().Be(stops + 2);
-        f.ViewModel.IsSpeaking.Should().BeFalse();
-        f.ViewModel.StopSpeechCommand.CanExecute(null).Should().BeFalse();
-        f.ViewModel.ResponseTitle.Should().Be("Speech is stopped.");
-        f.ViewModel.ResponseBody.Should().Be("No speech playback is active.");
-        f.TextToSpeech.SpeakCalls.Should().Be(speaks);
     }
 
     [Theory]
@@ -230,32 +171,6 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.StopSpeakingFromTrayAsync();
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task OrdinarySpeechRecoveryDoesNotDispatchUnrelatedVoiceWorkBeforeRelease(bool remainsActive)
-    {
-        var f = await Fixture.CreateInitializedAsync();
-        await f.ViewModel.BeginPushToTalkAsync();
-        await f.ViewModel.EndPushToTalkAsync();
-        f.TextToSpeech.ReturnWhileSpeaking = true;
-        await f.RunAsync("what power action is pending");
-        f.TextToSpeech.RemainSpeakingOnStop = remainsActive;
-        f.Reasoner.Requests.Clear();
-        await f.Voice.RaiseTranscriptAsync("Kora, hide yourself", 1);
-        f.ViewModel.IsSpeaking.Should().Be(remainsActive);
-        if (remainsActive)
-        {
-            f.ViewModel.ResponseTitle.Should().Be("Speech output could not be stopped.");
-            f.ViewModel.ResponseBody.Should().Contain("release remains unconfirmed");
-            f.WindowActions.Should().NotContain(Kora.Application.ViewModels.WindowAction.Hide);
-        }
-        else { f.WindowActions.Should().Contain(Kora.Application.ViewModels.WindowAction.Hide); }
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.TextToSpeech.RemainSpeakingOnStop = false;
-        await f.ViewModel.StopSpeakingFromTrayAsync();
-    }
-
     [Fact]
     public async Task OrdinarySpeechRecoveryReviewedVoiceStopWithoutRetainedTargetUsesSharedStop()
     {
@@ -270,7 +185,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Speech is stopped.");
         f.ViewModel.ResponseBody.Should().Be("No speech playback is active.");
         f.ViewModel.IsSpeaking.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
     }
 }

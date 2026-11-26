@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Definitions;
 using Kora.Application.Voice;
@@ -106,7 +106,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsVoiceEnabled.Should().BeTrue();
         f.VoiceConsent.Consent.Should().BeTrue();
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ClipboardReader.Calls.Should().Be(0);
         f.TextToSpeech.SpokenText.Should().BeNull();
         applied.Should().Be(0);
@@ -163,7 +163,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
         f.VoiceConsent.Consent.Should().BeTrue();
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ClipboardReader.Calls.Should().Be(0);
         composer.Body.Should().BeEmpty();
         f.ViewModel.Dispose();

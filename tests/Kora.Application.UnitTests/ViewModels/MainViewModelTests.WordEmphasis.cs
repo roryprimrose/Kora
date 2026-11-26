@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Core.Auditing;
 using Kora.Core.Voice;
@@ -35,7 +35,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain("saved: on").And.Contain("effective preference: on")
             .And.Contain("unavailable");
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ViewModel.SpeechCaptionEmphasis.Should().BeNull();
         fixture.Audit.Events.Should().Contain(item => string.Equals(item.ActionId, "configuration.speech-caption-word-emphasis", StringComparison.Ordinal)
             && item.Outcome == SecurityAuditOutcome.Succeeded);
@@ -81,6 +81,6 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.RefreshSpeechPlaybackFrame();
         fixture.ViewModel.SpeechCaptionEmphasis.Should().BeNull();
         fixture.TextToSpeech.SpeakCalls.Should().Be(calls + 1);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

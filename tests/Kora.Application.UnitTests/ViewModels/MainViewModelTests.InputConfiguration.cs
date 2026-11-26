@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Reflection;
 using System.Diagnostics;
 
@@ -63,7 +63,7 @@ public sealed partial class MainViewModelTests
         f.Audit.Events.Should().Contain(item => item.ActionId == InputDevicePreferenceService.AuditAction
             && item.Initiator == SecurityAuditInitiator.VoiceCommand && item.Outcome == SecurityAuditOutcome.Succeeded);
         f.VoiceConsent.Consent.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpokenText.Should().BeNull();
     }
 
@@ -144,7 +144,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.SelectedMicrophone.Should().Be(SystemAudioDevices.Microphone);
         await f.RunAsync("get speech.input-device extra");
         f.ViewModel.ResponseTitle.Should().Contain("Clarify");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -211,32 +211,6 @@ public sealed partial class MainViewModelTests
         f.ViewModel.SelectedMicrophone.Should().Be(SystemAudioDevices.Microphone);
         f.AudioPreferences.MicrophoneId.Should().BeNull();
         f.Voice.StartCalls.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task Input_commands_never_supersede_pending_questions_grants_or_approvals()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        await f.RunAsync("list input settings");
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        await f.ViewModel.CancelModelQuestionAsync();
-        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
-        await f.RunAsync("reset speech.input-device");
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        await f.ViewModel.RejectPendingGrantChangeAsync();
-        f.Reasoner.Question = null;
-        f.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await f.RunAsync("please lock");
-        await f.ViewModel.ActiveReasoningTask!;
-        await f.RunAsync("get speech.input-device");
-        f.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        f.ViewModel.ResponseTitle.Should().Be("Input configuration unavailable.");
-        f.AudioPreferences.MicrophoneId.Should().BeNull();
     }
 
     [Theory]

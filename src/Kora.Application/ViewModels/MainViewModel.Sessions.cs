@@ -82,12 +82,6 @@ public sealed partial class MainViewModel
             ShowInformation("Session command not accepted.", command.Error!);
             return;
         }
-        if (pendingModelQuestion is not null || IsGrantChangePending || IsModelActionApprovalPending)
-        {
-            RetireSessionCommandReviews();
-            ShowInformation("Session command blocked.", "Resolve the current question or approval explicitly first. No target or decision changed.");
-            return;
-        }
         var origin = initiator switch
         {
             SecurityAuditInitiator.VoiceCommand => RequestOrigin.ActivatedVoice,
@@ -127,7 +121,6 @@ public sealed partial class MainViewModel
                 && dispatchInputRevision == Interlocked.Read(ref conversationDispatchInputRevision)
                 && dispatchRouteRevision == Interlocked.Read(ref workspaceSurfaceInputRevision)
                 && string.Equals(dispatchInput, CommandText, StringComparison.Ordinal))
-            && pendingModelQuestion is null && !IsGrantChangePending && !IsModelActionApprovalPending
             && (origin != RequestOrigin.ActivatedVoice || (IsVoiceEnabled && HasVoiceConsent
                 && CallObservation.AllowActivation && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
                 && (!sourceBoundCommand || !IsProtectedCall && string.Equals(originalName, AssistantName, StringComparison.Ordinal))

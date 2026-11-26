@@ -274,7 +274,7 @@ Original intent, current owning unlocked host, session/generation, privacy, chan
 The [provider-neutral host consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Profile.cs) re-resolves the app tuple on subsequent eligible policy-bound turns, retaining the existing mode gates.
 Admitted turns capture immutable profiles and the original live issuing request, not a completed child activity. App edits do not reroute/cancel/retry them; account/catalogue/installation loss before dispatch fails closed without substitution.
 
-This does not reroute the existing buffered local bootstrap reasoner. No real provider-neutral adapter is composed; qualification and final-request egress gates stay closed, including with resolved fake hosted tuples.
+The legacy buffered fallback reasoner is retired; these controls do not restore it. Qualification and final-request egress gates remain independent of resolved saved tuples ([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 Durable exact-session inheritance/overrides and explicit Local/Copilot/Claude request-only tuples are delivered below through the [shared request consumer](../src/Kora.Application/Dependencies/ModelTurnHost.LocalRequestProfile.cs).
 Generic unscoped model directives remain deferred, never app-scope aliases.
 
@@ -311,7 +311,7 @@ Native selection epochs, original activated input/call/privacy/private ownership
 
 [ModelTurnHost](../src/Kora.Application/Dependencies/ModelTurnHost.Profile.cs) actually reads the addressed session policy for subsequent provider-neutral admissions and captures immutable effective tuple/catalogue binding and session-policy revision. Admission rechecks the policy observation; later session/app edits never reroute/retry/cancel an admitted turn. Before dispatch, current private session/task/control authority and newly observed catalogue/account/installation are revalidated without re-resolving desired policy.
 
-Production catalogues still advertise **no models**; model-dependent native save controls stay unavailable. There is no authentication, adapter composition, network/inference, egress, general execution, recall/context assembly or larger-resource permission. LocalOnly, LocalFirst/manual exact handoff and independent envelope ceilings remain unchanged. The buffered local bootstrap reasoner remains untouched, not rerouted by these controls.
+Production catalogues still advertise **no models**; model-dependent native save controls stay unavailable. There is no authentication, adapter composition, network/inference, egress, general execution, recall/context assembly or larger-resource permission. LocalOnly, LocalFirst/manual exact handoff and independent envelope ceilings remain unchanged. These controls do not revive the retired fallback reasoner ([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
 [Portable sparse rules](../tests/Kora.Core.UnitTests/Providers/SessionProviderOverridesTests.cs), [shared review tests](../tests/Kora.Application.UnitTests/Configuration/SessionProviderProfileConfigurationTests.cs), [real private SQLite migration/failure tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionProviderProfileTests.cs), [native consumer](../tests/Kora.Windows.IntegrationTests/SessionsProviderProfileTests.cs) and [turn capture tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderProfiles.cs) qualify this bounded feature, not provider qualification.
 

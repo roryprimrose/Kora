@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.UnitTests.Configuration;
@@ -45,7 +45,7 @@ public sealed partial class MainViewModelTests
         policy.SourceSnapshot.Revision.Should().Be(0);
         policy.Snapshot.Revision.Should().Be(1);
         policy.Profiles.Preferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public sealed partial class MainViewModelTests
         f.Session.IsUnlocked = true;
         await f.RunAsync(confirmation);
         policy.Snapshot.Revision.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -141,6 +141,6 @@ public sealed partial class MainViewModelTests
             policy.Service.Discard(proposal.Draft);
         }
         policy.Store.Tasks.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

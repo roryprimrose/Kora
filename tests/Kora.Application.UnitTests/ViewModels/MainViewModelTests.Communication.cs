@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Core.Commands;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -11,6 +11,46 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(CallState.Active)]
+    [InlineData(CallState.Unknown)]
+    public async Task All_voice_option_mutations_are_denied_while_protected_but_safety_and_status_remain(CallState state)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.CallState.SetState(state);
+        using var voice = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+            HostActivityLayer.Application, HostOperation.Request);
+        var microphone = fixture.ViewModel.SelectedMicrophone;
+        var output = fixture.ViewModel.SelectedOutputDevice;
+        var provider = fixture.ViewModel.SelectedSpeechProvider;
+        var selectedVoice = fixture.ViewModel.SelectedVoice;
+        fixture.ViewModel.SelectedMicrophone = null;
+        fixture.ViewModel.SelectedOutputDevice = null;
+        fixture.ViewModel.SelectedSpeechProvider = null;
+        fixture.ViewModel.SelectedVoice = null;
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VisualOnly;
+        fixture.ViewModel.QueueResponseMode = ResponseOutputMode.VisualOnly;
+        fixture.ViewModel.TaskResponseMode = ResponseOutputMode.VisualOnly;
+        fixture.ViewModel.FallbackToVisualWhenOutputMuted = false;
+        await fixture.ViewModel.SetAssistantNameAsync("Nova");
+        await fixture.ViewModel.SetVoiceConsentAsync(false);
+        fixture.ViewModel.SelectedMicrophone.Should().Be(microphone);
+        fixture.ViewModel.SelectedOutputDevice.Should().Be(output);
+        fixture.ViewModel.SelectedSpeechProvider.Should().Be(provider);
+        fixture.ViewModel.SelectedVoice.Should().Be(selectedVoice);
+        fixture.ViewModel.DefaultResponseMode.Should().Be(ResponseOutputMode.Hybrid);
+        fixture.ViewModel.QueueResponseMode.Should().BeNull();
+        fixture.ViewModel.TaskResponseMode.Should().BeNull();
+        fixture.ViewModel.FallbackToVisualWhenOutputMuted.Should().BeTrue();
+        fixture.ViewModel.AssistantName.Should().Be("Kora");
+        fixture.VoiceConsent.Consent.Should().BeTrue();
+        await fixture.ViewModel.ExecuteAsync(fixture.Catalog.GetCommands().Single(c => c.Action == BuiltInAction.StopSpeaking));
+        await fixture.ViewModel.CancelCurrentTaskAsync();
+        await fixture.ViewModel.ExecuteAsync(fixture.Catalog.GetCommands().Single(c => c.Action == BuiltInAction.ShowStatus));
+        fixture.ViewModel.IsProtectedCall.Should().BeTrue();
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+    }
+
     [Fact]
     public async Task Call_policy_retirement_invalidates_output_before_dispatching_presentation_notifications()
     {
@@ -180,48 +220,6 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
     }
 
-    [Theory]
-    [InlineData(CallState.Active)]
-    [InlineData(CallState.Unknown)]
-    public async Task All_voice_option_mutations_are_denied_while_protected_but_safety_and_status_remain(CallState state)
-    {
-        var fixture = await Fixture.CreateInitializedAsync();
-        fixture.CallState.SetState(state);
-        using var voice = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
-            HostActivityLayer.Application, HostOperation.Request);
-        var microphone = fixture.ViewModel.SelectedMicrophone;
-        var output = fixture.ViewModel.SelectedOutputDevice;
-        var provider = fixture.ViewModel.SelectedSpeechProvider;
-        var selectedVoice = fixture.ViewModel.SelectedVoice;
-        fixture.ViewModel.SelectedMicrophone = null;
-        fixture.ViewModel.SelectedOutputDevice = null;
-        fixture.ViewModel.SelectedSpeechProvider = null;
-        fixture.ViewModel.SelectedVoice = null;
-        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VisualOnly;
-        fixture.ViewModel.QueueResponseMode = ResponseOutputMode.VisualOnly;
-        fixture.ViewModel.TaskResponseMode = ResponseOutputMode.VisualOnly;
-        fixture.ViewModel.FallbackToVisualWhenOutputMuted = false;
-        fixture.ViewModel.RequireAssistantNameForVoiceApproval = false;
-        await fixture.ViewModel.SetAssistantNameAsync("Nova");
-        await fixture.ViewModel.SetVoiceConsentAsync(false);
-        fixture.ViewModel.SelectedMicrophone.Should().Be(microphone);
-        fixture.ViewModel.SelectedOutputDevice.Should().Be(output);
-        fixture.ViewModel.SelectedSpeechProvider.Should().Be(provider);
-        fixture.ViewModel.SelectedVoice.Should().Be(selectedVoice);
-        fixture.ViewModel.DefaultResponseMode.Should().Be(ResponseOutputMode.Hybrid);
-        fixture.ViewModel.QueueResponseMode.Should().BeNull();
-        fixture.ViewModel.TaskResponseMode.Should().BeNull();
-        fixture.ViewModel.FallbackToVisualWhenOutputMuted.Should().BeTrue();
-        fixture.ViewModel.AssistantName.Should().Be("Kora");
-        fixture.ViewModel.RequireAssistantNameForVoiceApproval.Should().BeTrue();
-        fixture.VoiceConsent.Consent.Should().BeTrue();
-        await fixture.ViewModel.ExecuteAsync(fixture.Catalog.GetCommands().Single(c => c.Action == BuiltInAction.StopSpeaking));
-        await fixture.ViewModel.CancelCurrentTaskAsync();
-        await fixture.ViewModel.ExecuteAsync(fixture.Catalog.GetCommands().Single(c => c.Action == BuiltInAction.ShowStatus));
-        fixture.ViewModel.IsProtectedCall.Should().BeTrue();
-        fixture.TextToSpeech.SpokenText.Should().BeNull();
-    }
-
     [Fact]
     public async Task Call_entry_closes_pending_output_before_any_UI_dispatch_and_clear_never_replays_it()
     {
@@ -270,32 +268,6 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.Dispose();
         fixture.CallState.SetState(CallState.Clear);
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task Protected_calls_preserve_saved_reuse_without_minting_another_grant()
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.EnableHostedModels]));
-        await fixture.ViewModel.InitializeAsync();
-        fixture.CallState.SetState(CallState.Unknown);
-        await fixture.RunAsync("please secure this computer");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
-        fixture.ViewModel.AlwaysAllowedModelActions.Should().ContainSingle();
-        fixture.ViewModel.GetGrantDocument().Should().NotContain("Ignored during call");
-        fixture.CallState.SetState(CallState.Clear);
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
-        await fixture.RunAsync("please secure this computer");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
-        fixture.Session.LockCalls.Should().Be(0);
     }
 
     [Fact]
@@ -395,100 +367,8 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ExecuteAsync(fixture.Catalog.GetCommands().Single(c => c.Action == BuiltInAction.LockMachine),
             SecurityAuditInitiator.ModelSuggestion);
         fixture.Session.LockCalls.Should().Be(0);
-        fixture.ViewModel.ResponseTitle.Should().Be("Call policy changed.");
-    }
-
-    [Theory]
-    [InlineData(BuiltInAction.LockMachine)]
-    [InlineData(BuiltInAction.RestartApplication)]
-    public async Task Applicable_saved_authorization_is_not_withdrawn_solely_by_call_entry_during_audio_shutdown(BuiltInAction action)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = action;
-        fixture.ApprovalPreferences.Save(new(true, [action]));
-        await fixture.ViewModel.InitializeAsync();
-        fixture.TextToSpeech.BeforeStop = () => fixture.CallState.SetState(CallState.Unknown);
-        await fixture.RunAsync("carry out the requested action");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(action == BuiltInAction.EnableHostedModels);
-        fixture.Session.LockCalls.Should().Be(0);
-        if (action == BuiltInAction.RestartApplication) { fixture.Events.Should().Contain("process.restart"); }
-        fixture.Audit.Events.Should().NotContain(e => e.Outcome == SecurityAuditOutcome.Denied && e.ReasonCode == "call-policy-changed");
-    }
-
-    [Theory]
-    [InlineData(BuiltInAction.LockMachine)]
-    [InlineData(BuiltInAction.RestartApplication)]
-    public async Task Mandatory_ownership_loss_during_audio_shutdown_still_prevents_an_approved_effect(BuiltInAction action)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = action;
-        fixture.ApprovalPreferences.Save(new(true, [action]));
-        await fixture.ViewModel.InitializeAsync();
-        fixture.TextToSpeech.BeforeStop = () => fixture.ViewModel.BindCallOwnershipGate(static () => false);
-        await fixture.RunAsync("carry out the requested action");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.Events.Should().NotContain("process.restart");
-        if (action == BuiltInAction.LockMachine)
-        {
-            fixture.ViewModel.ResponseBody.Should().Contain("Exact Lock admission is unavailable");
-            fixture.Audit.Events.Should().NotContain(item => item.ActionId == "session.lock");
-        }
-        else
-        {
-            fixture.Audit.Events.Should().Contain(entry => entry.Outcome == SecurityAuditOutcome.Denied
-                && entry.ReasonCode == "host-admission-changed");
-        }
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Reuse_or_ownership_loss_between_model_decision_and_dispatch_does_not_execute(bool ownershipLost)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.EnableHostedModels]));
-        await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.PropertyChanged += (_, args) =>
-        {
-            if (string.Equals(args.PropertyName, nameof(fixture.ViewModel.IsLocalTaskCancellable), StringComparison.Ordinal)
-                && !fixture.ViewModel.IsLocalTaskCancellable)
-            {
-                if (ownershipLost) { fixture.ViewModel.BindCallOwnershipGate(static () => false); }
-                else { fixture.CallState.SetState(CallState.Unknown); }
-            }
-        };
-        await fixture.RunAsync("carry out the requested action");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(!(ownershipLost));
-        fixture.Session.LockCalls.Should().Be(0);
-        if (ownershipLost) { fixture.ViewModel.ResponseTitle.Should().Be("Saved permission is not eligible."); }
-    }
-
-    [Fact]
-    public async Task Call_entry_after_native_once_acceptance_does_not_revoke_the_committed_decision()
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("carry out the requested action");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.PropertyChanged += (_, args) =>
-        {
-            if (string.Equals(args.PropertyName, nameof(fixture.ViewModel.IsModelActionApprovalPending), StringComparison.Ordinal)
-                && !fixture.ViewModel.IsModelActionApprovalPending) { fixture.CallState.SetState(CallState.Active); }
-        };
-        await fixture.ViewModel.ApproveModelActionCommand.ExecuteAsync();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Model request unavailable.");
+        fixture.ViewModel.ResponseBody.Should().StartWith("Nothing was sent.");
     }
 
     [Theory]
@@ -574,20 +454,5 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseBody.Should().Contain("Call policy changed");
     }
 
-    [Fact]
-    public async Task Legacy_dispatch_rechecks_ownership_after_audio_shutdown()
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.RestartApplication;
-        fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.RestartApplication]));
-        await fixture.ViewModel.InitializeAsync();
-        fixture.TextToSpeech.BeforeStop = () => fixture.ViewModel.BindCallOwnershipGate(static () => false);
-        await fixture.RunAsync("carry out the requested action");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.Events.Should().NotContain("process.restart");
-        fixture.Audit.Events.Should().Contain(e => e.Outcome == SecurityAuditOutcome.Denied);
-    }
+
 }

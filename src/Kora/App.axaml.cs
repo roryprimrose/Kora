@@ -33,7 +33,6 @@ public sealed partial class App : Avalonia.Application
     private DetailWindowController? detailWindow;
     private ResponseWindowController? responseWindow;
     private SpeechCaptionWindowController? speechCaptionWindow;
-    private GrantListWindowController? grantListWindow;
     private QuestionWindowController? questionWindow;
     private EvidenceWindowController? evidenceWindow;
     private SkillPackagesWindowController? skillPackagesWindow;
@@ -144,7 +143,6 @@ public sealed partial class App : Avalonia.Application
                 .BindSettingsNavigation(viewModel.ShowSettingFilterAsync);
             documentationWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
                 view => responseWindow.ShowHostedView(WorkbenchActivity.Help, view));
-            grantListWindow = new GrantListWindowController(viewModel);
             BindExactGrants(viewModel);
             exactGrants!.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
                 view => responseWindow.ShowHostedView(WorkbenchActivity.Permissions, view));
@@ -573,8 +571,6 @@ public sealed partial class App : Avalonia.Application
         speechCaptionWindow?.Dispose();
         speechCaptionWindow = null;
         responseWindow = null;
-        grantListWindow?.Dispose();
-        grantListWindow = null;
         exactGrants?.Dispose();
         exactGrants = null;
         questionWindow?.Dispose();

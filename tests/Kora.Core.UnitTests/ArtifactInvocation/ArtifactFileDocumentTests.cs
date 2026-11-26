@@ -202,8 +202,6 @@ public sealed class ArtifactFileDocumentTests
         var instruction = ArtifactFileDocument.Parse(prompt.CopyBytes(), ArtifactKind.Instruction, "kora-profile", "example");
         new OwnedInstructionSnapshot("example", "a", "b", prompt).Revision.Should()
             .NotBe(new OwnedInstructionSnapshot("example", "a", "b", instruction).Revision);
-        new Kora.Core.Dependencies.LocalModelArtifact("test", ArtifactKind.Prompt, "Test", "kora-profile", "1",
-            prompt.Definition.Digest, "Body") { IsLiteralPrompt = true }.IsLiteralPrompt.Should().BeTrue();
     }
 
     [Theory]

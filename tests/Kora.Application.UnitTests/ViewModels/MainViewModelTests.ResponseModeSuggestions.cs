@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Application.Configuration.RegisteredSettings;
@@ -52,7 +52,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Response-mode source unavailable.");
         model.Calls.Should().Be(1);
         store.RequestMessage.Should().Be(retained);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.TextToSpeech.InstallProviderCalls.Should().Be(0);
         f.TextToSpeech.RemoveProviderCalls.Should().Be(0);
@@ -102,7 +102,7 @@ public sealed partial class MainViewModelTests
         f.Audit.Events.Should().NotContain(item => item.ActionId == "configuration.response-output"
             && item.Outcome == SecurityAuditOutcome.Succeeded && !string.Equals(loss, "settings", StringComparison.Ordinal));
         model.Calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpokenText.Should().BeNull();
         await f.ViewModel.DisposeAsync();
     }
@@ -134,7 +134,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Response-mode source unavailable.");
         f.Voice.StartedPhrases.Should().Contain(RegisteredSettingSuggestionCommand.FixedPhrases)
             .And.Contain(["Kora review response mode suggestion", "Kora confirm response mode change", "Kora cancel response mode review"]);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.DisposeAsync();
     }
 

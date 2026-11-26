@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Voice;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -48,74 +48,6 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData("none", false)]
-    [InlineData("question", false)]
-    [InlineData("approval", false)]
-    [InlineData("grant", false)]
-    [InlineData("question", true)]
-    public async Task ResponseReadReservedInvalidInputNeverReachesInferenceOrPendingDecisions(string pending, bool voice)
-    {
-        var fixture = CreateSummaryFixture(SpeechProviderIds.Windows);
-        await fixture.ViewModel.InitializeAsync();
-        if (string.Equals(pending, "question", StringComparison.Ordinal))
-        {
-            fixture.Reasoner.Question = new("Which color?", ["Blue", "Green"]);
-        }
-        else if (string.Equals(pending, "approval", StringComparison.Ordinal))
-        {
-            fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
-        }
-        if (fixture.Reasoner.Question is not null || fixture.Reasoner.Action is not null)
-        {
-            await fixture.RunAsync("choose something");
-            await fixture.ViewModel.ActiveReasoningTask!;
-        }
-        if (string.Equals(pending, "grant", StringComparison.Ordinal))
-        {
-            await fixture.ViewModel.PrepareGrantChangeAsync(new(Kora.Core.Commands.GrantChangeOperation.Add,
-                Kora.Core.Commands.BuiltInAction.EnableHostedModels, Kora.Core.Commands.ModelApprovalScope.Always));
-        }
-        if (voice)
-        {
-            // Capture admission must finish before measuring reserved-input effects on the pending target.
-            await fixture.ViewModel.SetVoiceConsentAsync(true);
-            await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
-        }
-        var title = fixture.ViewModel.ResponseTitle;
-        var body = fixture.ViewModel.ResponseBody;
-        var pendingQuestion = fixture.ViewModel.IsModelQuestionPending;
-        var pendingApproval = fixture.ViewModel.IsModelActionApprovalPending;
-        var pendingGrant = fixture.ViewModel.IsGrantChangePending;
-        fixture.Reasoner.Requests.Clear();
-        fixture.TextToSpeech.ClearSpokenResponse();
-        foreach (var command in new[]
-        {
-            "read that", "read current", "read that aloud from clipboard",
-            "read current response and approve once", "read\nthat aloud",
-            "read current response " + new string('x', 1024),
-            "read" + new string(' ', 1024) + "current response",
-        })
-        {
-            if (voice) { await fixture.RaiseActivatedTranscriptAsync("Kora, " + command, 1); }
-            else { await fixture.RunAsync(command); }
-            fixture.ViewModel.ReadCurrentResponseStatus.Should().Contain("was not accepted");
-            fixture.ViewModel.IsModelQuestionPending.Should().Be(pendingQuestion);
-            fixture.ViewModel.IsModelActionApprovalPending.Should().Be(pendingApproval);
-            fixture.ViewModel.IsGrantChangePending.Should().Be(pendingGrant);
-            if (!voice)
-            {
-                fixture.ViewModel.ResponseTitle.Should().Be(title);
-                fixture.ViewModel.ResponseBody.Should().Be(body);
-            }
-        }
-        fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, SpeechReadOnce.AuditActionId, StringComparison.Ordinal));
-    }
-
-    [Theory]
     [InlineData("native")]
     [InlineData("typed")]
     [InlineData("voice")]
@@ -144,7 +76,7 @@ public sealed partial class MainViewModelTests
             ? SecurityAuditInitiator.VoiceCommand : string.Equals(lane, "typed", StringComparison.Ordinal)
                 ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.LocalUser);
         fixture.ViewModel.ResponseReadModelUnavailableReason.Should().Be("current-response-model-tool-loop-not-qualified");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -294,25 +226,6 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpokenText.Should().BeNull();
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ResponseReadDoesNotAnswerOrCancelPendingQuestionsOrApprovals(bool approval)
-    {
-        var fixture = CreateSummaryFixture(SpeechProviderIds.Windows);
-        await fixture.ViewModel.InitializeAsync();
-        if (approval) { fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
-        else { fixture.Reasoner.Question = new("Which color?", ["Blue", "Green"]); }
-        await fixture.RunAsync("choose something");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.TextToSpeech.ClearSpokenResponse();
-        var body = fixture.ViewModel.ResponseBody;
-        await fixture.RunAsync("read that aloud");
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.TextToSpeech.SpokenText.Should().BeNull();
-    }
-
     [Fact]
     public async Task ResponseReadRejectsForeignTargetsAndSeparateNativeDecisions()
     {
@@ -340,7 +253,7 @@ public sealed partial class MainViewModelTests
         await fixture.RaiseActivatedTranscriptAsync("Nova, read that aloud", 1);
         fixture.TextToSpeech.SpokenText.Should().StartWith("No power action is pending.");
         fixture.Voice.StartedPhrases.Should().Contain("Nova read that aloud").And.Contain("Nova read current response");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]

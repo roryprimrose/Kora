@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Kora.Application.Interaction;
 using Kora.Core.Auditing;
@@ -21,11 +21,6 @@ public sealed partial class MainViewModel
     internal async Task ExecuteLocalEventCommandAsync(LocalEventCommand command, SecurityAuditInitiator initiator)
     {
         if (disposed) { return; }
-        if (pendingModelQuestion is not null || IsGrantChangePending || IsModelActionApprovalPending)
-        {
-            Transcript = "Event command blocked; the current exact question or approval remains unchanged.";
-            return;
-        }
         if (command.Operation == LocalEventOperation.Invalid)
         {
             PresentLocalEventResponse(LocalEventCommand.Syntax);
@@ -42,7 +37,6 @@ public sealed partial class MainViewModel
         var topology = privacyObservation.Current.TopologyRevision;
         bool Eligible() => !disposed && IsHostInputEligible && !IsProtectedCall
             && CallPolicyRevision == call && privacyObservation.Current.TopologyRevision == topology
-            && pendingModelQuestion is null && !IsGrantChangePending && !IsModelActionApprovalPending
             && (origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent
                 && CallObservation.AllowActivation && privacyObservation.Current.CanCapture
                 && Volatile.Read(ref voiceRecoveryRevision) == recovery);

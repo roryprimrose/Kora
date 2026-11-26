@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Auditing;
@@ -75,7 +75,7 @@ public sealed partial class MainViewModelTests
         f.ProfilePreferences.Pending.Should().BeFalse();
         f.ProfilePreferences.Writes.Should().Be(1);
         f.ViewModel.ProviderFieldConfirmationId.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ProviderPreferences.Mode.Should().BeNull();
     }
 
@@ -104,7 +104,7 @@ public sealed partial class MainViewModelTests
         f.ProfilePreferences.Writes.Should().Be(0);
         await f.RunAsync("confirm providers.app.profile " + id.ToString("D"));
         f.ViewModel.ResponseTitle.Should().Be("App provider configuration not confirmed.");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -161,7 +161,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ProviderFieldConfirmationId.Should().BeNull();
         f.ViewModel.ResponseTitle.Should().Be("App provider configuration not confirmed.");
         if (failure is "incompatible" or "missing-base") { f.ViewModel.ResponseBody.Should().Contain("complete providers.app.profile draft/save"); }
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -213,6 +213,6 @@ public sealed partial class MainViewModelTests
         f.ProfilePreferences.Writes.Should().Be(0);
         f.ViewModel.CanReviewProviderModel.Should().BeFalse();
         f.ViewModel.CanConfirmProviderField.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

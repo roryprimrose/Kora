@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.ViewModels;
 using Kora.Core.Auditing;
@@ -27,6 +27,62 @@ public sealed partial class MainViewModelTests
         public void ConfirmWrite() => Pending = false;
         public void Save(DiagnosticRetentionDays value) { if (WriteFailure is { } failure) { throw failure; } Value = value; AfterWrite?.Invoke(); }
         public void Reset() { Value = null; AfterWrite?.Invoke(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Invalid_saved_values_explicit_recovery_native_lifetime_and_pending_approval_never_publish_success(bool invalid)
+    {
+        var fixture = new Fixture(enableDiagnosticRetention: true,
+            diagnosticRetentionReadFailure: invalid ? new InvalidDataException("corrupt retention") : null);
+        await using var pendingDetails = new PendingDetailsQuestion(fixture);
+        await using var admission = fixture.DiagnosticAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
+        if (invalid)
+        {
+            fixture.ViewModel.DiagnosticRetentionStatus.Should().Contain("unconfirmed");
+            await fixture.RunAsync("get " + DiagnosticRetentionCommand.OptionId);
+            fixture.ViewModel.ResponseTitle.Should().Contain("not confirmed");
+            fixture.DiagnosticPreferences.ReadFailure = null;
+        }
+        await fixture.RunAsync("get " + DiagnosticRetentionCommand.OptionId);
+        await fixture.RunAsync("set " + DiagnosticRetentionCommand.OptionId + " to 0");
+        fixture.ViewModel.ResponseTitle.Should().Contain("exact integer");
+        await fixture.RunAsync("set " + DiagnosticRetentionCommand.OptionId + " to 1 apply now");
+        fixture.DiagnosticPreferences.Value.Should().BeNull();
+        await fixture.RunAsync("set logging.audit-retention-days to 1");
+        fixture.ViewModel.Transcript.Should().Contain("Audit retention requires");
+        await fixture.RunAsync("set logging.unknown-setting to 1");
+        fixture.ViewModel.ResponseTitle.Should().Contain("Clarify");
+        fixture.DiagnosticPreferences.WriteFailure = new IOException("atomic save failed");
+        await fixture.RunAsync("set " + DiagnosticRetentionCommand.OptionId + " to 1");
+        fixture.ViewModel.ResponseTitle.Should().Contain("not confirmed");
+        fixture.DiagnosticPreferences.WriteFailure = null;
+        fixture.DiagnosticPreferences.Pending = false;
+        fixture.DiagnosticPreferences.AfterWrite = () => fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => false);
+        fixture.ViewModel.SelectedDiagnosticRetentionDays = 1;
+        await fixture.ViewModel.SaveDiagnosticRetentionCommand.ExecuteAsync();
+        fixture.DiagnosticPreferences.Pending.Should().BeTrue();
+        fixture.DiagnosticPolicy.Effective.Should().BeNull();
+        fixture.DiagnosticPreferences.Pending = false;
+        fixture.DiagnosticPreferences.AfterWrite = null;
+        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await fixture.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var preview = fixture.ViewModel.ResponseBody;
+        await fixture.RunAsync("reset " + DiagnosticRetentionCommand.OptionId);
+        fixture.ViewModel.ResponseBody.Should().Be(preview);
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
+        fixture.Session.LockCalls.Should().Be(0);
+        typeof(MainViewModel).GetMethod("PresentDiagnosticRetentionFailure",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(fixture.ViewModel, ["SQLite diagnostic retention not confirmed.", "owned late failure"]);
+        fixture.ViewModel.ResponseBody.Should().Be(preview);
+        fixture.ViewModel.Transcript.Should().Contain("owned late failure");
+        fixture.ViewModel.Dispose();
     }
 
     [Fact]
@@ -66,68 +122,11 @@ public sealed partial class MainViewModelTests
         // The activated-transcript harness enables capture for each original input; the setting itself never starts it.
         fixture.Voice.StartCalls.Should().Be(starts + 2);
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
         fixture.ViewModel.Dispose();
         fixture.DiagnosticConfiguration!.HoldUnavailable();
         await fixture.ViewModel.RefreshDiagnosticRetentionCommand.ExecuteAsync();
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Invalid_saved_values_explicit_recovery_native_lifetime_and_pending_approval_never_publish_success(bool invalid)
-    {
-        var fixture = new Fixture(enableDiagnosticRetention: true,
-            diagnosticRetentionReadFailure: invalid ? new InvalidDataException("corrupt retention") : null);
-        await using var admission = fixture.DiagnosticAdmission;
-        await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
-        if (invalid)
-        {
-            fixture.ViewModel.DiagnosticRetentionStatus.Should().Contain("unconfirmed");
-            await fixture.RunAsync("get " + DiagnosticRetentionCommand.OptionId);
-            fixture.ViewModel.ResponseTitle.Should().Contain("not confirmed");
-            fixture.DiagnosticPreferences.ReadFailure = null;
-        }
-        await fixture.RunAsync("get " + DiagnosticRetentionCommand.OptionId);
-        await fixture.RunAsync("set " + DiagnosticRetentionCommand.OptionId + " to 0");
-        fixture.ViewModel.ResponseTitle.Should().Contain("exact integer");
-        await fixture.RunAsync("set " + DiagnosticRetentionCommand.OptionId + " to 1 apply now");
-        fixture.DiagnosticPreferences.Value.Should().BeNull();
-        await fixture.RunAsync("set logging.audit-retention-days to 1");
-        fixture.ViewModel.Transcript.Should().Contain("Audit retention requires");
-        await fixture.RunAsync("set logging.unknown-setting to 1");
-        fixture.ViewModel.ResponseTitle.Should().Contain("Clarify");
-        fixture.DiagnosticPreferences.WriteFailure = new IOException("atomic save failed");
-        await fixture.RunAsync("set " + DiagnosticRetentionCommand.OptionId + " to 1");
-        fixture.ViewModel.ResponseTitle.Should().Contain("not confirmed");
-        fixture.DiagnosticPreferences.WriteFailure = null;
-        fixture.DiagnosticPreferences.Pending = false;
-        fixture.DiagnosticPreferences.AfterWrite = () => fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => false);
-        fixture.ViewModel.SelectedDiagnosticRetentionDays = 1;
-        await fixture.ViewModel.SaveDiagnosticRetentionCommand.ExecuteAsync();
-        fixture.DiagnosticPreferences.Pending.Should().BeTrue();
-        fixture.DiagnosticPolicy.Effective.Should().BeNull();
-        fixture.DiagnosticPreferences.Pending = false;
-        fixture.DiagnosticPreferences.AfterWrite = null;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("lock this workstation please");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var preview = fixture.ViewModel.ResponseBody;
-        await fixture.RunAsync("reset " + DiagnosticRetentionCommand.OptionId);
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        typeof(MainViewModel).GetMethod("PresentDiagnosticRetentionFailure",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-            .Invoke(fixture.ViewModel, ["SQLite diagnostic retention not confirmed.", "owned late failure"]);
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
-        fixture.ViewModel.Transcript.Should().Contain("owned late failure");
-        fixture.ViewModel.Dispose();
     }
 
     [Fact]

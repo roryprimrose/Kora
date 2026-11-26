@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 
 using AwesomeAssertions;
 
@@ -30,7 +30,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().NotContain(target.Id.ToString("D"));
         events.Saves.Should().Be(1);
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -54,7 +54,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Contain(LocalEventSnapshot.Scope);
         f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         windows.Should().Be(0);
         f.ViewModel.RevokeSessionPresentation(target.SessionId);
@@ -74,7 +74,7 @@ public sealed partial class MainViewModelTests
         events.Audits.Should().Contain(item => item.Event.ActionId == "local-event.dismiss"
             && item.Event.Initiator == SecurityAuditInitiator.VoiceCommand);
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -88,33 +88,8 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.ClearSpokenResponse();
         await f.RunAsync(text);
         f.ViewModel.ResponseBody.Should().Contain(LocalEventCommand.Syntax);
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.TextToSpeech.SpokenText.Should().BeNull();
-    }
 
-    [Theory]
-    [InlineData("question")]
-    [InlineData("approval")]
-    [InlineData("grant")]
-    public async Task Reserved_event_input_does_not_replace_or_answer_a_pending_foreground_question_or_approval(string pending)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
-        if (pending is "question") { f.Reasoner.Question = new("Which exact option?", ["One", "Two"]); }
-        else { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
-        await f.ViewModel.InitializeAsync();
-        if (pending is "grant")
-        {
-            await f.RunAsync("allow models to lock the machine this session");
-            await f.ViewModel.ActiveReasoningTask!;
-        }
-        else { await f.RunAsync("please help with this workstation"); await f.ViewModel.ActiveReasoningTask!; }
-        var body = f.ViewModel.ResponseBody;
-        var title = f.ViewModel.ResponseTitle;
-        await f.RunAsync("event defer");
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.Transcript.Should().Contain("remains unchanged");
+        f.TextToSpeech.SpokenText.Should().BeNull();
     }
 
     [Theory]
@@ -140,7 +115,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Contain("unavailable");
         f.ViewModel.ResponseBody.Should().NotContain(target.Id.ToString("D"));
         events.Saves.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -181,7 +156,7 @@ public sealed partial class MainViewModelTests
         if (boundary is "voice") { await f.RaiseActivatedTranscriptAsync("Kora, " + text, 1); }
         else { await f.RunAsync(text); }
         f.ViewModel.ResponseBody.Should().NotContain(target.Id.ToString("D"));
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
         await f.ViewModel.ExecuteLocalEventCommandAsync(new(LocalEventOperation.Invalid), SecurityAuditInitiator.LocalUser);
     }

@@ -23,8 +23,9 @@ project per definition type, and it does not implement C# tool effects.
 
 Do not create empty `Instructions` or `Agents` folders or placeholder
 loaders. The legacy JSON selector/system framing was removed with the unreachable
-Windows `api/generate` reasoner, not moved to this project; the retained bootstrap
-contract is [explicitly unavailable](../Kora.Application/Dependencies/UnavailableLocalModelReasoner.cs).
+Windows `api/generate` reasoner, not moved to this project. Its fallback proposal
+tree is retired; unmatched requests outside session routing
+[reject without sending](../Kora.Application/ViewModels/MainViewModel.cs).
 Admitted [SDK/MAF tool-message handling](../../Design/Local_Inference.md#native-tool-message-transport-boundary)
 remains runtime code. A template cannot
 replace protocol enforcement, authorization or host policy.

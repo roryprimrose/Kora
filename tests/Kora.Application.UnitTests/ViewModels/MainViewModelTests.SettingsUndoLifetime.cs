@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Application.Hosting;
@@ -58,7 +58,7 @@ public sealed partial class MainViewModelTests
             (dispose ? SecurityAuditOutcome.Denied : SecurityAuditOutcome.Succeeded));
         model.CanConfirmSettingsUndo.Should().BeFalse();
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -103,6 +103,6 @@ public sealed partial class MainViewModelTests
         model.CanConfirmSettingsUndo.Should().BeFalse();
         model.CanReviewSettingsUndo.Should().BeFalse();
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
@@ -60,7 +60,7 @@ public sealed partial class MainViewModelTests
         else { fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(expected + expected - current)); }
         fixture.Audit.Events.Where(item => item.Category == SecurityAuditCategory.ConfigurationWrite)
             .Should().OnlyContain(item => item.Initiator == SecurityAuditInitiator.VoiceCommand);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
         fixture.TextToSpeech.RemoveProviderCalls.Should().Be(0);
@@ -155,33 +155,6 @@ public sealed partial class MainViewModelTests
         fixture.Audit.Events.Should().NotContain(item => (string.Equals(item.ActionId, "configuration.playback-volume", StringComparison.Ordinal)
             || string.Equals(item.ActionId, "configuration.windows-speech-rate", StringComparison.Ordinal))
             && item.Outcome == SecurityAuditOutcome.Succeeded);
-    }
-
-    [Theory]
-    [InlineData("question")]
-    [InlineData("approval")]
-    public async Task RelativeControlsCannotConsumePendingQuestionOrApproval(string pending)
-    {
-        var fixture = new Fixture(enablePlaybackVolume: true, enableWindowsSpeechRate: true);
-        await using var admission = fixture.OutputAdmission;
-        fixture.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
-        if (pending is "question") { fixture.Reasoner.Question = new LocalModelQuestion("Choose?", ["Blue", "Green"]); }
-        else { fixture.Reasoner.Action = BuiltInAction.EnableHostedModels; }
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("help me choose");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var preview = fixture.ViewModel.ResponseBody;
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        await fixture.ViewModel.ExecutePlaybackVolumeCommandAsync(PlaybackVolumeCommand.Parse("speak louder", "Kora")!,
-            SecurityAuditInitiator.TypedCommand, TestContext.Current.CancellationToken);
-        await fixture.ViewModel.ExecuteWindowsSpeechRateCommandAsync(WindowsSpeechRateCommand.Parse("speak faster", "Kora")!,
-            SecurityAuditInitiator.TypedCommand, TestContext.Current.CancellationToken);
-        fixture.VolumePreferences.Value.Should().BeNull();
-        fixture.RatePreferences.Value.Should().BeNull();
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
     }
 
     [Theory]

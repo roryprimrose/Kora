@@ -9,12 +9,10 @@ public static class PresenceVisibilityPolicy
         bool isBusy,
         bool isSpeaking,
         bool hasPendingPrompt,
-        bool hasResponseActions,
-        bool isGrantEditorVisible) =>
+        bool hasResponseActions) =>
         state is AssistantState.Information or AssistantState.Listening or AssistantState.Success
         && !isBusy
         && !isSpeaking
         && !hasPendingPrompt
-        && !hasResponseActions
-        && !isGrantEditorVisible;
+        && !hasResponseActions;
 }

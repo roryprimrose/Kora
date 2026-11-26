@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -107,7 +107,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SelectedInstalledSpeechProvider = null;
         notified.Should().Contain(nameof(fixture.ViewModel.SelectedInstalledSpeechProvider))
             .And.Contain(nameof(fixture.ViewModel.SpeechSettingStatus)).And.Contain(nameof(fixture.ViewModel.SelectedVoice));
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
         fixture.TextToSpeech.RemoveProviderCalls.Should().Be(0);
         fixture.ViewModel.SelectedOutputDevice!.IsSystemDefault.Should().BeTrue();
@@ -152,7 +152,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("set speech.voice");
         fixture.ViewModel.ResponseTitle.Should().Contain("Clarify");
         fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]

@@ -502,18 +502,6 @@ public sealed partial class MainViewModel
                 OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
                 if (hidePresentation)
                 {
-                    if (IsModelActionApprovalPending)
-                    {
-                        actionRetirement = ClearPendingModelActionAsync("windows-privacy-transition");
-                    }
-                    if (IsGrantChangePending)
-                    {
-                        grantRetirement = ClearPendingGrantChangeAsync("windows-privacy-transition");
-                    }
-                    if (IsModelQuestionPending)
-                    {
-                        ClearPendingModelQuestion();
-                    }
                     Transcript = "No command heard yet.";
                     ResponseTitle = "Windows privacy recovery";
                     ResponseBody = "Return to an unlocked interactive session. Normal unlock can restore previously enabled "
@@ -1388,7 +1376,6 @@ public sealed partial class MainViewModel
             || !clipboardPreview.IsQuiescent || clipboardExplanation?.IsQuiescent == false
             || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
-            || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked());
 
     internal void AbandonHandoffPreparation()

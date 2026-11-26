@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Definitions;
 using Kora.Core.Customizations;
@@ -52,7 +52,7 @@ public sealed partial class MainViewModelTests
         if (state is "throw") { await action.Should().ThrowAsync<IOException>(); }
         else { await action(); }
         calls.Should().Be(state is "success" or "throw" or "exact" or "ownership" ? 1 : 0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.IsBusy.Should().BeFalse();
         f.ViewModel.BindCustomizationVoice(null);
         f.ViewModel.PublishCustomizationVoiceTarget(null);
@@ -67,7 +67,7 @@ public sealed partial class MainViewModelTests
         f.Voice.AfterStart = () => f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget());
         await f.RaiseActivatedTranscriptAsync("make this instruction clearer", 1);
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.ResponseBody.Should().Contain("No session received");
         await f.RaiseActivatedTranscriptAsync("refine this artifact make this clearer", 1);
         calls.Should().Be(0, "replacement during capture retires the original target rather than rebinding it");
@@ -99,7 +99,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindCustomizationVoice(_ => { calls++; return Task.CompletedTask; });
         await f.RaiseActivatedTranscriptAsync(command.StartsWith('/') ? command : "Kora, " + command, 1);
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -153,7 +153,7 @@ public sealed partial class MainViewModelTests
         { command.IsCurrent().Should().BeTrue(); observed = command; return Task.CompletedTask; };
         await f.RunAsync(text);
         observed!.Operation.Should().Be(operation);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -175,7 +175,7 @@ public sealed partial class MainViewModelTests
         if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, save skill adaptation", 1); }
         else { await f.RunAsync("save skill adaptation"); }
         invoked.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -189,7 +189,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync("Kora, " + text, 1);
         observed!.Operation.Should().Be(operation);
         observed.Kind.Should().Be(CustomizationKind.McpServer);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -198,7 +198,7 @@ public sealed partial class MainViewModelTests
         var f = await Fixture.CreateInitializedAsync();
         await f.RunAsync("show customizations");
         f.ViewModel.ResponseBody.Should().Contain("unavailable");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         var calls = 0;
         f.ViewModel.BindCustomizationShutdown(() => { calls++; return Task.FromResult(false); });
         await f.ViewModel.ExitAsync();
@@ -233,6 +233,6 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Contain("unavailable");
         await f.RunAsync("show customizations");
         dispatched.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

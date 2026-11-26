@@ -88,7 +88,7 @@ public sealed class SettingsCopyIdTests
                     ProviderModeCommand.OptionId, ProviderProfileCommand.ServiceOption, ProviderProfileCommand.ProfileOption,
                     "customizations.instructions.sources", "customizations.prompts.sources", "customizations.skills.sources",
                     "customizations.agents.sources", "customizations.mcp.sources", "customizations.mcp.included-servers",
-                    "network.uri-rules", "knowledge.sources", "approvals.session-actions", "approvals.always-actions",
+                    "network.uri-rules", "knowledge.sources", "approvals.permission-grants",
                 ]);
                 foreach (var id in ids)
                 {

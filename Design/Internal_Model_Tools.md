@@ -340,70 +340,36 @@ directly.
 This source path is unavailable by default: registration has no qualification
 evidence, its expiry is in the past, and no host endpoint binding is supplied.
 The presence of a native transport or a fake integration test does not make
-the catalogue a qualified live model surface. The retained bootstrap proposal
-contract below is explicitly unavailable in desktop composition, never an
+the catalogue a qualified live model surface. The legacy bootstrap proposal
+tree below is retired in desktop composition, never an
 automatic fallback from failed tool execution.
 
 ## Implemented Bootstrap Surface
 
-Evidence: [action enum](../src/Kora.Core/Commands/BuiltInAction.cs), [command catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [explicit unavailability](../src/Kora.Application/Dependencies/UnavailableLocalModelReasoner.cs), and [host dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs).
+The legacy fallback reasoner and model action/question/grant/settings-filter
+proposal tree are retired. Unmatched requests outside session routing,
+non-prompt artifact invocation and legacy clarification re-entry reject
+immediately without a task, thinking status, speech or send
+([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs),
+[regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ModelActionReview.cs)).
 
-The unreachable Windows `api/generate` reasoner has been removed. Desktop
-[composition](../src/Kora/Program.cs) retains `UnavailableLocalModelReasoner`,
-which fails explicitly without sending a request or proposing a model action.
-Admitted SDK/MAF model turns use the
-[tool-message route](Local_Inference.md#native-tool-message-transport-boundary);
-they do not revive this bootstrap selector.
+Desktop [composition](../src/Kora/Program.cs) registers no legacy reasoner or
+named model-action preference store. Existing `model-approvals.json` is ignored
+without reading, importing, converting, writing or deleting it, including
+malformed files ([startup regressions](../tests/Kora.Windows.IntegrationTests/DesktopBootstrapIntegrationTests.cs)).
 
-The host retains the legacy response contract and proposal-review tree below;
-this maintenance does not retire or rebind them. These shapes describe retained
-host handling, not an available inference surface
-([response contract](../src/Kora.Core/Dependencies/LocalModelResponse.cs),
-[host dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs)):
+Admitted session conversations use the
+[tool-message route](Local_Inference.md#native-tool-message-transport-boundary).
+Deterministic built-in/file/clipboard/capability commands and prompt-template
+artifacts remain separately admitted. Exact operation grants and session
+permission levels retain their authoritative stores and policy
+([exact grants](../src/Kora.Core/Storage/IExactGrantStore.cs),
+[session permission levels](Session_Permission_Levels.md)).
 
-| Response | Input/result shape and host behavior |
-|---|---|
-| `answer` | Non-empty text; display local-model attribution and apply the effective response policy |
-| `question` | `prompt` (at most 500 characters), 2-4 distinct unambiguous option labels (at most 80 characters each); host presents choices and feeds the selected reply into bounded follow-up reasoning |
-| `action` | One exact action name from the table below; host validates/dispatches or requests approval |
-| `grantChange` | `operation: Add/Remove/Move`, registered `action`, `scope: Session/Always` where required; Move requires `targetScope`; omission of an existing scope requires host ambiguity checks |
-
-Grant-change confirmation never executes the named action. Question selection never substitutes for action approval.
-Current action proposals have no arbitrary parameters or command lines.
-The retained [context shape](../src/Kora.Core/Dependencies/LocalModelContext.cs) contains assistant name, listening flag, pending power action, dependency readiness, and setup task states/progress; desktop bootstrap execution sends none of it to a model.
-The [host request handler](../src/Kora.Application/ViewModels/MainViewModel.cs) retains its 4,096-character request limit and clarification-depth guard. The removed generator's two-minute inference deadline and 64 KiB response buffer are not limits of the SDK/MAF tool-message route.
-
-| Current `action` value | Actual host effect/result | Current model-action approval | Proposed equivalent |
-|---|---|---|---|
-| `ShowApplication` | Reveal existing Kora window | No | `application.show` |
-| `HideApplication` | Hide UI, preserve listening/work | Yes unless an applicable named grant exists | `application.hide` |
-| `ExitApplication` | Exit Kora and release audio | Yes unless an applicable named grant exists | `application.request_exit` |
-| `RestartApplication` | Restart current application, not Windows | Yes unless an applicable named grant exists | `application.request_restart` |
-| `OpenSettings` | Open settings | No | `application.open_settings` |
-| `OpenDocumentation` | Open embedded user guide | No | `application.open_documentation` |
-| `OpenSetup` | Show setup/readiness; install nothing | No | `readiness.show` |
-| `ShowHelp` | Show built-in command catalogue | No | `capabilities.list` |
-| `ShowVersion` | Report running version | No | `application.get_version` |
-| `ShowStatus` | Report current activity and setup queue | No | `work.list` |
-| `ShowCurrentTaskProgress` | Report observed setup task progress | No | `work.status` |
-| `CancelTask` | Cancel active setup/inference under current host rules | Yes unless an applicable named grant exists | `work.cancel` |
-| `StopSpeaking` | Stop speech playback | No | `speech.stop` |
-| `LockMachine` | Real Windows lock through the current C# handler | Yes unless an applicable named grant exists; exact direct command currently differs | `computer.lock` |
-| `ProposeShutdown` | Create proposal; bootstrap sends no OS shutdown request | Yes unless an applicable named grant exists | `computer.propose_shutdown` |
-| `ProposeRestart` | Create proposal; bootstrap sends no OS restart request | Yes unless an applicable named grant exists | `computer.propose_restart` |
-| `CancelPowerAction` | Cancel Kora-owned pending power proposal | No | `computer.cancel_power_action` |
-| `ShowPowerStatus` | Report pending proposal and disabled execution | No | `computer.power_status` |
-| `ListGrants` | Open current model-action grant document | No | `approvals.list` |
-| `ManageGrants` | Open grant-change editor; not a grant mutation itself | No | `approvals.show` |
-| `ShowModelExecution` | Report whether local and hosted model execution are enabled and available | No | `models.execution.get` |
-| `EnableLocalModels` | Persist permission to use ready local models | Yes unless an applicable named grant exists | `models.local.enable` |
-| `DisableLocalModels` | Persistently block local model use and cancel active local inference | Yes unless an applicable named grant exists | `models.local.disable` |
-| `EnableHostedModels` | Persist hosted-model permission; current build still has no hosted provider | Yes unless an applicable named grant exists | `models.hosted.enable` |
-| `DisableHostedModels` | Persistently block hosted model use | Yes unless an applicable named grant exists | `models.hosted.disable` |
-
-The current host stores named model-action Session/Always preferences and supports Once approval.
-This is not the proposed content/invocation-bound grant store with durable session identity and independently retained perpetual grants, nor proof that current actions have script-bound execution grants.
-Current-versus-proposed differences must remain visible in documentation and capability negotiation.
+The [LocalModelResponse](../src/Kora.Core/Dependencies/LocalModelResponse.cs)
+serialized shape, including question, action, grant-change and settings-filter
+fields, remains for modern consumers and byte-budget validation. Retaining a
+shape does not restore the retired proposal UI or grant execution.
 
 ## Shared Proposed Contract
 

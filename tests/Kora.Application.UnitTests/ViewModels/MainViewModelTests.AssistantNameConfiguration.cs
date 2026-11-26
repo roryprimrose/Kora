@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.ViewModels;
 using Kora.Core;
@@ -30,56 +30,6 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task Assistant_reset_does_not_change_session_metadata_grants_or_original_question_targets()
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await fixture.ViewModel.InitializeAsync();
-        var store = BindSessions(fixture);
-        await fixture.RunAsync("session create \"Durable label\"");
-        var before = store.Session;
-        await fixture.RunAsync("choose");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var choices = fixture.ViewModel.ModelQuestionChoices.ToArray();
-        await fixture.RunAsync("call yourself Nova");
-        await fixture.RunAsync("reset your name");
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.ModelQuestionChoices.Should().Equal(choices);
-        store.Session.Should().Be(before);
-        await fixture.ViewModel.CancelModelQuestionAsync();
-        await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-            BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
-        await fixture.RunAsync("change your name to Nova");
-        fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
-        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
-        await fixture.ViewModel.RejectPendingGrantChangeAsync();
-        fixture.Reasoner.Question = null;
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.RunAsync("please lock");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        await fixture.RunAsync("reset your name");
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        await fixture.ViewModel.RejectModelActionCommand.ExecuteAsync();
-        fixture.ViewModel.LocalModelsEnabled = false;
-        await fixture.RunAsync("set assistant name to Nova");
-        await fixture.RunAsync("Nova, session status " + before.Authority.SessionId.Value.ToString("D"));
-        fixture.ViewModel.ResponseBody.Should().Contain("Durable label");
-        await fixture.RunAsync("Aria, session help");
-        fixture.ViewModel.ResponseTitle.Should().Be("Model use is turned off.");
-        fixture.Reasoner.Requests.Clear();
-        await fixture.RunAsync("Kora, run lock");
-        fixture.Reasoner.Requests.Should().BeEmpty();
-        fixture.ViewModel.LocalModelsEnabled = true;
-        await fixture.RunAsync("Nova, run lock");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Reasoner.Requests.Should().ContainSingle();
-        store.Session.Should().Be(before);
-    }
-
-    [Fact]
     public async Task Assistant_UI_typed_and_activated_voice_share_discovery_set_get_reset_without_inference()
     {
         var fixture = await Fixture.CreateInitializedAsync();
@@ -108,7 +58,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ResetAssistantNameCommand.ExecuteAsync();
         fixture.ViewModel.AssistantName.Should().Be("Kora");
         notified.Should().Contain(nameof(fixture.ViewModel.AssistantNameConfigurationDescription));
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.assistant-name"
             && item.Initiator == SecurityAuditInitiator.VoiceCommand
             && item.Outcome == SecurityAuditOutcome.Succeeded);
@@ -182,37 +132,8 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         await fixture.RunAsync("Kora, what can you do?");
         fixture.ViewModel.ResponseBody.Should().Contain("call yourself <name>").And.Contain("reset your name");
-        fixture.Reasoner.Requests.Should().BeEmpty();
-        if (voice) { fixture.Voice.StartedPhrases.Should().Contain("ノヴァ PrImE what is your name"); }
-    }
 
-    [Theory]
-    [InlineData("call yourself")]
-    [InlineData("call yourself \t")]
-    [InlineData("change your name Nova")]
-    [InlineData("change your name to")]
-    [InlineData("reset your name to Nova")]
-    [InlineData("what is your name please")]
-    public async Task Recognized_malformed_natural_names_do_not_answer_pending_questions_or_reach_inference(string text)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("choose");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var requests = fixture.Reasoner.Requests.Count;
-        await fixture.RunAsync(text);
-        fixture.ViewModel.ResponseTitle.Should().Be("Clarify the assistant setting.");
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.Reasoner.Requests.Count.Should().Be(requests);
-        fixture.NamePreferences.SavedName.Should().BeNull();
-        await fixture.ViewModel.CancelModelQuestionAsync();
-        await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-            BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        await fixture.RunAsync(text);
-        fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
-        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        if (voice) { fixture.Voice.StartedPhrases.Should().Contain("ノヴァ PrImE what is your name"); }
     }
 
     [Theory]
@@ -231,7 +152,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.AssistantName.Should().Be("Kora");
         fixture.NamePreferences.SavedName.Should().BeNull();
         fixture.Audit.Events.Last().ReasonCode.Should().Be("invalid-name");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Voice.StartCalls.Should().Be(0);
     }
 
@@ -251,7 +172,7 @@ public sealed partial class MainViewModelTests
         fixture.Voice.StartCalls.Should().Be(0);
         await fixture.RunAsync("Kora, what is your name");
         fixture.ViewModel.ResponseBody.Should().Contain("= Kora");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -283,7 +204,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsVoiceActivationAvailable.Should().BeTrue();
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         fixture.NamePreferences.SavedName.Should().Be("Kora");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]

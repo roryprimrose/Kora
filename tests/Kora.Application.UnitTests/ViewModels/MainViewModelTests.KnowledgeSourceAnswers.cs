@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.KnowledgeSources;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
@@ -9,6 +9,23 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task NamedAnswerCannotDisplacePendingQuestionOrCreateAutomaticModelFallback()
+    {
+        var f = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await f.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var calls = 0;
+        f.ViewModel.KnowledgeSourceAnswerRequested += (_, _) => { calls++; return Task.CompletedTask; };
+        var body = f.ViewModel.ResponseBody;
+        await f.RunAsync("answer using source \"Team\": alpha");
+        calls.Should().Be(0);
+        f.ViewModel.ResponseBody.Should().Be(body);
+        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -32,7 +49,7 @@ public sealed partial class MainViewModelTests
         received.Should().ContainSingle();
         received[0].Name.Should().Be("Team");
         received[0].Question.Should().Be("  exact New question?  ");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.RevokeSessionPresentation(new(Guid.NewGuid()));
         current!().Should().BeFalse();
     }
@@ -49,7 +66,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindClipboardOwnershipGate(() => false);
         await f.RunAsync("answer using source \"Team\": alpha");
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -79,7 +96,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.KnowledgeSourceAnswerRequested += (_, _) => { calls++; return Task.CompletedTask; };
         await f.RunAsync((prefixed ? "Kora, " : "") + "answer using source \"Team\": alpha");
         calls.Should().Be(prefixed ? 0 : 1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -97,21 +114,5 @@ public sealed partial class MainViewModelTests
         calls.Should().Be(0);
     }
 
-    [Fact]
-    public async Task NamedAnswerCannotDisplacePendingQuestionOrCreateAutomaticModelFallback()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        f.Reasoner.Question = new("Keep this exact question?", ["one", "two"]);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("please do this work");
-        await f.ViewModel.ActiveReasoningTask!;
-        var calls = 0;
-        f.ViewModel.KnowledgeSourceAnswerRequested += (_, _) => { calls++; return Task.CompletedTask; };
-        var body = f.ViewModel.ResponseBody;
-        await f.RunAsync("answer using source \"Team\": alpha");
-        calls.Should().Be(0);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-    }
+
 }

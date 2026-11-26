@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using AwesomeAssertions;
 using Kora.Application.Presentation;
 using Kora.Application.ViewModels;
@@ -12,43 +12,130 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task PendingModelDetailsOfferDoesNotCaptureIndependentSessionsNavigation()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.CallState.SetState(Kora.Core.Communication.CallState.Clear);
+        await f.Dispatcher.LastInvocation;
+        f.ViewModel.BindVoiceOwnershipGate(static () => true);
+        var requests = 0;
+        BindCompletedAnswerRouting(f, _ => { requests++; return Task.FromResult(DetailOfferAnswer); });
+        await f.RunAsync("original request");
+        f.ViewModel.IsDetailsOfferPending.Should().BeTrue();
+        var presenter = new ResponsePresenter(f.ViewModel);
+        f.ViewModel.BindCurrentResponsePresentation(presenter);
+        var navigation = 0;
+        f.ViewModel.WorkspaceSurfaceRequested += request =>
+        {
+            request.Target.Should().Be(Kora.Core.Commands.WorkspaceSurfaceTarget.Sessions);
+            navigation++;
+            return Task.CompletedTask;
+        };
+        await f.RunAsync("open sessions");
+        navigation.Should().Be(1);
+        requests.Should().Be(1);
+        presenter.Calls.Should().Be(0);
+        f.ViewModel.IsDetailsOfferPending.Should().BeTrue();
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GenericDetailsOpensOnlyTheExactCompletedSessionAnswerOffer()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.CallState.SetState(Kora.Core.Communication.CallState.Clear);
+        await f.Dispatcher.LastInvocation;
+        f.ViewModel.BindVoiceOwnershipGate(static () => true);
+        BindCompletedAnswerRouting(f, _ => Task.FromResult(DetailOfferAnswer));
+        await f.RunAsync("original request");
+        f.ViewModel.IsDetailsOfferPending.Should().BeTrue();
+        var presenter = new ResponsePresenter(f.ViewModel);
+        f.ViewModel.BindCurrentResponsePresentation(presenter);
+        await f.RunAsync("show detailed results");
+        presenter.Calls.Should().Be(1, "the admitted Details command should open the captured answer: {0}", f.ViewModel.Transcript);
+        presenter.Content!.Source.Should().Be(DetailOfferAnswer);
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("busy")]
+    [InlineData("response-action")]
+    [InlineData("decision")]
+    [InlineData("clipboard")]
+    [InlineData("provider-preview")]
+    [InlineData("audit-preview")]
+    [InlineData("diagnostic-preview")]
+    [InlineData("session-preview")]
+    public async Task CurrentResponseRefusesSecurityPreviewsWithoutChangingThem(string preview)
+    {
+        var f = new Fixture(enableProviderProfiles: true, enableAuditRetention: true, enableAuditImpact: true,
+            enableDiagnosticRetention: true, enableDiagnosticImpact: true,
+            enableSessionRetention: true, enableSessionRetentionPlanner: true);
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("what power action is pending");
+        switch (preview)
+        {
+            case "busy": SetResponseProperty(f.ViewModel, "IsBusy", true); break;
+            case "response-action": SetResponseProperty(f.ViewModel, "ResponseActions",
+                new ResponseAction[] { new(ResponseActionKind.OpenVoiceSettings, "Review") }); break;
+            case "decision": f.ViewModel.BindResponseReadDecisionGate(static () => false); break;
+            case "clipboard":
+                f.ClipboardReader.Text = "private clipboard source";
+                await f.ViewModel.PreviewClipboardAsync(); break;
+            case "provider-preview":
+                typeof(MainViewModel).GetField("providerFieldPreview", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(f.ViewModel, new Kora.Application.Configuration.ProviderProfileChoice(
+                        new(Kora.Core.Providers.ProviderService.Local, []), 1, Guid.NewGuid(),
+                        new(new(Guid.NewGuid()), new(1), true), RequestOrigin.LocalUi, static () => true)); break;
+            case "audit-preview":
+                f.ViewModel.BindAuditRetentionNativeLifetime(static () => true);
+                f.ViewModel.ProposedAuditImpactDays = 30;
+                await f.ViewModel.PreviewAuditImpactCommand.ExecuteAsync(); break;
+            case "diagnostic-preview":
+                f.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
+                f.ViewModel.ProposedDiagnosticImpactDays = 1;
+                await f.ViewModel.PreviewDiagnosticImpactCommand.ExecuteAsync(); break;
+            case "session-preview":
+                f.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
+                f.ViewModel.BindSessionRetentionNativeLifetime(static () => true);
+                await f.ViewModel.RefreshSessionRetentionCommand.ExecuteAsync();
+                f.ViewModel.ProposedSessionArchiveDays = 2;
+                f.ViewModel.ProposedSessionDeleteDays = 3;
+                await f.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync(); break;
+        }
+        var native = new ResponsePresenter(f.ViewModel);
+        f.ViewModel.BindCurrentResponsePresentation(native);
+        var body = f.ViewModel.ResponseBody;
+        await f.ViewModel.DismissCurrentResponseAsync();
+        await f.ViewModel.OpenCurrentResponseDetailsAsync();
+        native.Calls.Should().Be(0);
+        f.ViewModel.ResponseBody.Should().Be(body);
+        f.ViewModel.Transcript.Should().Contain("unavailable");
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ComplexModelAnswerOffersItsExactFullSourceWhileCompactUiAndSpeechUseTheBrief(bool decline)
+    public async Task CurrentResponsePreservesMissingAndPendingDetailsDecisionSources(bool pending)
     {
-        var f = new Fixture();
-        f.Probe.Status = new Kora.Core.Dependencies.DependencyStatus("local.inference", "Local inference",
-            Kora.Core.Dependencies.DependencyReadiness.Ready, "Synthetic ready provider");
-        const string full = "Brief response:\nThe plan has two stages.\n\nDetailed response:\n# Full plan\n\n```mermaid\ngraph TD\n A-->B\n```";
-        f.Reasoner.Response = new(full, null);
+        var f = CreateSummaryFixture(Kora.Core.Voice.SpeechProviderIds.Windows);
         await f.ViewModel.InitializeAsync();
+        await using var details = new PendingDetailsQuestion(f);
+        if (pending) { await details.PresentAsync(); }
+        else { f.ViewModel.DeclineCurrentDetailsOffer(); }
         var native = new ResponsePresenter(f.ViewModel);
         f.ViewModel.BindCurrentResponsePresentation(native);
-        await f.RunAsync("prepare a detailed plan");
-        await f.ViewModel.ActiveReasoningTask!;
-        f.ViewModel.ResponseBody.Should().Contain("The plan has two stages.").And.Contain(AnswerPresentation.Offer)
-            .And.NotContain("graph TD");
-        f.ViewModel.IsDetailsOfferPending.Should().BeTrue();
-        f.ViewModel.WorkspaceSurfaceRequested += _ => Task.CompletedTask;
-        await f.RunAsync("hide details");
-        f.ViewModel.IsDetailsOfferPending.Should().BeTrue("navigation is not acceptance or source replacement");
-        if (decline)
-        {
-            f.ViewModel.DeclineCurrentDetailsOffer();
-            f.ViewModel.IsDetailsOfferPending.Should().BeFalse();
-            native.Calls.Should().Be(0);
-            await f.RunAsync("open current response details");
-        }
-        else { await f.RunAsync("show me the detailed results"); }
-        native.Content!.Source.Should().Be(full);
-        native.Calls.Should().Be(1);
-        f.Reasoner.Requests.Should().ContainSingle();
-        await f.RunAsync("what version are you running");
-        f.ViewModel.IsDetailsOfferPending.Should().BeFalse("an unrelated ordinary response must retire the old offer");
-        f.ViewModel.RetireCurrentResponseSpeech();
-        f.ViewModel.IsDetailsOfferPending.Should().BeFalse();
-        f.ViewModel.DeclineCurrentDetailsOffer();
+        var body = f.ViewModel.ResponseBody;
+        var question = f.ViewModel.CurrentDetailsOffer;
+        foreach (var phrase in new[] { "dismiss current response", "open current response details", "open current response details and approve once" })
+        { await f.RunAsync(phrase); }
+        native.Calls.Should().Be(0);
+        f.ViewModel.ResponseBody.Should().Be(body);
+        f.ViewModel.CurrentDetailsOffer.Should().BeSameAs(question);
+        f.ViewModel.HasDetailsQuestion.Should().Be(pending);
+        f.ViewModel.HostedModelsEnabled.Should().BeFalse();
+        f.Session.LockCalls.Should().Be(0);
     }
 
     [Theory]
@@ -136,7 +223,7 @@ public sealed partial class MainViewModelTests
             native.Content.SessionSource.Should().NotBeNull();
         }
         f.TextToSpeech.SpeakCalls.Should().Be(calls);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         var audits = f.Audit.Events.Where(a => a.ActionId.StartsWith("response.", StringComparison.Ordinal)).ToArray();
         audits.Should().HaveCount(2);
         audits[0].Outcome.Should().Be(SecurityAuditOutcome.Requested);
@@ -145,44 +232,6 @@ public sealed partial class MainViewModelTests
         audits[0].Initiator.Should().Be(string.Equals(lane, "voice", StringComparison.Ordinal)
             ? SecurityAuditInitiator.VoiceCommand : string.Equals(lane, "typed", StringComparison.Ordinal)
                 ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.LocalUser);
-    }
-
-    [Theory]
-    [InlineData("none")]
-    [InlineData("question")]
-    [InlineData("approval")]
-    [InlineData("grant")]
-    public async Task CurrentResponsePreservesMissingAndPendingDecisionSources(string pending)
-    {
-        var f = CreateSummaryFixture(Kora.Core.Voice.SpeechProviderIds.Windows);
-        await f.ViewModel.InitializeAsync();
-        if (string.Equals(pending, "question", StringComparison.Ordinal)) { f.Reasoner.Question = new("Which?", ["A", "B"]); }
-        if (string.Equals(pending, "approval", StringComparison.Ordinal)) { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
-        if (f.Reasoner.Question is not null || f.Reasoner.Action is not null)
-        {
-            await f.RunAsync("choose something");
-            await f.ViewModel.ActiveReasoningTask!;
-        }
-        if (string.Equals(pending, "grant", StringComparison.Ordinal))
-        {
-            await f.ViewModel.PrepareGrantChangeAsync(new(Kora.Core.Commands.GrantChangeOperation.Add,
-                Kora.Core.Commands.BuiltInAction.EnableHostedModels, Kora.Core.Commands.ModelApprovalScope.Always));
-        }
-        var native = new ResponsePresenter(f.ViewModel);
-        f.ViewModel.BindCurrentResponsePresentation(native);
-        var body = f.ViewModel.ResponseBody;
-        var question = f.ViewModel.IsModelQuestionPending;
-        var approval = f.ViewModel.IsModelActionApprovalPending;
-        var grant = f.ViewModel.IsGrantChangePending;
-        foreach (var phrase in new[] { "dismiss current response", "open current response details", "open current response details and approve once" })
-        { await f.RunAsync(phrase); }
-        native.Calls.Should().Be(0);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.IsModelQuestionPending.Should().Be(question);
-        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        f.ViewModel.IsGrantChangePending.Should().Be(grant);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
     }
 
     [Theory]
@@ -273,7 +322,7 @@ public sealed partial class MainViewModelTests
         };
         await f.RunAsync("open current response details");
         f.ViewModel.Transcript.Should().Contain("unavailable");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -302,7 +351,7 @@ public sealed partial class MainViewModelTests
                 f.ViewModel.ResponseBody.Should().Be(original);
             }
             else { f.ViewModel.Transcript.Should().NotContain("saved default was not applied"); }
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.Audit.Events.Should().NotContain(a => a.ActionId == "response.details" && a.Outcome == SecurityAuditOutcome.Succeeded);
         }
     }
@@ -324,64 +373,6 @@ public sealed partial class MainViewModelTests
         f.Voice.StartedPhrases.Should().Contain("Nova dismiss current response");
         await f.RunAsync("what can you do");
         f.ViewModel.ResponseBody.Should().Contain(CurrentResponseCommand.Syntax);
-    }
-
-    [Theory]
-    [InlineData("busy")]
-    [InlineData("grant-editor")]
-    [InlineData("response-action")]
-    [InlineData("decision")]
-    [InlineData("clipboard")]
-    [InlineData("provider-preview")]
-    [InlineData("audit-preview")]
-    [InlineData("diagnostic-preview")]
-    [InlineData("session-preview")]
-    public async Task CurrentResponseRefusesSecurityPreviewsWithoutChangingThem(string preview)
-    {
-        var f = new Fixture(enableProviderProfiles: true, enableAuditRetention: true, enableAuditImpact: true,
-            enableDiagnosticRetention: true, enableDiagnosticImpact: true,
-            enableSessionRetention: true, enableSessionRetentionPlanner: true);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("what power action is pending");
-        switch (preview)
-        {
-            case "busy": SetResponseProperty(f.ViewModel, "IsBusy", true); break;
-            case "grant-editor": SetResponseProperty(f.ViewModel, "IsGrantEditorVisible", true); break;
-            case "response-action": SetResponseProperty(f.ViewModel, "ResponseActions",
-                new ResponseAction[] { new(ResponseActionKind.OpenVoiceSettings, "Review") }); break;
-            case "decision": f.ViewModel.BindResponseReadDecisionGate(static () => false); break;
-            case "clipboard":
-                f.ClipboardReader.Text = "private clipboard source";
-                await f.ViewModel.PreviewClipboardAsync(); break;
-            case "provider-preview":
-                typeof(MainViewModel).GetField("providerFieldPreview", BindingFlags.Instance | BindingFlags.NonPublic)!
-                    .SetValue(f.ViewModel, new Kora.Application.Configuration.ProviderProfileChoice(
-                        new(Kora.Core.Providers.ProviderService.Local, []), 1, Guid.NewGuid(),
-                        new(new(Guid.NewGuid()), new(1), true), RequestOrigin.LocalUi, static () => true)); break;
-            case "audit-preview":
-                f.ViewModel.BindAuditRetentionNativeLifetime(static () => true);
-                f.ViewModel.ProposedAuditImpactDays = 30;
-                await f.ViewModel.PreviewAuditImpactCommand.ExecuteAsync(); break;
-            case "diagnostic-preview":
-                f.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
-                f.ViewModel.ProposedDiagnosticImpactDays = 1;
-                await f.ViewModel.PreviewDiagnosticImpactCommand.ExecuteAsync(); break;
-            case "session-preview":
-                f.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
-                f.ViewModel.BindSessionRetentionNativeLifetime(static () => true);
-                await f.ViewModel.RefreshSessionRetentionCommand.ExecuteAsync();
-                f.ViewModel.ProposedSessionArchiveDays = 2;
-                f.ViewModel.ProposedSessionDeleteDays = 3;
-                await f.ViewModel.PreviewSessionRetentionCommand.ExecuteAsync(); break;
-        }
-        var native = new ResponsePresenter(f.ViewModel);
-        f.ViewModel.BindCurrentResponsePresentation(native);
-        var body = f.ViewModel.ResponseBody;
-        await f.ViewModel.DismissCurrentResponseAsync();
-        await f.ViewModel.OpenCurrentResponseDetailsAsync();
-        native.Calls.Should().Be(0);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.Transcript.Should().Contain("unavailable");
     }
 
     [Theory]
@@ -477,7 +468,7 @@ public sealed partial class MainViewModelTests
         }
         native.Calls.Should().Be(0);
         f.ViewModel.Transcript.Should().Contain("was not accepted");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private static void SetResponseProperty<T>(MainViewModel main, string name, T value) =>
@@ -616,7 +607,7 @@ public sealed partial class MainViewModelTests
         native.Content!.Reference.Should().Be(original.Reference);
         native.Content.Source.Should().Be(original.Source);
         f.TextToSpeech.SpeakCalls.Should().Be(speech);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Audit.Events.Count(audit => string.Equals(audit.ActionId, "response.details", StringComparison.Ordinal)).Should().Be(audits
             + (boundary is "current" or "revoked-at-audit" ? 2 : 0));
         f.ViewModel.Transcript.Should().Be(current ? "Exact current response details opened."

@@ -98,13 +98,11 @@ saved content leaves the last known-valid catalogue active and surfaces a
 reload failure. Added, changed, renamed, and removed artifacts become available
 without restarting Kora.
 
-Artifact identity includes its exact content digest. A reload retires any
-in-flight reasoning, clarification, or action approval whose selected
-ID/digest is no longer current. Consequential actions proposed from artifact
-instructions never reuse legacy action grants and can receive only a fresh
-single-use approval for that exact current revision; they cannot create
-session or always grants. This prevents changed instructions from inheriting
-authority established for an earlier or unrelated proposal.
+Artifact identity includes its exact content digest. Current prompt-template and
+admitted task/skill workflows retain their source revalidation. Non-prompt
+fallback model selection and its named action/question/grant proposal tree are
+retired; discovery or old preferences cannot restore authority
+([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
 ### Owned metadata inventory navigation
 
@@ -851,11 +849,10 @@ An unavailable model leaves exact local routes usable and reports that semantic 
 
 ## Current Bootstrap and Migration
 
-Today the exact command catalogue selects C# handlers before local reasoning.
-The Ollama request includes action names/descriptions and a limited status snapshot; the model returns one JSON answer, question, action, or grant-change proposal.
-Kora validates it and may dispatch the handler, but does not return a structured tool result to a continuing model/tool loop.
-There is no formal skill discovery/selection protocol, embedded script runner, or content-bound execution grant.
-Direct exact lock remains ungated while model-suggested lock requires approval; this is not the intended common policy.
+The exact command catalogue selects deterministic handlers before session routing.
+The legacy fallback reasoner and model action/question/grant/settings-filter proposal tree are retired; unmatched requests outside session routing reject immediately without sending ([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+Modern model turns retain their own [tool-message route](Local_Inference.md#native-tool-message-transport-boundary), not the retired selector.
+Direct computer intents retain the [exact fixed-package admission](../src/Kora/BundledFixedActionController.cs); named model-action preferences cannot authorize them.
 
 Migrate capability by capability: separate state queries from presentation, register typed tools and results, add mediated iteration/discovery, and resolve bundled skills to verified tasks.
 Preserve existing exact aliases, offline controls, input-channel policy, and truthful errors.

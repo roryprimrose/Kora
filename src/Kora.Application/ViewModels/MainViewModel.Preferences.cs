@@ -1,4 +1,4 @@
-using Kora.Application.Diagnostics;
+﻿using Kora.Application.Diagnostics;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -92,7 +92,7 @@ public sealed partial class MainViewModel
     }
 
     private async Task<bool> SavePreferenceAsync(Action persist, string actionId,
-        SecurityAuditInitiator initiator, string settingName, Func<bool>? additionalEligibility = null,
+        SecurityAuditInitiator initiator, string settingName,
         Action<string, string>? reportFailure = null)
     {
         Action<string, string> notifyFailure = reportFailure ?? ShowFailure;
@@ -104,16 +104,15 @@ public sealed partial class MainViewModel
         var eligible = CapturePreferenceEligibility(initiator);
         var origin = OriginalOrigin(initiator);
         preferenceWriteActive = true;
-        var isModelPreference = actionId is ModelApprovalPreferenceAction or ModelExecutionPreferenceAction;
+        var isModelPreference = actionId is ModelExecutionPreferenceAction;
         modelPreferenceWriteActive = isModelPreference;
         try
         {
-            var work = preferenceWriter.WriteAsync(persist, actionId, initiator, origin,
-                () => eligible() && (additionalEligibility?.Invoke() ?? true),
+            var work = preferenceWriter.WriteAsync(persist, actionId, initiator, origin, eligible,
                 isModelPreference ? "preference-write-failed" : null);
             preferencePersistence = work;
             await work;
-            if (!eligible() || additionalEligibility?.Invoke() == false)
+            if (!eligible())
             {
                 throw new InvalidOperationException("The preference may have committed, but its original admission changed before confirmation. Inspect saved state before a fresh change.");
             }
@@ -133,7 +132,6 @@ public sealed partial class MainViewModel
                 {
                     var title = actionId switch
                     {
-                        ModelApprovalPreferenceAction => "Model approval settings could not be saved.",
                         ModelExecutionPreferenceAction => "Model settings could not be saved.",
                         _ => $"The {settingName} could not be saved.",
                     };
@@ -151,9 +149,9 @@ public sealed partial class MainViewModel
             {
                 OnPropertyChanged(nameof(LocalModelsEnabled));
                 OnPropertyChanged(nameof(HostedModelsEnabled));
-                OnPropertyChanged(nameof(RequireAssistantNameForVoiceApproval));
-                OnPropertyChanged(nameof(AlwaysAllowedModelActions));
-                OnPropertyChanged(nameof(SessionAllowedModelActions));
+
+
+
             }
         }
     }

@@ -45,7 +45,6 @@ public sealed class ExactGrantsWindowContractTests
             .And.Contain("SelectionChanged=\"OnSelectionChanged\"");
         source.Should().Contain("Stored status (not applicability)").And.Contain("correlation only")
             .And.Contain("Any by default").And.NotContain("Watermark=");
-        Read("GrantListWindow.axaml").Should().NotContain("RevokeCommand");
         Read("App.ExactGrants.cs").Should().Contain("IExactGrantStore").And.Contain("ExactGrantControlAdmission");
         Read("SettingsView.axaml").Should().Contain("Permission grants...").And.Contain("InspectNetworkPermissionGrants")
             .And.NotContain("ItemsSource=\"{Binding PreapprovedUriPatterns}\"");

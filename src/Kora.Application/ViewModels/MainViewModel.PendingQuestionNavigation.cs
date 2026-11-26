@@ -1,4 +1,4 @@
-using Kora.Application.Diagnostics;
+﻿using Kora.Application.Diagnostics;
 using Kora.Application.Presentation;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -12,7 +12,7 @@ public sealed partial class MainViewModel
     public Func<bool> CaptureQuestionNoticeNavigationEligibility()
     {
         var current = CapturePromptSelection();
-        bool Ready() => !IsBusy && !IsResponseInteractionPending && !IsGrantEditorVisible
+        bool Ready() => !IsBusy && !IsResponseInteractionPending
             && composerDictation?.IsActive != true && promptInputVoice?.IsActive != true
             && questionVoiceReplies?.IsActive != true && customizationVoiceTarget?.IsCurrent != true
             && retainedAnswerDecisionsEligible() && Volatile.Read(ref pushToTalkHeld) == 0;

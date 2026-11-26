@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using AwesomeAssertions;
 
@@ -39,7 +39,7 @@ public sealed partial class MainViewModelTests
             var remaining = await service.ReadPendingConversationAsync(target, () => true, TestContext.Current.CancellationToken);
             remaining.Turns.Count(item => item.Phase == ConversationPendingPhase.Pending).Should().Be(cancel ? 2 : 0);
             remaining.Turns.Should().ContainSingle(item => item.Phase == ConversationPendingPhase.Dispatching);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             await f.RunAsync(decision);
             f.ViewModel.ResponseBody.Should().NotContain("\"outcome\":\"reviewed-pending-cancelled\"");
         });
@@ -89,7 +89,7 @@ public sealed partial class MainViewModelTests
             var remaining = await service.ReadPendingConversationAsync(target, () => true, TestContext.Current.CancellationToken);
             remaining.Turns.Count(item => item.Phase == ConversationPendingPhase.Pending).Should().Be(2);
             remaining.Paused.Should().BeFalse();
-            f.Reasoner.Requests.Should().BeEmpty();
+
         });
     }
 }

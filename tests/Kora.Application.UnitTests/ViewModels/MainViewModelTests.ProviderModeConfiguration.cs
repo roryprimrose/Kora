@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -37,7 +37,7 @@ public sealed partial class MainViewModelTests
         f.ProviderPreferences.Mode.Should().Be(ModelProviderMode.LocalFirst);
         f.Voice.StartedPhrases.Should().Contain("set providers.default-mode to HostedPreferred");
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ProviderPreferences.Pending.Should().BeFalse();
         f.OutputPreferences.SavedMode.Should().BeNull();
     }
@@ -58,7 +58,7 @@ public sealed partial class MainViewModelTests
             cancellationToken: TestContext.Current.CancellationToken);
         f.ProviderPreferences.Mode.Should().Be(protectedCall ? null : ModelProviderMode.LocalOnly);
         f.ViewModel.ResponseBody.Should().Contain(protectedCall ? "\"outcome\":\"denied\"" : "\"outcome\":\"saved\"");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     public sealed class FakeProviderPreferences : IModelProviderModePreferences
@@ -152,26 +152,6 @@ public sealed partial class MainViewModelTests
         };
         await f.RunAsync("get providers.default-mode");
         f.ProviderPreferences.Mode.Should().BeNull();
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ProviderSettingsCannotAnswerPendingExactInteractions(bool question)
-    {
-        var f = new Fixture(enableProviderModeConfiguration: true);
-        await using var admission = f.OutputAdmission;
-        f.Probe.Status = new("local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "ready");
-        f.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        if (question) { f.Reasoner.Question = new("Exact choice?", ["one", "two"]); f.Reasoner.Action = null; }
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("please do this work");
-        await f.ViewModel.ActiveReasoningTask!;
-        var preview = f.ViewModel.ResponseBody;
-        await f.RunAsync("reset providers.default-mode");
-        f.ViewModel.ResponseBody.Should().Be(preview);
-        f.ProviderPreferences.Mode.Should().BeNull();
-        f.ViewModel.CanChangeProviderMode.Should().BeFalse();
     }
 
     [Fact]

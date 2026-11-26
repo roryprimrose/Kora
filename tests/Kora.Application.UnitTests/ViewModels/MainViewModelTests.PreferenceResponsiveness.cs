@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -137,33 +137,5 @@ public sealed partial class MainViewModelTests
         }
     }
 
-    [Fact]
-    public async Task PendingModelPreferenceRequiresExplicitNameAndCannotGrantEarlyModelAdmission()
-    {
-        var fixture = await Fixture.CreateInitializedAsync();
-        using var release = new ManualResetEventSlim();
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var token = TestContext.Current.CancellationToken;
-        fixture.Audit.BeforeWrite = audit =>
-        {
-            if (audit.Outcome != SecurityAuditOutcome.Requested
-                || !string.Equals(audit.ActionId, "configuration.model-approval", StringComparison.Ordinal)) { return; }
-            entered.SetResult();
-            release.Wait(token);
-        };
-        fixture.ViewModel.RequireAssistantNameForVoiceApproval = false;
-        try
-        {
-            await entered.Task.WaitAsync(token);
-            fixture.ViewModel.PreferenceUpdate.IsCompleted.Should().BeFalse();
-            fixture.ViewModel.RequireAssistantNameForVoiceApproval.Should().BeTrue();
-            fixture.ViewModel.LocalModelsEnabled.Should().BeFalse();
-            fixture.ApprovalPreferences.Preferences.RequireAssistantNameForVoiceApproval.Should().BeTrue();
-            (await fixture.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
-        }
-        finally { release.Set(); }
-        await fixture.ViewModel.PreferenceUpdate;
-        fixture.ViewModel.RequireAssistantNameForVoiceApproval.Should().BeFalse();
-        fixture.ViewModel.LocalModelsEnabled.Should().BeTrue();
-    }
+
 }

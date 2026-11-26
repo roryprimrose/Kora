@@ -1,4 +1,4 @@
-using Kora.Application.Configuration;
+﻿using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Core;
@@ -41,38 +41,10 @@ public sealed partial class MainViewModel
     private void OnMcpServerConfigurationChanged(object? sender, EventArgs args) =>
         uiDispatcher.Post(() => RefreshArtifactDirectories(publishConfigurationChange: false));
 
-    private async Task ApplyArtifactCatalogueChangeAsync()
+    private Task ApplyArtifactCatalogueChangeAsync()
     {
-        if (disposed) { return; }
-        var cancellation = Task.CompletedTask;
-        var retirement = Task.CompletedTask;
+        if (disposed) { return Task.CompletedTask; }
         RefreshArtifactCommandOptions();
-        var retiredInteraction = false;
-        if (activeReasoningArtifact is { } running
-            && !artifactCatalogue.IsCapturedRevisionCurrent(running.Id, running.Digest))
-        {
-            cancellation = activeReasoningCancellation?.CancelAsync() ?? Task.CompletedTask;
-            retiredInteraction = true;
-        }
-        if (pendingQuestionArtifact is { } question
-            && !artifactCatalogue.IsCurrent(question.Id, question.Digest))
-        {
-            ClearPendingModelQuestion();
-            retiredInteraction = true;
-        }
-        if (pendingModelActionArtifact is { } action
-            && !artifactCatalogue.IsCurrent(action.Id, action.Digest))
-        {
-            retirement = ClearPendingModelActionAsync("artifact-revision-changed");
-            retiredInteraction = true;
-        }
-        if (retiredInteraction)
-        {
-            ShowInformation(
-                "Artifact changed.",
-                "The previous request, question, or approval was retired. Start a new request to use the reloaded artifact revision.");
-        }
-        await Task.WhenAll(cancellation, retirement);
         if (!artifactCatalogue.IsReloadUnavailable && artifactReloadFailureResponseRevision is { } revision)
         {
             artifactReloadFailureResponseRevision = null;
@@ -83,6 +55,7 @@ public sealed partial class MainViewModel
                     requestWindow: false, refreshOutput: false, sourceAssigned: () => forceVisualResponse = true);
             }
         }
+        return Task.CompletedTask;
     }
 
     public AsyncCommand RefreshArtifactDirectoriesCommand { get; }

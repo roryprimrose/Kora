@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using AwesomeAssertions;
 using Kora.Application.Hosting;
 using Kora.Application.Memory;
@@ -40,7 +40,7 @@ public sealed partial class MainViewModelTests
         store.Origins.Should().Equal(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice);
         fixture.ViewModel.ResponseTitle.Should().Be("Memory command observed.");
         fixture.ViewModel.Transcript.Should().Be("Original-user memory management; no model turn.");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.RevokeSessionPresentation(store.Session.Authority.SessionId);
         fixture.ViewModel.ResponseBody.Should().StartWith("Session presentation revoked");
@@ -72,7 +72,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ExecuteMemoryCommandAsync(new(MemoryCommandOperation.List, store.Session.Authority.SessionId.Value),
             SecurityAuditInitiator.TypedCommand);
         fixture.ViewModel.ResponseBody.Should().NotContain("Exact active-session metadata only");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -87,7 +87,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ExecuteMemoryCommandAsync(new(MemoryCommandOperation.List, store.Session.Authority.SessionId.Value), initiator);
         fixture.ViewModel.ResponseTitle.Should().Be(initiator == SecurityAuditInitiator.LocalUser
             ? "Memory command observed." : "Memory command not confirmed.", fixture.ViewModel.ResponseBody);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private sealed partial class SessionCommandStore : IMemoryStore, ICapabilityHostAccess

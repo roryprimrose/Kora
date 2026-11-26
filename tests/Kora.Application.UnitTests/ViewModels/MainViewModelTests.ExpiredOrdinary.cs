@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Voice;
 using Kora.Core.Communication;
@@ -61,7 +61,7 @@ public sealed partial class MainViewModelTests
             case "recovery": await f.ViewModel.SetVoiceConsentAsync(false); break;
         }
         current().Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
     }
 }

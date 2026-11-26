@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using AwesomeAssertions;
 
@@ -28,7 +28,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsSpeechCaptionPinned.Should().BeFalse();
         await fixture.RunAsync("inspect speech caption settings");
         fixture.ViewModel.ResponseBody.Should().Contain("\"source\":\"default\"");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -77,7 +77,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.DefaultResponseMode.Should().Be(outputMode);
         fixture.OutputPreferences.SavedMode.Should().BeNull();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         var writes = fixture.Audit.Events.Where(item => item.ActionId.StartsWith("configuration.speech-", StringComparison.Ordinal)).ToArray();
         writes.Should().HaveCount(24);
@@ -125,32 +125,13 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsSpeechCaptionVisible.Should().BeFalse();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         if (stage is "save")
         {
             fixture.ViewModel.Transcript.Should().Contain("not confirmed");
             fixture.Audit.Events.Where(item => string.Equals(item.ActionId, "configuration.speech-text", StringComparison.Ordinal)).Select(item => item.Outcome)
                 .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Failed);
         }
-    }
-
-    [Fact]
-    public async Task NaturalCaptionMalformedReservedInputCannotAnswerOrReplaceApproval()
-    {
-        var fixture = new Fixture(enableSpeechText: true);
-        await using var admission = fixture.OutputAdmission;
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("hide speech text once");
-        fixture.ViewModel.Transcript.Should().Be(SpeechTextCommand.Syntax);
-        await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        var title = fixture.ViewModel.ResponseTitle;
-        var body = fixture.ViewModel.ResponseBody;
-        await fixture.RunAsync("turn on speech captions please");
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        fixture.ViewModel.ResponseTitle.Should().Be(title);
-        fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.CaptionPreferences.Mode.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
     }
 
     [Theory]
@@ -209,7 +190,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         fixture.ViewModel.IsSpeechCaptionPinned.Should().BeFalse();
         fixture.ViewModel.Transcript.Should().Contain("requires an eligible");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]

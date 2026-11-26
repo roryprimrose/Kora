@@ -662,7 +662,6 @@ internal static class Program
         services.AddSingleton<ISpeechComponentStore, WindowsSpeechComponentStore>();
         services.AddSingleton<ISpeechComponentRuntime, UnavailableSpeechComponentRuntime>();
         services.AddSingleton<SpeechComponentSetupService>();
-        services.AddSingleton<ILocalModelReasoner, UnavailableLocalModelReasoner>();
         services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
         services.AddSingleton<IWorkbenchPlacementPreferences>(provider =>
             new LocalWorkbenchPlacementPreferences(provider.GetRequiredService<IPreferenceStore>()));
@@ -707,9 +706,6 @@ internal static class Program
         services.AddSingleton<IDiagnosticRetentionImpactReader>(provider =>
             new WindowsSqliteDiagnosticImpactReader(provider.GetRequiredService<WindowsSegmentedEvidenceSink>(), paths));
         services.AddSingleton<DiagnosticImpactPreviewService>();
-        services.AddSingleton<IModelApprovalPreferences>(provider =>
-            new LocalModelApprovalPreferences(
-                provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<IModelExecutionPreferences>(provider =>
             new LocalModelExecutionPreferences(
                 provider.GetRequiredService<IPreferenceStore>()));

@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;

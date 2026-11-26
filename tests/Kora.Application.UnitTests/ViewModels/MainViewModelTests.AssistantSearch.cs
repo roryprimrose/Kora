@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Text.Json;
 
 using AwesomeAssertions;
@@ -55,7 +55,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.HostStore.Records.Should().BeEmpty();
         fixture.ViewModel.Transcript.Should().NotContain("CAFE").And.NotContain(answer);
     }

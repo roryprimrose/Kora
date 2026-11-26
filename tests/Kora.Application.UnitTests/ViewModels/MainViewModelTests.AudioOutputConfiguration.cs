@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Core.Commands;
 using Kora.Application.Configuration;
 using Kora.Application.Voice;
@@ -19,6 +19,46 @@ public sealed partial class MainViewModelTests
         fixture.AudioPreferences.OutputDeviceId = outputId;
         await fixture.ViewModel.RefreshCommand.ExecuteAsync();
         await fixture.ViewModel.ResponseOutputUpdate;
+    }
+
+    [Fact]
+    public async Task Output_command_does_not_answer_or_overwrite_exact_pending_approval()
+    {
+        var fixture = new Fixture(enableOutputConfiguration: true);
+        await using var pendingDetails = new PendingDetailsQuestion(fixture);
+        await using var admission = fixture.OutputAdmission;
+        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await fixture.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var preview = fixture.ViewModel.ResponseBody;
+        fixture.ViewModel.CanChangeAudioOutputDevice.Should().BeFalse();
+        await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
+        await fixture.RunAsync("reset speech.output-device");
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.ResponseBody.Should().Be(preview);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task New_question_during_metadata_enumeration_preserves_its_complete_exact_preview()
+    {
+        var fixture = new Fixture(enableOutputConfiguration: true);
+        await using var pendingDetails = new PendingDetailsQuestion(fixture);
+        await using var admission = fixture.OutputAdmission;
+        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)",
+            Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await fixture.ViewModel.InitializeAsync();
+        Task? question = null;
+        fixture.TextToSpeech.BeforeOutputEnumeration = () => question = pendingDetails.PresentAsync();
+        await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
+        await question!;
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().NotBe("Output preference not confirmed.");
+        fixture.ViewModel.DetailsQuestionText.Should().Contain("exact completed answer");
+        fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
+        fixture.Session.LockCalls.Should().Be(0);
     }
 
     [Theory]
@@ -180,7 +220,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SelectedOutputDevice.Should().Be(SystemAudioDevices.Output);
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.Voice.StartCalls.Should().Be(microphones);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Preferences.SavedVoiceId.Should().BeNull();
     }
 
@@ -200,27 +240,7 @@ public sealed partial class MainViewModelTests
         fixture.AudioPreferences.OutputDeviceId.Should().Be("0");
         await fixture.RunAsync("reset speech.output-device");
         fixture.AudioPreferences.OutputDeviceId.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task Output_command_does_not_answer_or_overwrite_exact_pending_approval()
-    {
-        var fixture = new Fixture(enableOutputConfiguration: true);
-        await using var admission = fixture.OutputAdmission;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("lock this workstation please");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var preview = fixture.ViewModel.ResponseBody;
-        fixture.ViewModel.CanChangeAudioOutputDevice.Should().BeFalse();
-        await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
-        await fixture.RunAsync("reset speech.output-device");
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
     }
 
     [Theory]
@@ -443,7 +463,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("list output settings");
         if (!dispose) { fixture.ViewModel.ResponseTitle.Should().Be("Output preference not confirmed."); }
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -515,52 +535,5 @@ public sealed partial class MainViewModelTests
         fixture.Voice.StartCalls.Should().Be(0);
     }
 
-    [Fact]
-    public async Task New_question_during_metadata_enumeration_preserves_its_complete_exact_preview()
-    {
-        var fixture = new Fixture(enableOutputConfiguration: true);
-        await using var admission = fixture.OutputAdmission;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)",
-            Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        Task? question = null;
-        fixture.TextToSpeech.BeforeOutputEnumeration = () => question = fixture.RunAsync("lock this workstation please");
-        await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
-        await question!;
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.ViewModel.ResponseTitle.Should().NotBe("Output preference not confirmed.");
-        fixture.ViewModel.ResponseBody.Should().Contain("Allow Kora to use configured hosted model providers.");
-        fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-    }
 
-    [Fact]
-    public async Task Question_between_exact_requested_audit_and_apply_remains_exact_and_never_authorizes_output()
-    {
-        var fixture = new Fixture(enableOutputConfiguration: true);
-        await using var admission = fixture.OutputAdmission;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)",
-            Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("list output settings");
-        fixture.Reasoner.DecisionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        await fixture.RunAsync("lock this workstation please");
-        var reasoning = fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Audit.BeforeWrite = item =>
-        {
-            if (string.Equals(item.ActionId, "configuration.audio-output", StringComparison.Ordinal)
-                && item.Outcome == SecurityAuditOutcome.Requested) { fixture.Reasoner.DecisionGate.TrySetResult(); }
-        };
-        await fixture.RunAsync("reset speech.output-device");
-        await reasoning;
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.ViewModel.ResponseTitle.Should().NotBe("Output preference denied.");
-        fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-    }
 }

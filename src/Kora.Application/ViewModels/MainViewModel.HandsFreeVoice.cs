@@ -1,4 +1,4 @@
-using Kora.Application.Voice;
+﻿using Kora.Application.Voice;
 using Kora.Core.Communication;
 using Kora.Core.Voice;
 

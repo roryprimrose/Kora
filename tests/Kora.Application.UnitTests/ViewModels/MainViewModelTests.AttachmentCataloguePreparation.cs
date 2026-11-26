@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Hosting;
@@ -48,7 +48,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Be(body);
         f.HostStore.Records.Should().BeEmpty();
         f.Audit.Events.Should().Equal(audit);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ClipboardReader.Calls.Should().Be(0);
     }
 
@@ -69,35 +69,8 @@ public sealed partial class MainViewModelTests
         if (help) { f.ViewModel.Transcript.Should().Be(AttachmentCataloguePreparationCommand.Syntax); }
         else { f.ViewModel.Transcript.Should().Contain("refused"); }
         f.HostStore.Records.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.Audit.Events.Should().BeEmpty();
-    }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task CataloguePreparationDoesNotAnswerOrReplacePendingQuestionOrApproval(bool approval)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "fixture");
-        if (approval) { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
-        else { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("help with this machine");
-        await f.ViewModel.ActiveReasoningTask!;
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        var count = f.Reasoner.Requests.Count;
-        f.ViewModel.BindAttachmentCataloguePreparation(new CataloguePreparationFake());
-        await f.RunAsync(PrepareCatalogue);
-        await f.RunAsync("attachment catalogue help");
-        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        f.ViewModel.IsModelQuestionPending.Should().Be(!approval);
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.Reasoner.Requests.Should().HaveCount(count);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
     }
 
     [Theory]
@@ -153,7 +126,7 @@ public sealed partial class MainViewModelTests
         if (newerInput is not null) { await newerInput; }
         presenter.Ids.Should().BeEmpty();
         f.ViewModel.Transcript.Should().Contain("unavailable");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -45,7 +45,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("confirm voice.timing");
         f.CaptureTimingPreferences.Value.Should().Be(new VoiceCaptureTiming(5, 20, 2));
         f.Voice.StartCalls.Should().Be(starts);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]

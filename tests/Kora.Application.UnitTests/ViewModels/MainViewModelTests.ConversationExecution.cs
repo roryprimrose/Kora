@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Auditing;
@@ -42,7 +42,7 @@ public sealed partial class MainViewModelTests
         startup.Registration.State.Enabled.Should().BeTrue();
         f.ConversationExecutionPreferences.Value!.Value.Should().Be(1);
         f.ConversationExecutionPreferences.Writes.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Voice.StartCalls.Should().Be(0);
         f.ViewModel.Dispose();
     }
@@ -84,7 +84,7 @@ public sealed partial class MainViewModelTests
         else { await f.ViewModel.CancelConversationExecutionCommand.ExecuteAsync(); }
         f.ViewModel.CanConfirmConversationExecution.Should().BeFalse();
         f.Voice.IsListening.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
         f.ConversationExecutionConfiguration!.Observe();
     }
@@ -152,7 +152,7 @@ public sealed partial class MainViewModelTests
             if (duplicate is not null) { await duplicate; }
         }
         f.Voice.IsListening.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
     }
 

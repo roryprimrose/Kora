@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Presentation;
 using Kora.Application.Configuration;
@@ -123,7 +123,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be(title);
         f.ViewModel.ResponseBody.Should().Be(body);
         f.Voice.StartCalls.Should().Be(string.Equals(route, "activated", StringComparison.Ordinal) ? 2 : 0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.AudioPreferences.MicrophoneId.Should().Be(preference);
         f.ViewModel.IsVoiceEnabled.Should().Be(listening);
         f.VoiceConsent.Consent.Should().BeTrue();
@@ -139,7 +139,7 @@ public sealed partial class MainViewModelTests
             await f.ViewModel.ConfirmConversationExecutionCommand.ExecuteAsync();
             f.ConversationExecutionPreferences.Value!.Value.Should().Be(1);
             f.ConversationExecutionPreferences.Writes.Should().Be(1);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.ViewModel.IsVoiceEnabled.Should().Be(listening);
         }
         await f.ViewModel.DisposeAsync();
@@ -251,7 +251,7 @@ public sealed partial class MainViewModelTests
         model.IsVoiceEnabled.Should().BeFalse();
         model.HasVoiceConsent.Should().BeTrue();
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         runtime.ProfileGeneration.Should().Be(new SpeechInputGeneration(0, SpeechInputSelection.Default));
     }
 
@@ -315,7 +315,7 @@ public sealed partial class MainViewModelTests
         runtime.Disposals.Should().Be(1);
         f.ViewModel.SpeechComparisonResults.Should().BeEmpty();
         f.Voice.StartCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]

@@ -2141,9 +2141,10 @@ Where action approval and disclosure consent cover the same exact operation, off
 ### Grant inventory and existing implementation
 
 Permissions and approvals are host-owned security records, not ordinary preference values.
-The current bootstrap provides once/session/always preferences for named
-model-suggested built-in actions and host-validated grant-change proposals.
-These preferences are not executable/script grants and cannot authorize Lock.
+Legacy named model-action preferences and grant-change proposals are retired.
+Existing `model-approvals.json` is ignored without read/import/conversion or
+deletion, including malformed files; retained bytes confer no authority
+([bootstrap regressions](../tests/Kora.Windows.IntegrationTests/DesktopBootstrapIntegrationTests.cs)).
 Direct typed/activated-voice/native Lock and model-proposed Lock now share the
 [exact package admission owner](../src/Kora/BundledFixedActionController.cs).
 Intent or source inspection is not approval: expect fresh exact review unless
@@ -2163,7 +2164,7 @@ It never needs to display raw sensitive payloads; show content/parameter hashes 
 Deterministic voice commands may open or filter that page, explain why an action is currently allowed, and request revocation.
 Explicit voice or UI confirmation completes removal, scope narrowing, or bulk removal against the exact displayed/read-back scope.
 Broadening scope, changing identity/destination, choosing session/perpetual scope, or replacing consumed/ended/revoked/removed access requires newly reviewed action-specific approval through either channel and any mandatory OS/provider checks.
-No approvable action category is categorically denied session/always duration; future execution grants bind exact implementation/dependency digests, invocation, and resources, unlike today's named model-action preferences.
+No approvable action category is categorically denied session/always duration; exact execution grants bind implementation/dependency digests, invocation and resources, never retired named model-action preferences ([grant contract](Security_Data_Flows.md#grant-types-and-inheritance)).
 Extending beyond a host maximum, granting unspecified effects, or approving a prohibited action is rejected, not overridable by approval.
 Revocation blocks subsequent exact-grant consumption. In-flight work is reported as cancelled, completed, or uncertain only when actual evidence supports it; revocation itself never proves physical cancellation or rollback.
 

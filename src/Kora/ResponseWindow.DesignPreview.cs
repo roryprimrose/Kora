@@ -28,35 +28,18 @@ public sealed partial class ResponseWindow
         DataContext = new DesignPreviewData();
     }
 
-    // Change this to preview another compact-window state; C# edits require a previewer rebuild.
-    private const DesignPreviewScenario Scenario = DesignPreviewScenario.PermissionRequest;
-
-    private enum DesignPreviewScenario
-    {
-        Response,
-        PermissionRequest,
-    }
-
     // Reflection bindings leave IsVisible at its default (true) when a source property is missing,
     // so every visibility flag bound by ResponseWindow.axaml is declared here.
     private sealed class DesignPreviewData
     {
-        private static bool IsPermissionRequest => Scenario == DesignPreviewScenario.PermissionRequest;
-
         public string AssistantName => "Kora";
-        public string ResponseBody => IsPermissionRequest
-            ? "I can open Settings so you can change the theme. Opening it is an action, so I need your approval first."
-            : "Expect sunshine through the morning with light cloud after lunch. The high is 22 degrees "
+        public string ResponseBody => "Expect sunshine through the morning with light cloud after lunch. The high is 22 degrees "
                 + "with a gentle easterly breeze, and there is no rain in the forecast.";
         public string CommandText => string.Empty;
         public string CommandInputPlaceholder => "Type a command or / for artifacts";
         public string CommandSubmitLabel => "Run";
 
         public string PendingQuestionNavigationStatus => string.Empty;
-        public string ModelActionReviewStatus => string.Empty;
-        public string ModelActionReviewTitle => IsPermissionRequest ? "Allow Kora to open Kora settings?" : string.Empty;
-        public string ModelActionReviewDetail => string.Empty;
-    public string ModelActionReviewCommand => IsPermissionRequest ? "open settings" : string.Empty;
         public string SubmittedWorkActivityStatus => string.Empty;
         public string ReadCurrentResponseStatus => string.Empty;
         public string ResponseReadProposalReview => string.Empty;
@@ -70,14 +53,8 @@ public sealed partial class ResponseWindow
         public bool IsCancelTaskVisible => false;
         public bool IsSpeaking => false;
         public bool IsDetailsOfferPending => false;
-        public bool IsGrantEditorVisible => false;
-        public bool IsGrantChangePending => false;
-        public bool IsModelQuestionPending => false;
         public bool IsArtifactCommandDropdownVisible => false;
-        public bool IsResponseInteractionPending => IsPermissionRequest;
-        public bool CanConfirmModelActionReview => IsPermissionRequest;
-        public bool CanConfirmReusableModelActionReview => IsPermissionRequest;
-        public bool CanRejectModelActionReview => IsPermissionRequest;
+        public bool IsResponseInteractionPending => false;
         public bool HasResponseReadProposal => false;
         public bool HasResponseActions => false;
         public bool HasWebResultDetails => false;
@@ -85,13 +62,7 @@ public sealed partial class ResponseWindow
         public IReadOnlyList<object> ResponseActions { get; } = [];
         public IReadOnlyList<object> WebResultDetailActions { get; } = [];
         public IReadOnlyList<object> WebSummaryConfirmations { get; } = [];
-        public IReadOnlyList<object> ModelActionReviews { get; } = IsPermissionRequest ? [new object()] : [];
-    public object? PendingModelActionReview => ModelActionReviews.Count > 0 ? ModelActionReviews[0] : null;
-        public IReadOnlyList<object> ModelQuestionChoices { get; } = [];
         public IReadOnlyList<object> ArtifactCommandOptions { get; } = [];
-        public IReadOnlyList<object> GrantActions { get; } = [];
-        public IReadOnlyList<object> GrantOperations { get; } = [];
-        public IReadOnlyList<object> GrantScopes { get; } = [];
     }
 }
 #endif

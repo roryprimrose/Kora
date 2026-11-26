@@ -295,7 +295,7 @@ Both PTT and native recovery refuse while the stop's terminal receipt is still f
 
 This is not Stop speaking, Cancel task, hiding, exit, stored-consent withdrawal or global microphone mute ([stop integration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
 Protected-call stop remains available without authorizing voice recovery or weakening other mutations ([call policy](../src/Kora.Application/Communication/CallCommunicationPolicy.cs)).
-There is no enable/unmute command or qualified model stop lane, and the six read-only capabilities remain observations ([catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [unavailable bootstrap route](../src/Kora.Application/Dependencies/UnavailableLocalModelReasoner.cs), [read-only registry](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
+There is no enable/unmute command or qualified model stop lane, and the six read-only capabilities remain observations ([catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [retired fallback guard](../src/Kora.Application/ViewModels/MainViewModel.cs), [read-only registry](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
 
 Deterministic fake-lifecycle tests cover exact typed/current-prefix activation, pending decisions, release failure, queued input and explicit recovery ([stop tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ListeningStop.cs)).
 They do not claim physical microphone, acoustic or installed-native qualification ([native lifecycle tests](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs)).
@@ -423,11 +423,11 @@ never release a current-run recovery hold. Use **Enable listening** explicitly.
 Changing the assistant name invalidates current capture; enable listening again.
 An ordinary restart uses its own saved consent and fresh gates, not old audio.
 
-For a model-suggested action that needs approval, Kora always shows the
-request and can speak the question. It releases microphone capture while
-speaking. Activate push-to-talk again for **approve once**, **approve for this
-session**, **always allow this**, or **reject**. Say the assistant name first
-unless you turned off that requirement under **Settings > Approvals**.
+The legacy model-action approval phrases and review controls are retired.
+Unmatched requests outside the session conversation route reject without
+starting speech or inference; session questions retain their separate admission
+([host routing](../src/Kora.Application/ViewModels/MainViewModel.cs),
+[exact approvals](settings.md#permission-grants)).
 
 ## Speech providers
 

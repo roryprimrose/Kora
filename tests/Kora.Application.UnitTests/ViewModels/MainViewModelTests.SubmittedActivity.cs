@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Core.Dependencies;
 
@@ -6,6 +6,26 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task SubmittedActivityRefreshPreservesTheExactPendingQuestionAndUnsentCommand()
+    {
+        var f = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
+        await f.ViewModel.InitializeAsync();
+        var (_, conversation) = BindRemainingWork(f);
+        await using var owned = conversation;
+        await pendingDetails.PresentAsync();
+        f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        var body = f.ViewModel.ResponseBody;
+        var command = f.ViewModel.CommandText;
+        f.ViewModel.ShowSubmittedWorkActivity();
+        f.ViewModel.RefreshSubmittedWorkActivity();
+        f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        f.ViewModel.ResponseBody.Should().Be(body);
+        f.ViewModel.CommandText.Should().Be(command);
+    }
+
     [Theory]
     [InlineData("native")]
     [InlineData("typed")]
@@ -32,7 +52,7 @@ public sealed partial class MainViewModelTests
         store.RemainingReads.Should().Be(0, "aggregate ownership never reads conversation bodies or retained history");
         store.RequestRetentions.Should().Be(0);
         f.HostStore.Records.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -56,27 +76,6 @@ public sealed partial class MainViewModelTests
         }
         f.ViewModel.RefreshSubmittedWorkActivity();
         f.ViewModel.SubmittedWorkActivityStatus.Should().Contain("unavailable").And.NotContain("busy 0");
-    }
-
-    [Fact]
-    public async Task SubmittedActivityRefreshPreservesTheExactPendingQuestionAndUnsentCommand()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        var (_, conversation) = BindRemainingWork(f);
-        await using var owned = conversation;
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        var body = f.ViewModel.ResponseBody;
-        var command = f.ViewModel.CommandText;
-        f.ViewModel.ShowSubmittedWorkActivity();
-        f.ViewModel.RefreshSubmittedWorkActivity();
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.CommandText.Should().Be(command);
     }
 
     [Theory]

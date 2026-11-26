@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
@@ -44,7 +44,7 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.ViewModel.HasVoiceConsent.Should().BeFalse();
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.DisposeAsync();
     }
 
@@ -145,7 +145,7 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.ClearSpokenResponse();
         await f.RunAsync("what power action is pending");
         f.TextToSpeech.SpokenText.Should().Contain("No power action is pending.");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
     }
 
@@ -177,7 +177,7 @@ public sealed partial class MainViewModelTests
         quiet.Preferences.Value.Should().Be(QuietHoursSchedule.Off);
         await f.RunAsync("get notices.quiet-hours");
         f.ViewModel.Transcript.Should().Contain("effective Off");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Events.Should().Equal(events);
         f.Voice.StartedMicrophone.Should().BeNull();
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
@@ -325,30 +325,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.EndPushToTalkAsync();
         await f.Voice.RaiseTranscriptAsync("Kora, confirm notices.quiet-hours", 0.99f);
         quiet.Preferences.Writes.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.ViewModel.Dispose();
-    }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task QuietHoursNeverHideOrAnswerMandatoryQuestionsAndApprovals(bool approval)
-    {
-        await using var quiet = new QuietHoursConfigurationServiceTests.Fixture();
-        var f = new Fixture(quietHoursConfiguration: quiet.Service);
-        f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "fixture");
-        if (approval) { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
-        else { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("help me");
-        await f.ViewModel.ActiveReasoningTask!;
-        var body = f.ViewModel.ResponseBody;
-        await f.RunAsync("set notices.quiet-hours to Off");
-        await f.RunAsync("confirm notices.quiet-hours");
-        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        f.ViewModel.IsModelQuestionPending.Should().Be(!approval);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        quiet.Preferences.Writes.Should().Be(0);
         f.ViewModel.Dispose();
     }
 

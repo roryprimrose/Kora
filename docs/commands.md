@@ -427,9 +427,10 @@ Explicit discard and closing the last view/application protect nonempty unsent i
 
 Voice and typed input use the same exact built-in phrases, which always take
 precedence. Voice input may use the configured assistant name as a prefix.
-Punctuation and capitalization do not matter for built-in phrases. Once the
-verified local model is ready, unmatched requests can receive a local answer;
-free-form voice requests must start with the active assistant name.
+Punctuation and capitalization do not matter for built-in phrases. Free-form
+requests use the [session conversation route](windows-and-tray.md). Requests
+that do not enter that route are rejected immediately; nothing is sent to a
+model ([host routing](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 The alternatives below are explicit phrases, not fuzzy matching: additional
 words beyond the phrase do not trigger a built-in action.
 
@@ -2114,36 +2115,10 @@ The implemented boundary requires a package grant, separate original-channel con
 
 ## Grant-management tasks
 
-### List and view grants
-- **list grants**
-- **show grants**
-- **view grants**
-- **what grants are active**
-- **list my approvals**
-- **show my permissions**
-
-The live session and persistent grants appear in a Markdown document window.
-Listing never changes permissions and works without a local model.
-
-### Prepare a grant change
-- **manage grants**
-- **add a grant**
-- **edit a grant**
-- **remove a grant**
-- **change grants**
-- **manage approvals**
-
-Select the exact built-in action and scope in the response window: **Add**
-creates a session or always grant, **Remove** revokes an existing grant, and
-**Move** edits its scope using the destination after "to". The destination
-selector is used only for Move. Kora repeats the exact action, operation and
-scope; confirm with the button or say "approve once" (prefixed with the
-assistant name by default), or reject. "Always allow this" does not confirm
-a grant edit: the proposed scope is already fixed. A removal with no specified
-scope only proceeds automatically when exactly one grant exists for that
-action; otherwise select the existing scope. If a ready model identifies the
-grant from a more specific request, it still cannot apply the change without
-confirmation. Confirming a grant never executes the named action.
+Use **Settings > Approvals > Permission grants...** for
+[exact operation grants](settings.md#permission-grants). The legacy named-action
+list/edit commands and model grant-change flow are retired; they confer no
+authority ([command catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs)).
 
 ## Model execution settings
 
@@ -2196,45 +2171,18 @@ request, and it does not provide a cloud fallback.
 
 ## When a command does not match
 
-**Current availability:** this build has no approved local model profile and
-uses an unavailable reasoner for unmatched commands. The following explains
-the answer/approval workflow, not an enabled AI feature. Use **help** for commands
-that work without a model; see [Models](settings.md#models) for availability.
+An unmatched request first uses the existing session conversation routing.
+If that route does not take it, Kora immediately reports **Model request
+unavailable. Nothing was sent.** No fallback task, thinking status, speech or
+model request starts. Non-prompt artifact commands and legacy clarification
+re-entry reject the same way. The unavailable message remains visual even in
+voice-only mode ([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs),
+[regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ModelActionReview.cs)).
 
-When local model execution is enabled and the selected local model is ready,
-Kora sends only the current unmatched
-request text, the built-in action descriptions, and a limited snapshot of
-readiness, task state/progress, listening state, and pending power-proposal
-status to it. The model can return an answer, ask a clarification question
-with two to four options, propose a grant change, or request one named built-in
-action; Kora rejects unknown actions
-and runs allowed ones through its existing command handler. Hiding or exiting
-Kora, restarting it, cancelling a task, locking Windows, or proposing a power
-action requires approval unless you have already granted that specific action
-for this session or always. When asked, say **"Kora, approve once"**,
-**"Kora, approve for this session"**, **"Kora, always allow this"**, or
-**"Kora, reject"**. You may also use the visible scope buttons; the request
-remains visible even when voice-only responses are selected. The configured
-assistant name is required for spoken approval by default, but can be made
-optional in Settings. Session grants end on exit, restart, or locking Windows through Kora.
-Always grants persist until revoked under **Settings > Approvals**. Reject
-or dismiss the suggestion to discard it. These grants are keyed to action
-names, not executable or script hashes, and do not change how direct exact
-commands are dispatched. The model cannot
-directly access arbitrary files, services, or tools. Without a ready local
-model, Kora explains that other requests are unavailable. Use **what can you
-do** or open this Documentation window to review exact built-in phrases.
-
-When Kora needs direction before answering, the response window shows the
-question and numbered choices, even in VoiceOnly mode. Choose an option by
-mouse or say its number or label (for example, **"Kora, option one"**); the
-assistant name is required for spoken choices by default, as with spoken
-approvals. Say **"Kora, cancel question"** or use **Cancel question** to
-dismiss it. The chosen option and the original request go back to the local
-model; selecting an option is **not** permission to run an action or create a
-grant. A later action proposal still requires its own approval, unless a
-specific grant already covers that action. Kora limits consecutive questions
-to three; start a new request with more details if it reaches that limit.
+The legacy model action/question/grant/settings-filter proposal workflow is
+retired. Existing session conversations, their questions, deterministic commands
+and prompt-template artifacts keep their own admission and review
+([session routing](../src/Kora.Application/ViewModels/MainViewModel.SessionRouting.cs)).
 ## Run skills and artifacts
 
 ### Edit an owned instruction or literal prompt without a model
@@ -2272,8 +2220,12 @@ Filters/search/page changes are in-memory and preserve the open original/draft. 
 
 Enabled native owned-v2 prompts open the existing private required-input form through exact typed/current-name activated selection. Parameter values and retention consent are native-only, never inline command/PTT text. Preview and old Use remain ephemeral; separate exact Active-session review/confirmation can retain the whole expanded USER body through the real conversation service, with unavailable generation. See [explicit prompt submission](instruction-editor.md#submit-an-expanded-request-to-one-exact-session).
 
-Kora can apply a bundled or disk-backed skill, instruction, prompt, or agent
-artifact to a local-model request from the command box or activated voice.
+Prompt-template artifacts retain their existing required-input and exact-session
+review workflow. Selecting a non-prompt artifact, including `/lock`, `/restart`,
+`/shutdown`, instruction or agent entries, immediately reports **Model request
+unavailable. Nothing was sent.** Selection never starts legacy inference,
+source preparation or action approval
+([selection guards](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
 **Type a slash command**
 
@@ -2282,44 +2234,15 @@ disk-backed artifact. Continue typing to filter by command name, or type a
 kind such as `/skill `, `/prompt `, `/instruction `, or `/agent `. Use Up/Down and Enter
 or select an item with the pointer; Escape closes the dropdown.
 
-Use a direct command:
-
-```text
-/lock
-/restart
-/shutdown
-```
-
-You can also include the artifact kind:
-
-```text
-/skill lock
-/skill restart
-/skill shutdown
-```
-
-An artifact that accepts request text uses the rest of the line as its input:
-
-```text
-/prompt explain why this setup failed
-/agent review-changes inspect this patch
-```
-
-The current release bundles only the three skills listed above. An unknown,
+An unknown,
 incomplete, or wrong-kind slash command shows an error and is not sent to the
 model as an ordinary question.
 
 **Say an artifact command**
 
-Start with your configured assistant name, then say **run** or **use**:
-
-- "Kora, run lock."
-- "Kora, use the restart skill."
-- "Kora, run the shut down the machine skill."
-- "Kora, use explain to summarize this result." when a future `explain`
-  artifact is available.
-
-If you renamed Kora, use the configured name. Voice artifact requests without
+Use the configured assistant name for existing activated artifact selection;
+non-prompt selection is unavailable, not an action execution route.
+Voice artifact requests without
 the activation name are rejected in the same way as other free-form voice
 requests.
 
@@ -2344,18 +2267,16 @@ historical catalogue data does not keep managed owned instructions/prompts usabl
 New/changed managed revisions require separate current-run exact review and native
 freshness before explicit selection; old bytes do not restore withdrawn use.
 Managed prompts are literal saved user-request content, not system guidance.
-No restart is needed. Loading an agent
-artifact applies its declarative instructions; it does not start an autonomous
-agent runtime.
+No restart is needed. Discovery of an agent artifact neither starts an autonomous
+runtime nor restores the retired non-prompt model selection route
+([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
 Removing a directory immediately retires disk catalogue entries while the remaining sources reload. If that reload fails, removed content is not kept available through the historical catalogue. Saving a Kora-owned copy does not re-add a removed discovery location. Re-add a removed directory before recovering any interrupted definition transaction there ([reload handling](../src/Kora/ArtifactCatalogueReloadService.cs), [transaction recovery admission](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Transactions.cs)).
 
-If a selected artifact changes while local reasoning, a clarification, or an
-action approval is pending, Kora retires that interaction. Start a new request
-to use the new revision. Action proposals originating from artifact
-instructions require a fresh single-use approval for the current content
-digest. Existing session/always action grants are not reused, and an
-artifact-originated proposal cannot create a reusable grant.
+Changed prompt-template sources retain their existing current-revision review.
+The retired non-prompt proposal route creates no named action grants; exact
+skill/task invocation remains separately admitted
+([fixed package gate](../src/Kora/BundledFixedActionController.cs)).
 
 **MCP server configuration files**
 

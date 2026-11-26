@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
@@ -25,7 +25,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.RunTypedCommand.ExecuteAsync();
         opens.Should().Be(0);
         navigations.Should().Be(1);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.ShowSessions();
         opens.Should().Be(1);

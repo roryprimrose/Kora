@@ -1,4 +1,4 @@
-using Kora.Application.Diagnostics;
+﻿using Kora.Application.Diagnostics;
 using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -18,7 +18,7 @@ public sealed partial class MainViewModel
     public bool IsDetailsOfferPending => Volatile.Read(ref ordinaryResponse) is { ModelAnswer: { } answer } source
         && (detailPresentation is null || detailPresentation.IsOfferCurrent(answer.OfferEpoch))
         && source.Id != dismissedDetailsOffer && AnswerPresentation.From(answer.Body).HasDetails
-        && !IsResponseInteractionPending && !IsGrantEditorVisible && !HasResponseActions;
+        && !IsResponseInteractionPending && !HasResponseActions;
 
     public void DeclineCurrentDetailsOffer()
     {
@@ -38,7 +38,7 @@ public sealed partial class MainViewModel
     }
 
     private bool CanActOnCurrentResponse => IsCallMutationHostEligible && !IsProtectedCall
-        && !IsBusy && !IsResponseInteractionPending && !IsGrantEditorVisible && !HasResponseActions
+        && !IsBusy && !IsResponseInteractionPending && !HasResponseActions
         && responseReadDecisionsEligible() && ClipboardPreview is null
         && FileReview is null && FolderReview is null && FileRevision is null && FolderRevision is null
         && providerFieldPreview is null && auditImpactPreview?.Get().ProposedDays is null

@@ -28,52 +28,8 @@ public sealed partial class MainViewModelTests
         observed.Should().OnlyContain(item => item.Target == WorkspaceSurfaceTarget.OpenNamedConversation
             && item.ConversationName!.Value == "Exact name");
         observed[0].IsAdmitted().Should().BeFalse("another original input retires the first choice");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task NamedOpeningCannotBorrowAnExistingQuestionOrApprovalInput()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        var calls = 0;
-        f.ViewModel.WorkspaceSurfaceRequested += _ => { calls++; return Task.CompletedTask; };
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        await f.RaiseActivatedTranscriptAsync("Kora, open conversation \"One\"", 1);
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        calls.Should().Be(0);
-        await f.ViewModel.CancelModelQuestionAsync();
-        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        await f.RunAsync("open conversation \"One\"");
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        calls.Should().Be(0);
-        await f.ViewModel.RejectPendingGrantChangeAsync();
-    }
-
-    [Fact]
-    public async Task NamedOpeningRejectsOriginalEditorTargetAndNewlyOpenedDecision()
-    {
-        var f = await Fixture.CreateInitializedAsync();
-        var calls = 0;
-        f.ViewModel.WorkspaceSurfaceRequested += async request =>
-        {
-            calls++;
-            request.IsAdmitted().Should().BeTrue();
-            await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-            request.IsAdmitted().Should().BeFalse("another decision cannot lend authority to the existing choice");
-            await f.ViewModel.RejectPendingGrantChangeAsync();
-        };
-        f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget());
-        await f.RaiseActivatedTranscriptAsync("Kora, open conversation \"One\"", 1);
-        calls.Should().Be(0);
-        f.ViewModel.PublishCustomizationVoiceTarget(null);
-        await f.RunAsync("open conversation \"One\"");
-        calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
     }
 
     [Fact]
@@ -94,7 +50,7 @@ public sealed partial class MainViewModelTests
         await service.Quiescence;
         composer.Body.Should().Be("Kora, open conversation \"One\"");
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.ExitAsync();
         f.ViewModel.Dispose();
     }
@@ -147,7 +103,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync(phrase, 1);
         observed.Should().HaveCount(2);
         f.ViewModel.ResponseBody.Should().Contain("current available assistant-name prefix");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
     }
 
@@ -166,7 +122,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("open sessions");
         sessions.Should().Be(0);
         calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.IsUnlocked = false;
         await f.RunAsync("open compact conversation");
         calls.Should().Be(1);
@@ -187,43 +143,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsBusy.Should().BeTrue();
         f.Probe.Gate.SetResult();
         await busy;
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task WorkspaceNavigationNeverAnswersOrRetargetsPendingDecisions()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        var calls = 0;
-        f.ViewModel.WorkspaceSurfaceRequested += _ => { calls++; return Task.CompletedTask; };
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        f.ViewModel.CommandText = "unfinished answer";
-        await f.RaiseActivatedTranscriptAsync("Kora, show sessions", 1);
-        await f.RaiseActivatedTranscriptAsync("Kora, select the third session", 1);
-        await f.RaiseActivatedTranscriptAsync("Kora, open compact conversation", 1);
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        f.ViewModel.CommandText.Should().Be("unfinished answer");
-        await f.RaiseActivatedTranscriptAsync("Kora, open all work extra", 1);
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        f.ViewModel.CommandText.Should().Be("unfinished answer");
-        await f.ViewModel.CancelModelQuestionAsync();
-        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
-        await f.RunAsync("open compact conversation");
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        await f.ViewModel.RejectPendingGrantChangeAsync();
-        f.Reasoner.Question = null;
-        f.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await f.RunAsync("please lock");
-        await f.ViewModel.ActiveReasoningTask!;
-        await f.RunAsync("open all work");
-        f.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        calls.Should().Be(5);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
     }
 
     [Theory]

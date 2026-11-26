@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
@@ -53,27 +53,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Appearance setting unchanged.");
         fixture.Audit.Events.Where(item => string.Equals(item.ActionId, "configuration.reader-text-scale", StringComparison.Ordinal)).Should()
             .OnlyContain(item => item.Initiator == (voice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand));
-        fixture.Reasoner.Requests.Should().BeEmpty();
-        await fixture.ViewModel.DisposeAsync();
-    }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task NaturalAppearanceSupersedesPendingQuestionInsteadOfBecomingModelFeedback(bool voice)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new DependencyStatus(
-            "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
-        fixture.Reasoner.Question = new LocalModelQuestion("Which color?", ["Blue", "Green"]);
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("choose a color");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        if (voice) { await fixture.RaiseActivatedTranscriptAsync("Kora, use dark mode", 1); }
-        else { await fixture.RunAsync("use dark mode"); }
-        fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
-        fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.Dark);
-        fixture.Reasoner.Requests.Should().ContainSingle();
         await fixture.ViewModel.DisposeAsync();
     }
 
@@ -90,7 +70,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.Dark);
         fixture.Audit.Events.Last(item => item.Category == SecurityAuditCategory.ConfigurationWrite)
             .Initiator.Should().Be(SecurityAuditInitiator.VoiceCommand);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await fixture.ViewModel.DisposeAsync();
     }
 
@@ -109,7 +89,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
         fixture.AppearancePreferences.ReaderTextScalePercent.Should().BeNull();
         fixture.AppearancePreferences.ReducedMotionEnabled.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await fixture.ViewModel.DisposeAsync();
     }
 
@@ -125,7 +105,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Clarify the appearance setting.");
         fixture.ViewModel.ReaderTextScalePercent.Should().Be(100);
         fixture.AppearancePreferences.ReaderTextScalePercent.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await fixture.ViewModel.DisposeAsync();
     }
 

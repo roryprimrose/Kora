@@ -158,7 +158,7 @@ public sealed partial class MainViewModelTests
         await input.Quiescence;
         applied.Should().Be(0);
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ClipboardReader.Calls.Should().Be(0);
         f.ViewModel.UnbindPromptInputVoice(input);
         f.ViewModel.Dispose();
@@ -212,7 +212,7 @@ public sealed partial class MainViewModelTests
         (await draft.Preview(f.ViewModel.IsPromptSourceCurrent, TestContext.Current.CancellationToken))
             .UserRequest.Should().Be("unchanged private input");
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ClipboardReader.Calls.Should().Be(0);
         f.ViewModel.UnbindPromptInputVoice(input);
         f.ViewModel.Dispose();
@@ -278,7 +278,7 @@ public sealed partial class MainViewModelTests
         (await draft.Preview(f.ViewModel.IsPromptSourceCurrent, TestContext.Current.CancellationToken))
             .UserRequest.Should().Be("unchanged prompt");
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ClipboardReader.Calls.Should().Be(0);
         f.ViewModel.UnbindPromptInputVoice(input);
         f.ViewModel.Dispose();
@@ -304,7 +304,7 @@ public sealed partial class MainViewModelTests
         (await draft.Preview(f.ViewModel.IsPromptSourceCurrent, TestContext.Current.CancellationToken))
             .UserRequest.Should().Be("Kora, lock workstation");
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.UnbindPromptInputVoice(input);
         f.ViewModel.UnbindPromptInputVoice(input);
         f.ViewModel.Dispose();

@@ -99,13 +99,6 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
         viewModel.CurrentResponseChanged += OnCurrentResponseChanged;
         viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
         viewModel.BindCurrentResponsePresentation(this);
-        viewModel.BindModelActionReviewPresentation(PresentModelActionReview);
-    }
-
-    private bool PresentModelActionReview(ModelActionReviewTarget target)
-    {
-        if (disposed || !viewModel.IsModelActionReviewCurrent(target)) { return false; }
-        return EnsureWindow().ShowModelActionReview(target);
     }
 
     public Func<bool> CaptureLifetime()

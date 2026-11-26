@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using AwesomeAssertions;
 
@@ -220,7 +220,7 @@ public sealed partial class MainViewModelTests
         replies.IsActive.Should().BeTrue();
         f.Voice.Generation.Should().Be(generation);
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         replies.Retire("Test question closed without answering.");
         await replies.Quiescence;
     }

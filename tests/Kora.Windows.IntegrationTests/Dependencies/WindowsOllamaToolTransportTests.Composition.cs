@@ -21,7 +21,7 @@ public sealed partial class WindowsOllamaToolTransportTests
         { directory = directory.Parent; }
         var root = directory?.FullName ?? throw new InvalidOperationException("The repository source root is unavailable.");
         File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"))
-            .Should().Contain("services.AddSingleton<ILocalModelReasoner, UnavailableLocalModelReasoner>();")
+            .Should().NotContain("ILocalModelReasoner")
             .And.NotContain("new WindowsOllamaReasoner(")
             .And.NotContain("\"ollama-reasoner\"");
     }

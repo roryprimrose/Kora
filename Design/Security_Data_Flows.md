@@ -2,28 +2,22 @@
 
 ## Exact pending model-action presence activation
 
-The [presence review route](Ambient_UI.md#exact-pending-model-action-attention)
-projects an opaque, volatile target from the existing pending model-action
-owner, not a new approval registry. Its original host request/session, epoch,
-audit reference and host/private lifetime are captured at admission. Deferred
-reasoning and an existing model clarification preserve that original host
-context through causal links; retained text cannot reconstruct it.
+The legacy model-action proposal target, presence review gesture and native/voice
+review commands are retired ([presence contract](Ambient_UI.md#exact-pending-model-action-attention),
+[response surface](../src/Kora/ResponseWindow.axaml)).
 
-Ctrl-right-click, native tray/keyboard and already-activated voice capture that
-same target before deferred dispatch. They never follow workspace selection,
-reuse a withdrawn target or treat activation as confirmation. The separate
-native decision controls bind the displayed original target, retire carried
-gestures on rebinding/detachment and retain their presentation guard.
-Supersession, withdrawal, changed artifact, privacy/ownership loss and disposal
-fail closed without disclosing another review or dispatching an action.
+The fallback reasoner and named action/question/grant/settings-filter tree
+perform no task, thinking status, speech or send on rejecting entry. Existing
+`Preferences/model-approvals.json` is ignored without read/import/conversion,
+write or deletion; valid and malformed old files cannot create exact grants
+([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs),
+[startup regressions](../tests/Kora.Windows.IntegrationTests/DesktopBootstrapIntegrationTests.cs)).
 
-Existing approval audit, call-channel, artifact, preparation, grant and execution
-checks remain authoritative, including the existing committed native-decision
-semantics on call entry. Voice capture generations still gate callbacks; they
-are not review identities. Attention ends only when the original pending owner
-retires the review, not when a window opens/closes. There are no new grants,
-saved targets, retention domains, model identities, listeners or providers, and
-no review content/identifiers are added to telemetry.
+Modern session routing, exact operation grants and session permission levels
+retain their own authority and retention boundaries
+([session route](../src/Kora.Application/ViewModels/MainViewModel.SessionRouting.cs),
+[grant contract](../src/Kora.Core/Storage/IExactGrantStore.cs),
+[session policy](Session_Permission_Levels.md)).
 
 ## Private retained attachment metadata search boundary
 
@@ -1174,9 +1168,8 @@ task/implementation identity, invocation and complete digest-bound
 executable/script resource set; any changed or unverifiable bytes,
 dependencies, or invocation block that operation without removing its record,
 and changed approved skill/script content permanently revokes authorization.
-This is a future capability, not
-the current model-action `Always` preference, which authorises named
-registered actions rather than executable content.
+Retired model-action `Always` preferences provide none of this authority and
+are never imported into exact grants ([retirement behavior](../docs/settings.md#approvals)).
 See [skill and task execution design](../docs/skill-and-task-execution-design.md).
 
 No grant implicitly broadens to a new operation, source, provider, account, destination, skill/revision, Windows user SID, or device.
@@ -1229,7 +1222,7 @@ Registered constrained execution can be classified by its enforced effects; unkn
 High-risk action confirmation names the action/target verbally or identifies that exact proposal in a deliberate UI gesture; a click is not reauthentication and speech need not be followed by a click.
 Fixed local-machine shutdown/restart uses distinct action-specific voice or UI confirmation as specified, safe-work handling, and a cancellable countdown.
 An assistant-name prefix is not speaker authentication. Make the action and chosen duration visible/readable; neither a match nor a click establishes physical identity.
-Lock is side-effecting and retains the future exact version-bound grant gate for both direct and model-suggested requests; priority routing does not waive it. Today's direct Windows-API lock path does not yet enforce that gate, unlike model-suggested lock.
+Lock is side-effecting and retains the exact fixed-package grant gate; priority routing does not waive it. Retired named model-action preferences cannot authorize it ([admission owner](../src/Kora/BundledFixedActionController.cs)).
 Application update checks and tool requests cannot create installation approval. Only separate exact native unsigned-installer review authorizes the bounded download/start path; normal OS and installer lifecycle checks remain mandatory ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 These rules do not permit arbitrary script/code installation or generic destructive commands; power actions warn about unsaved work and never force application termination.
 See [OOTB Phrases](OOTB_Phrases.md#shutdown-and-restart-safety).

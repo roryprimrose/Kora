@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -49,7 +49,7 @@ public sealed partial class MainViewModelTests
             record => record.Request.Origin == RequestOrigin.ActivatedVoice);
         fixture.Voice.StartCalls.Should().Be(0);
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         HostActivity.Current.Should().BeNull();
     }
 
@@ -82,36 +82,11 @@ public sealed partial class MainViewModelTests
         fixture.OutputPreferences.SavedMode.Should().Be(ResponseOutputMode.Hybrid);
         fixture.Voice.StartCalls.Should().Be(starts + 2);
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
         fixture.OutputPreferences.SavedMutedOutputVisualFallback.Should().BeNull();
         fixture.Preferences.SavedVoiceId.Should().BeNull();
         fixture.Voice.StartedPhrases.Should().Contain("set responses.default-mode to VisualOnly");
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Exact_response_configuration_never_answers_or_hides_pending_question_or_approval(bool question)
-    {
-        var fixture = new Fixture(enableResponseModeConfiguration: true);
-        await using var admission = fixture.OutputAdmission;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        if (question) { fixture.Reasoner.Question = new("Exact choice?", ["one", "two"]); }
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("please do this work");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var preview = fixture.ViewModel.ResponseBody;
-        fixture.ViewModel.CanChangeResponseMode.Should().BeFalse();
-        await fixture.RunAsync("set responses.default-mode to VoiceOnly");
-        await fixture.ViewModel.ResetResponseModeCommand.ExecuteAsync();
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
-        fixture.OutputPreferences.SavedMode.Should().BeNull();
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
     }
 
     [Fact]
@@ -180,7 +155,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("set responses.default-mode to 0");
         fixture.ViewModel.ResponseTitle.Should().Be("Clarify the response setting.");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         using var cancelled = new CancellationTokenSource();
         await cancelled.CancelAsync();
         await fixture.ViewModel.ExecuteResponseModeCommandAsync(new(AppearanceCommandOperation.Reset),

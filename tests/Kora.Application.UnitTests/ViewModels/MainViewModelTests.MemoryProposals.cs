@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Core.Platform;
 using Kora.Application.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -22,7 +22,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Memory command not confirmed.");
         log.Messages.Should().NotContain(message => message.Contains(value, StringComparison.Ordinal));
         log.Events.Should().Contain("MemoryCommandFailed");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ViewModel.CommandText.Should().BeEmpty();
     }
 
@@ -41,7 +41,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseBody.Should().Contain("Proposed").And.Contain("Pending").And.NotContain(value);
         await fixture.RaiseActivatedTranscriptAsync("Kora, memory propose " + session + " ExplicitFact \"" + value + "\"", 1);
         fixture.ViewModel.ResponseTitle.Should().Be("Memory command Succeeded.", fixture.ViewModel.ResponseBody);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.Transcript.Should().NotContain(value);
         await fixture.RunAsync("memory list " + session);

@@ -1,43 +1,31 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Presentation;
+using Kora.Application.Hosting.SessionRouting;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Application.ViewModels;
 using Kora.Core.Dependencies;
+using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
+using Kora.Core.Storage;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    [Theory]
-    [InlineData("native")]
-    [InlineData("typed")]
-    [InlineData("voice")]
-    public async Task OriginalUserSeparatelyReviewsAndConfirmsFutureOnlyAutomaticDetails(string route)
+    private static void BindCompletedAnswerRouting(Fixture fixture, Func<HostRequest, Task<string>> answer)
     {
-        await using var settings = new DetailPresentationConfigurationServiceTests.Fixture();
-        var f = new Fixture(detailPresentationConfiguration: settings.Service);
-        using var main = f.ViewModel;
-        await main.InitializeAsync();
-        main.BindDetailPresentationNativeLifetime(static () => true);
-        Task Run(string text, Func<Task> native) => route switch
+        fixture.ViewModel.BindSessionRouting(async (_, _, _) =>
         {
-            "native" => native(),
-            "voice" => f.RaiseActivatedTranscriptAsync("Kora, " + text, 1),
-            _ => f.RunAsync(text)
-        };
-        await Run("always open detailed results", main.AutomaticDetailPresentationCommand.ExecuteAsync);
-        main.DetailPresentationReviewText.Should().Contain("OpenAutomatically").And.Contain("without activation");
-        settings.Preferences.Writes.Should().Be(0);
-        await Run("confirm detail presentation change", main.ConfirmDetailPresentationCommand.ExecuteAsync);
-        settings.Preferences.Value.Should().Be(DetailPresentationMode.OpenAutomatically);
-        settings.Service.CaptureOfferEpoch().Should().BeNull();
-        settings.Service.CaptureAutomaticPreference().Should().NotBeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.TextToSpeech.SpeakCalls.Should().Be(0);
-        if (route is not "voice") { f.Voice.StartCalls.Should().Be(0); }
+            var request = HostActivity.RequireCurrent().Request;
+            var body = await answer(request);
+            var message = SpeechAnswer(request, body);
+            var target = new SessionWorkspaceEntry(new(request.SessionId, new(1), true),
+                new(request.SessionId, new(1), new("Reviewed destination")));
+            return new SessionRoutingReceipt(target,
+                new(message, new(request, new(3), message.ExpectedTaskState)));
+        });
     }
 
     [Theory]
@@ -69,7 +57,8 @@ public sealed partial class MainViewModelTests
             ForeignSession = boundary is "session"
         };
         if (boundary is not "unbound") { main.BindCurrentResponsePresentation(presenter); }
-        f.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answerGate = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        BindCompletedAnswerRouting(f, _ => answerGate.Task);
         var retired = false;
         Task? replacement = null;
         main.PropertyChanged += (_, args) =>
@@ -77,12 +66,12 @@ public sealed partial class MainViewModelTests
             if (retired || boundary is not ("retired" or "replaced")
                 || !string.Equals(args.PropertyName, nameof(main.IsDetailsOfferPending), StringComparison.Ordinal)
                 || !main.IsDetailsOfferPending
-                || !string.Equals(main.ResponseTitle, "Local model response", StringComparison.Ordinal)) { return; }
+                || !main.ResponseTitle.StartsWith("Request destination:", StringComparison.Ordinal)) { return; }
             retired = true;
             if (boundary is "retired") { main.RetireCurrentResponseSpeech(); }
             else { replacement = f.RunAsync("what power action is pending"); }
         };
-        await f.RunAsync("prepare the complete deployment plan");
+        var response = f.RunAsync("prepare the complete deployment plan");
         try
         {
             presenter.Intents.Should().BeEmpty("provisional work cannot open Details");
@@ -95,18 +84,18 @@ public sealed partial class MainViewModelTests
         }
         finally
         {
-            f.Reasoner.Gate.TrySetResult(boundary switch
+            answerGate.TrySetResult(boundary switch
             {
                 "short" => "A short answer.",
                 "oversize" => DetailOfferAnswer + new string('x', NativeDetailProfile.MaximumUtf8Bytes),
                 "unicode" => DetailOfferAnswer + "\ud800",
                 _ => DetailOfferAnswer
             });
-            await main.ActiveReasoningTask!;
+            await response;
             if (replacement is not null) { await replacement; }
         }
         presenter.Opened.Should().Be(boundary is "current" ? 1 : 0);
-        f.Reasoner.Requests.Should().ContainSingle();
+
         if (boundary is "current")
         {
             var intent = presenter.Intents.Single();
@@ -117,21 +106,6 @@ public sealed partial class MainViewModelTests
             main.RetireCurrentResponseSpeech();
             intent.IsSourceCurrent().Should().BeFalse();
         }
-    }
-
-    [Fact]
-    public async Task ReadOnlyAutomaticAdmissionCapturesOwnerPrivacyAndInputWithoutSkillMutationAuthority()
-    {
-        var f = await Fixture.CreateInitializedAsync();
-        using var main = f.ViewModel;
-        main.CaptureAutomaticDetailsAdmission()().Should().BeTrue();
-        var input = main.CaptureAutomaticDetailsAdmission();
-        main.CommandText = "later independent input";
-        input().Should().BeFalse();
-        var owner = main.CaptureAutomaticDetailsAdmission();
-        main.BindCallOwnershipGate(static () => false);
-        owner().Should().BeFalse();
-        main.CaptureAutomaticDetailsAdmission()().Should().BeFalse();
     }
 
     [Theory]
@@ -151,21 +125,62 @@ public sealed partial class MainViewModelTests
             BeforePublish = revoke ? () => main.BindCallOwnershipGate(static () => false) : null
         };
         main.BindCurrentResponsePresentation(presenter);
-        f.Reasoner.Response = new(DetailOfferAnswer, null);
+        BindCompletedAnswerRouting(f, _ => Task.FromResult(DetailOfferAnswer));
         await f.RunAsync("prepare the complete deployment plan");
-        await main.ActiveReasoningTask!;
+
         presenter.Intents.Should().ContainSingle();
         presenter.Opened.Should().Be(0);
-        f.Reasoner.Requests.Should().ContainSingle();
-        main.ResponseTitle.Should().Be("Local model response");
+
+        main.ResponseTitle.Should().StartWith("Request destination:");
         main.ResponseBody.Should().Contain(AnswerPresentation.From(DetailOfferAnswer).Brief);
         if (revoke) { main.Transcript.Should().NotContain("Automatic Markdown Details unavailable"); }
         else { main.Transcript.Should().Contain("Automatic Markdown Details unavailable").And.Contain("saved default was not applied"); }
-        f.TextToSpeech.SpeakCalls.Should().Be(revoke ? 0 : 1,
-            "only the original completed answer may speak, and revoked host output must not");
-        if (!revoke)
-        { f.TextToSpeech.SpokenText.Should().NotContain("saved default").And.NotContain("Detailed response:"); }
+        f.TextToSpeech.SpeakCalls.Should().Be(0, "session routing does not dispatch fallback speech");
         f.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("native")]
+    [InlineData("typed")]
+    [InlineData("voice")]
+    public async Task OriginalUserSeparatelyReviewsAndConfirmsFutureOnlyAutomaticDetails(string route)
+    {
+        await using var settings = new DetailPresentationConfigurationServiceTests.Fixture();
+        var f = new Fixture(detailPresentationConfiguration: settings.Service);
+        using var main = f.ViewModel;
+        await main.InitializeAsync();
+        main.BindDetailPresentationNativeLifetime(static () => true);
+        Task Run(string text, Func<Task> native) => route switch
+        {
+            "native" => native(),
+            "voice" => f.RaiseActivatedTranscriptAsync("Kora, " + text, 1),
+            _ => f.RunAsync(text)
+        };
+        await Run("always open detailed results", main.AutomaticDetailPresentationCommand.ExecuteAsync);
+        main.DetailPresentationReviewText.Should().Contain("OpenAutomatically").And.Contain("without activation");
+        settings.Preferences.Writes.Should().Be(0);
+        await Run("confirm detail presentation change", main.ConfirmDetailPresentationCommand.ExecuteAsync);
+        settings.Preferences.Value.Should().Be(DetailPresentationMode.OpenAutomatically);
+        settings.Service.CaptureOfferEpoch().Should().BeNull();
+        settings.Service.CaptureAutomaticPreference().Should().NotBeNull();
+
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+        if (route is not "voice") { f.Voice.StartCalls.Should().Be(0); }
+    }
+
+    [Fact]
+    public async Task ReadOnlyAutomaticAdmissionCapturesOwnerPrivacyAndInputWithoutSkillMutationAuthority()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        using var main = f.ViewModel;
+        main.CaptureAutomaticDetailsAdmission()().Should().BeTrue();
+        var input = main.CaptureAutomaticDetailsAdmission();
+        main.CommandText = "later independent input";
+        input().Should().BeFalse();
+        var owner = main.CaptureAutomaticDetailsAdmission();
+        main.BindCallOwnershipGate(static () => false);
+        owner().Should().BeFalse();
+        main.CaptureAutomaticDetailsAdmission()().Should().BeFalse();
     }
 
     private sealed class AutomaticResponsePresenter : ICurrentResponsePresentation, IAutomaticDetailPresentation

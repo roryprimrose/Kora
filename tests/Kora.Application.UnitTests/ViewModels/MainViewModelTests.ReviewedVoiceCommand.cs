@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using System.Text.Json;
 using Kora.Application.Voice;
 using Kora.Application.Interaction;
@@ -67,7 +67,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.BeginPushToTalkAsync();
         f.Voice.StartCalls.Should().Be(1);
         await f.ViewModel.CancelReviewedVoiceCommandAsync();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
     }
 
@@ -103,7 +103,7 @@ public sealed partial class MainViewModelTests
         await confirm();
         f.Voice.RaiseTranscriptForGeneration(generation);
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ClipboardReader.Calls.Should().Be(0);
 
         await replies.OpenAsync(question, static () => true, _ => { }, false, TestContext.Current.CancellationToken);
@@ -116,7 +116,7 @@ public sealed partial class MainViewModelTests
         await replies.Quiescence;
         host.Store.Snapshot.Questions.Single().Draft!.Choices.Should().Equal("a");
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.DisposeAsync();
     }
 
@@ -154,7 +154,7 @@ public sealed partial class MainViewModelTests
         store.RequestMessage!.Body.Should().Be(body);
         store.RequestMessage.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.CancelReviewedVoiceCommandAsync();
         f.ViewModel.Dispose();
     }
@@ -171,7 +171,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsVoiceEnabled.Should().BeTrue();
         f.ViewModel.HasReviewedVoiceCommand.Should().BeFalse();
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.FinishReviewedVoiceCommandAsync();
         f.Voice.IsCaptureQuiescent.Should().BeTrue();
         f.ViewModel.ReviewedVoiceCommandText.Should().Be("Kora, stop listening");
@@ -188,28 +188,8 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
         f.VoiceConsent.Consent.Should().BeTrue();
         f.ClipboardReader.Calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
-        await f.ViewModel.CancelReviewedVoiceCommandAsync();
-        f.ViewModel.Dispose();
-    }
 
-    [Fact]
-    public async Task ReviewedCommandNeverApprovesTheSubsequentHighRiskModelAction()
-    {
-        var f = await ReviewedCommandFixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Action = BuiltInAction.ProposeRestart;
-        await f.ViewModel.InitializeAsync();
-        await f.ViewModel.BeginReviewedVoiceCommandAsync(static () => true);
-        await f.Voice.RaiseTranscriptAsync("Kora, please propose a restart", 1);
-        await f.ViewModel.FinishReviewedVoiceCommandAsync();
-        f.Reasoner.Requests.Should().BeEmpty();
-        await f.ViewModel.CaptureReviewedVoiceCommandConfirmation()();
-        if (f.ViewModel.ActiveReasoningTask is { } reasoning) { await reasoning; }
-        f.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        f.Events.Should().NotContain("process.restart");
         await f.ViewModel.CancelReviewedVoiceCommandAsync();
-        await f.ViewModel.ExitAsync();
         f.ViewModel.Dispose();
     }
 
@@ -230,7 +210,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsManualCallActive.Should().BeTrue();
         f.CallPreferences.SavedSettings.Should().BeNull();
         await f.ViewModel.CancelReviewedVoiceCommandAsync();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
     }
 
@@ -284,7 +264,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsReviewedVoiceCommandActive.Should().BeFalse();
         f.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ClipboardReader.Calls.Should().Be(0);
         await f.ViewModel.CancelReviewedVoiceCommandAsync();
         f.ViewModel.Dispose();
@@ -300,7 +280,7 @@ public sealed partial class MainViewModelTests
         f.Dispatcher.BeforeInvoke = () => f.Voice.AdvanceGeneration();
         await f.ViewModel.CaptureReviewedVoiceCommandConfirmation()();
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.CancelReviewedVoiceCommandAsync();
         f.ViewModel.Dispose();
     }
@@ -334,7 +314,7 @@ public sealed partial class MainViewModelTests
             f.Voice.IsCaptureQuiescent.Should().BeTrue();
             f.VoiceConsent.Consent.Should().BeTrue();
             f.ClipboardReader.Calls.Should().Be(0);
-            f.Reasoner.Requests.Should().BeEmpty();
+
         }
         finally { await f.ViewModel.DisposeAsync(); }
     }
@@ -362,7 +342,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.CaptureReviewedVoiceCommandEdit()(value).Should().BeFalse();
         f.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
         await f.ViewModel.CaptureReviewedVoiceCommandConfirmation()();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         await f.ViewModel.CancelReviewedVoiceCommandAsync();
         f.ViewModel.Dispose();

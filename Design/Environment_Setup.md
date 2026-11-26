@@ -341,7 +341,7 @@ acquired ownership carries a real owned lease, while unavailable, busy, unknown,
 shared/user-owned and policy-denied states carry distinct status/audit reasons.
 Denied states cannot become a successful no-op lease.
 
-[Settings](../src/Kora/SettingsWindow.SpeechComponents.cs) and
+[Settings](../src/Kora/SettingsView.SpeechComponents.cs) and
 [Burn choices](../installer/Kora.Setup/SpeechComponentInstallChoice.cs)
 consume the same one-use, expiring exact review and shared service. Inspection
 hashes existing data without downloads or model loading. Mutation rechecks the

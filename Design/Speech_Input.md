@@ -150,7 +150,9 @@ outstanding. Production names, listening availability and consent are unchanged.
 
 ### One explicitly reviewed activated command
 
-The [reviewed command owner](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs) implements supporting voice reliability: **Review one spoken command**, bounded local capture, **Finish capture**, exact inert transcript, optional correction, then separate **Dispatch this exact voice command once** or cancellation. This is one utterance, not a saved setting or a change to direct activated/PTT routing.
+The reviewed spoken-command capture owner and host admission remain in Application, but there is currently no native entry point.
+The [reviewed command owner](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs) implements supporting voice reliability: **Review one spoken command**, bounded local capture, **Finish capture**, exact inert transcript, optional correction, then separate **Dispatch this exact voice command once** or cancellation.
+These are supporting flow labels, not currently available native controls. This is one utterance, not a saved setting or a change to direct activated/PTT routing.
 
 The [host binding](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs) captures original foreground/source, channel, name, device, topology, call, privacy, ownership/control and input revisions before opening capture. Recognition generations and confirmed native release belong to the capture owner. Any changed source or target expires the candidate rather than retargeting another conversation, editor, question or generic reply.
 
@@ -158,7 +160,9 @@ The [host binding](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoic
 
 Editing applies only shared reject-only [text and credential bounds](../src/Kora.Core/Conversation/ConversationText.cs), never command parsing, tools, model rewriting or execution. Native confirmation enters the [existing activated command admission](../src/Kora.Application/ViewModels/MainViewModel.cs) as **ActivatedVoice**; it cannot cleanse call/privacy/authentication restrictions or approve the resulting operation. Independent high-risk approval and exact hosted-send consent remain mandatory.
 
-Existing question replies, approvals, prompt-input capture and literal composer/owned-editor dictation retain exclusive owners; reviewed command capture refuses those contexts ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs)). Capture and review share a 60-second lifetime. Cancel, expiry, private/device/owner changes, native hide/deactivation/close and disposal clear volatile candidate text and join capture cleanup. No candidate audio/text archive, diagnostic content, training, profile enablement or hosted ASR is introduced ([capture lifecycle](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs), [native lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
+Existing question replies, approvals, prompt-input capture and literal composer/owned-editor dictation retain exclusive owners; reviewed command capture refuses those contexts ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs)).
+Capture and review share a 60-second lifetime. Cancel, expiry, private/device/owner changes, failed native-lifetime checks and disposal clear volatile candidate text and join capture cleanup.
+No current window binds that native lifetime. No candidate audio/text archive, diagnostic content, training, profile enablement or hosted ASR is introduced ([capture lifecycle](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs)).
 
 The original deadline is checked independently of timer delivery at capture,
 transcript publication, edit, confirmation and downstream command admission.
@@ -505,7 +509,7 @@ owns the shared catalogue, detection, consent, readiness and removal workflow;
 owns WiX/Burn integration and launch prerequisites.
 
 The bounded [shared lifecycle implementation](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
-now connects [Settings](../src/Kora/SettingsWindow.SpeechComponents.cs) and
+now connects [Settings](../src/Kora/SettingsView.SpeechComponents.cs) and
 [Burn preparation](../installer/Kora.Setup/SpeechComponentInstallChoice.cs).
 The portable [input-data catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs)
 contains no platform offers; desktop and Burn use the existing

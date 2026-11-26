@@ -12,6 +12,9 @@ const text = value => typeof value === 'string' && value.trim().length > 0;
 const head = value => typeof value === 'string' && /^[0-9a-f]{40}$/i.test(value);
 const holdsSlot = item => item.phase !== 'candidate' && item.phase !== 'complete';
 
+// SKILL.md owns authority reconciliation: counts cover unconsumed coordinator
+// scope/source authority, including its processing subset, never ordinary posts.
+// These validators check supplied proofs; they do not observe host consumption.
 function scope(value) {
   requireValue(text(value) && !path.win32.isAbsolute(value) &&
     !/[/*?:]/.test(value) && !value.split('\\').some(part => ['', '.', '..'].includes(part)),
@@ -188,12 +191,12 @@ function validateRecoveryEvent(event) {
   'Complete dirty/restored write history and preservation classification required.');
   requireValue(p.quiescence.sourcePaused === true && p.quiescence.commandsRunning === false &&
     p.quiescence.workJoined === true && text(p.quiescence.receipt),
-  'Live source pause and joined command quiescence required independently of queue enumeration.');
+  'Live source pause and joined command quiescence required independently of authority counts.');
   const r = p.reconciliation;
   if (r?.kind === 'enumerated-pending-zero') {
     fields(r, 'kind pendingInstructions processingInstructions receipt');
     requireValue(r.pendingInstructions === 0 && r.processingInstructions === 0 && text(r.receipt) &&
-      a.fence === null, 'Real enumerated pending/processing zero evidence required.');
+      a.fence === null, 'Real enumerated coordinator scope/source-authority pending/processing zero evidence required.');
   } else {
     fields(r, 'kind pendingInstructions processingInstructions fence receipt');
     fields(r.fence, 'epoch nonce revokesEarlierSourceAuthority established receipt');

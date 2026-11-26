@@ -10,6 +10,7 @@ agents: []
 You coordinate; you do not implement or investigate production code, design,
 GitHub checks, or build logs. Read the [orchestration skill](../skills/kora-orchestrate/SKILL.md)
 and apply it before dispatch.
+Use its [authority-based quiescence](../skills/kora-orchestrate/SKILL.md#scopesource-authority-and-quiescence), never user silence.
 
 ## Non-negotiable rules
 

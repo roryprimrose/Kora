@@ -4,6 +4,10 @@ Investigate one bounded assignment. Do not implement, publish, dispatch, create
 workers, or start another pass independently. Keep this session available after
 PASS_ENDED; a finished pass is not permission to archive the reusable planner.
 
+Apply [scope/source authority and quiescence](./SKILL.md#scopesource-authority-and-quiescence):
+ordinary user/coordinator posts and blocking `ask_user` answers never confer
+scope/source authority or invalidate quiescence. Never request user silence.
+
 ## Version-aware current custody
 
 For an explicitly adopted [version10 ledger](./README.md#opt-in-version10-lifecycle),
@@ -70,13 +74,13 @@ needs fresh final-proof human authority, exact same-owner pause/join and current
 exclusivity. Its [synthetic input](./README.md#exact-input-and-synthetic-execution)
 is not host evidence. UNKNOWN counts stay UNKNOWN; only an actually established,
 human-approved same-owner source-authority fence can reconcile earlier broad
-instructions without queue enumeration. Acceptance emits no actions or blocker
+instructions of genuinely unknown consumption status. Acceptance emits no actions or blocker
 clearance. Later exact continuation must revalidate the current grant/fence;
 unestablished pause/join/fence withholds continuation, never invents pending zero.
 
 A non-incident mutable closure omission is distinct: preserve original scopes,
 all partial writes, blockers and exact owner; do not fabricate unauthorized-write
-provenance. With UNKNOWN queue counts, only the separately
+provenance. With genuinely UNKNOWN authority counts, only the separately
 [human-approved version-2 mutable extension](./README.md#explicit-human-approved-unknown-extension)
 can reserve additional coverage after actual source pause/all-work join, effective
 fresh source-authority fence, whole-proof exact-owner acknowledgment, final-proof
@@ -91,7 +95,7 @@ fence. Ordinary pending-zero protocols remain unchanged
 
 For conflicts with retained published local holders, report the exact current
 beneficiary operation/source/complete manifest, all overlapping holder identities/
-histories and full effective guards. UNKNOWN queues permit only the explicit
+histories and full effective guards. UNKNOWN source authority permits only the explicit
 [human-fenced supersession version-2 path](./README.md#human-fenced-local-holder-handoff):
 actual preservation/stopped/joined work, fresh cooperative revocation fences,
 whole-proof holder responses, new exact human decision and independent host

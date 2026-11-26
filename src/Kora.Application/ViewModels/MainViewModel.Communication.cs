@@ -377,7 +377,9 @@ public sealed partial class MainViewModel
             DesiredInCallFeedback, observation.EffectiveState) == Kora.Core.Voice.ResponseOutputMode.VisualOnly;
 
     private async Task<CallMutationOutcome> SetCallSettingsAsync(CallAwareSettings settings,
-        bool spokenApprovalDowngradeConfirmed = false, CallVoiceActivationReview? activationReview = null)
+        bool spokenApprovalDowngradeConfirmed = false, CallVoiceActivationReview? activationReview = null,
+        (Kora.Application.Hosting.SessionWorkspaceService Workspace,
+            Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy Policy)? automaticPermission = null)
     {
         var origin = OriginalOrigin();
         var revision = CallPolicyRevision;
@@ -389,8 +391,12 @@ public sealed partial class MainViewModel
         string? failureReason = null;
         try
         {
-            outcome = await Task.Run(() =>
+            outcome = await Task.Run(async () =>
             {
+                if (automaticPermission is { } approval
+                    && (await approval.Workspace.ReadSessionPermissionAsync(approval.Policy.SessionId, CancellationToken.None) != approval.Policy
+                        || CurrentPermissionControlTarget?.Authority.SessionId != approval.Policy.SessionId))
+                { return CallMutationOutcome.ExactReviewUnavailable; }
                 CallMutationOutcome? persistenceDenial = null;
                 bool Persist(CallAwareSettings value)
                 {

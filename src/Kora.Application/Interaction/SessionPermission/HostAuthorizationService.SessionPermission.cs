@@ -2,18 +2,19 @@ using Kora.Core.Authorization;
 using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Auditing;
 
 namespace Kora.Application.Interaction;
 
 public sealed partial class HostAuthorizationService
 {
-    /// <summary>Independent consent/confirmation is resolved by the host before ordinary action policy.</summary>
+    /// <summary>Resolves current session policy without relaxing host validation or hard denials.</summary>
     public async ValueTask<HostInteractionDecision> AuthorizeAsync(
         HostRequest request, bool independentConsentRequired, CancellationToken token)
     {
         SessionPermissionReviewRequest? review = null;
         var first = await transaction.RunAsync(request, "approval.session-policy",
-            snapshot => Decide(snapshot, request, independentConsentRequired, null, out review), token).ConfigureAwait(false);
+            snapshot => Decide(snapshot, request, independentConsentRequired, out review), token).ConfigureAwait(false);
         if (review is null) { return first; }
 
         SessionPermissionReviewResult? result = null;
@@ -52,11 +53,13 @@ public sealed partial class HostAuthorizationService
     }
 
     private (HostInteractionSnapshot, HostInteractionDecision) Decide(HostInteractionSnapshot snapshot,
-        HostRequest request, bool independentConsentRequired, QuestionSpec? consentSpec, out SessionPermissionReviewRequest? review)
+        HostRequest request, bool independentConsentRequired, out SessionPermissionReviewRequest? review)
     {
         review = null;
         if (!Eligible(snapshot, request))
         { return InteractionTransaction.Reject(snapshot, "operation-not-admitted"); }
+        if (snapshot.EffectivePermission.Level == SessionPermissionLevel.ApproveAll)
+        { return AutoApprove(snapshot, request, "host-operation", HostInteractionOutcome.Approved); }
         var observed = ObserveContent(snapshot, request).Item1;
         var grant = FindApplicableGrant(observed, request);
         var mandatoryConfirmation = independentConsentRequired || observed.Proposal!.Effect == HostOperationEffect.VoiceOrCallSettings;
@@ -64,9 +67,7 @@ public sealed partial class HostAuthorizationService
         { return Consume(observed, request, grant.Id, grant.Revision); }
         if (observed.Questions.Any(question => question.Proposal == observed.Proposal))
         { return InteractionTransaction.Reject(observed, "proposal-already-reviewed", HostInteractionOutcome.Conflict); }
-        if (mandatoryConfirmation) { return Present(observed, request, consentSpec: consentSpec); }
-        if (observed.EffectivePermission.Level == SessionPermissionLevel.ApproveAll)
-        { return Admit(observed, SessionPermissionBasis.ApproveAll, HostInteractionOutcome.Approved, "approve-all"); }
+        if (mandatoryConfirmation) { return Present(observed, request); }
         if (observed.EffectivePermission.Level == SessionPermissionLevel.ModelReview)
         {
             if (reviewer is not { IsQualified: true })
@@ -96,14 +97,28 @@ public sealed partial class HostAuthorizationService
 
     private static (HostInteractionSnapshot, HostInteractionDecision) Admit(
         HostInteractionSnapshot snapshot, SessionPermissionBasis basis, HostInteractionOutcome outcome, string reason,
-        OperationGrant? grant = null, SessionPermissionReviewResult? reviewResult = null)
+        OperationGrant? grant = null, SessionPermissionReviewResult? reviewResult = null,
+        string promptCategory = "host-operation", AutomaticApprovalAudit? automaticApproval = null)
     {
         if (snapshot.Admissions.Any(item => item.Proposal == snapshot.Proposal))
         { return InteractionTransaction.Reject(snapshot, "invocation-already-admitted", HostInteractionOutcome.Conflict); }
         var receipt = new SessionPermissionAdmission(Guid.NewGuid(), snapshot.Proposal!, snapshot.EffectivePermission,
-            basis, grant?.Id, grant?.Revision, Review: reviewResult);
+            basis, grant?.Id, grant?.Revision, Review: reviewResult, PromptCategory: promptCategory,
+            AutomaticApproval: automaticApproval);
         return (snapshot with { Admissions = snapshot.Admissions.Add(receipt) },
             new(outcome, reason, Grant: grant, Admission: receipt));
+    }
+
+    private (HostInteractionSnapshot, HostInteractionDecision) AutoApprove(
+        HostInteractionSnapshot snapshot, HostRequest request, string promptCategory,
+        HostInteractionOutcome outcome = HostInteractionOutcome.Consumed, AutomaticApprovalAudit? automaticApproval = null)
+    {
+        if (!Eligible(snapshot, request))
+        { return InteractionTransaction.Reject(snapshot, "operation-not-admitted"); }
+        if (snapshot.Questions.Any(question => question.Proposal == snapshot.Proposal))
+        { return InteractionTransaction.Reject(snapshot, "proposal-already-reviewed", HostInteractionOutcome.Conflict); }
+        return Admit(snapshot, SessionPermissionBasis.ApproveAll, outcome, "approve-all",
+            promptCategory: promptCategory, automaticApproval: automaticApproval);
     }
 
     /// <summary>Atomically commits one dispatch use; repeated validation cannot mint another invocation.</summary>
@@ -128,7 +143,9 @@ public sealed partial class HostAuthorizationService
 
     private bool AdmissionCurrent(HostInteractionSnapshot snapshot, HostRequest request, SessionPermissionAdmission receipt) =>
         Eligible(snapshot, request) && snapshot.Proposal == receipt.Proposal && snapshot.EffectivePermission == receipt.Policy
-        && (receipt.GrantId is null || snapshot.Grants.Any(grant =>
-            grant.Id == receipt.GrantId && grant.Revision == receipt.GrantRevision
-            && grant.Status is OperationGrantStatus.Active or OperationGrantStatus.Consumed));
+        && (receipt.Basis == SessionPermissionBasis.ApproveAll
+            ? receipt.GrantId is null && receipt.GrantRevision is null
+            : receipt.GrantId is null || snapshot.Grants.Any(grant =>
+                grant.Id == receipt.GrantId && grant.Revision == receipt.GrantRevision
+                && grant.Status is OperationGrantStatus.Active or OperationGrantStatus.Consumed));
 }

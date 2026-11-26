@@ -122,6 +122,8 @@
       </WrapPanel>
       </Grid>
       <StackPanel Grid.Row="1" Spacing="6">
+        <TextBlock Text="{Binding CurrentSessionPermission}" Classes="eyebrow" TextWrapping="Wrap"
+            AutomationProperties.Name="Permission level applied to the current session" />
         <TextBlock Text="{Binding Status}" Classes="muted" TextWrapping="Wrap"
             AutomationProperties.Name="Session navigation outcome or failure" />
         <local:SessionPermissionControls />

@@ -70,11 +70,12 @@ public sealed class ClipboardPermissionSourceUsePolicy(
         var proposal = new HostOperationProposal(use, new(Guid.NewGuid()), new(1), binding,
             HostOperationEffect.BoundedRead, expiresAt);
         var decision = await presenter(proposal, session.Authority.Generation, current, token).ConfigureAwait(false);
-        if (!current() || decision is not { Outcome: HostInteractionOutcome.Consumed, Grant: { } grant, Admission: { } admitted }
-            || admitted.Proposal != proposal || admitted.Basis != SessionPermissionBasis.ExistingGrant
-            || admitted.GrantId != grant.Id || admitted.GrantRevision != grant.Revision
-            || grant.ApprovedProposal.Binding != proposal.Binding
-            || grant.CreatorChannel != RequestOrigin.LocalUi)
+        if (!current() || decision is not { Outcome: HostInteractionOutcome.Consumed, Admission: { } admitted }
+            || admitted.Proposal != proposal
+            || !(admitted.Basis == SessionPermissionBasis.ApproveAll && decision.Grant is null && admitted.GrantId is null
+                || admitted.Basis == SessionPermissionBasis.ExistingGrant && decision.Grant is { } grant
+                    && admitted.GrantId == grant.Id && admitted.GrantRevision == grant.Revision
+                    && grant.ApprovedProposal.Binding == proposal.Binding && grant.CreatorChannel == RequestOrigin.LocalUi))
         {
             activity.Complete(HostOperationOutcome.Failed);
             return null;

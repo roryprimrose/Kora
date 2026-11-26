@@ -313,6 +313,10 @@ internal static class Program
         var tasks = new WindowsSqliteHostTaskStore(paths);
         Task.Run(() => tasks.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
         var interactions = new WindowsSqliteHostInteractionStore(paths, tasks, auditPolicy: auditPolicy, sessionRetentionPolicy: sessionPolicy);
+        var sessionPermissionDefaults = new SessionPermissionDefaultPreferences(paths);
+        _ = sessionPermissionDefaults.Load();
+        interactions.BindSessionPermissionDefault(sessionPermissionDefaults.Load);
+        services.AddSingleton(sessionPermissionDefaults);
         Task.Run(() => interactions.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
         services.AddLogging(builder =>
         {
@@ -404,6 +408,7 @@ internal static class Program
         services.AddSingleton<IHostTaskStore>(tasks);
         services.AddSingleton(interactions);
         services.AddSingleton<IHostInteractionStore>(interactions);
+        services.AddSingleton<Kora.Core.Storage.ISessionPermissionStore>(interactions);
         services.AddSingleton<IExactGrantStore>(interactions);
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<Kora.Application.Interaction.ExactGrantControlAdmission>();
@@ -822,6 +827,7 @@ internal static class Program
         services.AddSingleton(provider =>
         {
             var main = ActivatorUtilities.CreateInstance<MainViewModel>(provider);
+            main.BindSessionPermissionDefaults(provider.GetRequiredService<SessionPermissionDefaultPreferences>());
             main.BindBundledPromptSources(Kora.Definitions.Prompts.EmbeddedPromptCatalogue.Load());
             return main;
         });

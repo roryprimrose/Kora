@@ -144,21 +144,24 @@ public sealed partial class ExactGrantsViewModel
 
     public Task AddUriRuleAsync(CancellationToken token = default)
     {
+        if (!CanChangeUriRules) { throw new InvalidOperationException("URI permission control is unavailable."); }
         var pattern = UriPatternInput;
-        return ChangeUriRulesAsync(admitted => permissions.AddUriRule(pattern, admitted), token);
+        var canonical = Kora.Core.Network.PreapprovedUriSettings.Create([pattern]).Patterns.Single();
+        return ChangeUriRulesAsync(admitted => permissions.AddUriRule(canonical, admitted), "uri-rule.add", canonical, token);
     }
 
     public Task RemoveUriRuleAsync(CancellationToken token = default)
     {
         if (permissionSelectionCount != 1 || SelectedPermission?.Grant is not UriPermissionGrant uri)
         { throw new InvalidOperationException("Select exactly one current URI rule for removal."); }
-        return ChangeUriRulesAsync(admitted => permissions.RemoveUriRule(uri, admitted), token);
+        return ChangeUriRulesAsync(admitted => permissions.RemoveUriRule(uri, admitted), "uri-rule.remove", uri.Pattern, token);
     }
 
     public Task ClearUriRulesAsync(CancellationToken token = default) =>
-        ChangeUriRulesAsync(permissions.ClearUriRules, token);
+        ChangeUriRulesAsync(permissions.ClearUriRules, "uri-rule.clear",
+            string.Join("\n", permissionRecords.OfType<UriPermissionGrant>().Select(record => record.Pattern)), token);
 
-    private async Task ChangeUriRulesAsync(Action<Func<bool>> change, CancellationToken token)
+    private async Task ChangeUriRulesAsync(Action<Func<bool>> change, string action, string target, CancellationToken token)
     {
         if (!CanChangeUriRules) { throw new InvalidOperationException("URI permission control is unavailable."); }
         var version = selectionVersion;
@@ -169,6 +172,7 @@ public sealed partial class ExactGrantsViewModel
                 && access.ControlRevision == revision && selectionVersion == version && nativeAdmission() && uriAdmission();
             try
             {
+                await AuditAutomaticControlAsync(action, target, Admitted, linked.Token);
                 change(Admitted);
                 RequireCurrent(revision, version, controlRequired: true, linked.Token);
                 UriPatternInput = string.Empty;

@@ -60,6 +60,12 @@ internal sealed partial class McpInvocation
         connection = preparedProcess is not null
             ? await preparedProcess.ConnectAsync(processAuthorization!, token).ConfigureAwait(false)
             : await broker.ConnectAsync(identity, null, token).ConfigureAwait(false);
+        if (identity.Account is { } disclosureAccount && initialAutomaticDisclosureAdmission is { } currentAdmission)
+        {
+            updateAutomaticDisclosureAdmission = admission => currentAdmission = admission;
+            connection.BindAutomaticDisclosureAuthorization((body, current) =>
+                AuthorizeAutomaticDisclosureAsync(body, disclosureAccount, currentAdmission, current));
+        }
         await ValidateAsync(token).ConfigureAwait(false);
         var initialize = await ExchangeAsync(static (transport, current) => transport.InitializeAsync(current),
             McpProtocol.MaximumDiscoveryUtf8Bytes, token).ConfigureAwait(false);

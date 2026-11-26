@@ -14,7 +14,8 @@ public sealed class ExactGrantControlAdmission(ISessionWorkspaceStore workspace,
         HostRequest request, Func<bool> eligible, CancellationToken token) =>
         store.CreateExactGrantControlSessionAsync(request, eligible, token);
 
-    public Task<ExactGrantBatchDecision> RevokeBatchAsync(ExactGrantBatch preview, Func<bool> eligible, CancellationToken token)
+    public Task<ExactGrantBatchDecision> RevokeBatchAsync(ExactGrantBatch preview, Func<bool> eligible, CancellationToken token,
+        Func<CancellationToken, Task>? authorizeAutomatic = null)
     {
         preview.Validate();
         if (HostActivity.Current is not null)
@@ -25,6 +26,7 @@ public sealed class ExactGrantControlAdmission(ISessionWorkspaceStore workspace,
         {
             try
             {
+                if (authorizeAutomatic is not null) { await authorizeAutomatic(admittedToken).ConfigureAwait(false); }
                 var result = await authorization.RevokeExactBatchAsync(request, session.Generation, preview,
                     currentEligible, admittedToken).ConfigureAwait(false);
                 try
@@ -63,7 +65,7 @@ public sealed class ExactGrantControlAdmission(ISessionWorkspaceStore workspace,
     }
 
     public Task<HostInteractionDecision> RevokeAsync(ExactGrantInspection preview,
-        Func<bool> eligible, CancellationToken token)
+        Func<bool> eligible, CancellationToken token, Func<CancellationToken, Task>? authorizeAutomatic = null)
     {
         // This surface accepts a new native click only. Stored/ambient request lineage cannot be adopted.
         if (HostActivity.Current is not null)
@@ -74,6 +76,7 @@ public sealed class ExactGrantControlAdmission(ISessionWorkspaceStore workspace,
         {
             try
             {
+                if (authorizeAutomatic is not null) { await authorizeAutomatic(admittedToken).ConfigureAwait(false); }
                 var result = await authorization.RevokeExactAsync(request, session.Generation, preview,
                     currentEligible, admittedToken).ConfigureAwait(false);
                 try

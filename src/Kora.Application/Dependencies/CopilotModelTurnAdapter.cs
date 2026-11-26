@@ -40,6 +40,7 @@ internal sealed class CopilotModelTurnAdapter(ICopilotTurnRuntime runtime, Hoste
     {
         async ValueTask<bool> IsCurrent(CancellationToken token) =>
             authorization is not null && current is not null && reviews.Current(authorization)
+            && await reviews.PermissionCurrentAsync(authorization, token).ConfigureAwait(false)
             && await current(token).ConfigureAwait(false)
             && (authorization.Selection is null || authorization.SourceCurrent is not null
                 && await authorization.SourceCurrent(token).ConfigureAwait(false)

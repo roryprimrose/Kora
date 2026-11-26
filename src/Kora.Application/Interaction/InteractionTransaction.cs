@@ -53,11 +53,11 @@ internal sealed class InteractionTransaction(IHostInteractionStore store)
         {
             throw new InvalidDataException("Interaction storage has no matching committed host intent/session.");
         }
-        foreach (var grant in snapshot.Grants)
-        {
-            grant.Validate();
-        }
         snapshot.EffectivePermission.Validate(snapshot.Session);
+        if (snapshot.EffectivePermission.Level != Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll)
+        {
+            foreach (var grant in snapshot.Grants) { grant.Validate(); }
+        }
         var (next, decision) = transition(snapshot);
         var outcome = decision.Outcome switch
         {
@@ -67,7 +67,13 @@ internal sealed class InteractionTransaction(IHostInteractionStore store)
         };
         return new(next, decision, new SecurityAuditEvent(audit.CorrelationId, audit.Category,
             audit.ActionId, outcome, audit.Initiator, audit.TargetId,
-            decision.Grant?.Id.Value ?? decision.Question?.Key.QuestionId.Value, decision.Reason));
+            decision.Grant?.Id.Value ?? decision.Question?.Key.QuestionId.Value, decision.Reason,
+            decision.Admission is { Basis: Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ApproveAll } admission
+                && !snapshot.Admissions.Contains(admission) && !admission.Dispatched
+                ? admission.AutomaticApproval ?? new AutomaticApprovalAudit(request, admission.Policy, admission.Proposal.Binding.ActionId,
+                    admission.Proposal.Effect, admission.PromptCategory, admission.Proposal.Binding.TrackedContentDigest,
+                    admission.Proposal.ProposalId, admission.Proposal.Revision, admission.Proposal.Binding)
+                : null));
     }
 
     private static bool OwnsIntent(HostRequest intent, HostRequest request) =>

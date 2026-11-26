@@ -16,6 +16,20 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Grant-free Approve all session mode - 2026-11-26
+
+The product owner approved these amendments to [Session Permission Levels](Session_Permission_Levels.md). This extends the existing Approve all level, not a fourth level, global grant or new executor.
+
+- Apply the current exact-session policy to every effectful route: MCP, web pages, clipboard, bundled actions including Lock, and hosted requests.
+- In Approve all, do not evaluate or consume existing admission grants and create no grants. Review all and Model review retain their grant-first semantics.
+- Automatically approve Kora-owned action, local MCP process, exact script and protected-control reviews, MCP result-continuation consent, and data-disclosure consent. This includes every hosted Copilot/Claude final request, follow-up and retry, remote MCP arguments, web addresses and selected definitions sent to Copilot.
+- Preserve host validation, immutable final-byte capture and bounds, exact destination/account/profile admission, physical joins and egress enforcement. Only the human prompt is skipped.
+- Require a trusted typed session audit for every automatic approval, including approve-all basis, exact request/session/task and proposal/action/effect identities, policy revision, skipped-prompt category, binding/content digests and grants-not-evaluated. Disclosures also bind destination/account/profile and actual request-body digests. No raw content; audit failure blocks admission.
+- Add a device-local Settings default for genuinely new sessions, initially Review all. Existing sessions change independently through native UI, exact text or activated voice commands; show the applied current-session level in chat.
+- Keep microphone, credentials, OS/UAC/provider authentication, memory admission, privileged lifecycle confirmations and hard denials unchanged. No unavailable provider, transport, reviewer or contained runner is enabled by this decision.
+
+The [permission owner](../src/Kora.Application/Interaction/SessionPermission/HostAuthorizationService.SessionPermission.cs), [typed automatic audit](../src/Kora.Core/Auditing/AutomaticApprovalAudit.cs), [final MCP transport seam](../src/Kora.Windows/Mcp/McpHttpConnection.cs) and [new-session preferences](../src/Kora.Application/Configuration/SessionPermissionDefaultPreferences.cs) own implementation. Implementation validation and runtime qualification remain distinct.
+
 ## Portable MEAI model transport contract - 2026-11-26
 
 The product owner accepted **P1-core-meai**: `Microsoft.Extensions.AI.Abstractions` types are allowed in Core's model transport contract ([portable boundary](Architecture.md#platform-boundaries-and-support), [Core reference](../src/Kora.Core/Kora.Core.csproj)).

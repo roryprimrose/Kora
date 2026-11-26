@@ -26,6 +26,17 @@ public sealed class PendingOperationExplanationTests
     {
         using var f = Fixture(origin);
         f.Store.Change(s => s with { Permission = s.Permission! with { Level = level } });
+        if (level == SessionPermissionLevel.ApproveAll)
+        {
+            var automatic = await f.RunAsync(() => f.Authorization.RequestGrantAsync(f.Request, Spec(), Token));
+            automatic.Outcome.Should().Be(HostInteractionOutcome.Consumed);
+            automatic.Question.Should().BeNull();
+            automatic.Grant.Should().BeNull();
+            f.Store.Snapshot.Questions.Should().BeEmpty();
+            f.Store.Snapshot.Grants.Should().BeEmpty();
+            f.Store.Commits.Single().Audit.AutomaticApproval!.PromptCategory.Should().Be("clipboard-read");
+            return;
+        }
         var question = await Present(f);
         var before = f.Store.Snapshot;
         var result = await Explain(f, question);

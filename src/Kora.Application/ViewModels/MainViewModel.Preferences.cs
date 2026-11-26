@@ -7,6 +7,41 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    public Kora.Application.Hosting.SessionWorkspaceService? SessionControlWorkspace => sessionCommands;
+    public Kora.Core.Storage.SessionWorkspaceEntry? CurrentPermissionControlTarget => sessionCommands?.PermissionControlTarget;
+    private Kora.Application.Configuration.SessionPermissionDefaultPreferences? sessionPermissionDefaults;
+    private Kora.Core.Authorization.SessionPermission.SessionPermissionLevel newSessionPermission;
+    public IReadOnlyList<string> NewSessionPermissionChoices { get; } = ["Review all", "Model review", "Approve all"];
+    public int NewSessionPermission
+    {
+        get => (int)newSessionPermission;
+        set
+        {
+            if (!Enum.IsDefined((Kora.Core.Authorization.SessionPermission.SessionPermissionLevel)value))
+            { throw new ArgumentOutOfRangeException(nameof(value)); }
+            var desired = (Kora.Core.Authorization.SessionPermission.SessionPermissionLevel)value;
+            if (desired == newSessionPermission) { return; }
+            QueuePreference(nameof(NewSessionPermission), async () =>
+            {
+                var preferences = sessionPermissionDefaults
+                    ?? throw new InvalidOperationException("Default session permission preferences are unavailable.");
+                if (await SavePreferenceAsync(() => preferences.Save(desired), "session.permission.default",
+                    SecurityAuditInitiator.LocalUser, "new-session permission default"))
+                { newSessionPermission = desired; }
+            });
+        }
+    }
+
+    public void BindSessionPermissionDefaults(Kora.Application.Configuration.SessionPermissionDefaultPreferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+        if (sessionPermissionDefaults is not null)
+        { throw new InvalidOperationException("Default session permission preferences are already bound."); }
+        newSessionPermission = preferences.Load();
+        sessionPermissionDefaults = preferences;
+        OnPropertyChanged(nameof(NewSessionPermission));
+    }
+
     private sealed record PendingPreference(Func<Task> Apply, Func<bool> Eligible, Func<HostActivity> Begin);
 
     private readonly Dictionary<string, PendingPreference> pendingPreferences = new(StringComparer.Ordinal);

@@ -824,6 +824,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (closed) { return; }
         closed = true;
+        service.SessionPermissionChanged -= OnSessionPermissionChanged;
         if (detailPresentation is not null) { detailPresentation.Changed -= OnDetailPresentationChanged; }
         CloseContentSearch();
         detailSelections.Clear();

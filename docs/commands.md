@@ -100,9 +100,14 @@ Existing Offer/LinkOnly preference, manual Details and unsent conversation text 
 
 ## Review one spoken command before dispatch
 
-In the response window, choose **Review one spoken command**, speak one general command using the current assistant name, then choose **Finish capture**. The microphone closes before the exact final transcript appears. Correct the text if needed, then separately choose **Dispatch this exact voice command once**, or **Cancel reviewed command**. Editing never runs the command ([capture and review](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs)).
+The reviewed spoken-command capture owner and host admission remain in Application, but there is currently no native entry point.
+The supporting [capture and review](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs) flow is **Review one spoken command**, one general command using the current assistant name, then **Finish capture**.
+The microphone closes before the exact final transcript appears. Correction is followed by separate **Dispatch this exact voice command once**, or **Cancel reviewed command**.
+These are not currently available native controls. Editing never runs the command.
 
-This one-shot action does not change ordinary push-to-talk or any listening preference. It requires existing voice consent, local command readiness and unchanged private ownership. Capture and review expire after 60 seconds; changing the original target, input, device, call or private context discards the candidate instead of sending it elsewhere. Hiding, deactivating or closing the window cancels it ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs), [window lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
+This one-shot action does not change ordinary push-to-talk or any listening preference. It requires existing voice consent, local command readiness and unchanged private ownership.
+Capture and review expire after 60 seconds; changing the original target, input, device, call or private context discards the candidate instead of sending it elsewhere.
+The [host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs) requires a native-lifetime check, but no current window binds that lifetime.
 
 Finishing capture, editing or confirming does not restart that deadline.
 Late confirmation or delayed dispatch is refused even if the expiry notice has

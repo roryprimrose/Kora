@@ -5,6 +5,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
 using Kora.Core.Tools;
+using Microsoft.Extensions.AI;
 
 namespace Kora.Core.UnitTests.Dependencies;
 
@@ -79,9 +80,24 @@ public sealed partial class ModelToolProtocolTests
         result.Result.Should().Equal(CapabilityReplyWire.Serialize(
             new(CapabilityOutcome.Succeeded, "observed", Version: new("1.2.3", "Not observed"))));
         var history = new List<ModelToolMessage> { assistant, result };
-        var request = ModelToolProtocol.CreateRequest(provenance, null, context, history, 2);
+        var user = new ChatMessage(ChatRole.User, context.UserRequest);
+        List<ChatMessage> chat =
+        [
+            user,
+            new(ChatRole.Assistant, [new FunctionCallContent("call_1", ReadOnlyCapabilityCatalog.Version,
+                new Dictionary<string, object?>(StringComparer.Ordinal))]),
+            new(ChatRole.Tool, [new FunctionResultContent("call_1", result)]),
+        ];
+        var request = ModelToolProtocol.CreateRequest(provenance, null, context, history, 2, chatMessages: chat);
+        var canonicalOnly = ModelToolProtocol.CreateRequest(provenance, null, context, history, 2);
+        ModelToolProtocol.SerializeRequest(request).Should().Equal(ModelToolProtocol.SerializeRequest(canonicalOnly));
+        canonicalOnly.ChatMessages.Should().BeEmpty();
+        chat.Clear();
         history.Clear();
         request.Messages.Should().HaveCount(2);
+        request.ChatMessages.Should().HaveCount(3);
+        request.ChatMessages[0].Should().BeSameAs(user);
+        ModelToolChatMessages.Validate(context, request.Messages, request.ChatMessages);
         request.Provenance.Should().BeSameAs(provenance);
         request.Profile.Should().BeNull();
         request.Round.Should().Be(2);

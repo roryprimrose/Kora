@@ -78,6 +78,9 @@ Keep portable domain logic and shared Avalonia presentation separate from first-
 - Windows integration: actual device/session/clipboard APIs, native UI hooks, known folders, credential storage, containment, computer controls, startup, browser backend, and installer/maintenance execution.
 
 The shared core targets portable `net11.0`, not `net11.0-windows`, and references no Windows-only API assemblies.
+The accepted [P1-core-meai decision](Decision_Register.md#portable-meai-model-transport-contract---2026-11-26) permits `Microsoft.Extensions.AI.Abstractions` in Core's [model transport contract](../src/Kora.Core/Dependencies/ModelToolRequest.cs), not provider SDK mechanisms or authority.
+The volatile MEAI USER/history companion must match the canonical context/history before disclosure ([shared validation](../src/Kora.Core/Dependencies/ModelToolChatMessages.cs)); `ModelContextEnvelope` remains the sole input policy/serialization authority.
+Claude consumes the MAF companion with only native name/result mapping; canonical validation/byte charging, host per-POST admission and owned joins remain authoritative. Ollama keeps its native tool mapping ([Claude mapping](../src/Kora.Windows/Dependencies/ClaudeToolMessages.cs), [physical guard](../src/Kora.Windows/Dependencies/ClaudeSdkRequestHandler.cs), [local contract](Local_Inference.md)).
 Windows-specific targets/dependencies belong in integration modules or the platform composition/launch layer.
 The .NET 11 SDK is pinned in `global.json`; framework upgrades are deliberate tested dependency changes, not a portability strategy.
 The logical separation may become projects when real dependencies justify it; do not create empty Linux/macOS projects or speculative backends.

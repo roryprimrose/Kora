@@ -355,7 +355,7 @@ private native-only credential entry and final physical-send consent.
 
 Buffered, separately qualified streaming, observation and clarification paths use official `Anthropic` **13.6.0** and its
 MEAI `IChatClient` adapter, with `Microsoft.Extensions.AI.Abstractions`
-**10.8.0**. The SDK owns message serialization and typed response projection,
+**11.0.0** ([central pin](../Directory.Packages.props)). The SDK owns message serialization and typed response projection,
 not tool iteration or Kora authority. The
 [`ClaudeSdkRequestHandler`](../src/Kora.Windows/Dependencies/ClaudeSdkRequestHandler.cs)
 derives Count Tokens from the actual serialized SDK input before either
@@ -376,6 +376,7 @@ validates the entire batch through the canonical protocol before execution,
 retains exact native tool input and call correlation, and owns serial
 continuation and cumulative physical/protocol byte accounting. SDK schema
 rewriting cannot broaden the advertised domain schemas.
+The accepted [portable transport decision](Decision_Register.md#portable-meai-model-transport-contract---2026-11-26) carries the MAF bridge's validated MEAI USER/history companion in [Core's request](../src/Kora.Core/Dependencies/ModelToolRequest.cs). Claude consumes that companion with only native tool-name/result conversion; it does not reconstruct package messages from canonical history ([mapping](../src/Kora.Windows/Dependencies/ClaudeToolMessages.cs)).
 The pinned SDK's generic tool validator requires a newer `caller` field that
 the qualified four-field `2023-06-01` client-tool envelope does not admit.
 Tool exchanges therefore use the existing stricter raw host validator rather

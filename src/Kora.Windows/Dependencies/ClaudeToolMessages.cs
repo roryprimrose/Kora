@@ -8,55 +8,33 @@ using Microsoft.Extensions.AI;
 
 namespace Kora.Windows.Dependencies;
 
-/// <summary>Maps the admitted host protocol to inert MEAI messages and declarations, never tool execution.</summary>
+/// <summary>Maps validated MEAI content to inert Claude names/results and declarations, never tool execution.</summary>
 internal static class ClaudeToolMessages
 {
     internal static string Name(string id) => "kora_" + id.Replace('.', '_');
 
     internal static List<ChatMessage> CreateMessages(ModelToolRequest request)
     {
-        List<ChatMessage> messages =
-        [
-            new(ChatRole.System, request.Context.SystemPolicy),
-            new(ChatRole.User, request.Context.UserRequest),
-        ];
-        for (var index = 0; index < request.Messages.Length; index++)
+        ModelToolChatMessages.Validate(request.Context, request.Messages, request.ChatMessages);
+        List<ChatMessage> messages = [new(ChatRole.System, request.Context.SystemPolicy)];
+        foreach (var message in request.ChatMessages)
         {
-            switch (request.Messages[index])
+            foreach (var content in message.Contents)
             {
-                case ModelAssistantToolCalls assistant:
-                    messages.Add(new(ChatRole.Assistant, assistant.Calls.Select(call =>
-                        (AIContent)new FunctionCallContent(call.CallId, Name(call.CapabilityId), Arguments(call.InputJson))).ToList()));
-                    break;
-                case ModelToolResultMessage result:
-                    List<AIContent> results = [new FunctionResultContent(result.CallId, Encoding.UTF8.GetString(result.Result.AsSpan()))];
-                    while (index + 1 < request.Messages.Length && request.Messages[index + 1] is ModelToolResultMessage next)
-                    {
-                        results.Add(new FunctionResultContent(next.CallId, Encoding.UTF8.GetString(next.Result.AsSpan())));
-                        index++;
-                    }
-                    messages.Add(new(ChatRole.Tool, results));
-                    break;
-                case ModelClarificationQuestion question when request.ClarificationAllowed:
-                    messages.Add(new(ChatRole.Assistant,
-                    [
-                        new FunctionCallContent(question.CallId!, ModelToolProtocol.AskUserToolName,
-                            new Dictionary<string, object?>(StringComparer.Ordinal)
-                            {
-                                ["prompt"] = question.Question.Prompt, ["options"] = question.Question.Options,
-                                ["minimum"] = question.Question.Minimum, ["maximum"] = question.Question.Maximum,
-                            }),
-                    ]));
-                    break;
-                case ModelQuestionAnswerMessage answer when request.ClarificationAllowed:
-                    messages.Add(new(ChatRole.Tool,
-                    [
-                        new FunctionResultContent(answer.Question.CallId!,
-                            Encoding.UTF8.GetString(ModelToolProtocol.SerializeMessage(answer))),
-                    ]));
-                    break;
-                default:
-                    throw new InvalidDataException("Only canonical admitted history can enter Claude.");
+                AIContent native = content switch
+                {
+                    TextContent text => new TextContent(text.Text),
+                    FunctionCallContent call => new FunctionCallContent(call.CallId,
+                        string.Equals(call.Name, ModelToolProtocol.AskUserToolName, StringComparison.Ordinal) ? call.Name : Name(call.Name),
+                        call.Arguments),
+                    FunctionResultContent { Result: ModelToolResultMessage result } function =>
+                        new FunctionResultContent(function.CallId, Encoding.UTF8.GetString(result.Result.AsSpan())),
+                    FunctionResultContent { Result: ModelQuestionAnswerMessage answer } function =>
+                        new FunctionResultContent(function.CallId, ModelToolChatMessages.Text(answer)),
+                    _ => throw new InvalidDataException("Only validated package history can enter Claude."),
+                };
+                if (messages[^1].Role == message.Role) { messages[^1].Contents.Add(native); }
+                else { messages.Add(new(message.Role, [native])); }
             }
         }
         return messages;
@@ -89,13 +67,6 @@ internal static class ClaudeToolMessages
             InputSchema = new InputSchema(schema.EnumerateObject().ToDictionary(property => property.Name,
                 property => property.Value.Clone(), StringComparer.Ordinal)),
         }).AsAITool();
-
-    private static Dictionary<string, object?> Arguments(string json)
-    {
-        using var document = JsonDocument.Parse(json);
-        return document.RootElement.EnumerateObject().ToDictionary(property => property.Name,
-            property => (object?)property.Value.Clone(), StringComparer.Ordinal);
-    }
 
     internal static void Validate(byte[] bytes, ProviderProfileTuple profile, int outputLimit, int inputLimit,
         IReadOnlyList<CapabilityDescriptor> tools, bool clarificationAllowed)

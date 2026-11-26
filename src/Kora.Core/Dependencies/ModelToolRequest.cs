@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Kora.Core.Providers;
+using Microsoft.Extensions.AI;
 
 namespace Kora.Core.Dependencies;
 
@@ -8,7 +9,7 @@ public sealed class ModelToolRequest
 {
     internal ModelToolRequest(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
         ModelToolContext context, ImmutableArray<ModelToolMessage> messages, int round, ModelToolBudget budget,
-        bool clarificationAllowed = false)
+        bool clarificationAllowed = false, ImmutableArray<ChatMessage> chatMessages = default)
     {
         Provenance = provenance;
         Profile = profile;
@@ -17,12 +18,15 @@ public sealed class ModelToolRequest
         Round = round;
         Budget = budget;
         ClarificationAllowed = clarificationAllowed;
+        ChatMessages = chatMessages.IsDefault ? [] : chatMessages;
     }
 
     public ModelTurnProvenance Provenance { get; }
     public ProviderProfileTuple? Profile { get; }
     public ModelToolContext Context { get; }
     public ImmutableArray<ModelToolMessage> Messages { get; }
+    /// <summary>Volatile package USER/history companion, not policy or authority. Revalidate before disclosure.</summary>
+    public ImmutableArray<ChatMessage> ChatMessages { get; }
     public int Round { get; }
     public ModelToolBudget Budget { get; }
     public bool ClarificationAllowed { get; }

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Kora.Core.Providers;
 using Kora.Core.Tools;
+using Microsoft.Extensions.AI;
 
 namespace Kora.Core.Dependencies;
 
@@ -19,7 +20,7 @@ public static partial class ModelToolProtocol
 
     public static ModelToolRequest CreateRequest(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
         ModelToolContext context, IEnumerable<ModelToolMessage> messages, int round, ModelToolBudget? budget = null,
-        bool clarificationAllowed = false)
+        bool clarificationAllowed = false, IEnumerable<ChatMessage>? chatMessages = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(messages);
@@ -65,7 +66,8 @@ public static partial class ModelToolProtocol
         ReadContext(context.Wire.AsSpan(), provenance);
         var request = new ModelToolRequest(provenance, profile, context, history, round,
             budget ?? new(context.Constraints?.InputUtf8Bytes ?? MaximumInputUtf8Bytes,
-                context.Constraints?.OutputUtf8Bytes ?? MaximumOutputUtf8Bytes), clarificationAllowed);
+                context.Constraints?.OutputUtf8Bytes ?? MaximumOutputUtf8Bytes), clarificationAllowed,
+            chatMessages is null ? default : chatMessages.ToImmutableArray());
         if (request.Budget.InputUtf8Bytes > (context.Constraints?.InputUtf8Bytes ?? MaximumInputUtf8Bytes)
             || request.Budget.OutputUtf8Bytes > (context.Constraints?.OutputUtf8Bytes ?? MaximumOutputUtf8Bytes))
         { throw new InvalidDataException("The transport budget exceeds the exact turn constraints."); }

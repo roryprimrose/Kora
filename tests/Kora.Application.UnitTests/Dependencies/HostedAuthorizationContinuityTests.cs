@@ -13,6 +13,40 @@ namespace Kora.Application.UnitTests.Dependencies;
 [Collection("Host tracing")]
 public sealed class HostedAuthorizationContinuityTests : IDisposable
 {
+    [Theory]
+    [InlineData("missing-source-validator")]
+    [InlineData("stream")]
+    [InlineData("tools")]
+    [InlineData("evidence")]
+    [InlineData("mcp")]
+    public void SelectedClaudePreparationCannotCombineCopyWithAnotherProfileOrLoseSourceValidation(string fault)
+    {
+        var f = new ClaudeModelTurnAdapterTests.Fixture();
+        using var root = f.Root();
+        var copy = new SelectedHostedDefinition(Kora.Core.Customizations.CustomizationKind.Skill,
+            "source", "revision", "reviewed", "Description", "Exact source");
+        ModelContextEnvelope context = fault switch
+        {
+            "tools" => new(f.Request, "policy", "body", [], f.Time.Now, f.Time.Now.AddMinutes(1), ModelToolMode.ReadOnly,
+                ClaudeObservationTools.Constrain([Kora.Core.Tools.ReadOnlyCapabilityCatalog.Version])),
+            "evidence" => new(f.Request, "policy", "body",
+                [new(new(Guid.NewGuid()), f.Request, new(1), "not implicit context", ModelEvidenceDisclosure.HostedEligible)],
+                f.Time.Now, f.Time.Now.AddMinutes(1), ModelToolMode.None),
+            "mcp" => new(f.Request, "policy", "body", [], f.Time.Now, f.Time.Now.AddMinutes(1), ModelToolMode.McpReadOnly,
+                mcpTool: new("mcp.reviewed", """{"type":"object","properties":{},"additionalProperties":false,"required":[]}""")),
+            _ => f.Context,
+        };
+        var sourceChecks = 0;
+        Assert.Throws<InvalidOperationException>(() => f.Reviews.PrepareClaudeTurn(context, f.Profile,
+            streamAnswer: fault is "stream", selection: copy,
+            sourceCurrent: fault is "missing-source-validator" ? null : _ =>
+            {
+                sourceChecks++;
+                return ValueTask.FromResult(true);
+            }));
+        sourceChecks.Should().Be(0);
+    }
+
     private readonly ActivityListener listener = new()
     {
         ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),

@@ -226,7 +226,9 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<McpServerConfigurationService>(),
                 Services.GetRequiredService<ArtifactDirectoryConfigurationService>(),
                 Services.GetRequiredService<SessionConversationService>(),
-                () => ActivatorUtilities.CreateInstance<Kora.Application.Definitions.CopilotCustomizationWorkflow>(Services));
+                () => ActivatorUtilities.CreateInstance<Kora.Application.Definitions.CopilotCustomizationWorkflow>(Services),
+                () => ActivatorUtilities.CreateInstance<Kora.Application.Definitions.HostedCustomizationWorkflow>(Services,
+                    Kora.Core.Providers.ProviderService.Claude));
             customizations.Bind();
             customizations.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
                 view => responseWindow.ShowHostedView(WorkbenchActivity.Customizations, view));

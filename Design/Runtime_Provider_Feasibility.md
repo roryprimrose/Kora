@@ -339,6 +339,12 @@ and original-request answer/refusal retention without live inference.
 
 ### Native Claude Messages profile - 2026-10-24
 
+**Explicit selected-definition USER copy:** one original-user request can separately approve reading one saved instruction-compatible skill or reference-free/tool-free v1 agent, hosted disclosure of its complete source and exact target/body, then canonical original USER retention ([shared workflow](../src/Kora.Application/Definitions/HostedCustomizationWorkflow.cs)).
+
+The existing Anthropic/MEAI runner serializes unchanged SystemPolicy, a distinct lower-trust source USER message and the unchanged original task as the final USER message. The physical handler validates the actual serialized roles/content before deriving Count Tokens from those bytes. Both POSTs require their own native reviews and share existing byte/token limits ([runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.cs), [handler](../src/Kora.Windows/Dependencies/ClaudeSdkRequestHandler.cs)).
+
+Current-source admission is composed with the existing hosted owner through every send, return and answer commit. Canonical retention/lifecycle/resource joins are reused, and native Copilot and Claude share one selected UI operation. Missing capability stays unavailable; this adds no native Claude agent, discovery, executor pool, implicit text fallback or runtime qualification ([host](../src/Kora.Application/Dependencies/ModelTurnHost.Claude.cs), [submission](../src/Kora.Application/Hosting/SessionConversationService.ClaudeCustomizations.cs), [selected UI owner](../src/Kora/CustomizationWindowController.Copilot.cs)).
+
 The distinct [Claude HTTPS runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.cs)
 implements a bounded stateless text-only Models/Messages API profile, pinned to
 `anthropic-version: 2023-06-01`. It does not use a CLI, SDK agent, sidecar,

@@ -57,17 +57,35 @@ internal sealed class ClaudeModelTurnAdapter(IClaudeTurnRuntime runtime, HostedT
         if (authorization is null || current is null || profile != authorization.Profile
             || !ReferenceEquals(provenance.Request, authorization.Context.Request)
             || !context.Span.SequenceEqual(authorization.Context.Serialize()) || !reviews.Current(authorization)
-            || !await current(cancellationToken).ConfigureAwait(false))
+            || !await current(cancellationToken).ConfigureAwait(false)
+            || authorization.Selection is not null && (authorization.SourceCurrent is null
+                || !await authorization.SourceCurrent(cancellationToken).ConfigureAwait(false)
+                || !reviews.Current(authorization) || !await current(cancellationToken).ConfigureAwait(false)))
         { return new(ModelTurnOutcome.DeniedEgress, provenance.Selection); }
         if ((authorization.Context.ToolMode == ModelToolMode.HostedClarification) != (ask is not null))
         { return new(ModelTurnOutcome.Denied, provenance.Selection, Reason: ModelTurnReason.ToolUseNotPermitted); }
         async ValueTask<bool> Live(CancellationToken token) =>
-            reviews.Current(authorization) && await current(token).ConfigureAwait(false);
+            reviews.Current(authorization) && await current(token).ConfigureAwait(false)
+            && (authorization.SourceCurrent is null || await authorization.SourceCurrent(token).ConfigureAwait(false))
+            && reviews.Current(authorization) && await current(token).ConfigureAwait(false);
         ValueTask<bool> Review(ClaudeTransmission transmission, CancellationToken token) =>
             ReferenceEquals(transmission.Provenance, provenance) && transmission.Profile == profile
                 ? reviews.ReviewAsync(authorization, transmission, Live, token) : ValueTask.FromResult(false);
         ModelProviderReply result;
-        if (authorization.StreamAnswer)
+        if (authorization.Selection is { } selection)
+        {
+            if (authorization.StreamAnswer || publish is not null || authorization.Context.ToolMode != ModelToolMode.None
+                || !authorization.Context.Evidence.IsEmpty || authorization.Context.McpTool is not null)
+            { return new(ModelTurnOutcome.Denied, provenance.Selection, Reason: ModelTurnReason.ToolUseNotPermitted); }
+            if (runtime is not IClaudeCustomizationTurnRuntime selected)
+            { return new(ModelTurnOutcome.Unavailable, provenance.Selection); }
+            var reply = await selected.RunSelectedAsync(provenance, profile, authorization.Context,
+                selection, Review, Live, cancellationToken).ConfigureAwait(false);
+            result = new(reply.Outcome, provenance.Selection,
+                reply.Outcome == ModelTurnOutcome.Succeeded ? new LocalModelResponse(reply.Answer, null) : null)
+            { TokenUsage = reply.TokenUsage };
+        }
+        else if (authorization.StreamAnswer)
         {
             if (publish is null || runtime is not IClaudeAnswerTurnRuntime streaming)
             { return new(ModelTurnOutcome.Unavailable, provenance.Selection); }

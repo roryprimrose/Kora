@@ -295,7 +295,7 @@ Both PTT and native recovery refuse while the stop's terminal receipt is still f
 
 This is not Stop speaking, Cancel task, hiding, exit, stored-consent withdrawal or global microphone mute ([stop integration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
 Protected-call stop remains available without authorizing voice recovery or weakening other mutations ([call policy](../src/Kora.Application/Communication/CallCommunicationPolicy.cs)).
-There is no enable/unmute command or qualified model stop lane, and the six read-only capabilities remain observations ([catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [model exclusion](../src/Kora.Windows/Dependencies/WindowsOllamaReasoner.cs), [read-only registry](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
+There is no enable/unmute command or qualified model stop lane, and the six read-only capabilities remain observations ([catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [unavailable bootstrap route](../src/Kora.Application/Dependencies/UnavailableLocalModelReasoner.cs), [read-only registry](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
 
 Deterministic fake-lifecycle tests cover exact typed/current-prefix activation, pending decisions, release failure, queued input and explicit recovery ([stop tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ListeningStop.cs)).
 They do not claim physical microphone, acoustic or installed-native qualification ([native lifecycle tests](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs)).

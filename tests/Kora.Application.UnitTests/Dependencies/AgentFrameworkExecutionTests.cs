@@ -26,6 +26,18 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
     public void Dispose() => listener.Dispose();
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    [Fact]
+    public async Task TransportReceivesTheValidatedPackageMessageWithoutReconstructingCanonicalHistory()
+    {
+        await using var f = new Fixture(0, 1);
+        using var bridge = f.CreateBridge();
+        var original = new ChatMessage(ChatRole.User, "Original task");
+        var response = await bridge.GetResponseAsync([original], new() { Tools = bridge.Tools }, Token);
+        response.Text.Should().Be("Exact final answer.");
+        f.Transport.Requests.Should().ContainSingle().Which.ChatMessages.Should().ContainSingle()
+            .Which.Should().BeSameAs(original);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -48,6 +60,15 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
             && request.Context.Tools.Count == (count == 0 ? 0 : 1));
         if (count != 0)
         {
+            var continuation = f.Transport.Requests[1];
+            var packageResults = continuation.ChatMessages.SelectMany(message => message.Contents)
+                .OfType<FunctionResultContent>().ToArray();
+            packageResults.Select(result => result.CallId).Should().Equal(f.Invocations);
+            foreach (var packageResult in packageResults)
+            {
+                packageResult.Result.Should().BeSameAs(continuation.Messages.OfType<ModelToolResultMessage>()
+                    .Single(message => string.Equals(message.CallId, packageResult.CallId, StringComparison.Ordinal)));
+            }
             f.Transport.Requests[1].Messages.OfType<ModelToolResultMessage>().Select(message => message.CallId)
                 .Should().Equal(f.Invocations);
             f.Transport.Requests[1].Budget.InputUtf8Bytes.Should().BeLessThan(32768);

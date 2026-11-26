@@ -12,7 +12,8 @@ public sealed class SecurityAuditEvent
         SecurityAuditInitiator initiator,
         string targetId,
         Guid? approvalId = null,
-        string? reasonCode = null)
+        string? reasonCode = null,
+        AutomaticApprovalAudit? automaticApproval = null)
     {
         if (correlationId == Guid.Empty)
         {
@@ -44,6 +45,8 @@ public sealed class SecurityAuditEvent
         ReasonCode = reasonCode is null
             ? null
             : ValidateReasonCode(reasonCode);
+        automaticApproval?.Validate();
+        AutomaticApproval = automaticApproval;
     }
 
     public Guid CorrelationId { get; }
@@ -62,6 +65,8 @@ public sealed class SecurityAuditEvent
 
     public string? ReasonCode { get; }
 
+    public AutomaticApprovalAudit? AutomaticApproval { get; }
+
     public static string ValidateReasonCode(string reasonCode) =>
         ValidateIdentifier(reasonCode, nameof(reasonCode));
 
@@ -76,7 +81,8 @@ public sealed class SecurityAuditEvent
             Initiator,
             TargetId,
             ApprovalId,
-            reasonCode);
+            reasonCode,
+            AutomaticApproval);
 
     private static string ValidateIdentifier(string identifier, string parameterName)
     {

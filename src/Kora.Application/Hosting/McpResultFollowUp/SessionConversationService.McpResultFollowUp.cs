@@ -4,6 +4,10 @@ using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Authorization;
+using Kora.Core.Authorization.SessionPermission;
+using Kora.Core.Auditing;
+using Kora.Core.Storage;
 
 namespace Kora.Application.Hosting;
 
@@ -11,6 +15,11 @@ public sealed partial class SessionConversationService
 {
     internal McpResultFollowUpWorkflow CreateMcpResultFollowUpWorkflow(IMcpResultSourceUse? sourceUse = null) =>
         new(this, sourceUse ?? UnavailableMcpResultSourceUse.Instance, time);
+
+    internal async Task<SessionPermissionPolicy?> ReadMcpResultPermissionAsync(
+        HostId<SessionIdentity> session, CancellationToken token) =>
+        workspace.SupportsSessionPermission
+            ? await workspace.ReadSessionPermissionAsync(session, token).ConfigureAwait(false) : null;
 
     internal async Task<HostTaskRecord> ValidateMcpObservationAsync(McpResultObservation observation,
         Func<bool> admitted, CancellationToken token)
@@ -39,14 +48,34 @@ public sealed partial class SessionConversationService
     }
 
     internal async Task<ConversationSubmissionReceipt> SubmitMcpResultFollowUpAsync(McpResultFollowUpReview review,
-        Func<bool> admitted, Func<CancellationToken, Task> validate, CancellationToken token)
+        Func<bool> admitted, Func<CancellationToken, Task> validate, CancellationToken token,
+        SessionPermissionPolicy? automaticConsent = null)
     {
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), review.Observation.Request.SessionId,
             new(Guid.NewGuid()), review.Origin), HostActivityLayer.Application, HostOperation.Request, [review.Observation.Cause]);
         try
         {
+            async Task Validate(CancellationToken cancellation)
+            {
+                await validate(cancellation).ConfigureAwait(false);
+                if (automaticConsent is not null
+                    && await ReadMcpResultPermissionAsync(automaticConsent.SessionId, cancellation).ConfigureAwait(false) != automaticConsent)
+                { throw new InvalidOperationException("Automatic MCP continuation consent lost its exact session policy."); }
+            }
+            async Task Authorize(HostRequest request, ModelContextEnvelope context, Func<bool> live, CancellationToken cancellation)
+            {
+                var permissions = store as ISessionPermissionStore
+                    ?? throw new InvalidOperationException("Authoritative MCP continuation audit is unavailable.");
+                var policy = automaticConsent!;
+                var digest = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(context.Serialize()));
+                await permissions.RecordAutomaticApprovalAsync(request, policy,
+                    new AutomaticApprovalAudit(request, policy, "mcp.result-follow-up", HostOperationEffect.BoundedRead,
+                        "mcp-result-continuation", digest), live, cancellation).ConfigureAwait(false);
+                await Validate(cancellation).ConfigureAwait(false);
+            }
             var receipt = await SubmitReviewedContextAsync(review.Observation.Target, review.Question, review.CreateEnvelope,
-                admitted, validate, [review.Observation.Cause], review.Origin, token).ConfigureAwait(false);
+                admitted, Validate, [review.Observation.Cause], review.Origin, token,
+                authorizeSubmission: automaticConsent is null ? null : Authorize).ConfigureAwait(false);
             activity.Complete(receipt.Message.Outcome switch
             {
                 ModelTurnOutcome.Succeeded => HostOperationOutcome.Completed,

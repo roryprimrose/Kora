@@ -68,6 +68,14 @@ read-only Preview and cog reset actions retain their admission checks. Queue
 changes still require a fresh Refresh from the cog menu before each Save or
 Reset. Settings that already save a selection immediately retain that behavior.
 
+## Default permission level for new sessions
+
+In **Settings > Sessions**, select **Default permission level for new sessions**. The audited device-local choice initially uses Review all and applies only when a genuinely new session is created; existing sessions retain their independent policy ([preference](../src/Kora.Application/Configuration/SessionPermissionDefaultPreferences.cs), [creation boundary](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)).
+
+Choose Review all, Model review or Approve all. Approve all skips Kora-owned action, script, local MCP process, protected-control, result-continuation and data-disclosure prompts without evaluating, consuming or creating admission grants. Every automatic approval requires trusted session audit. Authentication, microphone, memory, hard denials and physical joins remain independent ([level guide](session-permission-levels.md)).
+
+Chat shows the level applied to its current session. Change an existing session independently through the native level controls or exact typed/activated-voice commands; changing the default does not change existing sessions, resume an ended policy or replay work ([session controls](session-permission-levels.md#typed-and-activated-voice-changes)).
+
 ## Future ordinary task deadline
 
 In **Settings > Sessions**, use **Refresh** in the **Future ordinary task deadline** cog menu, choose **1-60 whole minutes**, then **Save**. **Reset to 5 minutes** restores the default.

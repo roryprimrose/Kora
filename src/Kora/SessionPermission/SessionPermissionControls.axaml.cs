@@ -14,7 +14,10 @@ internal sealed partial class SessionPermissionControls : UserControl
         {
             if (DataContext is SessionsViewModel model) { await (Operation = model.ReadPermissionAsync()); }
         };
-        ReviewPolicy.Click += (_, _) => (DataContext as SessionsViewModel)?.ReviewPermission();
+        ReviewPolicy.Click += async (_, _) =>
+        {
+            if (DataContext is SessionsViewModel model) { await (Operation = model.ReviewPermissionAsync()); }
+        };
         ConfirmPolicy.Click += async (_, _) =>
         {
             if (DataContext is SessionsViewModel model) { await (Operation = model.ConfirmPermissionAsync()); }

@@ -24,6 +24,7 @@ public sealed record SessionPermissionPolicy(
     };
 
     public const string ApproveAllWarning =
-        "Actions without grants will run without safety review or ordinary approval in this session. "
-        + "No grants will be saved. Independent consent and mandatory protections still apply.";
+        "Kora-owned action, script, process, protected-control and data-disclosure reviews are automatically approved in this session. "
+        + "Grants are not evaluated, consumed or created. Every automatic approval requires a trusted audit record. "
+        + "Authentication, microphone, memory, hard denials and physical resource joins still apply.";
 }

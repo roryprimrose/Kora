@@ -100,11 +100,18 @@ internal sealed partial class SessionsViewModel
             _ => "Unavailable: independent source-use classification and qualification are not enabled. Nothing submitted; no model, refresh or fallback.",
         };
         NotifyMcpFollowUp();
+        if (mcpFollowUpWorkflow.AutomaticConsent is not null && mcpFollowUpReview.CanConfirm)
+        { await CompleteMcpResultFollowUpAsync(mcpFollowUpReview, live); }
     });
 
     public Task ConfirmMcpResultFollowUpAsync() => RunConversationAsync(async (_, live) =>
     {
         var review = mcpFollowUpReview ?? throw new InvalidOperationException("Review the complete unchanged observation and new question first.");
+        await CompleteMcpResultFollowUpAsync(review, live);
+    }, submission: true);
+
+    private async Task CompleteMcpResultFollowUpAsync(McpResultFollowUpReview review, Func<bool> live)
+    {
         var revision = mcpQuestionRevision;
         bool Current() => live() && McpObservationCurrent && revision == mcpQuestionRevision;
         try
@@ -129,7 +136,7 @@ internal sealed partial class SessionsViewModel
             mcpFollowUpReview = null;
             NotifyMcpFollowUp();
         }
-    }, submission: true);
+    }
 
     public async Task CancelMcpResultFollowUpAsync()
     {

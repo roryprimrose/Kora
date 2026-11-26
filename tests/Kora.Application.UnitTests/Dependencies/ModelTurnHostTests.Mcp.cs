@@ -10,6 +10,7 @@ using Kora.Application.Hosting;
 using Kora.Application.Interaction;
 using Kora.Application.Mcp;
 using Kora.Core.Authorization;
+using Kora.Core.Auditing;
 using Kora.Core.Artifacts;
 using Kora.Core.Configuration;
 using Kora.Core.Conversation;
@@ -26,6 +27,144 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     private const string McpSchema = """{"type":"object","additionalProperties":false,"properties":{"query":{"type":"string","maxLength":32}},"required":["query"]}""";
+
+    [Theory]
+    [InlineData("approve-all")]
+    [InlineData("review-all")]
+    [InlineData("audit-failure")]
+    [InlineData("audit-unavailable")]
+    [InlineData("retired")]
+    [InlineData("source-after-audit-read")]
+    public async Task AutomaticMcpFollowUpRequiresCurrentAuditedPolicyBeforeProviderAdmission(string scenario)
+    {
+        using var f = new Fixture();
+        f.InspectOverride = true;
+        var observation = FollowUpObservation(f);
+        var host = QualifiedHistoryHost(f);
+        var permissionStore = new AutomaticFollowUpStore(f)
+        {
+            Policy = Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy.Default(f.Session) with
+            { Level = scenario is "review-all" ? Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ReviewAll
+                : Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll },
+            FailAudit = scenario is "audit-failure",
+            RetireAfterAudit = scenario is "retired",
+            RetireSourceAfterAuditRead = scenario is "source-after-audit-read",
+        };
+        var workspace = new SessionWorkspaceService(permissionStore, new(f), f, NullLogger<SessionWorkspaceService>.Instance);
+        var conversation = new SessionConversationService(f, scenario is "audit-unavailable" ? f : permissionStore,
+            workspace, f, host, f.Time, NullLogger<SessionConversationService>.Instance, host);
+        var workflow = conversation.CreateMcpResultFollowUpWorkflow(Kora.Application.Context.LocalSourceUsePolicy.Instance);
+        using var activity = Kora.Core.Diagnostics.HostActivity.BeginRoot(observation.Request,
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Policy);
+        var review = await workflow.ReviewAsync(observation, "Explain the observed value", static () => true, Token);
+        var confirm = () => workflow.ConfirmAsync(review, static () => true, Token);
+        if (scenario is "approve-all" or "review-all")
+        {
+            (await confirm()).Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            f.Adapter.Calls.Should().Be(1);
+            permissionStore.Audits.Should().HaveCount(scenario is "approve-all" ? 1 : 0);
+            if (scenario is "approve-all")
+            {
+                var audit = permissionStore.Audits.Single();
+                audit.RequestBodyDigest.Should().BeNull("this consent authorizes local result use, not hosted egress");
+                audit.ContentDigest.Should().Be(Convert.ToHexStringLower(
+                    System.Security.Cryptography.SHA256.HashData(f.Adapter.Wire!)));
+                audit.GrantsEvaluated.Should().BeFalse();
+                audit.PromptCategory.Should().Be("mcp-result-continuation");
+            }
+        }
+        else
+        {
+            await confirm.Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+            f.Adapter.Calls.Should().Be(0);
+        }
+    }
+
+    [Theory]
+    [InlineData("approve-all")]
+    [InlineData("review-all")]
+    [InlineData("audit-failure")]
+    [InlineData("audit-unavailable")]
+    [InlineData("audit-cancelled")]
+    [InlineData("policy-before-body")]
+    [InlineData("privacy-before-body")]
+    [InlineData("retired")]
+    public async Task McpAutomaticModeAuditsFinalWireWithoutNativePromptsOrGrants(string scenario)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
+        var model = new McpModelTransport();
+        await using var loop = new BoundedModelTurnAdapter(model, f.Time, f);
+        var broker = new McpBroker(source.Account);
+        var automatic = !string.Equals(scenario, "review-all", StringComparison.Ordinal);
+        var approvals = new McpApprovals(f)
+        {
+            Level = automatic ? Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll
+                : Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ReviewAll,
+            FailDisclosureAudit = string.Equals(scenario, "audit-failure", StringComparison.Ordinal),
+            CancelDisclosureAudit = string.Equals(scenario, "audit-cancelled", StringComparison.Ordinal),
+            RetireAfterDisclosureAudit = string.Equals(scenario, "retired", StringComparison.Ordinal),
+        };
+        broker.BeforeDisclosure = () =>
+        {
+            if (scenario is "privacy-before-body") { f.CanControl = false; }
+            if (scenario is "policy-before-body")
+            {
+                foreach (var request in approvals.Snapshots.Keys.ToArray())
+                {
+                    var snapshot = approvals.Snapshots[request];
+                    approvals.Snapshots[request] = snapshot with
+                    { Permission = snapshot.EffectivePermission with { Revision = new(snapshot.EffectivePermission.Revision.Value + 1) } };
+                }
+            }
+        };
+        IHostInteractionStore interactionStore = scenario is "audit-unavailable"
+            ? new McpApprovalFacade(approvals) : approvals;
+        var service = McpServiceWithInteractions(f, f.ConfiguredProfiles(adapter: loop), source, broker, interactionStore, await source.Policy());
+        var submit = () => service.SubmitMcpAsync(new(f.Session, null), "Find the reviewed reference.",
+            source.ServerId, source.Account, approvals.Present, McpSelect, static () => true, Token);
+        ConversationSubmissionReceipt? receipt = null;
+        if (scenario is "privacy-before-body")
+        { await submit.Should().ThrowAsync<ConversationSubmissionUnconfirmedException>(); }
+        else { receipt = await submit(); }
+        if (scenario is not ("approve-all" or "review-all"))
+        {
+            if (receipt is not null) { receipt.Message.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded); }
+            broker.Wires.Should().BeEmpty();
+            broker.Methods.Should().BeEmpty();
+        }
+        else
+        {
+            receipt!.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
+            if (automatic)
+            {
+                var disclosures = approvals.AutomaticAudits.Where(audit =>
+                    string.Equals(audit.PromptCategory, "mcp-final-request-disclosure", StringComparison.Ordinal)).ToArray();
+                disclosures.Should().HaveCount(broker.Wires.Count);
+                for (var index = 0; index < disclosures.Length; index++)
+                {
+                    disclosures[index].RequestBodyDigest.Should().Be(Convert.ToHexStringLower(
+                        System.Security.Cryptography.SHA256.HashData(broker.Wires[index].AsSpan())));
+                    disclosures[index].DestinationDigest.Should().Be(source.Account.Destination.Digest);
+                    disclosures[index].AccountDigest.Should().HaveLength(64);
+                    disclosures[index].ProfileDigest.Should().HaveLength(64);
+                    disclosures[index].Binding.Should().NotBeNull();
+                    disclosures[index].Request.IsWithinIntent(receipt.Message.Request).Should().BeTrue();
+                    disclosures[index].Request.InvocationId.Should().NotBeNull();
+                }
+            }
+        }
+        approvals.Questions.Should().Be(automatic ? 0 : 4);
+        if (automatic)
+        {
+            approvals.Snapshots.Values.Should().OnlyContain(snapshot => snapshot.Grants.IsEmpty);
+            approvals.AutomaticAudits.Should().OnlyContain(audit => !audit.GrantsEvaluated);
+        }
+        broker.Disposed.Should().BeTrue();
+    }
 
     [Theory]
     [InlineData("changed", false)]
@@ -545,7 +684,11 @@ public sealed partial class ModelTurnHostTests
         Task.FromResult<string?>(tools.Single().Name);
 
     private static SessionConversationService McpService(Fixture f, ModelTurnHost host, McpSource source,
-        IMcpConnectionBroker broker, McpApprovals approvals, McpReadOnlyPolicy policy)
+        IMcpConnectionBroker broker, McpApprovals approvals, McpReadOnlyPolicy policy) =>
+        McpServiceWithInteractions(f, host, source, broker, approvals, policy);
+
+    private static SessionConversationService McpServiceWithInteractions(Fixture f, ModelTurnHost host, McpSource source,
+        IMcpConnectionBroker broker, IHostInteractionStore approvals, McpReadOnlyPolicy policy)
     {
         var workspace = new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance);
         return new(f, f, workspace, f, host, f.Time, NullLogger<SessionConversationService>.Instance, host,
@@ -646,8 +789,13 @@ public sealed partial class ModelTurnHostTests
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private sealed class McpBroker(McpAccountReference account) : McpWireTestConnection, IMcpConnectionBroker
+    private sealed class McpBroker(McpAccountReference account) : McpWireTestConnection, IMcpConnectionBroker, IMcpConnection
     {
+        private Func<ImmutableArray<byte>, CancellationToken, ValueTask>? authorizeDisclosure;
+        internal List<ImmutableArray<byte>> Wires { get; } = [];
+        internal Action? BeforeDisclosure { get; set; }
+        public void BindAutomaticDisclosureAuthorization(Func<ImmutableArray<byte>, CancellationToken, ValueTask> authorize) =>
+            authorizeDisclosure = authorize;
         internal CancellationToken Withdrawal { get; init; } = new(canceled: true);
         public override CancellationToken AdmissionWithdrawn => Withdrawal;
         internal string? Fault { get; set; }
@@ -690,14 +838,18 @@ public sealed partial class ModelTurnHostTests
         public override Task<bool> IsCurrentAsync(CancellationToken token) => Fault is "withdrawn-connection"
             ? throw new OperationCanceledException("synthetic connection withdrawal")
             : Task.FromResult(Fault is not "expired-account");
-        public override Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token)
+        public override async Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token)
         {
+            if (authorizeDisclosure is not null) { await authorizeDisclosure(notification, token); }
+            Wires.Add(notification);
             Encoding.UTF8.GetString(notification.AsSpan()).Should().Contain("notifications/initialized");
             Notifications++;
-            return Task.CompletedTask;
         }
-        public override Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token)
+        public override async Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token)
         {
+            BeforeDisclosure?.Invoke();
+            if (authorizeDisclosure is not null) { await authorizeDisclosure(request, token); }
+            Wires.Add(request);
             string method;
             using (var document = System.Text.Json.JsonDocument.Parse(request.AsMemory()))
             {
@@ -709,7 +861,7 @@ public sealed partial class ModelTurnHostTests
             if (method is "tools/call" && PendingCall is { } pending)
             {
                 EnteredCall?.TrySetResult();
-                return pending.Task;
+                return await pending.Task;
             }
             var response = method switch
             {
@@ -731,7 +883,7 @@ public sealed partial class ModelTurnHostTests
             if (method is "tools/list" && Fault is "unsupported-schema") { response = response.Replace("\"type\":\"object\"", "\"type\":\"array\"", StringComparison.Ordinal); }
             if (method is "tools/list" && Fault is "oversize-discovery") { response = new string(' ', maximumResponseBytes + 1); }
             AfterExchange?.Invoke(method);
-            return Task.FromResult(ImmutableArray.CreateRange(Encoding.UTF8.GetBytes(response)));
+            return ImmutableArray.CreateRange(Encoding.UTF8.GetBytes(response));
         }
         public override async ValueTask DisposeAsync()
         {
@@ -743,8 +895,85 @@ public sealed partial class ModelTurnHostTests
         }
     }
 
-    private sealed class McpApprovals(Fixture f) : IHostInteractionStore
+    private sealed class McpApprovalFacade(IHostInteractionStore store) : IHostInteractionStore
     {
+        public ValueTask<HostInteractionDecision> TransactAsync(HostRequest request,
+            Func<HostInteractionSnapshot, HostInteractionCommit> transition, CancellationToken token) =>
+            store.TransactAsync(request, transition, token);
+    }
+
+    private sealed class AutomaticFollowUpStore(Fixture f) :
+        Kora.Application.UnitTests.Configuration.AudioControlTestStore, ISessionWorkspaceStore, ISessionPermissionStore
+    {
+        internal Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy Policy { get; set; } =
+            Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy.Default(f.Session);
+        internal bool FailAudit { get; init; }
+        internal bool RetireAfterAudit { get; init; }
+        internal bool RetireSourceAfterAuditRead { get; init; }
+        internal List<AutomaticApprovalAudit> Audits { get; } = [];
+        public override ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token) =>
+            f.ReadMetadataAsync(session, token);
+        ValueTask<HostTaskObservation?> ISessionWorkspaceStore.ReadTaskAsync(
+            HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
+            f.ReadTaskAsync(session, task, token);
+        public ValueTask<Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy> ReadSessionPermissionAsync(
+            HostId<SessionIdentity> session, CancellationToken token)
+        {
+            if (RetireSourceAfterAuditRead && Audits.Count != 0) { f.CanControl = false; }
+            return ValueTask.FromResult(Policy);
+        }
+        public ValueTask<Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy> SetSessionPermissionAsync(
+            HostRequest request, Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy expected,
+            Kora.Core.Authorization.SessionPermission.SessionPermissionLevel desired, Func<bool> admitted, CancellationToken token) =>
+            throw new NotSupportedException();
+        public ValueTask RecordAutomaticApprovalAsync(HostRequest request,
+            Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy expected,
+            AutomaticApprovalAudit details, Func<bool> admitted, CancellationToken token)
+        {
+            admitted().Should().BeTrue();
+            expected.Should().Be(Policy);
+            details.Request.Should().Be(Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request);
+            details.Validate();
+            if (FailAudit) { throw new IOException("Synthetic MCP follow-up audit failure."); }
+            Audits.Add(details);
+            if (RetireAfterAudit) { Policy = Policy with { Revision = new(Policy.Revision.Value + 1) }; }
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class McpApprovals(Fixture f) : IHostInteractionStore, ISessionPermissionStore
+    {
+        internal Kora.Core.Authorization.SessionPermission.SessionPermissionLevel Level { get; init; }
+        internal bool FailDisclosureAudit { get; init; }
+        internal bool CancelDisclosureAudit { get; init; }
+        internal bool RetireAfterDisclosureAudit { get; init; }
+        internal List<AutomaticApprovalAudit> AutomaticAudits { get; } = [];
+        private Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy Permission =>
+            Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy.Default(f.Session) with { Level = Level };
+        public ValueTask<Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy> ReadSessionPermissionAsync(
+            HostId<SessionIdentity> session, CancellationToken token) => ValueTask.FromResult(Permission);
+        public ValueTask<Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy> SetSessionPermissionAsync(
+            HostRequest request, Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy expected,
+            Kora.Core.Authorization.SessionPermission.SessionPermissionLevel desired, Func<bool> admitted, CancellationToken token) =>
+            throw new NotSupportedException();
+        public ValueTask RecordAutomaticApprovalAsync(HostRequest request,
+            Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy expected,
+            AutomaticApprovalAudit details, Func<bool> admitted, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            admitted().Should().BeTrue();
+            expected.Should().Be(Snapshots[request].EffectivePermission);
+            details.Validate();
+            if (FailDisclosureAudit) { throw new IOException("Synthetic final MCP disclosure audit failure."); }
+            if (CancelDisclosureAudit) { throw new OperationCanceledException("Synthetic final MCP disclosure audit cancellation.", token); }
+            AutomaticAudits.Add(details);
+            if (RetireAfterDisclosureAudit)
+            {
+                Snapshots[request] = Snapshots[request] with
+                { Permission = expected with { Revision = new(expected.Revision.Value + 1) } };
+            }
+            return ValueTask.CompletedTask;
+        }
         internal bool Deny { get; init; }
         internal McpReviewStage? DeniedStage { get; init; }
         internal string? DeniedProcessAction { get; init; }
@@ -783,7 +1012,7 @@ public sealed partial class ModelTurnHostTests
                 previous?.Questions ?? [], Snapshots.Values.SelectMany(snapshot => snapshot.Grants)
                     .GroupBy(grant => grant.Id).Select(group => group.MaxBy(grant => grant.Revision.Value)!).ToImmutableArray())
             {
-                Permission = previous?.Permission,
+                Permission = previous?.Permission ?? Permission,
                 Admissions = previous?.Admissions ?? [],
             };
             var authorization = new HostAuthorizationService(this, f.Time);
@@ -823,6 +1052,7 @@ public sealed partial class ModelTurnHostTests
             token.ThrowIfCancellationRequested();
             BeforeTransaction?.Invoke();
             var commit = transition(Snapshots[request] with { Intent = f.Task!.Task, Session = f.Session });
+            if (commit.Audit.AutomaticApproval is { } automatic) { AutomaticAudits.Add(automatic); }
             Snapshots[request] = commit.Snapshot;
             if (Fault is "consume-grant" && commit.Decision.Outcome == HostInteractionOutcome.Consumed)
             { return ValueTask.FromResult(commit.Decision with { Grant = null }); }

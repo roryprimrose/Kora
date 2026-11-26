@@ -93,7 +93,8 @@ public sealed partial class SessionConversationService(
         Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink>? links,
         RequestOrigin origin, CancellationToken token, Action<ModelTurnProvenance>? onAdmitted = null,
         Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, PendingConversation? pending = null,
-        bool joinCancelledResources = false, LocalRequestProfileReview? localRequestProfile = null)
+        bool joinCancelledResources = false, LocalRequestProfileReview? localRequestProfile = null,
+        Func<HostRequest, ModelContextEnvelope, Func<bool>, CancellationToken, Task>? authorizeSubmission = null)
     {
         ArgumentNullException.ThrowIfNull(createContext);
         ArgumentNullException.ThrowIfNull(validateSource);
@@ -108,7 +109,7 @@ public sealed partial class SessionConversationService(
         }
         return SubmitCoreAsync(target, body, admitted, validateSource, links, origin, Create, ModelTurnChoice.Local,
             token, onAdmitted, resolveResponse, pending: pending, joinCancelledResources: joinCancelledResources,
-            localRequestProfile: localRequestProfile);
+            localRequestProfile: localRequestProfile, authorizeSubmission: authorizeSubmission);
     }
 
     private async Task<ConversationSubmissionReceipt> SubmitCoreAsync(SessionWorkspaceEntry target, string body,
@@ -126,7 +127,8 @@ public sealed partial class SessionConversationService(
         bool ordinaryActiveDeadline = false, LocalRequestProfileReview? localRequestProfile = null,
         bool retainAgentObservations = false,
         Func<ModelTurn, Func<bool>, CancellationToken, Task<ModelTurnReason>>? prepareAdmitted = null,
-        CopilotCustomizationRequest? copilotCustomization = null, ClaudeCustomizationRequest? claudeCustomization = null)
+        CopilotCustomizationRequest? copilotCustomization = null, ClaudeCustomizationRequest? claudeCustomization = null,
+        Func<HostRequest, ModelContextEnvelope, Func<bool>, CancellationToken, Task>? authorizeSubmission = null)
     {
         RequireOriginalSource(origin);
         using var lifecycle = EnterLifecycleSubmission(target, body, admitted);
@@ -211,6 +213,8 @@ public sealed partial class SessionConversationService(
             else
             {
                 if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
+                if (authorizeSubmission is not null)
+                { await authorizeSubmission(request, context, Live, token).ConfigureAwait(false); }
                 if (!Live()) { result = new(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed); }
                 else
                 {

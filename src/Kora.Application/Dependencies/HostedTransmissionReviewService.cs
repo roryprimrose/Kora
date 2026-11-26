@@ -3,11 +3,18 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
+using Kora.Core.Authorization;
+using Kora.Core.Authorization.SessionPermission;
+using Kora.Core.Storage;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 namespace Kora.Application.Dependencies;
 
 /// <summary>Explicit final-byte review, independent of saved profiles and earlier envelope/handoff reviews.</summary>
-public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, TimeProvider time)
+public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, TimeProvider time,
+    ISessionPermissionStore? permissions = null)
 {
     private readonly Lock gate = new();
     private CopilotTransmissionReview? pending;
@@ -58,6 +65,10 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
     internal bool Current(HostedTurnAuthorization authorization) =>
         ReferenceEquals(authorization.Owner, this) && Live(authorization.Issuer, authorization.Context);
 
+    internal async ValueTask<bool> PermissionCurrentAsync(HostedTurnAuthorization authorization, CancellationToken token) =>
+        authorization.AutomaticPermission is not { } expected
+            || await expected.Store.ReadSessionPermissionAsync(authorization.Context.Request.SessionId, token).ConfigureAwait(false) == expected.Policy;
+
     private bool Live(HostActivity issuer, ModelContextEnvelope context) =>
         !issuer.Activity!.IsStopped && issuer.Outcome == HostOperationOutcome.Unknown
         && ReferenceEquals(issuer.Request, context.Request)
@@ -88,6 +99,31 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
                 || !ReferenceEquals(authorization.Context.Request, transmission.Provenance.Request)
                 || !await current(token).ConfigureAwait(false))
             { return false; }
+            if (permissions is not null)
+            {
+                var policy = await permissions.ReadSessionPermissionAsync(
+                    authorization.Context.Request.SessionId, token).ConfigureAwait(false);
+                if (!Current(authorization) || !await current(token).ConfigureAwait(false)) { return false; }
+                if (policy.Level == SessionPermissionLevel.ApproveAll)
+                {
+                    var bodyDigest = Convert.ToHexStringLower(SHA256.HashData(transmission.Body.AsSpan()));
+                    var details = new AutomaticApprovalAudit(authorization.Context.Request, policy,
+                        requested.ActionId, HostOperationEffect.BoundedRead, "hosted-final-request-disclosure", bodyDigest,
+                        destinationDigest: Hash(transmission.Destination.AbsoluteUri),
+                        accountDigest: Hash(JsonSerializer.Serialize(transmission.Profile.Account)),
+                        profileDigest: Hash(JsonSerializer.Serialize(transmission.Profile)),
+                        requestBodyDigest: bodyDigest);
+                    await permissions.RecordAutomaticApprovalAsync(authorization.Context.Request, policy, details,
+                        () => Current(authorization) && !token.IsCancellationRequested, token).ConfigureAwait(false);
+                    authorization.AutomaticPermission = (permissions, policy);
+                    var automatic = Current(authorization) && await current(token).ConfigureAwait(false)
+                        && await PermissionCurrentAsync(authorization, token).ConfigureAwait(false)
+                        && Current(authorization) && await current(token).ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    outcome = automatic ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied;
+                    return automatic;
+                }
+            }
             var claude = authorization is ClaudeTurnAuthorization;
             var claudeOffered = ClaudeOffered;
             var copilotOffered = Offered;
@@ -98,6 +134,7 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
                 if (pending is not null) { return false; }
                 pending = review;
             }
+
             if (claude) { claudeReview = new(review); claudeOffered!(claudeReview); }
             else { copilotOffered!(review); }
             var approved = await review.Completion.Task.WaitAsync(token).ConfigureAwait(false);
@@ -124,6 +161,8 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
             else if (review is not null) { Retired?.Invoke(review); }
         }
     }
+
+    private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
     public bool Confirm(CopilotTransmissionReview review, bool approve, RequestOrigin channel)
     {

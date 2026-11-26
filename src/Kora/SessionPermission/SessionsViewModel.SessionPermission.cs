@@ -5,11 +5,15 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     private SessionPermissionPolicy? permissionPolicy;
+    private Func<Kora.Core.Storage.SessionWorkspaceEntry?>? permissionControlTargetReader;
     private SessionPermissionLevel? reviewedPermission;
     private long permissionEpoch;
     private SessionPermissionLevel permissionChoice;
 
     public IReadOnlyList<string> PermissionChoices { get; } = ["Review all", "Model review", "Approve all"];
+    public string CurrentSessionPermission => !closed && access.CanInspect && PermissionCurrent
+        ? "Permission level: " + permissionPolicy!.DisplayName
+        : "Permission level unavailable for the current session";
     public int PermissionChoice
     {
         get => (int)permissionChoice;
@@ -38,7 +42,7 @@ internal sealed partial class SessionsViewModel
                             ? "A separate tools-disabled reviewer is required. Unavailable or uncertain review requires your approval."
                             : "Otherwise-ungranted actions require your approval.")
                     + " Confirm explicitly or cancel. This creates no grant and executes nothing."
-                : "Independent consent and mandatory protections always apply. Review a change before confirming.")
+                : "Kora-owned reviews follow this level. Device/provider consent and mandatory protections remain. Review a change before applying.")
         : "Session action policy unavailable/stale. Read the exact selected session policy before review; no inferred default.";
 
     public Task ReadPermissionAsync() => RunAsync(async () =>
@@ -50,6 +54,13 @@ internal sealed partial class SessionsViewModel
     private async Task ReadSelectedPermissionAsync()
     {
         if (!service.SupportsSessionPermission) { return; }
+        if (permissionControlTargetReader is null)
+        {
+            permissionControlTargetReader = () => !closed && access.CanInspect && access.CanControl
+                && PermissionCurrent && selected?.Authority.IsActive == true ? selected : null;
+            service.SessionPermissionChanged += OnSessionPermissionChanged;
+        }
+        service.BindPermissionControlTarget(permissionControlTargetReader);
         var target = RequireSelected().Authority;
         var epoch = selectionEpoch;
         var result = await service.ReadSessionPermissionAsync(target.SessionId, lifetime.Token);
@@ -66,6 +77,13 @@ internal sealed partial class SessionsViewModel
         if (!CanReviewPermission) { return; }
         reviewedPermission = permissionChoice;
         NotifySessionPermission();
+    }
+
+    public Task ReviewPermissionAsync()
+    {
+        ReviewPermission();
+        return PermissionCurrent && permissionPolicy!.Level == SessionPermissionLevel.ApproveAll
+            && reviewedPermission is not null ? ConfirmPermissionAsync() : Task.CompletedTask;
     }
 
     public Task ConfirmPermissionAsync() => RunAsync(async () =>
@@ -98,8 +116,24 @@ internal sealed partial class SessionsViewModel
         reviewedPermission = null;
     }
 
+    private void OnSessionPermissionChanged(SessionPermissionPolicy policy) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (closed || !access.CanInspect || selected is not { } entry
+                || entry.Authority.SessionId != policy.SessionId || entry.Authority.Generation != policy.Generation
+                || PermissionCurrent && permissionPolicy!.Revision.Value >= policy.Revision.Value)
+            { return; }
+            policy.Validate(entry.Authority);
+            permissionPolicy = policy;
+            permissionEpoch = selectionEpoch;
+            permissionChoice = policy.Level;
+            reviewedPermission = null;
+            NotifySessionPermission();
+        });
+
     private void NotifySessionPermission()
     {
+        OnPropertyChanged(nameof(CurrentSessionPermission));
         OnPropertyChanged(nameof(PermissionStatus));
         OnPropertyChanged(nameof(PermissionChoice));
         OnPropertyChanged(nameof(CanReadPermission));

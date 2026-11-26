@@ -66,6 +66,7 @@ internal sealed class ClaudeModelTurnAdapter(IClaudeTurnRuntime runtime, HostedT
         { return new(ModelTurnOutcome.Denied, provenance.Selection, Reason: ModelTurnReason.ToolUseNotPermitted); }
         async ValueTask<bool> Live(CancellationToken token) =>
             reviews.Current(authorization) && await current(token).ConfigureAwait(false)
+            && await reviews.PermissionCurrentAsync(authorization, token).ConfigureAwait(false)
             && (authorization.SourceCurrent is null || await authorization.SourceCurrent(token).ConfigureAwait(false))
             && reviews.Current(authorization) && await current(token).ConfigureAwait(false);
         ValueTask<bool> Review(ClaudeTransmission transmission, CancellationToken token) =>

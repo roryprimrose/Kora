@@ -16,6 +16,52 @@ namespace Kora.Windows.IntegrationTests;
 [Collection("Host tracing")]
 public sealed partial class SessionPermissionTests
 {
+    [Theory]
+    [InlineData(SessionPermissionLevel.ReviewAll)]
+    [InlineData(SessionPermissionLevel.ModelReview)]
+    [InlineData(SessionPermissionLevel.ApproveAll)]
+    public async Task NewNamedAndControlSessionsCaptureDefaultWithoutReinterpretingExistingPolicies(SessionPermissionLevel level)
+    {
+        using var f = new InteractionStorageFixture();
+        var preferred = level;
+        f.Store.BindSessionPermissionDefault(() => preferred);
+        await f.InitializeAsync();
+        var original = await f.Store.ReadSessionPermissionAsync(f.Request.SessionId, f.Token);
+        original.Level.Should().Be(level);
+        var originalRequest = f.Request;
+        preferred = SessionPermissionLevel.ModelReview;
+        f.Request = HostRequest.Create(RequestOrigin.LocalUi);
+        await f.RunAsync(async () =>
+        {
+            await f.Store.RecordControlIntentAsync(f.Request, f.Token);
+            await f.Store.CreateNamedSessionAsync(f.Request, new("Independent new session"), static () => true, f.Token);
+        });
+        var named = await f.Store.ReadSessionPermissionAsync(f.Request.SessionId, f.Token);
+        named.Level.Should().Be(SessionPermissionLevel.ModelReview);
+        (await f.Store.ReadSessionPermissionAsync(originalRequest.SessionId, f.Token)).Should().Be(original);
+        preferred = SessionPermissionLevel.ApproveAll;
+        f.Request = HostRequest.Create(RequestOrigin.LocalUi);
+        await f.RunAsync(async () =>
+        {
+            await f.Store.RecordControlIntentAsync(f.Request, f.Token);
+            await f.Store.CreateExactGrantControlSessionAsync(f.Request, static () => true, f.Token);
+        });
+        (await f.Store.ReadSessionPermissionAsync(f.Request.SessionId, f.Token)).Level.Should().Be(SessionPermissionLevel.ApproveAll);
+        (await f.Store.ReadSessionPermissionAsync(named.SessionId, f.Token)).Should().Be(named);
+        preferred = (SessionPermissionLevel)99;
+        f.Request = HostRequest.Create(RequestOrigin.LocalUi);
+        await f.RunAsync(async () => await f.Store.RecordControlIntentAsync(f.Request, f.Token));
+        await FluentActions.Awaiting(() => f.RunAsync(async () =>
+            await f.Store.CreateNamedSessionAsync(f.Request, new("Rejected invalid default"), static () => true, f.Token)))
+            .Should().ThrowAsync<InvalidDataException>();
+        f.Count("work_sessions").Should().Be(3);
+        f.Reopen();
+        (await f.Store.ReadSessionPermissionAsync(originalRequest.SessionId, f.Token)).Should().Be(original);
+        FluentActions.Invoking(() => f.Store.BindSessionPermissionDefault(null!)).Should().Throw<ArgumentNullException>();
+        f.Store.BindSessionPermissionDefault(() => level);
+        FluentActions.Invoking(() => f.Store.BindSessionPermissionDefault(() => level)).Should().Throw<InvalidOperationException>();
+    }
+
     [WindowsFact]
     public async Task Live_call_policy_is_checked_inside_answer_commit_not_the_old_presentation_snapshot()
     {
@@ -74,7 +120,9 @@ public sealed partial class SessionPermissionTests
         await f.PublishAsyncAfterLifecycle();
         var admitted = await f.RunAsync(() => f.Authorization.AuthorizeAsync(f.Request, false, f.Token));
         admitted.Admission.Should().NotBeNull();
-        var question = await f.PresentAsync();
+        var question = (await f.RunAsync(() => f.Questions.CreateAsync(f.Request,
+            new("Separate pending question", QuestionKind.SingleChoice, [new("yes", "Yes")]),
+            f.Time.Now.AddMinutes(1), f.Token))).Question!;
         var next = await Set(f, policy, SessionPermissionLevel.ReviewAll);
         next.Revision.Value.Should().Be(3);
         f.Count("session_admissions").Should().Be(0);

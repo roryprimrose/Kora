@@ -8,6 +8,7 @@ using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Authorization;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -21,6 +22,43 @@ namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
+    [Theory]
+    [InlineData("success")]
+    [InlineData("audit-failure")]
+    [InlineData("retired")]
+    public async Task WebPageAutomaticModeCompletesRealConsumerWithoutGrantsAndBlocksFailedAuditOrStalePolicy(string scenario)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var transport = new ToolTransport(PageCall, PageAnswer);
+        await using var loop = CreateLoop(f, transport);
+        var host = f.LoopHost(loop);
+        var turn = (await host.AdmitAsync(ModelProviderSelection.OllamaCandidate, PageContext(f), Token)).Turn!;
+        var network = new PageNetwork();
+        var approval = new PageApprovalStore(f) { Automatic = true, FailAutomaticAudit = scenario is "audit-failure",
+            RetireAutomaticPolicy = scenario is "retired" };
+        var invocation = PageInvocation(f, approval, network);
+        host.BindWebPage(turn, invocation);
+        ModelTurnResult? result = null;
+        if (scenario is "audit-failure")
+        { await FluentActions.Awaiting(() => host.RunAsync(turn, Token)).Should().ThrowAsync<IOException>(); }
+        else { result = await host.RunAsync(turn, Token); }
+        network.Sends.Should().Be(scenario is "success" ? 1 : 0);
+        if (scenario is "success")
+        {
+            result!.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            var audit = approval.AutomaticAudits.Should().ContainSingle().Subject;
+            audit.DestinationDigest.Should().Be(WebPageAccessBinding.DestinationDigest(new("https://example.com/")));
+            audit.RequestBodyDigest.Should().Be(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Array.Empty<byte>())));
+            audit.AccountDigest.Should().HaveLength(64);
+            audit.ProfileDigest.Should().HaveLength(64);
+            audit.GrantsEvaluated.Should().BeFalse();
+        }
+        else if (result is not null) { result.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded); }
+        approval.Questions.Should().Be(0);
+        approval.Snapshot!.Grants.Should().BeEmpty();
+    }
+
     private const string PageCall =
         """{"kind":"toolCalls","calls":[{"callId":"page_1","capabilityId":"network.get_web_page","input":{"address":"https://example.com/"}}]}""";
     private const string PageAnswer = """{"kind":"answer","answer":"This is the summary of the approved page; source https://example.com/."}""";
@@ -433,6 +471,10 @@ public sealed partial class ModelTurnHostTests
 
     private sealed class PageApprovalStore(Fixture f) : IHostInteractionStore
     {
+        internal bool Automatic { get; init; }
+        internal bool FailAutomaticAudit { get; init; }
+        internal bool RetireAutomaticPolicy { get; init; }
+        internal List<AutomaticApprovalAudit> AutomaticAudits { get; } = [];
         internal HostInteractionSnapshot? Snapshot { get; private set; }
         internal string? Fault { get; set; }
         internal bool KeepPrevious { get; init; }
@@ -448,7 +490,11 @@ public sealed partial class ModelTurnHostTests
             var previous = KeepPrevious ? Snapshot : null;
             Snapshot = new(new(f.Request, new(1), HostTaskState.IntentRecorded), f.Session,
                 new(true, true, false, true), proposal, previous?.Questions ?? [], previous?.Grants ?? [])
-            { Admissions = previous?.Admissions ?? [] };
+            {
+                Admissions = previous?.Admissions ?? [],
+                Permission = previous?.Permission ?? (Automatic ? SessionPermissionPolicy.Default(f.Session)
+                    with { Level = SessionPermissionLevel.ApproveAll } : null),
+            };
             var authorization = new HostAuthorizationService(this, f.Time);
             var decision = await authorization.PresentWebPageOnceAsync(proposal.Request, address, token);
             if (decision.Outcome == HostInteractionOutcome.Consumed) { return new(null, decision); }
@@ -497,7 +543,14 @@ public sealed partial class ModelTurnHostTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             var result = transition(Snapshot!);
+            if (result.Audit.AutomaticApproval is { } automatic)
+            {
+                if (FailAutomaticAudit) { throw new IOException("Synthetic automatic web address audit failure."); }
+                AutomaticAudits.Add(automatic);
+            }
             Snapshot = result.Snapshot;
+            if (RetireAutomaticPolicy && result.Audit.AutomaticApproval is not null)
+            { Snapshot = Snapshot with { Permission = Snapshot.EffectivePermission with { Revision = new(2) } }; }
             if (Fault is "consume-grant" && result.Decision.Outcome == HostInteractionOutcome.Consumed)
             { return ValueTask.FromResult(result.Decision with { Grant = null }); }
             if (Fault is "consume-admission" && result.Decision.Admission is { Dispatched: false })

@@ -24,6 +24,39 @@ public sealed partial class SessionsConversationTests
 #pragma warning restore MA0048
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ApproveAllMcpFollowUpSkipsConsentOnlyForQualifiedSourceAndKeepsGrantsUntouched(bool qualified)
+    {
+        await WithMcpFollowUpAsync(async (f, composed, _, panel, transport, broker, sourceUse) =>
+        {
+            sourceUse.Qualified = qualified;
+            var before = await f.Store.ReadGrantsAsync(f.Token);
+            before.Should().BeEmpty();
+            var requests = broker.Requests.Count;
+            panel.FindControl<TextBox>("McpFollowUpQuestion")!.Text = "Explain only this observed value";
+            Click(panel, "ReviewMcpFollowUp");
+            await panel.Operation;
+            if (qualified)
+            {
+                transport.Calls.Should().Be(1);
+                composed.Model.McpFollowUpOutcome.Should().StartWith("ASSISTANT\n");
+                f.Count("conversation_messages").Should().Be(1);
+                WindowsSqliteConversationTests.AuditText(f).Should().Contain("mcp-result-continuation")
+                    .And.NotContain("Explain only this observed value").And.NotContain(NativeFollowUpStructured);
+            }
+            else
+            {
+                transport.Calls.Should().Be(0);
+                f.Count("conversation_messages").Should().Be(0);
+                composed.Model.CanConfirmMcpResultFollowUp.Should().BeFalse();
+            }
+            (await f.Store.ReadGrantsAsync(f.Token)).Should().Equal(before);
+            broker.Requests.Should().HaveCount(requests);
+        }, automatic: true);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task McpFollowUp_native_in_panel_review_separate_consent_and_real_canonical_retention(bool qualified)
@@ -93,12 +126,14 @@ public sealed partial class SessionsConversationTests
 
     private static async Task WithMcpFollowUpAsync(
         Func<InteractionStorageFixture, Composition, SessionsWindow, McpResultFollowUpControls,
-            FollowUpModel, McpTransportFixture, NativeFollowUpSourceUse, Task> test)
+            FollowUpModel, McpTransportFixture, NativeFollowUpSourceUse, Task> test, bool automatic = false)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
             f.Time.UseFrozenTimers = true;
+            if (automatic)
+            { f.Store.BindSessionPermissionDefault(static () => Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll); }
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             var file = Path.Combine(f.Paths.RoamingRoot, "Mcp", "mcp.json");
@@ -139,6 +174,7 @@ public sealed partial class SessionsConversationTests
             var presentation = new SessionsPresentationOwner(model);
             var owner = new SessionsWindow(model, presentation);
             owner.Show();
+            var approvalStages = new List<string>();
             model.McpPresenter = async (proposal, generation, review, admitted, token) =>
             {
                 var receipt = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => native.AskConversationAsync(
@@ -158,7 +194,9 @@ public sealed partial class SessionsConversationTests
                         }
                         finally { window.Close(); }
                     }, token, webProposal: proposal, mcpReview: review));
-                receipt.Completed.Outcome.Should().Be(HostInteractionOutcome.Approved, receipt.Completed.Reason);
+                receipt.Completed.Outcome.Should().Be(automatic ? HostInteractionOutcome.Consumed
+                    : HostInteractionOutcome.Approved, receipt.Completed.Reason);
+                approvalStages.Add(review.Stage + ":" + receipt.Completed.Outcome + ":" + receipt.Completed.Reason);
                 return new(receipt.Presented, receipt.Completed);
             };
             model.McpSelector = (_, _, _, _, _, _) => Task.FromResult<string?>("search");
@@ -173,7 +211,9 @@ public sealed partial class SessionsConversationTests
                 model.SelectedMcpAccount = model.McpAccounts.Single();
                 owner.FindControl<Button>("InvokeMcp")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.ConversationOperation;
-                model.ConversationStatus.Should().Contain("Explicit MCP Succeeded");
+                model.ConversationStatus.Should().Contain("Explicit MCP Succeeded",
+                    "completed native approvals were {0}; physical requests were {1}",
+                    string.Join(", ", approvalStages), broker.Requests.Count);
                 model.McpResultText.Should().Contain("reference 42").And.Contain(NativeFollowUpStructured);
                 var panel = owner.FindControl<McpResultFollowUpControls>("McpResultFollowUp")!;
                 panel.Should().NotBeNull("the new control is actually wired after the MCP result in the native Sessions window");

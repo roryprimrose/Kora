@@ -1208,6 +1208,17 @@
       <controls:SettingsPage x:Name="SessionsTab" Header="Sessions">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <TextBlock Text="Sessions" FontSize="28" FontWeight="SemiBold" />
+            <Border Classes="settings-card" controls:SettingsSearch.Id="sessions.permission-default"
+                controls:SettingsSearch.Group="Permissions" controls:SettingsSearch.Value="{Binding NewSessionPermission}">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Default permission level for new sessions" Classes="settings-title" />
+                <TextBlock Text="Existing sessions keep their own level. Approve all skips Kora-owned action, script, process, protected-control and data-disclosure reviews, without evaluating or saving grants. Automatic approvals require a session audit record. Authentication, microphone, memory, hard denials and physical resource joins still apply."
+                    Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding NewSessionPermissionChoices}"
+                    SelectedIndex="{Binding NewSessionPermission, Mode=TwoWay}"
+                    AutomationProperties.Name="Default permission level for new sessions" />
+              </StackPanel>
+            </Border>
             <Border Classes="settings-card" controls:SettingsSearch.Id="work.active-deadline-minutes" controls:SettingsSearch.Group="Execution" controls:SettingsSearch.Value="{Binding SelectedOrdinaryDeadlineMinutes}">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">

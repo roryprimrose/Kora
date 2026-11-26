@@ -16,5 +16,7 @@ public abstract class HostedTurnAuthorization
     internal HostActivity Issuer { get; }
     internal ModelContextEnvelope Context { get; }
     internal int Used;
+    internal (Kora.Core.Storage.ISessionPermissionStore Store,
+        Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy Policy)? AutomaticPermission { get; set; }
     public ProviderProfileTuple Profile { get; }
 }

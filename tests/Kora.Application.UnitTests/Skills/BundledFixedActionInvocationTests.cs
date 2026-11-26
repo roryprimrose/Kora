@@ -25,7 +25,7 @@ public sealed class BundledFixedActionInvocationTests
     [InlineData(SessionPermissionLevel.ReviewAll)]
     [InlineData(SessionPermissionLevel.ModelReview)]
     [InlineData(SessionPermissionLevel.ApproveAll)]
-    public async Task LockRetainsMandatoryExactScriptGrantAtEverySessionLevel(SessionPermissionLevel level)
+    public async Task LockUsesGrantFreeAutomaticAdmissionOnlyInApproveAll(SessionPermissionLevel level)
     {
         using var fixture = new Fixture();
         fixture.Interaction.Store.Change(snapshot => snapshot with
@@ -33,10 +33,19 @@ public sealed class BundledFixedActionInvocationTests
             Permission = SessionPermissionPolicy.Default(snapshot.Session) with { Level = level },
         });
         (await fixture.Run(TestContext.Current.CancellationToken)).Outcome.Should().Be(FixedSessionEffectOutcome.RequestAccepted);
-        fixture.Interaction.Store.Snapshot.Grants.Should().ContainSingle()
-            .Which.CreatorChannel.Should().Be(RequestOrigin.LocalUi);
+        if (level == SessionPermissionLevel.ApproveAll)
+        {
+            fixture.Interaction.Store.Snapshot.Grants.Should().BeEmpty();
+            fixture.Interaction.Store.Commits.Should().Contain(commit => commit.Audit.AutomaticApproval != null);
+        }
+        else
+        {
+            fixture.Interaction.Store.Snapshot.Grants.Should().ContainSingle()
+                .Which.CreatorChannel.Should().Be(RequestOrigin.LocalUi);
+        }
         fixture.Interaction.Store.Snapshot.Admissions.Should().ContainSingle()
-            .Which.Basis.Should().Be(SessionPermissionBasis.ExistingGrant);
+            .Which.Basis.Should().Be(level == SessionPermissionLevel.ApproveAll
+                ? SessionPermissionBasis.ApproveAll : SessionPermissionBasis.ExistingGrant);
         fixture.Events.Should().Equal("grant", "scripts", "prepare", "join", "audit-requested", "effect", "audit-terminal");
     }
 
@@ -260,6 +269,7 @@ public sealed class BundledFixedActionInvocationTests
             var spec = new QuestionSpec("Grant this exact package?", QuestionKind.SingleChoice,
                 [new("once", "Once"), new("session", "This session"), new("perpetual", "Always")]);
             var presented = await Interaction.Authorization.RequestGrantAsync(Interaction.Request, spec, token);
+            if (presented.Outcome == HostInteractionOutcome.Consumed) { return presented; }
             var approved = await Interaction.Authorization.ApproveAsync(presented.Question!.Key, new(["once"]), RequestOrigin.LocalUi, token);
             var consumed = await Interaction.Authorization.ConsumeAsync(Interaction.Request, approved.Grant!.Id, approved.Grant.Revision, token);
             if (fault is "forged") { return consumed with { Admission = consumed.Admission! with { Id = Guid.NewGuid() } }; }

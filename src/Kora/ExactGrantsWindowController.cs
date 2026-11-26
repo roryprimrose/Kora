@@ -85,7 +85,7 @@ internal sealed class ExactGrantsWindowController : IDisposable
         if (state is null)
         {
             var created = new ExactGrantsViewModel(store, control, access, WindowAdmitted, logger, permissions, () => main.CanChangePreapprovedUris,
-                managementView: true, managementSession: target);
+                managementView: true, managementSession: target, permissionWorkspace: main.SessionControlWorkspace);
             state = created;
             if (getWorkbench is not null && presentWorkbench is not null)
             {

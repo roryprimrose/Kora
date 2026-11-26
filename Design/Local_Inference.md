@@ -108,9 +108,10 @@ composition. Missing, malformed or changed runtime/model identity fails closed.
 The Windows [native transport](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.cs)
 implements the portable [IModelToolTransport](../src/Kora.Core/Dependencies/IModelToolTransport.cs)
 seam for native Ollama `api/chat` messages. Desktop [composition](../src/Kora/Program.cs)
-replaces the legacy `api/generate` registration with
+retains
 [explicit unavailability](../src/Kora.Application/Dependencies/UnavailableLocalModelReasoner.cs):
-bootstrap readiness cannot bypass exact host/session/task admission. Transport
+the unreachable legacy `api/generate` reasoner has been removed, and bootstrap
+readiness cannot bypass exact host/session/task admission. Transport
 implementation is not candidate acceptance, qualification evidence, permission
 to start a server, or permission to install/download/select another model.
 

@@ -22,9 +22,11 @@ project per definition type, and it does not implement C# tool effects.
 | Agents | Named declarative task profiles referencing guidance, skills, admitted tools and runtime/locality/budget constraints. | Planned/gated; no profile loader or agent runtime exists. |
 
 Do not create empty `Instructions` or `Agents` folders or placeholder
-loaders. Existing JSON selector/system framing in
-[WindowsOllamaReasoner](../Kora.Windows/Dependencies/WindowsOllamaReasoner.cs)
-remains runtime code; it was not moved to this project. A template cannot
+loaders. The legacy JSON selector/system framing was removed with the unreachable
+Windows `api/generate` reasoner, not moved to this project; the retained bootstrap
+contract is [explicitly unavailable](../Kora.Application/Dependencies/UnavailableLocalModelReasoner.cs).
+Admitted [SDK/MAF tool-message handling](../../Design/Local_Inference.md#native-tool-message-transport-boundary)
+remains runtime code. A template cannot
 replace protocol enforcement, authorization or host policy.
 
 The implemented tree is:

@@ -340,16 +340,26 @@ directly.
 This source path is unavailable by default: registration has no qualification
 evidence, its expiry is in the past, and no host endpoint binding is supplied.
 The presence of a native transport or a fake integration test does not make
-the catalogue a qualified live model surface. The ordinary bootstrap reasoner
-below remains a separate unchanged proposal protocol, never an automatic
-fallback from failed tool execution.
+the catalogue a qualified live model surface. The retained bootstrap proposal
+contract below is explicitly unavailable in desktop composition, never an
+automatic fallback from failed tool execution.
 
 ## Implemented Bootstrap Surface
 
-Evidence: [action enum](../src/Kora.Core/Commands/BuiltInAction.cs), [command catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [local reasoner](../src/Kora.Windows/Dependencies/WindowsOllamaReasoner.cs), and [host dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs).
+Evidence: [action enum](../src/Kora.Core/Commands/BuiltInAction.cs), [command catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [explicit unavailability](../src/Kora.Application/Dependencies/UnavailableLocalModelReasoner.cs), and [host dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs).
 
-The reasoner advertises all 25 catalogue actions by their exact case-sensitive enum names.
-It accepts exactly one response kind per inference:
+The unreachable Windows `api/generate` reasoner has been removed. Desktop
+[composition](../src/Kora/Program.cs) retains `UnavailableLocalModelReasoner`,
+which fails explicitly without sending a request or proposing a model action.
+Admitted SDK/MAF model turns use the
+[tool-message route](Local_Inference.md#native-tool-message-transport-boundary);
+they do not revive this bootstrap selector.
+
+The host retains the legacy response contract and proposal-review tree below;
+this maintenance does not retire or rebind them. These shapes describe retained
+host handling, not an available inference surface
+([response contract](../src/Kora.Core/Dependencies/LocalModelResponse.cs),
+[host dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs)):
 
 | Response | Input/result shape and host behavior |
 |---|---|
@@ -360,10 +370,8 @@ It accepts exactly one response kind per inference:
 
 Grant-change confirmation never executes the named action. Question selection never substitutes for action approval.
 Current action proposals have no arbitrary parameters or command lines.
-The model receives a bounded status snapshot: assistant name, listening flag, pending power action, dependency readiness, and setup task states/progress.
-It does not receive unrestricted conversation storage, files, clipboard, accounts, or internet access.
-The current request limit is 4,096 characters, inference deadline two minutes, buffered generation response 64 KiB, and clarification depth at most three follow-ups.
-These are current protocol limits, not proof of future tool-loop behavior.
+The retained [context shape](../src/Kora.Core/Dependencies/LocalModelContext.cs) contains assistant name, listening flag, pending power action, dependency readiness, and setup task states/progress; desktop bootstrap execution sends none of it to a model.
+The [host request handler](../src/Kora.Application/ViewModels/MainViewModel.cs) retains its 4,096-character request limit and clarification-depth guard. The removed generator's two-minute inference deadline and 64 KiB response buffer are not limits of the SDK/MAF tool-message route.
 
 | Current `action` value | Actual host effect/result | Current model-action approval | Proposed equivalent |
 |---|---|---|---|

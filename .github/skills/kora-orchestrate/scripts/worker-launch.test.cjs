@@ -129,7 +129,7 @@ test('launch retains recovered owner exclusions, teaches distinct recovery and n
   assert.match(prompt, /Retained exclusion key=incident-owner, owner=synthetic-owner/);
   assert.ok(prompt.includes('third-party-notices.md'));
   assert.match(prompt, /all solution-project locks/);
-  assert.match(prompt, /UNKNOWN inbound pending\/processing counts stay UNKNOWN/);
+  assert.match(prompt, /UNKNOWN authority pending\/processing counts stay UNKNOWN/);
   assert.match(prompt, /validateRecoveryContinuation/);
   assert.match(prompt, /never launches, resumes, clears blockers or retroauthorizes/);
   for (const change of [
@@ -246,6 +246,30 @@ test('reserved worker launch is asynchronous, isolated and addresses the exact c
   assert.match(launch.prompt, /effective effort UNVERIFIED/);
   assert.match(launch.prompt, /CLEANUP_BLOCKED/);
   assert.equal(Object.hasOwn(launch, 'autopilot'), false);
+});
+
+test('legacy and v10 launches reconcile authority without blocking ordinary posts or requesting silence', () => {
+  const legacy = fixture();
+  const lifecycle = lifecycleFixture();
+  lifecycle.run({ kind: 'register', key: 'a', outcome: 'SYNTHETIC authority launch', pool: 'ready',
+    workKind: 'feature', evidence: 'SYNTHETIC admission.', pr: null });
+  lifecycle.run({ kind: 'allocate', key: 'a', grantId: 'a', scopes: ['src\\a.cs'], transfers: [] });
+  const dispatched = lifecycle.run({ kind: 'dispatch', grantId: 'a' });
+  for (const prompt of [
+    workerLaunch(legacy.state, legacy.action, settings).prompt,
+    workerLaunch(lifecycle.state, dispatched.actions[0], settings).prompt
+  ]) {
+    assert.match(prompt, /may post in any coordinator, planner or worker session at any time/);
+    assert.match(prompt, /User messages, coordinator status messages and answers to blocking ask_user questions are never scope\/source authority and never invalidate quiescence/);
+    assert.match(prompt, /Never ask users to promise silence or attest that they have not posted/);
+    assert.match(prompt, /pendingInstructions counts unconsumed coordinator scope\/source-authority instructions/);
+    assert.match(prompt, /processingInstructions counts the processing subset of that same authority set/);
+    assert.match(prompt, /Zero requires the coordinator own sent-instruction readback plus the owner consumed-instruction record with exact IDs\/revisions/);
+    assert.match(prompt, /not total transport counts, sender enumeration or user silence attestations/);
+    assert.match(prompt, /Only an accepted transaction plus a separate exact coordinator continuation naming the accepted checkpoint\/scope revision \(or version10 grant\/revision\) may widen or resume writes/);
+    assert.match(prompt, /UNKNOWN and existing human-approved fences apply only to genuinely unknown scope\/source authority/);
+    assert.doesNotMatch(prompt, /when queue enumeration is unavailable|UNKNOWN inbound pending/);
+  }
 });
 
 test('concurrent disjoint reservations create distinct bounded requests without shared writes', () => {

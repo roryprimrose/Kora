@@ -4,6 +4,10 @@ The caller creates the genuinely new session in the retained control worktree
 and selects Autopilot in the host UI. Do not substitute a nested chat, scheduler,
 unrelated autonomous task, or prompt text for this host operation.
 
+Apply [scope/source authority and quiescence](./SKILL.md#scopesource-authority-and-quiescence)
+to both versions: human/coordinator posts and blocking `ask_user` answers never
+invalidate quiescence or authorize source writes. Never request user silence.
+
 ## Opt-in version10 recovery
 
 Read the [version10 contract](./README.md#opt-in-version10-lifecycle) before
@@ -12,7 +16,7 @@ fence/preservation readback, revokes current grants and retains all custody.
 `recover` requires separately verified human/current coordinator authority and
 stays paused; `resume` does not revive grants or establish missing source.
 Refresh source and allocate a fresh bounded identity before any later dispatch.
-UNKNOWN queue counts remain UNKNOWN with established cooperative revocation,
+Genuinely UNKNOWN authority counts remain UNKNOWN with established cooperative revocation,
 never fabricated drain or OS enforcement. Preserve every old/new chat, ref,
 worktree, publication, checkpoint and evidence record unless separately permitted.
 
@@ -61,7 +65,11 @@ CLI with:
 - `toCoordinator`: its host-discovered exact new address.
 - `proof.stoppedOwners`: every old writer's exact address verified from host/
   terminal receipts, including old coordinator, planner, and retained workers.
-- `proof.pendingInstructions=0`: verified no instruction can restart old writes.
+- `proof.pendingInstructions=0`: zero unconsumed coordinator scope/source-authority
+  instructions, verified by the old coordinator's own sent-instruction readback
+  plus each owner's consumed-instruction record, with exact IDs/revisions.
+  This is not total transport counts, sender enumeration or a user silence
+  attestation. Ordinary posts cannot restart old writes.
 
 The transition preserves keys, file scopes, publisher/authority receipts, blocked
 work and publication evidence. It stays paused. Unattached reservations or

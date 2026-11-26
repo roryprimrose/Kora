@@ -8,6 +8,7 @@ agents: []
 ---
 
 Apply the [worker contract](../skills/kora-orchestrate/worker.md).
+Use its [authority-based quiescence](../skills/kora-orchestrate/SKILL.md#scopesource-authority-and-quiescence), never user silence.
 Own exactly one coordinator-assigned key and file scope.
 Do not create workers, discover replacement work, or refill slots.
 Stop implementation at verified publication; send the assigned preservation/

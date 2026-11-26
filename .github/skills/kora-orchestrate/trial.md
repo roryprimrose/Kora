@@ -4,6 +4,11 @@ This is an engineering workflow, not a Kora product feature. Start it only with
 user authority for actual repair/ready-PR delivery. Do not mistake earlier
 discovery-only pilots for that authority.
 
+Use [authority-based quiescence](./SKILL.md#scopesource-authority-and-quiescence)
+for all observations: human/coordinator posts and blocking `ask_user` answers
+are never scope/source authority. Record coordinator sent-instruction readback
+and owner consumption, not sender enumeration or user silence attestations.
+
 ## Version10 trial boundary
 
 An [opt-in version10](./README.md#opt-in-version10-lifecycle) trial requires a
@@ -16,7 +21,7 @@ evidence; retained directories or idle chats prove none of those facts.
 
 Exercise A-to-B-to-C with retained work, partial/remainder custody, fresh same-PR
 repair and stale-grant rejection only within the caller's exact live authority.
-Do not delete/archive retained work, infer queue-zero, silently adopt old state
+Do not delete/archive retained work, infer authority-zero, silently adopt old state
 or claim live success from synthetic tests. Legacy cleanup measurements below
 apply to versions1-9; version10 may finish the bounded observation at verified
 logical close-and-preserve with physical cleanup explicitly unperformed.

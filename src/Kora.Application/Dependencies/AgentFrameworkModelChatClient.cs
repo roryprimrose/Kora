@@ -6,7 +6,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Providers;
 using Kora.Core.Tools;
 using Microsoft.Extensions.AI;
-using static Kora.Application.Dependencies.ModelChatMessageProjection;
+using static Kora.Core.Dependencies.ModelToolChatMessages;
 
 namespace Kora.Application.Dependencies;
 
@@ -82,7 +82,8 @@ internal sealed class AgentFrameworkModelChatClient : IChatClient
         Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken cancellationToken)
     {
         await CheckAsync(cancellationToken).ConfigureAwait(false);
-        ValidateTranscript(messages);
+        var transcript = messages.ToArray();
+        ValidateTranscript(transcript);
         if (final is not null || pending is not null || pendingQuestion is not null
             || options?.Tools is not { } tools || tools.Count != Tools.Count
             || tools.Where((tool, index) => !ReferenceEquals(tool, Tools[index])).Any())
@@ -93,7 +94,8 @@ internal sealed class AgentFrameworkModelChatClient : IChatClient
         try
         {
             request = ModelToolProtocol.CreateRequest(provenance, profile, context, history, round,
-                new(inputLimit - inputBytes, outputLimit - outputBytes), clarificationAllowed: ask is not null);
+                new(inputLimit - inputBytes, outputLimit - outputBytes), clarificationAllowed: ask is not null,
+                chatMessages: transcript);
         }
         catch (InvalidDataException)
         { throw Stop(ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
@@ -250,9 +252,7 @@ internal sealed class AgentFrameworkModelChatClient : IChatClient
     }
 
     private bool MatchesQuestion(ModelClarificationQuestion question, FunctionCallContent function) =>
-        string.Equals(function.CallId, question.CallId ?? questionCorrelation, StringComparison.Ordinal)
-        && string.Equals(function.Name, ModelToolProtocol.AskUserToolName, StringComparison.Ordinal)
-        && SameArguments(Encoding.UTF8.GetString(ModelToolProtocol.SerializeQuestionArguments(question.Question)), function.Arguments);
+        ModelToolChatMessages.MatchesQuestion(question, function, questionCorrelation);
 
     internal string ReadFinalAnswer(IList<ChatMessage> messages)
     {
@@ -272,58 +272,8 @@ internal sealed class AgentFrameworkModelChatClient : IChatClient
 
     private void ValidateTranscript(IEnumerable<ChatMessage> messages)
     {
-        var contents = messages.SelectMany(message => message.Contents.Select(content => (message.Role, Content: content))).ToArray();
-        if (contents.Length == 0 || contents[0].Role != ChatRole.User || contents[0].Content is not TextContent original
-            || !string.Equals(original.Text, context.UserRequest, StringComparison.Ordinal))
-        { throw Stop(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-        var index = 1;
-        foreach (var item in history)
-        {
-            if (item is ModelAssistantToolCalls batch)
-            {
-                foreach (var call in batch.Calls)
-                {
-                    if (index >= contents.Length || contents[index].Role != ChatRole.Assistant
-                        || contents[index++].Content is not FunctionCallContent function || !Matches(call, function))
-                    { throw Stop(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-                }
-            }
-            else if (item is ModelClarificationQuestion question)
-            {
-                if (question.CallId is null && (index >= contents.Length || contents[index].Role != ChatRole.Assistant
-                    || contents[index++].Content is not TextContent text
-                    || !string.Equals(text.Text, Text(question), StringComparison.Ordinal)))
-                { throw Stop(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-                if (index >= contents.Length || contents[index].Role != ChatRole.Assistant
-                    || contents[index++].Content is not FunctionCallContent function || !MatchesQuestion(question, function))
-                { throw Stop(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-            }
-            else if (item is ModelQuestionAnswerMessage answer)
-            {
-                if (answer.Question.CallId is null)
-                {
-                    if (index >= contents.Length || contents[index].Role != ChatRole.User
-                        || contents[index++].Content is not TextContent text
-                        || !string.Equals(text.Text, Text(answer), StringComparison.Ordinal))
-                    { throw Stop(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-                }
-                else if (index >= contents.Length || contents[index].Role != ChatRole.Tool
-                    || contents[index++].Content is not FunctionResultContent function
-                    || !string.Equals(function.CallId, answer.Question.CallId, StringComparison.Ordinal)
-                    || !ReferenceEquals(function.Result, answer) || function.Exception is not null)
-                { throw Stop(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-            }
-            else
-            {
-                var result = (ModelToolResultMessage)item;
-                if (index >= contents.Length || contents[index].Role != ChatRole.Tool
-                    || contents[index++].Content is not FunctionResultContent function
-                    || !string.Equals(function.CallId, result.CallId, StringComparison.Ordinal)
-                    || !ReferenceEquals(function.Result, result) || function.Exception is not null)
-                { throw Stop(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-            }
-        }
-        if (index != contents.Length)
+        try { ModelToolChatMessages.Validate(context, history, messages, questionCorrelation); }
+        catch (InvalidDataException)
         { throw Stop(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
     }
 

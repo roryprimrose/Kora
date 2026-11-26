@@ -5,8 +5,10 @@ dependencies remain under their respective licenses.
 
 ## Automated NuGet control
 
+The [portable transport decision](Design/Decision_Register.md#portable-meai-model-transport-contract---2026-11-26) admits a direct MIT `Microsoft.Extensions.AI.Abstractions` reference in [Kora.Core](src/Kora.Core/Kora.Core.csproj), using the existing [central version](Directory.Packages.props) and [notice](THIRD-PARTY-NOTICES.md). This adds inert message types, not provider SDKs, execution or egress authority.
+
 The Claude adapter pins the official Apache-2.0 `Anthropic`
-13.6.0 package and MIT `Microsoft.Extensions.AI.Abstractions` 10.11.0. The
+13.6.0 package and MIT `Microsoft.Extensions.AI.Abstractions` 11.0.0 ([central pin](Directory.Packages.props)). The
 Anthropic package records upstream source commit
 `a4c244aca0a692e4205b4ed4fefec9e021a6d8cc` in its NuGet metadata.
 These library licenses do not grant provider/account-use approval or enable
@@ -16,7 +18,7 @@ Ollama messages use community-maintained, MIT-licensed
 `OllamaSharp` 5.5.2, not an official Ollama or Microsoft SDK. Its restored
 package records source commit `a1ce0bd5f1021efd8d9dd1818a319575bb7b31a1`.
 It brings MIT `Microsoft.Extensions.AI` 10.8.0; the shared MEAI abstractions
-are centrally pinned to 10.11.0 for the MCP SDK. Kora uses `IChatClient` for buffered/streaming text and SDK-native `ChatAsync`
+are centrally pinned to 11.0.0 ([central pin](Directory.Packages.props)). Kora uses `IChatClient` for buffered/streaming text and SDK-native `ChatAsync`
 for tool/clarification messages, preserving their admitted correlation and
 result shape without the lossy MEAI tool mapper. No automatic
 function-invocation, approval or telemetry middleware is used. Its source-generator

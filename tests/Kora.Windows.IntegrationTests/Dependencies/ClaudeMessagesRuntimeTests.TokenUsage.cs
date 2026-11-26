@@ -6,6 +6,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Providers;
 using Kora.Windows.Dependencies;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.AI;
 
 namespace Kora.Windows.IntegrationTests.Dependencies;
 
@@ -72,7 +73,8 @@ public sealed partial class ClaudeMessagesRuntimeTests
             ClaudeObservationTools.Constrain(["session.get_metrics"]));
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), root.Request, catalogue.Models[0].Selection);
         var turn = ModelToolProtocol.CreateRequest(provenance, profile,
-            ModelToolProtocol.ReadContext(context.Serialize(), provenance), [], 1);
+            ModelToolProtocol.ReadContext(context.Serialize(), provenance), [], 1,
+            chatMessages: [new(ChatRole.User, context.UserRequest)]);
         var native = JsonSerializer.Serialize(new
         {
             id = "message", type = "message", role = "assistant", model = "exact-model",

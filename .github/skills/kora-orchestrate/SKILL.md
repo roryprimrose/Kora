@@ -82,6 +82,41 @@ Report `AwaitingExternalEvent`, not guaranteed continuous operation.
 
 ## Registry and deterministic decisions
 
+### Scope/source authority and quiescence
+
+The human user and coordinator may post in any coordinator, planner or worker
+session at any time. User messages, coordinator status messages and answers to
+blocking `ask_user` questions are never scope/source authority. They do not
+widen scopes, resume writes or invalidate quiescence. Never ask users to promise
+silence or attest that they have not posted. An explicit human proof decision
+may satisfy a transaction's human-decision requirement; it is not a source grant.
+
+For all versions, `pendingInstructions` counts **unconsumed coordinator
+scope/source-authority instructions**, not total transport messages.
+`processingInstructions`, where present, counts the processing subset of that
+same authority set. Preserve field/schema names, including
+`enumerated-pending-zero`; enumeration means authority reconciliation, not sender
+enumeration. Establish zero from the coordinator's own sent-instruction readback
+(exact IDs/revisions, accepted transaction/action and delivery disposition)
+plus the owner's consumed-instruction record (consumed or explicitly rejected
+IDs/revisions and no remaining earlier authority). Message acceptance alone is
+not consumption; a sender list, empty transport count or user silence is not proof.
+
+Reconcile earlier broad assignments/continuations, including ambiguous sends.
+Only an accepted transaction **plus a separate exact coordinator continuation**
+naming the accepted checkpoint/scope revision (or version10 grant/revision) may
+widen or resume writes. A proposed proof, whole-proof acknowledgment, user
+answer or informational post cannot substitute. Initial bounded launch still
+requires its recorded dispatch/attachment and actual source ownership.
+
+UNKNOWN and the existing human-approved fence routes apply only to genuinely
+unknown **authority**, such as stale broad source instructions whose consumption
+status cannot be reconciled. Unavailable total queue/sender enumeration or the
+possibility of ordinary posts is not unknown authority. Keep exact proofs,
+whole-proof acknowledgments, frozen unions, separate continuation, existing
+fences and cleanup proofs; never infer source stop/join or physical enforcement
+from authority counts. See [zero versus UNKNOWN](./README.md#pending-zero-versus-unknown-reconciliation).
+
 Use [the registry reducer](./scripts/registry.cjs) for every state change. It
 enforces pool limits, duplicate ownership, overlapping scopes, freshness,
 publication-before-release, coalesced discovery, and paused-state dispatch.
@@ -180,7 +215,7 @@ temporary-pause/current-union/exclusivity/owner proof. Preserve all original
 scopes and blockers, persist the accepted grant, then issue continuation
 separately. Neither a proposed union nor acknowledgment alone authorizes writes.
 This does not replace product/effect authority or qualify runtime.
-For a non-incident closure omission with unavailable queue enumeration, use only
+For a non-incident closure omission with genuinely unknown source authority, use only
 the [explicit human-approved version-2 extension](./README.md#explicit-human-approved-unknown-extension).
 Keep UNKNOWN counts; independently establish same-owner source pause/all-work
 join and a fresh effective source-authority revocation fence. Freeze complete
@@ -204,7 +239,7 @@ gain eligibility. Never infer an acknowledgment or stopped state from idle.
 For an incidental unauthorized write, ordinary extension remains forbidden.
 Use only [explicit incident recovery](./README.md#explicit-human-authorized-scope-incident-recovery)
 with new final-proof human authority and independently observed live pause/join.
-UNKNOWN pending/processing counts remain UNKNOWN; the separately typed
+UNKNOWN authority pending/processing counts remain UNKNOWN; the separately typed
 human-approved source-fence mode requires an actually established same-owner
 revocation epoch/nonce, not an idle status, digest or receipt alone.
 Recovery preserves dirty/restored history, unauthorized provenance, owner and
@@ -226,7 +261,7 @@ Original owners keep publication, blockers, slots and cleanup; derived prior sou
 
 Only a verified controlling single ledger can activate a transfer. Complete external snapshots can be recorded as nonactivating preparation; retain all their effective guards and withhold the beneficiary. No snapshot, merged publication, supplied receipt string or digest proves fresh human authority, host quiescence or a live authority handoff. Unknown facts stay unknown.
 
-For published local holders with unavailable full queue enumeration, use only
+For published local holders with genuinely unknown source authority, use only
 [human-fenced supersession proof version 2](./README.md#human-fenced-local-holder-handoff).
 Retain literal UNKNOWN; require complete current state/beneficiary/holder history,
 effective guards, preserved bytes, actual stopped/joined commands, fresh cooperative
@@ -296,7 +331,7 @@ and reconcile only on a genuine event; do not infer completion from silence.
 
 For legacy versions1-9, after publication preserve ownership; after proven cleanup, archive the exact
 worker chat, communicate released capacity to the planner, and refill. Cancel
-superseded pending instructions using exact IDs/revisions before replacement
+superseded pending authority instructions using exact IDs/revisions before replacement
 or archival. An already-processing instruction requires steering, not fictional
 cancellation. Never archive an enclosing session containing other owners.
 

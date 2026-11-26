@@ -208,7 +208,8 @@
       "kora.core": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Data.Sqlite": "[11.0.0, )"
+          "Microsoft.Data.Sqlite": "[11.0.0, )",
+          "Microsoft.Extensions.AI.Abstractions": "[11.0.0, )"
         }
       },
       "kora.tools": {
@@ -227,6 +228,12 @@
           "SQLitePCLRaw.bundle_e_sqlite3": "3.0.5",
           "SQLitePCLRaw.core": "3.0.5"
         }
+      },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "CentralTransitive",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "UYZTudmTrGykWIRzcO/TKauTx/+L/h4MYpUBODCG7aIybRVkv2y6uhVwG6UHRS6uTzRqg0K8IJprC9/QhMZGsw=="
       },
       "Microsoft.Extensions.Configuration": {
         "type": "CentralTransitive",

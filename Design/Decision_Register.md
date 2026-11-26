@@ -16,6 +16,15 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Portable MEAI model transport contract - 2026-11-26
+
+The product owner accepted **P1-core-meai**: `Microsoft.Extensions.AI.Abstractions` types are allowed in Core's model transport contract ([portable boundary](Architecture.md#platform-boundaries-and-support), [Core reference](../src/Kora.Core/Kora.Core.csproj)).
+The existing Claude observation/clarification interaction consumes the MAF bridge's validated MEAI USER/history companion instead of reconstructing it from canonical messages ([bridge](../src/Kora.Application/Dependencies/AgentFrameworkModelChatClient.cs), [native mapping](../src/Kora.Windows/Dependencies/ClaudeToolMessages.cs)).
+
+`ModelContextEnvelope` remains the sole input policy/serialization authority. Canonical protocol validation, exact call/result identity, serial rounds, cumulative byte charges, deadlines and owned transport joins remain required ([request contract](../src/Kora.Core/Dependencies/ModelToolRequest.cs), [canonical protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs)).
+MEAI content is not approval, tool execution or egress authority. Each physical Count Tokens/Messages POST retains its own host admission and strict raw guard ([physical handler](../src/Kora.Windows/Dependencies/ClaudeSdkRequestHandler.cs)).
+Ollama's SDK-native tool mapping is unchanged; this decision does not admit its lossy MEAI tool mapper, provider SDKs into Core, new operations or runtime qualification ([local mapping](Local_Inference.md#native-tool-message-transport-boundary)).
+
 ## Explicit native Ollama live evaluation
 
 The product owner explicitly selected "Add explicit, native-reviewed Ollama evaluation

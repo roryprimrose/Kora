@@ -1958,49 +1958,12 @@
           </StackPanel>
       </controls:SettingsPage>
       <controls:SettingsPage Header="Approvals">
-          <StackPanel controls:SettingsSearch.Id="approvals.require-assistant-name approvals.session-actions approvals.always-actions" controls:SettingsSearch.Aliases="approvals" controls:SettingsSearch.Value="{Binding RequireAssistantNameForVoiceApproval}" Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+          <StackPanel controls:SettingsSearch.Id="approvals.permission-grants" controls:SettingsSearch.Aliases="approvals" Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <TextBlock Text="Permission grants" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="Inspect retained exact-operation permissions and their history. Retained grants are not renewed authority." TextWrapping="Wrap" Classes="muted" />
             <Button x:Name="InspectExactGrants" Content="Permission grants..." IsEnabled="False"
                     HorizontalAlignment="Left"
-                    AutomationProperties.Name="Open the separate retained exact-operation grant inventory, not the legacy named-action approval lists" />
-            <TextBlock Text="Model action approvals" FontSize="28" FontWeight="SemiBold" />
-            <TextBlock
-                Text="{Binding Name, Source={x:Static assistant:AssistantNameDisplay.Current}, StringFormat='AI models can suggest {0} actions for you to approve. Once allows only that request. Session lasts until {0} exits, restarts or locks Windows through {0}. Always stays approved until you remove it. Approval prompts always appear on screen, even in speech-only mode.'}"
-                TextWrapping="Wrap" Classes="muted" />
-            <Border Classes="settings-card" controls:SettingsSearch.Value="{Binding RequireAssistantNameForVoiceApproval}">
-              <StackPanel Spacing="5">
-                <TextBlock Text="Spoken approval" Classes="settings-title" />
-                <CheckBox
-                    Content="Require the assistant name before a verbal approval"
-                    IsChecked="{Binding RequireAssistantNameForVoiceApproval}" />
-                <TextBlock
-                    Text="Enabled by default. Turn off only if you want to answer an approval prompt without saying the assistant name."
-                    Classes="settings-description" TextWrapping="Wrap" />
-              </StackPanel>
-            </Border>
-            <TextBlock Text="Approved for this session" Classes="settings-title" />
-            <ItemsControl ItemsSource="{Binding SessionAllowedModelActions}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
-                    <Button Grid.Column="1" Content="Remove approval" Tag="{Binding Action}"
-                            Click="OnRevokeSessionApprovalClicked" />
-                  </Grid>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <TextBlock Text="Always approved on this device" Classes="settings-title" />
-            <ItemsControl ItemsSource="{Binding AlwaysAllowedModelActions}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
-                    <Button Grid.Column="1" Content="Remove approval" Tag="{Binding Action}"
-                            Click="OnRevokeAlwaysApprovalClicked" />
-                  </Grid>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                    AutomationProperties.Name="Open the separate retained exact-operation grant inventory" />
           </StackPanel>
       </controls:SettingsPage>
       <controls:SettingsPage Header="Maintenance">

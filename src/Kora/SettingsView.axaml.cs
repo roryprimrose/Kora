@@ -436,21 +436,4 @@ public sealed partial class SettingsView : UserControl, IDisposable
         }
     }
 
-    private void OnRevokeSessionApprovalClicked(
-        object? sender,
-        Avalonia.Interactivity.RoutedEventArgs eventArgs) => RevokeApproval(sender, ModelApprovalScope.Session);
-
-    private void OnRevokeAlwaysApprovalClicked(
-        object? sender,
-        Avalonia.Interactivity.RoutedEventArgs eventArgs) => RevokeApproval(sender, ModelApprovalScope.Always);
-
-    private void RevokeApproval(object? sender, ModelApprovalScope scope)
-    {
-        if (sender is Button { Tag: BuiltInAction action }
-            && DataContext is MainViewModel viewModel)
-        {
-            new AsyncCommand(() => viewModel.RevokeModelActionApprovalAsync(action, scope),
-                exception => viewModel.ReportHostInteractionFailure("Grant revocation not confirmed. " + exception.Message)).Execute(null);
-        }
-    }
 }

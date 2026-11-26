@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Application.UnitTests.Configuration;
@@ -9,6 +9,42 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("absent")]
+    [InlineData("locked")]
+    [InlineData("busy")]
+    [InlineData("question")]
+    [InlineData("prefix")]
+    public async Task DeadlineControlsPreserveUnavailablePrivacyReentrancyQuestionAndPrefixBoundaries(string fault)
+    {
+        await using var settings = new OrdinaryDeadlineConfigurationFixture();
+        var f = new Fixture(ordinaryDeadlineConfiguration: fault is "absent" ? null : settings.Service);
+        using var model = f.ViewModel;
+        if (fault is "prefix") { f.NamePreferences.Name = "Supported Commands"; }
+        await model.InitializeAsync();
+        await using var details = new PendingDetailsQuestion(f);
+        model.BindOrdinaryDeadlineNativeLifetime(static () => true);
+        if (fault is "locked") { f.Session.IsUnlocked = false; }
+        if (fault is "busy")
+        {
+            settings.Control.AfterOperation = () => model.CanChangeOrdinaryDeadlineNative.Should().BeFalse();
+        }
+        if (fault is "question") { await details.PresentAsync(); }
+        if (fault is "prefix")
+        {
+            await f.RunAsync("Kora, get work.active-deadline-minutes");
+            model.Transcript.Should().Contain("prefix routing is unavailable");
+            await f.RunAsync("get work.active-deadline-minutes");
+            model.SavedOrdinaryDeadlineMinutes.Should().Be(5);
+        }
+        else
+        {
+            await model.RefreshOrdinaryDeadlineCommand.ExecuteAsync();
+            if (fault is not "busy") { model.Transcript.Should().Contain("unlocked host"); }
+        }
+        if (fault is "question") { model.HasDetailsQuestion.Should().BeTrue(); }
+    }
+
     [Theory]
     [InlineData("native")]
     [InlineData("typed")]
@@ -58,7 +94,7 @@ public sealed partial class MainViewModelTests
         f.ConversationExecutionPreferences.Value.Should().Be(new ConversationExecutionLimit(1));
         f.ConversationExecutionPreferences.Writes.Should().Be(1);
         model.CanConfirmConversationExecution.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Voice.StartCalls.Should().Be(route is "activated" ? 3 : 0,
             "only the three explicit activated transcripts may start fake recognition");
         f.Audit.Events.Should().Contain(entry => entry.ActionId == "configuration.conversation-execution-maximum"
@@ -96,7 +132,7 @@ public sealed partial class MainViewModelTests
         settings.Preferences.Load().Should().BeNull();
         startup.Preferences.Value.Should().BeTrue();
         startup.Registration.Writes.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Voice.StartedMicrophone.Should().BeNull();
         model.HasVoiceConsent.Should().BeFalse();
     }
@@ -127,7 +163,7 @@ public sealed partial class MainViewModelTests
         await model.ResetOrdinaryDeadlineCommand.ExecuteAsync();
         settings.Preferences.Load().Should().BeNull();
         model.SavedOrdinaryDeadlineMinutes.Should().Be(5);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         model.BindOrdinaryDeadlineNativeLifetime(() => false);
         model.SavedOrdinaryDeadlineMinutes.Should().BeNull();
         model.IsOrdinaryDeadlineDraftChanged.Should().BeFalse();
@@ -145,7 +181,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync(input);
         model.SavedOrdinaryDeadlineMinutes.Should().Be(minutes);
         settings.Service.Capture().Minutes.Should().Be(minutes);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -175,7 +211,7 @@ public sealed partial class MainViewModelTests
         await model.SaveOrdinaryDeadlineCommand.ExecuteAsync();
         model.OrdinaryDeadlineStatus.Should().Contain("unavailable");
         model.SavedOrdinaryDeadlineMinutes.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -190,51 +226,6 @@ public sealed partial class MainViewModelTests
         model.ResponseTitle.Should().Be("Clarify future task deadline.");
         await f.RaiseActivatedTranscriptAsync("Kora, set work.active-deadline-minutes to 1", 1);
         settings.Service.Capture().Minutes.Should().Be(1);
-    }
-
-    [Theory]
-    [InlineData("absent")]
-    [InlineData("locked")]
-    [InlineData("busy")]
-    [InlineData("question")]
-    [InlineData("prefix")]
-    public async Task DeadlineControlsPreserveUnavailablePrivacyReentrancyQuestionAndPrefixBoundaries(string fault)
-    {
-        await using var settings = new OrdinaryDeadlineConfigurationFixture();
-        var f = new Fixture(ordinaryDeadlineConfiguration: fault is "absent" ? null : settings.Service);
-        using var model = f.ViewModel;
-        if (fault is "prefix") { f.NamePreferences.Name = "Supported Commands"; }
-        if (fault is "question")
-        {
-            f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-            f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        }
-        await model.InitializeAsync();
-        model.BindOrdinaryDeadlineNativeLifetime(() => true);
-        if (fault is "locked") { f.Session.IsUnlocked = false; }
-        if (fault is "busy")
-        {
-            settings.Control.AfterOperation = () => model.CanChangeOrdinaryDeadlineNative.Should().BeFalse();
-        }
-        if (fault is "question")
-        {
-            await f.RunAsync("choose");
-            await model.ActiveReasoningTask!;
-            model.IsResponseInteractionPending.Should().BeTrue();
-        }
-        if (fault is "prefix")
-        {
-            await f.RunAsync("Kora, get work.active-deadline-minutes");
-            model.Transcript.Should().Contain("prefix routing is unavailable");
-            await f.RunAsync("get work.active-deadline-minutes");
-            model.SavedOrdinaryDeadlineMinutes.Should().Be(5);
-        }
-        else
-        {
-            await model.RefreshOrdinaryDeadlineCommand.ExecuteAsync();
-            if (fault is not "busy") { model.Transcript.Should().Contain("unlocked host"); }
-        }
-        if (fault is "question") { await model.CancelModelQuestionAsync(); }
     }
 
     [Fact]

@@ -23,7 +23,7 @@ public sealed partial class MainViewModel
         var accepted = input.Eligible() && input.Revision == CallPolicyRevision
             && input.OwnershipBindingRevision == Interlocked.Read(ref settingsOwnershipBindingRevision)
             && input.AssistantNameRevision == assistantNameConfiguration.Get().Revision;
-        var host = CaptureModelActionReviewHost();
+        var host = CaptureCommandHostEligibility();
         var preparation = Interlocked.Read(ref approvalPreparationRevision);
         var inputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision);
         // Activation is consumed before the owner closes capture; closing its own microphone is not new intent.
@@ -33,14 +33,13 @@ public sealed partial class MainViewModel
 
     private Task InvokeBundledAction(Func<FixedSessionAction, SecurityAuditInitiator, Func<bool>, Task> invoke,
         FixedSessionAction action, SecurityAuditInitiator initiator,
-        long? observedCallRevision, Func<bool>? sourceCurrent)
+        Func<bool>? sourceCurrent)
     {
         var call = CallPolicyRevision;
         var privacy = privacyObservation.Current.TopologyRevision;
-        var host = CaptureModelActionReviewHost();
+        var host = CaptureCommandHostEligibility();
         bool Current() => !disposed && (sourceCurrent?.Invoke() ?? true) && IsCallMutationHostEligible
             && host()
-            && IsModelCallDispatchEligible(initiator, observedCallRevision)
             && CallPolicyRevision == call && privacyObservation.Current.TopologyRevision == privacy
             && ReferenceEquals(bundledAction, invoke);
         return invoke(action, initiator, Current);
@@ -58,7 +57,7 @@ public sealed partial class MainViewModel
             {
                 ClearClipboardPreview();
                 ClearFilePreview();
-                await StopAudioAsync(isModelActionDispatchActive);
+                await StopAudioAsync();
                 await JoinVolatileContextAsync();
                 if (!current()) { throw new InvalidOperationException("Lock authority retired while private resources joined."); }
             }, static () => { });

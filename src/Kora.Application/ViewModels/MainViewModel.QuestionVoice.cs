@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using Kora.Application.Interaction;
 using Kora.Application.Voice;
 using Kora.Core.Communication;

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Tools;
 using Kora.Core.Diagnostics;
@@ -8,6 +8,20 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task MissingDiscoverySurfaceRemainsExplicitlyUnavailableWithoutFallback()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.CallState.SetState(Kora.Core.Communication.CallState.Clear);
+        await f.Dispatcher.LastInvocation;
+        f.ViewModel.BindVoiceOwnershipGate(static () => true);
+        var tasks = f.HostStore.Records.Count;
+        await f.RunAsync("discover customizations Which can help?");
+        f.ViewModel.ResponseBody.Should().Contain("metadata discovery surface is unavailable");
+        f.HostStore.Records.Count.Should().Be(tasks);
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -28,55 +42,12 @@ public sealed partial class MainViewModelTests
         if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, discover customizations Which can help?", 1); }
         else { await f.RunAsync("discover customizations Which can help?"); }
         calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         var shutdown = 0;
         f.ViewModel.BindCustomizationDiscoveryShutdown(() => { shutdown++; return Task.CompletedTask; });
         await f.ViewModel.ExitAsync();
         shutdown.Should().Be(1);
         f.ViewModel.BindCustomizationDiscoveryShutdown(null);
-    }
-
-    [Theory]
-    [InlineData("unbound")]
-    [InlineData("system")]
-    [InlineData("unactivated")]
-    [InlineData("stale")]
-    [InlineData("name")]
-    [InlineData("pending")]
-    public async Task DiscoveryCannotUseMissingRouteNonOriginalOrExpiredPrivateInput(string fault)
-    {
-        var f = fault is "name" or "pending" ? new Fixture() : await Fixture.CreateInitializedAsync();
-        if (fault is "name")
-        {
-            f.NamePreferences.Name = "Supported Commands";
-            await f.ViewModel.InitializeAsync();
-        }
-        if (fault is "pending")
-        {
-            f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-            f.Reasoner.Question = new("Original question?", ["one", "two"]);
-            await f.ViewModel.InitializeAsync();
-            await f.RunAsync("do the work");
-            await f.ViewModel.ActiveReasoningTask!;
-        }
-        var calls = 0;
-        if (fault is not "unbound")
-        { f.ViewModel.CustomizationDiscoveryRequested += (_, _, _) => { calls++; return Task.CompletedTask; }; }
-        if (fault is "system")
-        {
-            using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem), HostActivityLayer.Application, HostOperation.Request);
-            await f.RunAsync("discover customizations");
-        }
-        else if (fault is "unactivated" or "name")
-        { await f.RaiseActivatedTranscriptAsync(fault is "name" ? "Kora, discover customizations" : "discover customizations", 1); }
-        else if (fault is "stale")
-        {
-            f.Voice.AfterStart = () => f.ViewModel.BindVoiceOwnershipGate(static () => false);
-            await f.RaiseActivatedTranscriptAsync("Kora, discover customizations", 1);
-        }
-        else { await f.RunAsync("discover customizations"); }
-        calls.Should().Be(0);
-        if (fault is not "pending") { f.Reasoner.Requests.Should().BeEmpty(); }
     }
 
     [Theory]
@@ -101,6 +72,6 @@ public sealed partial class MainViewModelTests
         calls.Should().Be(1);
         await f.RunAsync("Kora, discover customizations");
         calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

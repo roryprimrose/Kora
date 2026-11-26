@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Reflection;
 
 using AwesomeAssertions;
@@ -30,7 +30,7 @@ public sealed partial class MainViewModelTests
 
         f.ViewModel.Transcript.Should().Contain(EvidenceTraceCommand.Syntax);
         f.ViewModel.ResponseTitle.Should().NotBe("Host-local date and time.");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed partial class MainViewModelTests
             RequestOrigin.LocalUi, RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice);
         scopes.Should().OnlyContain(scope => scope.Outcome == HostOperationOutcome.Completed);
         f.HostStore.Records.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         Activity.Current.Should().BeSameAs(hostile);
         f.Voice.StartedPhrases.Should().Contain("Nova prepare evidence trace")
             .And.Contain("evidence trace help").And.Contain("Kora prepare evidence trace").And.NotContain("Aria prepare evidence trace");
@@ -86,43 +86,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.Transcript.Should().Be(EvidenceTraceCommand.Syntax);
         calls.Should().Be(0);
         f.HostStore.Records.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Theory]
-    [InlineData("prepare evidence trace")]
-    [InlineData("prepare evidence trace 00000000000000000000000000000000")]
-    [InlineData("evidence trace scan")]
-    [InlineData("evidence trace help extra")]
-    public async Task ReservedEvidenceTraceNeverAnswersPendingQuestionsOrStartsModelWork(string command)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        await f.RaiseActivatedTranscriptAsync("Kora, evidence trace help", 1);
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        var count = f.Reasoner.Requests.Count;
-        f.ViewModel.CommandText = "unfinished answer";
-        await f.RaiseActivatedTranscriptAsync("Kora, " + command, 1);
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        f.ViewModel.CommandText.Should().Be("unfinished answer");
-        f.ViewModel.Transcript.Should().Contain("command not accepted");
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.Reasoner.Requests.Should().HaveCount(count);
-        await f.ViewModel.CancelModelQuestionAsync();
-        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        title = f.ViewModel.ResponseTitle;
-        body = f.ViewModel.ResponseBody;
-        await f.RunAsync(command);
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.Session.LockCalls.Should().Be(0);
     }
 
     [Theory]
@@ -168,7 +132,7 @@ public sealed partial class MainViewModelTests
         await preparing;
         f.ViewModel.Transcript.Should().NotContain("filter prepared");
         f.HostStore.Records.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -205,34 +169,6 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task EvidenceTracePreparationAndHelpPreserveExactPendingQuestionOrActionApproval(bool approval)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        if (approval) { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
-        else { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        var audit = f.Audit.Events.Count;
-        f.ViewModel.EvidenceTracePreparationRequested += _ => Task.FromResult(true);
-        await f.RunAsync(EvidencePrepare);
-        await f.RunAsync("evidence trace help");
-        f.ViewModel.ReportEvidencePresentationUnavailable();
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        f.ViewModel.IsModelQuestionPending.Should().Be(!approval);
-        f.Audit.Events.Should().HaveCount(audit);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-    }
-
-    [Theory]
     [InlineData("name")]
     [InlineData("private")]
     [InlineData("owner")]
@@ -248,7 +184,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync(EvidencePrepare);
         f.ViewModel.Transcript.Should().Contain("unavailable");
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -274,7 +210,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync(EvidencePrepare);
         f.ViewModel.Transcript.Should().Contain("failed or was cancelled");
         captured!.IsCurrent.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -328,6 +264,6 @@ public sealed partial class MainViewModelTests
         calls.Should().Be(beforeDispatch ? 0 : 1);
         f.ViewModel.Transcript.Should().StartWith("Evidence trace unavailable:");
         f.HostStore.Records.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

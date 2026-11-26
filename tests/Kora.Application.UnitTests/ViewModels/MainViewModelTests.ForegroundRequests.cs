@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Core.Hosting;
@@ -42,7 +42,7 @@ public sealed partial class MainViewModelTests
             .And.NotContain(store.Session.Authority.SessionId.Value.ToString("D"));
         if (voice) { submitted!.Message.Should().Be(store.RequestMessage); }
         f.ViewModel.ForegroundRequestReviewText.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.ConfirmForegroundRequestAsync();
         store.RequestRetentions.Should().Be(0);
         f.ViewModel.HasForegroundRequestReview.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public sealed partial class MainViewModelTests
         await original();
         store.RequestRetentions.Should().Be(0);
         f.ViewModel.HasForegroundRequestReview.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.ConfirmForegroundRequestAsync();
         store.RequestRetentions.Should().Be(1);
         store.RequestMessage!.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -151,6 +151,6 @@ public sealed partial class MainViewModelTests
         }
         await f.ViewModel.ConfirmForegroundRequestAsync();
         store.RequestRetentions.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

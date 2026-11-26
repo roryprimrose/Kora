@@ -71,8 +71,17 @@ public sealed partial class SessionsConversationTests
                 using var original = HostActivity.BeginRoot(HostRequest.Create(origin),
                     HostActivityLayer.Desktop, HostOperation.Request);
                 var running = native.Main.ExecuteAsync(native.Main.Commands.Single(command => command.Action == BuiltInAction.LockMachine),
-                    initiator, native.Main.CallPolicyRevision);
-                if (qualified)
+                    initiator);
+                var legacyModelDispatch = initiator == SecurityAuditInitiator.ModelSuggestion;
+                if (legacyModelDispatch)
+                {
+                    await running;
+                    opened.Task.IsCompleted.Should().BeFalse();
+                    native.Main.ResponseTitle.Should().Be("Model request unavailable.");
+                    native.Main.ResponseBody.Should().StartWith("Nothing was sent.");
+                    native.Main.IsSpeaking.Should().BeFalse();
+                }
+                else if (qualified)
                 {
                     if (await Task.WhenAny(opened.Task, running) == running)
                     {
@@ -107,9 +116,9 @@ public sealed partial class SessionsConversationTests
                     else { question.Close(); }
                 }
                 await running;
-                platform.Requests.Should().HaveCount(qualified && approve ? 1 : 0);
-                worker.Invocations.Should().HaveCount(qualified && approve ? 1 : 0);
-                if (qualified && approve)
+                platform.Requests.Should().HaveCount(qualified && approve && !legacyModelDispatch ? 1 : 0);
+                worker.Invocations.Should().HaveCount(qualified && approve && !legacyModelDispatch ? 1 : 0);
+                if (qualified && approve && !legacyModelDispatch)
                 {
                     worker.Invocations[0].Origin.Should().Be(origin);
                     audit.Events.Select(item => item.Outcome)
@@ -118,7 +127,7 @@ public sealed partial class SessionsConversationTests
                     controller.Status.Should().Contain("Physical lock or computer-power completion is not observed");
                 }
                 else { audit.Events.Should().BeEmpty(); }
-                native.Main.IsModelActionApprovalPending.Should().BeFalse();
+                native.Main.IsResponseInteractionPending.Should().BeFalse();
             }
             finally { owner.Close(); }
         });

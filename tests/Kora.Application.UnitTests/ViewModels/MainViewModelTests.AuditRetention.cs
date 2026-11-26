@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -27,6 +27,60 @@ public sealed partial class MainViewModelTests
         public void ConfirmWrite() => Pending = false;
         public void Save(AuditRetentionDays value) { if (WriteFailure is { } failure) { throw failure; } Value = value; AfterWrite?.Invoke(); }
         public void Reset() { Value = null; AfterWrite?.Invoke(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Corrupt_saved_values_exact_grammar_atomic_failure_and_pending_approval_never_show_success(bool invalid)
+    {
+        var fixture = new Fixture(enableAuditRetention: true,
+            auditRetentionReadFailure: invalid ? new InvalidDataException("corrupt audit days") : null);
+        await using var pendingDetails = new PendingDetailsQuestion(fixture);
+        await using var admission = fixture.AuditAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.BindAuditRetentionNativeLifetime(static () => true);
+        if (invalid)
+        {
+            fixture.ViewModel.AuditRetentionStatus.Should().Contain("unconfirmed");
+            await fixture.RunAsync("get " + AuditRetentionCommand.OptionId);
+            fixture.ViewModel.ResponseTitle.Should().Contain("not confirmed");
+            fixture.AuditPreferences.ReadFailure = null;
+        }
+        await fixture.RunAsync("get " + AuditRetentionCommand.OptionId);
+        await fixture.RunAsync("set " + AuditRetentionCommand.OptionId + " to 29");
+        fixture.ViewModel.ResponseTitle.Should().Contain("exact integer");
+        await fixture.RunAsync("set " + AuditRetentionCommand.OptionId + " to 30 apply now");
+        fixture.AuditPreferences.Value.Should().BeNull();
+        await fixture.RunAsync("reset " + AuditRetentionCommand.OptionId + " now");
+        fixture.ViewModel.ResponseTitle.Should().Contain("Clarify");
+        fixture.AuditPreferences.WriteFailure = new IOException("atomic audit save failed");
+        await fixture.RunAsync("set " + AuditRetentionCommand.OptionId + " to 30");
+        fixture.ViewModel.ResponseTitle.Should().Contain("not confirmed");
+        fixture.AuditPreferences.WriteFailure = null;
+        fixture.AuditPreferences.Pending = false;
+        fixture.AuditPreferences.AfterWrite = () => fixture.ViewModel.BindAuditRetentionNativeLifetime(static () => false);
+        fixture.ViewModel.SelectedAuditRetentionDays = 30;
+        await fixture.ViewModel.SaveAuditRetentionCommand.ExecuteAsync();
+        fixture.AuditPreferences.Pending.Should().BeTrue();
+        fixture.AuditPolicy.Effective.Should().BeNull();
+        fixture.AuditPreferences.Pending = false;
+        fixture.AuditPreferences.AfterWrite = null;
+        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await fixture.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var preview = fixture.ViewModel.ResponseBody;
+        await fixture.RunAsync("reset " + AuditRetentionCommand.OptionId);
+        fixture.ViewModel.ResponseBody.Should().Be(preview);
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
+        fixture.Session.LockCalls.Should().Be(0);
+        typeof(Kora.Application.ViewModels.MainViewModel).GetMethod("PresentAuditRetentionFailure",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(fixture.ViewModel, ["Audit retention not confirmed.", "owned late failure"]);
+        fixture.ViewModel.ResponseBody.Should().Be(preview);
+        fixture.ViewModel.Transcript.Should().Contain("owned late failure");
+        fixture.ViewModel.Dispose();
     }
 
     [Fact]
@@ -68,68 +122,13 @@ public sealed partial class MainViewModelTests
         fixture.AuditPreferences.Value.Should().BeNull();
         fixture.Voice.StartCalls.Should().Be(starts + 2);
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.DiagnosticPreferences.Value.Should().BeNull();
         fixture.DiagnosticPolicy.Effective.Should().Be(DiagnosticRetentionDays.Default);
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
         fixture.ViewModel.Dispose();
         fixture.AuditConfiguration!.HoldUnavailable();
         await fixture.ViewModel.RefreshAuditRetentionCommand.ExecuteAsync();
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Corrupt_saved_values_exact_grammar_atomic_failure_and_pending_approval_never_show_success(bool invalid)
-    {
-        var fixture = new Fixture(enableAuditRetention: true,
-            auditRetentionReadFailure: invalid ? new InvalidDataException("corrupt audit days") : null);
-        await using var admission = fixture.AuditAdmission;
-        await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.BindAuditRetentionNativeLifetime(static () => true);
-        if (invalid)
-        {
-            fixture.ViewModel.AuditRetentionStatus.Should().Contain("unconfirmed");
-            await fixture.RunAsync("get " + AuditRetentionCommand.OptionId);
-            fixture.ViewModel.ResponseTitle.Should().Contain("not confirmed");
-            fixture.AuditPreferences.ReadFailure = null;
-        }
-        await fixture.RunAsync("get " + AuditRetentionCommand.OptionId);
-        await fixture.RunAsync("set " + AuditRetentionCommand.OptionId + " to 29");
-        fixture.ViewModel.ResponseTitle.Should().Contain("exact integer");
-        await fixture.RunAsync("set " + AuditRetentionCommand.OptionId + " to 30 apply now");
-        fixture.AuditPreferences.Value.Should().BeNull();
-        await fixture.RunAsync("reset " + AuditRetentionCommand.OptionId + " now");
-        fixture.ViewModel.ResponseTitle.Should().Contain("Clarify");
-        fixture.AuditPreferences.WriteFailure = new IOException("atomic audit save failed");
-        await fixture.RunAsync("set " + AuditRetentionCommand.OptionId + " to 30");
-        fixture.ViewModel.ResponseTitle.Should().Contain("not confirmed");
-        fixture.AuditPreferences.WriteFailure = null;
-        fixture.AuditPreferences.Pending = false;
-        fixture.AuditPreferences.AfterWrite = () => fixture.ViewModel.BindAuditRetentionNativeLifetime(static () => false);
-        fixture.ViewModel.SelectedAuditRetentionDays = 30;
-        await fixture.ViewModel.SaveAuditRetentionCommand.ExecuteAsync();
-        fixture.AuditPreferences.Pending.Should().BeTrue();
-        fixture.AuditPolicy.Effective.Should().BeNull();
-        fixture.AuditPreferences.Pending = false;
-        fixture.AuditPreferences.AfterWrite = null;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("lock this workstation please");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var preview = fixture.ViewModel.ResponseBody;
-        await fixture.RunAsync("reset " + AuditRetentionCommand.OptionId);
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        typeof(Kora.Application.ViewModels.MainViewModel).GetMethod("PresentAuditRetentionFailure",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-            .Invoke(fixture.ViewModel, ["Audit retention not confirmed.", "owned late failure"]);
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
-        fixture.ViewModel.Transcript.Should().Contain("owned late failure");
-        fixture.ViewModel.Dispose();
     }
 
     [Fact]
@@ -308,7 +307,7 @@ public sealed partial class MainViewModelTests
         fixture.AuditPreferences.Pending.Should().BeFalse();
         fixture.Audit.Events.Last(item => string.Equals(item.ActionId, "configuration.audit-retention", StringComparison.Ordinal))
             .Outcome.Should().Be(SecurityAuditOutcome.Denied);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ViewModel.Dispose();
     }
 

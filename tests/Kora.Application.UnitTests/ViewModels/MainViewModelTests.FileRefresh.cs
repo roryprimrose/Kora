@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using AwesomeAssertions;
 using Kora.Core.Context;
 using Kora.Core.Diagnostics;
@@ -38,7 +38,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.FolderRevision.Should().BeNull();
         files.Reads.Should().Be(folder ? 0 : 1);
         folders.Reads.Should().Be(folder ? 2 : 0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -98,7 +98,7 @@ public sealed partial class MainViewModelTests
             fixture.ViewModel.FileRevision.Reference.RevisionId.Should().NotBe(file.Reference.RevisionId);
         }
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ClipboardReader.Calls.Should().Be(0);
         fixture.ViewModel.Transcript.Should().NotContain(FakeFileInspector.Text).And.NotContain(FolderInspector.Text);
         fixture.ViewModel.ResponseBody.Should().NotContain(FakeFileInspector.Text).And.NotContain(FolderInspector.Text);
@@ -146,7 +146,7 @@ public sealed partial class MainViewModelTests
         }
         files.Reads.Should().Be(folder ? 0 : 1);
         folders.Reads.Should().Be(folder ? 2 : 0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -171,7 +171,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.FolderReview.Should().BeNull();
         await preview.WaitForQuiescenceAsync();
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private sealed class RefusingRefreshInspector(ILocalFileInspector original) : ILocalFileInspector
@@ -218,6 +218,6 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.FolderRevision.Should().BeSameAs(source);
         fixture.ViewModel.FileReview.Should().BeNull();
         fixture.ViewModel.FolderReview.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

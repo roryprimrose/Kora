@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
@@ -25,8 +25,7 @@ public sealed partial class MainViewModel
     public string MarkdownDisplayStatus => markdownDisplay?.Description ?? "Markdown display preferences are not composed; no saved default is applied.";
     public string MarkdownDisplayReviewText => markdownDisplayReview?.Description ?? "No Markdown display change is awaiting confirmation.";
     public bool CanControlMarkdownDisplay => markdownDisplay is not null && !disposed && !markdownDisplayActive
-        && IsCallMutationHostEligible && CanRevealPrivatePresentation && !IsResponseInteractionPending
-        && !IsGrantEditorVisible && !IsBusy && CanEnterRetainedAnswerRead;
+        && IsCallMutationHostEligible && CanRevealPrivatePresentation && !IsResponseInteractionPending && !IsBusy && CanEnterRetainedAnswerRead;
     public bool CanControlMarkdownDisplayNative => CanControlMarkdownDisplay && markdownDisplayNativeLifetime();
 
     public void BindMarkdownDisplayNativeLifetime(Func<bool> lifetime)
@@ -108,7 +107,7 @@ public sealed partial class MainViewModel
                 && input.AssistantNameRevision == name && input.OwnershipBindingRevision == binding
                 && input.NavigationOwnerRevision == auditImpactOwnerRevision()
                 && input.InputRevision == Interlocked.Read(ref workspaceSurfaceInputRevision))
-            && CanRevealPrivatePresentation && !IsResponseInteractionPending && !IsGrantEditorVisible
+            && CanRevealPrivatePresentation && !IsResponseInteractionPending
             && settingsOwnershipRevision() == owner && Interlocked.Read(ref settingsOwnershipBindingRevision) == binding
             && assistantNameConfiguration.Get().Revision == name
             && (initiator != SecurityAuditInitiator.LocalUser || ReferenceEquals(native, markdownDisplayNativeLifetime) && native());

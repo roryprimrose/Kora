@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Application.UnitTests.Configuration;
@@ -34,7 +34,7 @@ public sealed partial class MainViewModelTests
         deadline.Service.Capture().Should().Be(reset ? OrdinaryTurnDeadline.Default : new OrdinaryTurnDeadline(10));
         f.Voice.StartedMicrophone.Should().BeNull();
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.HasVoiceConsent.Should().BeFalse();
         await f.ViewModel.DisposeAsync();
     }

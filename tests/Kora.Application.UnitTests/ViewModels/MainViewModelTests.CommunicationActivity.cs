@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Application.Interaction;
@@ -16,6 +16,40 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Unavailable_prefix_and_pending_question_preserve_original_routing_and_complete_visual_content()
+    {
+        await using var activity = new CommunicationActivityFixture();
+        var fixture = new Fixture(communicationActivity: activity.Observations,
+            communicationActivityConfiguration: activity.Configuration);
+        fixture.NamePreferences.Name = "Supported Commands";
+        await fixture.ViewModel.InitializeAsync();
+        await activity.Observations.JoinAsync();
+        await fixture.RunAsync("Kora, get calls.activity-source");
+        fixture.ViewModel.Transcript.Should().Contain("prefix routing is unavailable");
+        await fixture.RunAsync("get calls.activity-source");
+        fixture.ViewModel.ResponseBody.Should().Contain("Selected source");
+        await fixture.ViewModel.DisposeAsync();
+
+        await using var pendingActivity = new CommunicationActivityFixture();
+        var pending = new Fixture(communicationActivity: pendingActivity.Observations,
+            communicationActivityConfiguration: pendingActivity.Configuration);
+        pending.Probe.Status = new("local.inference", "Local model inference (Ollama)",
+            Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await pending.ViewModel.InitializeAsync();
+        await pendingActivity.Observations.JoinAsync();
+        await using var details = new PendingDetailsQuestion(pending);
+        await details.PresentAsync();
+        var body = pending.ViewModel.ResponseBody;
+        await pending.ViewModel.InspectCommunicationActivityCommand.ExecuteAsync();
+        pending.ViewModel.Transcript.Should().Contain("Selected source");
+        pending.ViewModel.ResponseBody.Should().Be(body);
+        await pending.ViewModel.EnableCommunicationActivityCommand.ExecuteAsync();
+        pendingActivity.Source.Opens.Should().Be(0);
+        pending.Session.LockCalls.Should().Be(0);
+        await pending.ViewModel.DisposeAsync();
+    }
+
     [Theory]
     [InlineData(CallState.Unknown)]
     [InlineData(CallState.Suspected)]
@@ -193,42 +227,6 @@ public sealed partial class MainViewModelTests
         if (!dispose) { fixture.ViewModel.Transcript.Should().Contain("not confirmed"); }
         activity.Store.BeforeWrite = null;
         await fixture.ViewModel.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task Unavailable_prefix_and_pending_question_preserve_original_routing_and_complete_visual_content()
-    {
-        await using var activity = new CommunicationActivityFixture();
-        var fixture = new Fixture(communicationActivity: activity.Observations,
-            communicationActivityConfiguration: activity.Configuration);
-        fixture.NamePreferences.Name = "Supported Commands";
-        await fixture.ViewModel.InitializeAsync();
-        await activity.Observations.JoinAsync();
-        await fixture.RunAsync("Kora, get calls.activity-source");
-        fixture.ViewModel.Transcript.Should().Contain("prefix routing is unavailable");
-        await fixture.RunAsync("get calls.activity-source");
-        fixture.ViewModel.ResponseBody.Should().Contain("Selected source");
-        await fixture.ViewModel.DisposeAsync();
-
-        await using var pendingActivity = new CommunicationActivityFixture();
-        var pending = new Fixture(communicationActivity: pendingActivity.Observations,
-            communicationActivityConfiguration: pendingActivity.Configuration);
-        pending.Probe.Status = new("local.inference", "Local model inference (Ollama)",
-            Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        pending.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
-        pending.Reasoner.Question = new("Exact choice?", ["one", "two"]);
-        await pending.ViewModel.InitializeAsync();
-        await pendingActivity.Observations.JoinAsync();
-        await pending.RunAsync("please do this work");
-        await pending.ViewModel.ActiveReasoningTask!;
-        var body = pending.ViewModel.ResponseBody;
-        await pending.ViewModel.InspectCommunicationActivityCommand.ExecuteAsync();
-        pending.ViewModel.Transcript.Should().Contain("Selected source");
-        pending.ViewModel.ResponseBody.Should().Be(body);
-        await pending.ViewModel.EnableCommunicationActivityCommand.ExecuteAsync();
-        pendingActivity.Source.Opens.Should().Be(0);
-        pending.Session.LockCalls.Should().Be(0);
-        await pending.ViewModel.DisposeAsync();
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using Kora.Application.Configuration;
+﻿using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;

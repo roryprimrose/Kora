@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -25,6 +25,35 @@ public sealed partial class MainViewModelTests
         public void ConfirmWrite() => Pending = false;
         public void Save(WindowsSpeechRate rate) { if (WriteFailure is { } failure) { throw failure; } Value = rate; AfterWrite?.Invoke(); }
         public void Reset() { Value = null; AfterWrite?.Invoke(); }
+    }
+
+    [Fact]
+    public async Task Pending_approval_and_unbound_or_disposed_native_hosts_cannot_mutate_or_replace_preview()
+    {
+        var unbound = new Fixture();
+        await using var unboundAdmission = unbound.OutputAdmission;
+        unbound.ViewModel.WindowsSpeechRateStatus.Should().Contain("unavailable");
+        await unbound.ViewModel.RefreshWindowsSpeechRateCommand.ExecuteAsync();
+        unbound.ViewModel.Transcript.Should().Contain("owning unlocked host");
+        unbound.ViewModel.Dispose();
+        await unbound.ViewModel.RefreshWindowsSpeechRateCommand.ExecuteAsync();
+        var fixture = new Fixture(enableWindowsSpeechRate: true);
+        await using var pendingDetails = new PendingDetailsQuestion(fixture);
+        await using var admission = fixture.OutputAdmission;
+        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await fixture.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var preview = fixture.ViewModel.ResponseBody;
+        await fixture.RunAsync("reset speech.windows-rate");
+        fixture.ViewModel.CanChangeWindowsSpeechRate.Should().BeFalse();
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.ResponseBody.Should().Be(preview);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ViewModel.Dispose();
+        await fixture.ViewModel.RefreshWindowsSpeechRateCommand.ExecuteAsync();
+        fixture.RateConfiguration!.HoldUnavailable();
+        fixture.ViewModel.ResponseBody.Should().Be(preview);
     }
 
     [Fact]
@@ -62,7 +91,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
         fixture.TextToSpeech.RemoveProviderCalls.Should().Be(0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
         fixture.Preferences.SavedVoiceId.Should().BeNull();
         fixture.ViewModel.Dispose();
@@ -157,36 +186,6 @@ public sealed partial class MainViewModelTests
         cancelled.Cancel();
         await fixture.ViewModel.ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.TypedCommand, cancelled.Token);
         fixture.ViewModel.WindowsSpeechRateStatus.Should().Contain("Setting unavailable");
-    }
-
-    [Fact]
-    public async Task Pending_approval_and_unbound_or_disposed_native_hosts_cannot_mutate_or_replace_preview()
-    {
-        var unbound = new Fixture();
-        await using var unboundAdmission = unbound.OutputAdmission;
-        unbound.ViewModel.WindowsSpeechRateStatus.Should().Contain("unavailable");
-        await unbound.ViewModel.RefreshWindowsSpeechRateCommand.ExecuteAsync();
-        unbound.ViewModel.Transcript.Should().Contain("owning unlocked host");
-        unbound.ViewModel.Dispose();
-        await unbound.ViewModel.RefreshWindowsSpeechRateCommand.ExecuteAsync();
-        var fixture = new Fixture(enableWindowsSpeechRate: true);
-        await using var admission = fixture.OutputAdmission;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("lock this workstation please");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var preview = fixture.ViewModel.ResponseBody;
-        await fixture.RunAsync("reset speech.windows-rate");
-        fixture.ViewModel.CanChangeWindowsSpeechRate.Should().BeFalse();
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.ViewModel.Dispose();
-        await fixture.ViewModel.RefreshWindowsSpeechRateCommand.ExecuteAsync();
-        fixture.RateConfiguration!.HoldUnavailable();
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
     }
 
     [Fact]

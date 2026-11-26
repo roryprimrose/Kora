@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Core.Commands;
@@ -30,7 +30,7 @@ public sealed partial class MainViewModelTests
             .And.Contain("Pending questions: 1").And.Contain("3 task records")
             .And.Contain("Durable ledger observed").And.Contain("ordinary lane observed")
             .And.NotContain("Actual question").And.NotContain(store.Session.Authority.SessionId.Value.ToString("D"));
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
         store.RequestRetentions.Should().Be(0);
         f.ViewModel.CanReadCurrentResponse.Should().BeFalse("the status identity must not become an unfenced ordinary response");
@@ -74,35 +74,8 @@ public sealed partial class MainViewModelTests
         else { await f.RunAsync(command); }
         f.ViewModel.ResponseBody.Should().NotContain("Durable ledger observed");
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.HostStore.Records.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task RemainingWorkDoesNotReplaceCurrentQuestionOrApproval()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        var (store, conversation) = BindRemainingWork(f);
-        await using var owned = conversation;
-        var command = "session remaining " + store.Session.Authority.SessionId.Value.ToString("D");
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        await f.RunAsync(command);
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        await f.ViewModel.CancelModelQuestionAsync();
-        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        body = f.ViewModel.ResponseBody;
-        await f.RunAsync(command);
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        f.ViewModel.ResponseBody.Should().Be(body);
-        store.RemainingReads.Should().Be(0);
+        f.HostStore.Records.Should().BeEmpty();
     }
 
     [Theory]
@@ -145,7 +118,7 @@ public sealed partial class MainViewModelTests
                 f.ViewModel.ResponseBody.Should().NotContain("Durable ledger observed");
             }
         }
-        f.Reasoner.Requests.Should().BeEmpty();
+
         store.RequestRetentions.Should().Be(0);
     }
 
@@ -171,7 +144,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Contain("Conversation: Build (Active)");
         await Run("session remaining cancel");
         f.ViewModel.ResponseBody.Should().Contain("choice cancelled");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
     }
 

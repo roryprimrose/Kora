@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Core.Authorization.SessionPermission;
@@ -38,7 +38,7 @@ public sealed partial class MainViewModelTests
         fixture.HostStore.Records.Should().HaveCount(2).And.OnlyContain(record =>
             record.Request.Origin == (voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi)
             && record.Request.SessionId == store.Session.Authority.SessionId);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await Run("session permission confirm " + id);
         fixture.ViewModel.ResponseTitle.Should().Be("Session command not confirmed.");
         fixture.HostStore.Records.Should().HaveCount(2);
@@ -67,7 +67,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().NotBe("Session command review.");
         store.PermissionPolicy.Should().BeNull();
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -119,7 +119,7 @@ public sealed partial class MainViewModelTests
         if (transition is not "privacy") { fixture.ViewModel.ResponseTitle.Should().Be("Session command not confirmed."); }
         store.PermissionPolicy.Should().BeNull();
         fixture.HostStore.Records.Should().NotContain(record => record.State == HostTaskState.Succeeded);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private static SessionCommandStore BindPermissionCommands(Fixture fixture)

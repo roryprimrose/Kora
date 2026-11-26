@@ -29,16 +29,6 @@ public sealed partial class MainViewModel
         return validator is not null && await validator(candidate, token) && !token.IsCancellationRequested;
     }
 
-    private async Task<bool> IsFileArtifactSourceCurrent(Kora.Core.Dependencies.LocalModelArtifact artifact, CancellationToken token)
-    {
-        var candidate = artifactCatalogue.Candidates.SingleOrDefault(item =>
-            string.Equals(item.Id, artifact.Id, StringComparison.Ordinal)
-            && string.Equals(item.Digest, artifact.Digest, StringComparison.Ordinal));
-        if (candidate is null) { return false; }
-        return candidate.OwnedInstructionName is not null || candidate.UseControlId is null
-            || await IsArtifactSourceCurrent(candidate, token);
-    }
-
     public Func<bool> CaptureInstructionEditorEligibility()
     {
         var input = CaptureManualCallInput(RequestOrigin.LocalUi, CallPolicyRevision);

@@ -14,6 +14,35 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("unbound")]
+    [InlineData("owner")]
+    [InlineData("pending")]
+    [InlineData("disposed")]
+    public async Task SpeechInputUnavailableHostsNeverOverwritePendingInteraction(string kind)
+    {
+        var fixture = new Fixture(enableSpeechInput: kind is not "unbound");
+        await using var pendingDetails = new PendingDetailsQuestion(fixture);
+        await using var configuration = fixture.InputConfiguration;
+        await using var admission = fixture.OutputAdmission;
+        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await fixture.ViewModel.InitializeAsync();
+        if (kind is "owner") { fixture.ViewModel.BindCallOwnershipGate(static () => false); }
+        if (kind is "pending")
+        {
+            await pendingDetails.PresentAsync();
+            fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        }
+        if (kind is "disposed") { fixture.ViewModel.Dispose(); }
+        if (kind is "unbound") { fixture.ViewModel.SpeechInputStatus.Should().Contain("profile selection is unavailable"); }
+        var previous = fixture.ViewModel.ResponseBody;
+        fixture.ViewModel.CanChangeSpeechInputNative.Should().BeFalse();
+        await fixture.ViewModel.ExecuteSpeechInputCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.TypedCommand);
+        fixture.ViewModel.ResponseBody.Should().Be(previous);
+        fixture.InputPreferences.Value.Should().BeNull();
+        fixture.ViewModel.Dispose();
+    }
+
     [Fact]
     public async Task MissingOrUnreadableNameAuthorityDoesNotOfferAnotherWakeProfile()
     {
@@ -83,7 +112,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
         fixture.TextToSpeech.RemoveProviderCalls.Should().Be(0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ViewModel.Dispose();
     }
 
@@ -99,36 +128,6 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.SaveSpeechInputCommand.ExecuteAsync();
         fixture.InputPreferences.Value.Should().BeNull();
         fixture.InputRuntime.ProfileGeneration.Number.Should().Be(0);
-        fixture.ViewModel.Dispose();
-    }
-
-    [Theory]
-    [InlineData("unbound")]
-    [InlineData("owner")]
-    [InlineData("pending")]
-    [InlineData("disposed")]
-    public async Task SpeechInputUnavailableHostsNeverOverwritePendingInteraction(string kind)
-    {
-        var fixture = new Fixture(enableSpeechInput: kind is not "unbound");
-        await using var configuration = fixture.InputConfiguration;
-        await using var admission = fixture.OutputAdmission;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        if (kind is "owner") { fixture.ViewModel.BindCallOwnershipGate(static () => false); }
-        if (kind is "pending")
-        {
-            await fixture.RunAsync("lock this workstation please");
-            await fixture.ViewModel.ActiveReasoningTask!;
-            fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        }
-        if (kind is "disposed") { fixture.ViewModel.Dispose(); }
-        if (kind is "unbound") { fixture.ViewModel.SpeechInputStatus.Should().Contain("profile selection is unavailable"); }
-        var previous = fixture.ViewModel.ResponseBody;
-        fixture.ViewModel.CanChangeSpeechInputNative.Should().BeFalse();
-        await fixture.ViewModel.ExecuteSpeechInputCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.TypedCommand);
-        fixture.ViewModel.ResponseBody.Should().Be(previous);
-        fixture.InputPreferences.Value.Should().BeNull();
         fixture.ViewModel.Dispose();
     }
 

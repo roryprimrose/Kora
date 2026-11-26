@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using AwesomeAssertions;
 using Kora.Core.Context;
 using Kora.Core.Diagnostics;
@@ -58,7 +58,7 @@ public sealed partial class MainViewModelTests
         await service.WaitForQuiescence();
         service.IsQuiescent.Should().BeTrue();
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -96,7 +96,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.Transcript.Should().NotContain("private file marker");
         fixture.ViewModel.ResponseBody.Should().NotContain(FakeFileInspector.Text);
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ClipboardReader.Calls.Should().Be(0);
         using (var system = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
             HostActivityLayer.Application, HostOperation.Request))
@@ -118,7 +118,7 @@ public sealed partial class MainViewModelTests
         var fixture = new Fixture();
         (await fixture.ViewModel.SearchFileAsync(new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "missing"), "query"))
             .Outcome.Should().Be(LocalFileSearchOutcome.Stale);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -175,7 +175,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseBody.Should().NotContain(FakeFileInspector.Text);
         fixture.ViewModel.Transcript.Should().NotContain(FakeFileInspector.Text);
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ClipboardReader.Calls.Should().Be(0);
         fixture.Session.IsUnlocked.Should().BeTrue();
         fixture.ViewModel.FileRevision.Should().BeSameAs(revision);
@@ -240,7 +240,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ClearFilePreview();
         await fixture.ViewModel.ConfirmFilePreviewAsync(id);
         source.Reads.Should().Be(0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private sealed class FakeFilePicker : IUserFilePicker
@@ -316,6 +316,6 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ConfirmFilePreviewAsync(fixture.ViewModel.FileReview!.ReviewId);
         fixture.ViewModel.ResponseTitle.Should().Contain("InvalidText");
         fixture.ViewModel.FileRevision.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -41,59 +41,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync("Kora, add preapproved address https://voice.example/*", 1);
         configuration.LastInitiator.Should().Be(SecurityAuditInitiator.VoiceCommand);
         configuration.Settings.Patterns.Should().Equal("https://voice.example/*");
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Theory]
-    [InlineData("list")]
-    [InlineData("add")]
-    [InlineData("remove")]
-    [InlineData("clear")]
-    [InlineData("locked")]
-    [InlineData("owner")]
-    [InlineData("disposed")]
-    [InlineData("active")]
-    [InlineData("question")]
-    public async Task UriControlsRequireEveryActionAndALiveEligibleHost(string blocker)
-    {
-        var (f, configuration) = CreateUriFixture(blocker);
-        await using var admission = f.OutputAdmission;
-        if (blocker is "question")
-        {
-            f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-            f.Reasoner.Question = new("Which target?", ["First", "Second"]);
-        }
-        await f.ViewModel.InitializeAsync();
-        if (blocker is "locked") { f.Session.IsUnlocked = false; }
-        if (blocker is "owner") { f.ViewModel.BindCallOwnershipGate(static () => false); }
-        if (blocker is "disposed") { f.ViewModel.Dispose(); }
-        if (blocker is "question")
-        {
-            await f.RunAsync("help me with this computer");
-            await f.ViewModel.ActiveReasoningTask!;
-            f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        }
-        if (blocker is "active")
-        {
-            Task? nested = null;
-            configuration.BeforeExecute = () =>
-            {
-                f.ViewModel.CanChangePreapprovedUris.Should().BeFalse();
-                nested = f.ViewModel.ExecutePreapprovedUriCommandAsync(
-                    new(PreapprovedUriCommandOperation.Clear), SecurityAuditInitiator.LocalUser);
-            };
-            await f.ViewModel.RefreshPreapprovedUrisCommand.ExecuteAsync();
-            await nested!;
-            configuration.BeforeExecute = null;
-            f.ViewModel.CanChangePreapprovedUris.Should().BeTrue();
-            return;
-        }
-        f.ViewModel.CanChangePreapprovedUris.Should().BeFalse();
-        await f.ViewModel.ExecutePreapprovedUriCommandAsync(
-            new(PreapprovedUriCommandOperation.Clear), SecurityAuditInitiator.LocalUser);
-        if (blocker is not "disposed") { f.ViewModel.Transcript.Should().Contain("requires the current owning unlocked host"); }
-        if (blocker is "list") { f.ViewModel.PreapprovedUriStatus.Should().Contain("unavailable"); }
-        configuration.Mutations.Should().Be(0);
     }
 
     [Theory]

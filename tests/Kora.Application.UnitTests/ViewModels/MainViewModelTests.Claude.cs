@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
 using Kora.Core.Commands;
@@ -59,7 +59,7 @@ public sealed partial class MainViewModelTests
         store.RequestMessage.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
         store.RequestMessage.Outcome.Should().Be(Kora.Core.Dependencies.ModelTurnOutcome.Unavailable);
         store.RequestRetentions.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -111,7 +111,7 @@ public sealed partial class MainViewModelTests
         await Assert.ThrowsAnyAsync<Exception>(() => commands.ExecuteAsync(command, RequestOrigin.LocalUi, () => live,
             TestContext.Current.CancellationToken));
         store.RequestRetentions.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]

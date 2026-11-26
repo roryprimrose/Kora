@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Presentation;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
@@ -11,6 +11,35 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     private const string PendingNavigation = "open pending question aaaaaaaa-1111-2222-3333-444444444444 bbbbbbbb-1111-2222-3333-444444444444";
+
+    [Theory]
+    [InlineData("pending question help")]
+    [InlineData("open pending question")]
+    [InlineData("open pending question invalid invalid")]
+    public async Task PendingQuestionHelpAndMalformedCommandsDoNotReadThePresenterOrAnswer(string text)
+    {
+        var f = new Fixture();
+        await using var details = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
+        await f.ViewModel.InitializeAsync();
+        await details.PresentAsync();
+        var title = f.ViewModel.ResponseTitle;
+        var body = f.ViewModel.ResponseBody;
+        var native = new PendingNavigationFake();
+        f.ViewModel.BindPendingQuestionNavigation(native);
+        await f.RunAsync(text);
+        var queued = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod("ExecutePendingQuestionCommand",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        await (Task)queued.Invoke(f.ViewModel,
+            [PendingQuestionCommand.Parse(text, f.ViewModel.AssistantName), text,
+                Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, null, null])!;
+        native.Captures.Should().Be(0);
+        f.ViewModel.PendingQuestionNavigationStatus.Should().Be(PendingQuestionCommand.Help);
+        f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        f.ViewModel.ResponseTitle.Should().Be(title);
+        f.ViewModel.ResponseBody.Should().Be(body);
+        f.ViewModel.Transcript.Should().Contain("No other request was submitted.");
+    }
 
     [Fact]
     public async Task PendingQuestionNavigationFocusesOnlyCapturedTargetAndPreservesResponsesAndComposer()
@@ -31,37 +60,9 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be(title);
         f.ViewModel.ResponseBody.Should().Be(body);
         f.ViewModel.Transcript.Should().Be(transcript);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
         f.Audit.Events.Should().BeEmpty();
-    }
-
-    [Theory]
-    [InlineData("pending question help")]
-    [InlineData("open pending question")]
-    [InlineData("open pending question invalid invalid")]
-    public async Task PendingQuestionHelpAndMalformedCommandsDoNotReadThePresenterOrAnswer(string text)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        var transcript = f.ViewModel.Transcript;
-        var requests = f.Reasoner.Requests.Count;
-        var native = new PendingNavigationFake();
-        f.ViewModel.BindPendingQuestionNavigation(native);
-        await f.RunAsync(text);
-        native.Captures.Should().Be(0);
-        f.ViewModel.PendingQuestionNavigationStatus.Should().Be(PendingQuestionCommand.Help);
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        f.Reasoner.Requests.Should().HaveCount(requests);
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.Transcript.Should().Be(transcript);
     }
 
     [Theory]
@@ -109,7 +110,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.PendingQuestionNavigationStatus.Should().StartWith("Pending question navigation unavailable.");
         f.ViewModel.ResponseBody.Should().Be(body);
         f.ViewModel.Transcript.Should().Be(transcript);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -128,7 +129,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync(PendingNavigation, 1);
         native.FocusCalls.Should().Be(1);
         f.ViewModel.PendingQuestionNavigationStatus.Should().StartWith("Pending question navigation unavailable.");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -213,31 +214,7 @@ public sealed partial class MainViewModelTests
         native.FocusCalls.Should().Be(0);
         f.ViewModel.PendingQuestionNavigationStatus.Should().StartWith("Pending question navigation unavailable:");
         f.ViewModel.ResponseBody.Should().Be(body);
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task PendingQuestionNavigationRefusesUnavailableSavedNameAndProtectsPendingGrantReview()
-    {
-        var invalid = new Fixture();
-        invalid.NamePreferences.Name = "\0";
-        await invalid.ViewModel.InitializeAsync();
-        invalid.ViewModel.BindPendingQuestionNavigation(new PendingNavigationFake());
-        await invalid.RunAsync(PendingNavigation);
-        invalid.ViewModel.PendingQuestionNavigationStatus.Should().StartWith("Pending question navigation unavailable.");
-
-        var f = await Fixture.CreateInitializedAsync();
-        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-            BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        var body = f.ViewModel.ResponseBody;
-        var transcript = f.ViewModel.Transcript;
-        f.ViewModel.BindPendingQuestionNavigation(new PendingNavigationFake());
-        await f.RunAsync(PendingNavigation);
-        await f.RunAsync("open pending question invalid invalid");
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.Transcript.Should().Be(transcript);
-        f.Session.LockCalls.Should().Be(0);
     }
 
     private sealed class PendingNavigationFake : IPendingQuestionNavigation, IPendingQuestionFocus

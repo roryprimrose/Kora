@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Application.UnitTests.Configuration;
@@ -57,7 +57,7 @@ public sealed partial class MainViewModelTests
                 .Which.Should().EndWith("detail-presentation.txt");
             adapter.Calls.Should().Be(1);
             store.RequestMessage.Should().BeSameAs(message);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpeakCalls.Should().Be(0);
             f.Voice.StartCalls.Should().Be(0);
         }
@@ -124,7 +124,7 @@ public sealed partial class MainViewModelTests
         }
         f.Voice.StartCalls.Should().Be(starts);
         adapter.Calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpeakCalls.Should().Be(0);
     }
 

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Skills;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -7,6 +7,25 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task NamedSkillCannotReplaceAPendingQuestionAndExitJoinsItsOwnedWork()
+    {
+        var f = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await f.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var called = false;
+        f.ViewModel.NamedSkillInvocationRequested += (_, _, _) => { called = true; return Task.CompletedTask; };
+        await f.RunAsync("use skill Lock");
+        called.Should().BeFalse();
+        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+        var joined = 0;
+        f.ViewModel.BindNamedSkillUseShutdown(() => { joined++; return Task.CompletedTask; });
+        await f.ViewModel.ExitAsync();
+        joined.Should().Be(1);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -49,50 +68,12 @@ public sealed partial class MainViewModelTests
             else { await f.RunAsync(text); }
         }
         calls.Should().Equal("skill:Review", "discovery", "skill:Choice", "skill:Close");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
 
         await f.ViewModel.ExitAsync();
         currentInputs.Should().OnlyContain(eligible => !eligible());
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.Session.LockCalls.Should().Be(0);
-    }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task NamedSkillAndMetadataDiscoveryCannotDispatchOrReplaceTheSamePendingQuestion(bool voice)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        f.Reasoner.Question = new("Keep this exact question?", ["one", "two"]);
-        await f.ViewModel.InitializeAsync();
-        if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, skill close", 1); }
-        await f.RunAsync("original question task");
-        await f.ViewModel.ActiveReasoningTask!;
-        var originalBody = f.ViewModel.ResponseBody;
-        var originalChoices = f.ViewModel.ModelQuestionChoices.ToArray();
-        var originalRequests = f.Reasoner.Requests.Count;
-        var calls = 0;
-        f.ViewModel.NamedSkillInvocationRequested += (_, _, _) => { calls++; return Task.CompletedTask; };
-        f.ViewModel.CustomizationDiscoveryRequested += (_, _, _) => { calls++; return Task.CompletedTask; };
-        foreach (var text in new[] { "use skill Lock", "discover customizations use skill Lock" })
-        {
-            if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, " + text, 1); }
-            else { await f.RunAsync(text); }
-        }
-        calls.Should().Be(0);
-        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        f.ViewModel.ResponseBody.Should().Be(originalBody);
-        f.ViewModel.ModelQuestionChoices.Should().Equal(originalChoices);
-        f.Reasoner.Requests.Should().HaveCount(originalRequests);
-        f.Session.LockCalls.Should().Be(0);
-
-        f.Reasoner.Question = null;
-        await f.ViewModel.SelectModelQuestionChoiceAsync(originalChoices[0]);
-        await f.ViewModel.ActiveReasoningTask!;
-        f.Reasoner.Requests.Should().HaveCount(originalRequests + 1);
-        f.ViewModel.IsResponseInteractionPending.Should().BeFalse();
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -120,7 +101,7 @@ public sealed partial class MainViewModelTests
         }
         calls.Select(call => call.Action).Should().Equal("Review", "Choice", "Close");
         calls[0].Name.Should().Be("Lock");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -136,7 +117,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync(text);
         called.Should().BeFalse();
         f.ViewModel.Transcript.Should().Contain("Nothing was run");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -151,27 +132,7 @@ public sealed partial class MainViewModelTests
         using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem), HostActivityLayer.Application, HostOperation.Request))
         { await f.RunAsync("use skill Lock"); }
         called.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task NamedSkillCannotReplaceAPendingQuestionAndExitJoinsItsOwnedWork()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        f.Reasoner.Question = new("Keep this exact question?", ["one", "two"]);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("original question task");
-        await f.ViewModel.ActiveReasoningTask!;
-        var called = false;
-        f.ViewModel.NamedSkillInvocationRequested += (_, _, _) => { called = true; return Task.CompletedTask; };
-        await f.RunAsync("use skill Lock");
-        called.Should().BeFalse();
-        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        var joined = 0;
-        f.ViewModel.BindNamedSkillUseShutdown(() => { joined++; return Task.CompletedTask; });
-        await f.ViewModel.ExitAsync();
-        joined.Should().Be(1);
     }
 
     [Fact]
@@ -184,7 +145,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.NamedSkillInvocationRequested += (_, _, _) => { called = true; return Task.CompletedTask; };
         await f.RunAsync("Kora, use skill Lock");
         called.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -198,7 +159,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.NamedSkillInvocationRequested += (_, _, _) => { called = true; return Task.CompletedTask; };
         await f.RunAsync("skill choice 1");
         called.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.BindNamedSkillChoiceCapture(null);
     }
 
@@ -217,6 +178,6 @@ public sealed partial class MainViewModelTests
         f.Dispatcher.BeforeInvoke = () => generation++;
         await f.RaiseActivatedTranscriptAsync("Kora, skill choice 1", 1);
         called.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

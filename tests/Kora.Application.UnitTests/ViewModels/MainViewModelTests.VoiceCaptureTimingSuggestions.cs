@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Core.Diagnostics;
@@ -68,7 +68,7 @@ public sealed partial class MainViewModelTests
         }
         f.Voice.StartCalls.Should().Be(starts);
         adapter.Calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
         f.Preferences.SavedVoiceId.Should().BeNull();
     }

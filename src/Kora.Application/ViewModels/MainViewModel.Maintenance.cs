@@ -1,4 +1,4 @@
-using Kora.Application.Diagnostics;
+﻿using Kora.Application.Diagnostics;
 using Kora.Application.Maintenance;
 using Kora.Core.Auditing;
 using Kora.Core.Hosting;
@@ -27,16 +27,11 @@ public sealed partial class MainViewModel
         Kora.Tools.Application.ApplicationUpgrade upgrade)
     { updateCheckTool = check; upgradeTool = upgrade; }
     public bool CanRunMaintenanceCommands => !disposed && IsHostInputEligible && !IsProtectedCall
-        && pendingModelQuestion is null && !IsGrantChangePending && !IsModelActionApprovalPending;
+        ;
 
     internal async Task ExecuteMaintenanceUpdateCommandAsync(MaintenanceUpdateCommand command, SecurityAuditInitiator initiator)
     {
         if (disposed) { return; }
-        if (pendingModelQuestion is not null || IsGrantChangePending || IsModelActionApprovalPending)
-        {
-            Transcript = "Maintenance command blocked. Resolve the current exact question or approval first; it remains unchanged.";
-            return;
-        }
         if (!command.IsValid)
         {
             PresentCachedMaintenance("Update command not accepted.", MaintenanceUpdateCommand.Syntax);
@@ -78,11 +73,6 @@ public sealed partial class MainViewModel
     {
         if (disposed) { return; }
         // A maintenance command is never a reply to an exact pending question or approval.
-        if (pendingModelQuestion is not null || IsGrantChangePending || IsModelActionApprovalPending)
-        {
-            Transcript = "Maintenance command blocked. Resolve the current exact question or approval first; it remains unchanged.";
-            return;
-        }
         if (command == MaintenanceCommand.Invalid)
         {
             PresentCachedMaintenance("Maintenance command not accepted.", MaintenanceCommandParser.Syntax);
@@ -99,7 +89,6 @@ public sealed partial class MainViewModel
         var topology = privacyObservation.Current.TopologyRevision;
         bool Eligible() => !disposed && IsHostInputEligible && !IsProtectedCall && CallPolicyRevision == call
             && privacyObservation.Current.TopologyRevision == topology
-            && pendingModelQuestion is null && !IsGrantChangePending && !IsModelActionApprovalPending
             && (origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent
                 && CallObservation.AllowActivation && privacyObservation.Current.CanCapture
                 && Volatile.Read(ref voiceRecoveryRevision) == recovery);

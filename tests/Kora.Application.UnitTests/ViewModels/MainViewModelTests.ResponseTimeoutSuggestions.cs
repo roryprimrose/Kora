@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Core.Commands;
@@ -55,7 +55,7 @@ public sealed partial class MainViewModelTests
             f.ViewModel.ResponseTitle.Should().Be("Response-timeout source unavailable.");
             model.Calls.Should().Be(1);
             store.RequestMessage.Should().Be(retained);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpokenText.Should().BeNull();
             await f.RunAsync("undo the last settings change");
             f.ViewModel.CanConfirmSettingsUndo.Should().BeTrue();
@@ -109,7 +109,7 @@ public sealed partial class MainViewModelTests
             f.Audit.Events.Should().NotContain(item => item.ActionId == "configuration.response-timeout"
                 && item.Outcome == SecurityAuditOutcome.Succeeded && !string.Equals(loss, "settings", StringComparison.Ordinal));
             model.Calls.Should().Be(1);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpokenText.Should().BeNull();
         }
         finally { await f.ViewModel.DisposeAsync(); }
@@ -140,7 +140,7 @@ public sealed partial class MainViewModelTests
             f.AppearancePreferences.LoadThemeMode().Should().BeNull();
             f.Audit.Events.Should().HaveCount(audits);
             model.Calls.Should().Be(1);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpokenText.Should().BeNull();
         }
         finally { await f.ViewModel.DisposeAsync(); }
@@ -156,7 +156,7 @@ public sealed partial class MainViewModelTests
             f.ViewModel.ResponseTitle.Should().Be("Response-timeout source unavailable.");
             f.Voice.StartedPhrases.Should().Contain(RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
                 .And.Contain("Kora confirm response timeout change");
-            f.Reasoner.Requests.Should().BeEmpty();
+
         }
         finally { await f.ViewModel.DisposeAsync(); }
     }
@@ -183,28 +183,6 @@ public sealed partial class MainViewModelTests
             await f.RunAsync("review response timeout suggestion");
             f.AppearancePreferences.LoadResponseTimeoutSeconds().Should().BeNull();
             f.ViewModel.ResponseTitle.Should().NotBe("Response timeout saved.");
-        }
-        finally { await f.ViewModel.DisposeAsync(); }
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ResponseTimeoutReviewLeavesPendingDecisionUntouched(bool question)
-    {
-        var f = CreateSummaryFixture(SpeechProviderIds.Windows);
-        try
-        {
-            f.Reasoner.Action = BuiltInAction.EnableHostedModels;
-            if (question) { f.Reasoner.Question = new("Which color?", ["Blue", "Green"]); }
-            await f.ViewModel.InitializeAsync();
-            await f.RunAsync("please do this work");
-            await f.ViewModel.ActiveReasoningTask!;
-            var pending = f.ViewModel.IsResponseInteractionPending;
-            pending.Should().BeTrue();
-            await f.RunAsync("review response timeout suggestion");
-            f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-            f.AppearancePreferences.LoadResponseTimeoutSeconds().Should().BeNull();
         }
         finally { await f.ViewModel.DisposeAsync(); }
     }

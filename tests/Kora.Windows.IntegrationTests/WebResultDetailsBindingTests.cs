@@ -118,8 +118,7 @@ public sealed class WebResultDetailsBindingTests
                 clipboard.Writes.Should().ContainSingle().Which.Should().Be(view.State.Content!.Source);
                 transport.SendCalls.Should().Be(1);
                 transport.ResolveCalls.Should().Be(1);
-                fixture.Main.IsModelQuestionPending.Should().BeFalse();
-                fixture.Main.IsModelActionApprovalPending.Should().BeFalse();
+                fixture.Main.IsResponseInteractionPending.Should().BeFalse();
 
                 await RetrieveAsync(fixture);
                 Dispatcher.UIThread.RunJobs();

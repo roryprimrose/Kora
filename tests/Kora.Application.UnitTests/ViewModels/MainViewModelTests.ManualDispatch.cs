@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Core.Communication;
@@ -9,26 +9,22 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task OriginalTypedAndActivatedVoiceManualDispatchControlsNeedNoModelOrActionApproval(bool voice)
+    [Fact]
+    public async Task DispatchCommandCannotStealTheCurrentQuestionAnswer()
     {
-        var fixture = await Fixture.CreateInitializedAsync();
+        var fixture = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(fixture);
+        fixture.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
+        await fixture.ViewModel.InitializeAsync();
         var store = BindManualDispatchCommands(fixture);
-        var id = store.Session.Authority.SessionId.Value.ToString("D");
-        foreach (var verb in new[] { "pause", "status", "resume" })
-        {
-            var input = "session dispatch " + verb + " " + id;
-            if (voice) { await fixture.RaiseActivatedTranscriptAsync("Kora, " + input, 1); }
-            else { await fixture.RunAsync(input); }
-            fixture.ViewModel.ResponseTitle.Should().Be("Session command observed.");
-            fixture.ViewModel.ResponseBody.Should().Contain("No activity renewal, action approval, replay or diagnostic queue change.");
-        }
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
-        fixture.Reasoner.Requests.Should().BeEmpty();
-        store.RequestRetentions.Should().Be(0);
-        fixture.HostStore.Records.Should().BeEmpty();
+        await pendingDetails.PresentAsync();
+        var title = fixture.ViewModel.ResponseTitle;
+        var question = fixture.ViewModel.CurrentDetailsOffer;
+        await fixture.RunAsync("session dispatch pause " + store.Session.Authority.SessionId.Value.ToString("D"));
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be(title);
+        fixture.ViewModel.CurrentDetailsOffer.Should().BeSameAs(question);
+        fixture.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, "conversation.manual-dispatch-hold", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -65,24 +61,8 @@ public sealed partial class MainViewModelTests
         await fixture.RaiseActivatedTranscriptAsync((fault is "unprefixed" ? "" : "Kora, ")
             + "session dispatch pause " + store.Session.Authority.SessionId.Value.ToString("D"), 1);
         fixture.ViewModel.ResponseTitle.Should().NotBe("Session command observed.");
-        fixture.Reasoner.Requests.Should().BeEmpty();
-        store.RequestRetentions.Should().Be(0);
-        fixture.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, "conversation.manual-dispatch-hold", StringComparison.Ordinal));
-    }
 
-    [Fact]
-    public async Task DispatchCommandCannotStealTheCurrentQuestionAnswer()
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await fixture.ViewModel.InitializeAsync();
-        var store = BindManualDispatchCommands(fixture);
-        await fixture.RunAsync("choose");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        await fixture.RunAsync("session dispatch pause " + store.Session.Authority.SessionId.Value.ToString("D"));
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.ResponseTitle.Should().Be("Session command blocked.");
+        store.RequestRetentions.Should().Be(0);
         fixture.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, "conversation.manual-dispatch-hold", StringComparison.Ordinal));
     }
 

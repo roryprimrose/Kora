@@ -39,7 +39,6 @@ public sealed partial class MainViewModel
         internal CallPolicyObservation? PushToTalkCall { get; init; }
         internal AttachmentCataloguePreparationCommand? CataloguePreparation { get; init; }
         internal Func<bool> CatalogueEligible { get; init; } = static () => true;
-        internal Kora.Application.Presentation.ModelActionReviewTarget? ModelActionReview { get; init; }
         internal Func<bool> NamedSkillChoiceEligible { get; init; } = static () => false;
         internal Func<bool>? WakeActivationCurrent { get; init; }
         internal Func<Kora.Application.Voice.HandsFreeVoiceContinuation>? RoutingWakeContinuation { get; init; }
@@ -84,7 +83,6 @@ public sealed partial class MainViewModel
             AssistantNameRevision = assistantNameConfiguration.Get().Revision,
             OwnershipBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
             InputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision),
-            ModelActionReview = pendingModelActionReview,
             NamedSkillChoiceEligible = namedSkillChoiceCapture?.Invoke() ?? (static () => false),
         };
     }
@@ -351,7 +349,6 @@ public sealed partial class MainViewModel
                 OnPropertyChanged(nameof(AreReusableGrantsIgnored));
                 OnPropertyChanged(nameof(CanEnableCallVisualProtection));
                 OnPropertyChanged(nameof(CanDisableCallVoiceActivation));
-                GrantDocumentChanged?.Invoke(this, GetGrantDocument());
                 NotifyOutputPolicyChanged();
                 if (withhold && feedbackRevision == inCallFeedbackConfiguration?.Get().Revision)
                 {
@@ -436,15 +433,4 @@ public sealed partial class MainViewModel
         return outcome;
     }
 
-    private bool CanReuseLegacyModelGrant(BuiltInAction action) =>
-        !auditEvidenceUnavailable && Volatile.Read(ref pendingAuditWrites) == 0
-        && !modelPreferenceWriteActive && !modelPreferencesUnavailable
-        && IsCallMutationHostEligible
-        && (sessionAllowedModelActions.Contains(action) || alwaysAllowedModelActions.Contains(action));
-
-    private bool IsModelCallDispatchEligible(SecurityAuditInitiator initiator, long? observedCallRevision) =>
-        initiator != SecurityAuditInitiator.ModelSuggestion
-        || Volatile.Read(ref pendingAuditWrites) == 0
-            && !modelPreferenceWriteActive && !modelPreferencesUnavailable && IsCallMutationHostEligible
-            && observedCallRevision is not null;
 }

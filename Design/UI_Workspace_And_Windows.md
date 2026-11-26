@@ -267,7 +267,7 @@ review or confirmation. Its narrow layout stacks the bounded reading panes.
 
 The [full session-management view](../src/Kora/SessionsManagementView.axaml) now shares the same owner and selected-session model with Chat. Create/rename, lifecycle, retention, work, providers and existing conversation controls remain available without another management window. Leaving or minimizing retires native reviews; narrow layouts stack the session list and selected work.
 
-Collapse retains the selected [compact named composer](../src/Kora/ResponseWindow.Sessions.cs), not an independent compact window. **Current interaction** explicitly shows the original response/question controls without changing the named composer's unsent text. Explicit model-action review returns to those original controls, never treating the named composer as its confirmation input.
+Collapse retains the selected [compact named composer](../src/Kora/ResponseWindow.Sessions.cs), not an independent compact window. **Current interaction** explicitly shows the original response/question controls without changing the named composer's unsent text. The legacy model-action review controls are retired ([response surface](../src/Kora/ResponseWindow.axaml)).
 
 The [bounded workbench command routes](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs) include exact-session conversation history, focused Presence settings, registered MCP metadata and registered-first WorkIQ lookup through typed and activated-voice input. History reads a bounded exact page; Presence scrolls/focuses its existing subsection without writes; MCP lookup does not read endpoints into the editor, connect or invoke a model.
 

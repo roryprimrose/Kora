@@ -1,4 +1,4 @@
-using System.Threading.Channels;
+﻿using System.Threading.Channels;
 using System.Reflection;
 using AwesomeAssertions;
 using Kora.Application.ViewModels;
@@ -142,7 +142,7 @@ public sealed partial class MainViewModelTests
             }
             else { fixture.ViewModel.ResponseTitle.Should().Be(name + " version"); }
         }
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ViewModel.Dispose();
     }
 
@@ -171,7 +171,7 @@ public sealed partial class MainViewModelTests
         await stage.NextAsync();
         stage.OpenCount.Should().Be(2);
         fixture.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ViewModel.Dispose();
     }
 
@@ -272,7 +272,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Kora version");
         completingStatus.Should().Be("Microphone closed - completing activated command");
         voice.Changed -= observe;
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         first.IsQuiescent.Should().BeTrue();
         second.Binding.Generation.Should().NotBe(first.Binding.Generation);
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
@@ -460,7 +460,7 @@ public sealed partial class MainViewModelTests
         var rejected = () => callback(new("help", 1,
             change is "generation" ? voice.Generation - 1 : voice.Generation, new UnknownWakeEvidence()), request, activation);
         await rejected.Should().ThrowAsync<InvalidOperationException>();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Voice.StartCalls.Should().Be(0);
         stage.OpenCount.Should().Be(0);
         fixture.ViewModel.Dispose();

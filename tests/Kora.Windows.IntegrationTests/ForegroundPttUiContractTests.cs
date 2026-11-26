@@ -1,4 +1,4 @@
-using Avalonia.Automation.Peers;
+﻿using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
@@ -146,52 +146,6 @@ public sealed partial class ForegroundPttUiContractTests
     }
 
     [Theory]
-    [InlineData(false, Key.Space)]
-    [InlineData(false, Key.Enter)]
-    [InlineData(true, Key.Space)]
-    [InlineData(true, Key.Enter)]
-    public async Task PendingInteractionDeniesShortcutButPreservesExplicitMicrophoneButton(bool approval, Key key)
-    {
-        await HeadlessSession.RunAsync(async () =>
-        {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true);
-            await using var admission = new AudioControlAdmission(fixture.Interactions, fixture.Interactions, new(fixture.Tasks));
-            var configuration = new ForegroundPttConfigurationService(new(fixture), admission, fixture.Audit);
-            var reasoner = new PendingReasoner(approval);
-            await fixture.InitializeAsync(null, foregroundPtt: configuration, modelReasoner: reasoner, modelProbe: reasoner);
-            await SaveShortcut(fixture, ForegroundPttShortcut.ControlShiftSpace);
-            fixture.Main.BindVoiceOwnershipGate(static () => true);
-            await fixture.Main.SetVoiceConsentAsync(true);
-            await fixture.Main.ToggleListeningCommand.ExecuteAsync();
-            fixture.Main.CommandText = "please secure this workstation";
-            await fixture.Main.RunTypedCommand.ExecuteAsync();
-            await fixture.Main.ActiveReasoningTask!;
-            Dispatcher.UIThread.RunJobs();
-            fixture.Main.IsResponseInteractionPending.Should().BeTrue();
-            var response = new ResponseWindow(fixture.Main);
-            try
-            {
-                response.Show(); Activate(response); response.UpdateLayout();
-                var button = response.FindControl<Button>("PushToTalkButton")!;
-                button.Focus().Should().BeTrue();
-                Press(response, Key.Space); Release(response, Key.Space);
-                fixture.Voice.StartCalls.Should().Be(0);
-                response.KeyPress(key, RawInputModifiers.None,
-                    key == Key.Space ? PhysicalKey.Space : PhysicalKey.Enter, null);
-                await fixture.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
-                fixture.Main.IsListening.Should().BeTrue("the button retains its original question/approval command route");
-                fixture.Main.IsResponseInteractionPending.Should().BeTrue();
-                Release(response, key);
-                fixture.Voice.EndCalls.Should().Be(1);
-                fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
-                fixture.Main.IsModelActionApprovalPending.Should().Be(approval);
-                fixture.Main.IsModelQuestionPending.Should().Be(!approval);
-            }
-            finally { response.Close(); }
-        });
-    }
-
-    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task CancellationAndDisposalKeepTheHoldSlotUntilActualRelease(bool opening)
@@ -311,18 +265,6 @@ public sealed partial class ForegroundPttUiContractTests
 
     private static void Press(Window window, Key key) => window.KeyPress(key, Chord,
         key == Key.Space ? PhysicalKey.Space : PhysicalKey.F9, null);
-    private sealed class PendingReasoner(bool approval) : ILocalModelReasoner, ISetupDependencyProbe
-    {
-        public string TaskId => "local.inference";
-        public string TaskName => "Synthetic pending interaction";
-        public ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new DependencyStatus(TaskId, TaskName, DependencyReadiness.Ready, "Synthetic implementation seam only."));
-        public Task<LocalModelResponse> ReasonAsync(string request, LocalModelContext context, LocalModelArtifact? artifact,
-            CancellationToken cancellationToken) => Task.FromResult(approval
-                ? new LocalModelResponse(null, BuiltInAction.EnableHostedModels)
-                : new LocalModelResponse(null, null, Question: new("Which target?", ["One", "Two"])));
-    }
-
     private static void Release(Window window, Key key) => window.KeyRelease(key, RawInputModifiers.None,
         key == Key.Space ? PhysicalKey.Space : key == Key.F9 ? PhysicalKey.F9 : PhysicalKey.None, null);
     private static void Deactivate(Window window) => HeadlessSession.SetActivation(window, false);

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using AwesomeAssertions;
 
@@ -17,6 +17,24 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task PendingQuestionBlocksExplicitRequestWithoutStealingAnswerOrAuthority()
+    {
+        var fixture = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(fixture);
+        fixture.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
+        await fixture.ViewModel.InitializeAsync();
+        var store = BindRequestCommands(fixture);
+        await pendingDetails.PresentAsync();
+        var title = fixture.ViewModel.ResponseTitle;
+        var question = fixture.ViewModel.CurrentDetailsOffer;
+        await fixture.RunAsync("session request review " + store.Session.Authority.SessionId.Value.ToString("D") + " 1 0 -- One");
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be(title);
+        fixture.ViewModel.CurrentDetailsOffer.Should().BeSameAs(question);
+        store.RequestRetentions.Should().Be(0);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -41,7 +59,7 @@ public sealed partial class MainViewModelTests
         admission.Context.SystemPolicy.Should().Contain("Proposals never save settings");
         admission.CopilotCalls.Should().Be(0);
         store.RequestMessage!.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -103,7 +121,7 @@ public sealed partial class MainViewModelTests
         store.RequestMessage!.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
         store.RequestMessage.Reason.Should().Be(ModelTurnReason.GenerationNotEnabled);
         store.RequestRetentions.Should().Be(1);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -131,7 +149,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Session command retained.");
         store.RequestMessage!.Body.Should().Be(body);
         store.RequestMessage.Request.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await fixture.RunAsync(confirm);
         fixture.ViewModel.ResponseTitle.Should().Be("Session command not confirmed.");
         store.RequestRetentions.Should().Be(1);
@@ -169,7 +187,7 @@ public sealed partial class MainViewModelTests
         admission.Context.UserRequest.Should().Be(body);
         admission.CopilotCalls.Should().Be(1);
         admission.DefaultCalls.Should().Be(0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await fixture.RunAsync(confirm);
         fixture.ViewModel.ResponseTitle.Should().Be("Session command not confirmed.");
         admission.CopilotCalls.Should().Be(1);
@@ -213,7 +231,7 @@ public sealed partial class MainViewModelTests
         store.RequestRetentions.Should().Be(0);
         admission.CopilotCalls.Should().Be(0);
         admission.DefaultCalls.Should().Be(0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -236,7 +254,7 @@ public sealed partial class MainViewModelTests
         if (reason is "invalid") { command = "session request review selected -- original"; }
         await fixture.RaiseActivatedTranscriptAsync((reason is "unprefixed" or "unprefixed-unbound" ? "" : "Kora, ") + command, 1);
         fixture.ViewModel.ResponseTitle.Should().NotBe("Session command review.");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         store.RequestRetentions.Should().Be(0);
     }
 
@@ -277,22 +295,6 @@ public sealed partial class MainViewModelTests
             await fixture.RunAsync("session request confirm " + session + " " + review);
             fixture.ViewModel.ResponseTitle.Should().Be("Session command not confirmed.");
         }
-        store.RequestRetentions.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PendingQuestionBlocksExplicitRequestWithoutStealingAnswerOrAuthority()
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await fixture.ViewModel.InitializeAsync();
-        var store = BindRequestCommands(fixture);
-        await fixture.RunAsync("choose");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        await fixture.RunAsync("session request review " + store.Session.Authority.SessionId.Value.ToString("D") + " 1 0 -- One");
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.ResponseTitle.Should().Be("Session command blocked.");
         store.RequestRetentions.Should().Be(0);
     }
 

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Maintenance;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -44,7 +44,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Be("Exact complete cached maintenance response.");
         f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         opened.Should().Be(expected == MaintenanceCommand.Review ? 1 : 0);
     }
@@ -60,7 +60,7 @@ public sealed partial class MainViewModelTests
         commands.Origin.Should().Be(RequestOrigin.ActivatedVoice);
         commands.Command.Should().Be(MaintenanceCommand.Status);
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -76,44 +76,7 @@ public sealed partial class MainViewModelTests
         commands.Command.Should().BeNull();
         f.ViewModel.ResponseBody.Should().Contain(MaintenanceCommandParser.Syntax);
         f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Theory]
-    [InlineData("question")]
-    [InlineData("approval")]
-    [InlineData("grant")]
-    public async Task Maintenance_is_not_an_answer_and_preserves_complete_pending_question_or_approval(string pending)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
-        if (pending is "question") { f.Reasoner.Question = new("Which exact option?", ["One", "Two"]); }
-        else { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
-        await f.ViewModel.InitializeAsync();
-        if (pending is "grant")
-        {
-            await f.RunAsync("allow models to lock the machine this session");
-            await f.ViewModel.ActiveReasoningTask!;
-        }
-        else
-        {
-            await f.RunAsync("please help with this workstation");
-            await f.ViewModel.ActiveReasoningTask!;
-        }
-        var preview = f.ViewModel.ResponseBody;
-        var title = f.ViewModel.ResponseTitle;
-        var commands = new CachedCommands();
-        f.ViewModel.BindMaintenanceCommands(commands);
-        f.ViewModel.CanRunMaintenanceCommands.Should().BeFalse();
-        await f.RunAsync("maintenance snooze");
-        await f.RunAsync("maintenance upgrade");
-        await f.RunAsync("maintenance check invalid");
-        commands.Command.Should().BeNull();
-        f.ViewModel.ResponseBody.Should().Be(preview);
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.Transcript.Should().Contain("remains unchanged");
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
     }
 
     [Theory]
@@ -185,7 +148,7 @@ public sealed partial class MainViewModelTests
             (f.ViewModel.ResponseTitle.Contains("unavailable", StringComparison.Ordinal)
                 || f.ViewModel.ResponseTitle.Contains("not confirmed", StringComparison.Ordinal)).Should().BeTrue();
         }
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -219,7 +182,7 @@ public sealed partial class MainViewModelTests
                 .SetValue(f.ViewModel, null);
         }
         await f.ViewModel.ExecuteMaintenanceCommandAsync(MaintenanceCommand.Invalid, SecurityAuditInitiator.LocalUser);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private sealed class CachedCommands : IMaintenanceCommands

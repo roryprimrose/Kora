@@ -50,7 +50,6 @@ public sealed partial class MainViewModelTests
         f.ViewModel.Transcript.Should().NotContain("private folder");
         f.ViewModel.ResponseBody.Should().NotContain(FolderInspector.Text);
         f.HostStore.Records.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
         f.ClipboardReader.Calls.Should().Be(0);
         if (model.Context is { } context)
         {
@@ -90,7 +89,6 @@ public sealed partial class MainViewModelTests
         model.Context.Should().BeNull();
         inspector.Reads.Should().Be(2);
         f.HostStore.Records.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
     }
 
     [Fact]
@@ -217,7 +215,6 @@ public sealed partial class MainViewModelTests
         result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
         result.Claims.Should().BeEmpty();
         preview.IsQuiescent.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
     }
 
     [Theory]

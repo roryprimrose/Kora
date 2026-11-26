@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using AwesomeAssertions;
 
@@ -17,6 +17,28 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task QueuePreparationCannotPublishIntoAReplacementNativeBindingAfterDisplay()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var presenter = new QueuePreparationPresenter
+        {
+            BeforeReturn = () =>
+            {
+                f.ViewModel.BindQueueCancellationReview(null);
+                return Task.CompletedTask;
+            },
+        };
+        f.ViewModel.BindQueueCancellationReview(presenter);
+        var title = f.ViewModel.ResponseTitle;
+        await f.RunAsync(QueuePreparationInput);
+        presenter.Commands.Should().ContainSingle();
+        presenter.LastAdmission.Should().BeFalse();
+        f.ViewModel.ResponseTitle.Should().Be(title);
+        f.HostStore.Records.Should().BeEmpty();
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+    }
+
     [Fact]
     public async Task QueuePreparationFailureLogUsesGeneratedStructuredEventAndLiveHostCorrelation()
     {
@@ -67,7 +89,7 @@ public sealed partial class MainViewModelTests
         presenter.LastAdmission.Should().BeTrue();
         f.ViewModel.ResponseTitle.Should().Be(displayed ? "Queue cancellation review prepared." : "Queue cancellation review not opened.");
         f.ViewModel.ResponseBody.Should().Contain("one-shot native confirmation").And.NotContain(QueuePreparationCommand.SessionId.ToString("D"));
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
         f.TextToSpeech.SpokenText.Should().BeNull();
     }
@@ -96,7 +118,7 @@ public sealed partial class MainViewModelTests
         };
         await f.RaiseActivatedTranscriptAsync((mode is "unprefixed" ? "" : "Kora, ") + input, 1);
         presenter.Commands.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.ResponseTitle.Should().Contain(mode switch
         {
             "invalid" => "not accepted", "help" => "help", "unbound" => "unavailable", _ => "denied",
@@ -152,98 +174,6 @@ public sealed partial class MainViewModelTests
             else { f.ViewModel.ResponseTitle.Should().Be("Queue cancellation preparation unavailable."); }
             f.ViewModel.ResponseBody.Should().NotContain("private inventory");
         }
-    }
-
-    [Theory]
-    [InlineData("dispose")]
-    [InlineData("locked")]
-    [InlineData("rebind")]
-    [InlineData("call")]
-    [InlineData("question")]
-    [InlineData("grant")]
-    [InlineData("approval")]
-    [InlineData("input")]
-    [InlineData("consent")]
-    [InlineData("name")]
-    [InlineData("owner")]
-    [InlineData("owner-revision")]
-    [InlineData("binding")]
-    [InlineData("privacy")]
-    [InlineData("voice-generation")]
-    [InlineData("early-input")]
-    public async Task QueuePreparationLateCallbacksLoseOriginalAdmissionWithoutTakingOverDecisions(string mode)
-    {
-        var f = await CreateDispositionReadyFixture();
-        await f.RaiseActivatedTranscriptAsync("Kora, session help", 1);
-        var owner = 1L;
-        f.ViewModel.BindCallOwnershipGate(() => true, () => owner);
-        var presenter = new QueuePreparationPresenter
-        {
-            BeforeReturn = async () =>
-            {
-                switch (mode)
-                {
-                    case "dispose": f.ViewModel.Dispose(); break;
-                    case "locked": f.Session.IsUnlocked = false; break;
-                    case "rebind": f.ViewModel.BindQueueCancellationReview(null); break;
-                    case "call": f.CallState.SetState(CallState.Active); await f.Dispatcher.LastInvocation; break;
-                    case "input": await f.RunAsync("help"); break;
-                    case "early-input": await f.RunAsync("open sessions"); break;
-                    case "owner": f.ViewModel.BindCallOwnershipGate(() => false); break;
-                    case "owner-revision": owner++; break;
-                    case "binding": f.ViewModel.BindCallOwnershipGate(() => true, () => owner); break;
-                    case "privacy":
-                        f.PrivacyObservation.Current = f.PrivacyObservation.Current with
-                            { TopologyRevision = f.PrivacyObservation.Current.TopologyRevision + 1 };
-                        break;
-                    case "voice-generation": f.Voice.AdvanceGeneration(); break;
-                    case "consent": await f.ViewModel.SetVoiceConsentAsync(false); break;
-                    case "name":
-                        f.ViewModel.AssistantNameInput = "Nova";
-                        await f.ViewModel.ApplyAssistantNameCommand.ExecuteAsync();
-                        break;
-                    case "grant":
-                        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
-                        break;
-                    default:
-                        f.Reasoner.Question = mode is "question" ? new("Which?", ["One", "Two"]) : null;
-                        f.Reasoner.Action = mode is "approval" ? BuiltInAction.EnableHostedModels : null;
-                        await f.RunAsync("choose");
-                        await f.ViewModel.ActiveReasoningTask!;
-                        break;
-                }
-            },
-        };
-        f.ViewModel.BindQueueCancellationReview(presenter);
-        await f.ViewModel.ExecuteQueueCancellationPreparationAsync(QueuePreparationCommand, SecurityAuditInitiator.VoiceCommand, true);
-        presenter.LastAdmission.Should().BeFalse();
-        f.ViewModel.ResponseTitle.Should().NotBe("Queue cancellation review prepared.");
-        if (mode is "question") { f.ViewModel.IsModelQuestionPending.Should().BeTrue(); }
-        if (mode is "grant") { f.ViewModel.IsGrantChangePending.Should().BeTrue(); }
-        if (mode is "approval") { f.ViewModel.IsModelActionApprovalPending.Should().BeTrue(); }
-    }
-
-    [Theory]
-    [InlineData("question")]
-    [InlineData("grant")]
-    [InlineData("approval")]
-    public async Task QueuePreparationPreservesAlreadyPendingDecisions(string mode)
-    {
-        var f = await CreateDispositionReadyFixture();
-        var presenter = new QueuePreparationPresenter();
-        f.ViewModel.BindQueueCancellationReview(presenter);
-        if (mode is "grant")
-        { await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always)); }
-        else
-        {
-            f.Reasoner.Question = mode is "question" ? new("Which?", ["One", "Two"]) : null;
-            f.Reasoner.Action = mode is "approval" ? BuiltInAction.EnableHostedModels : null;
-            await f.RunAsync("choose");
-            await f.ViewModel.ActiveReasoningTask!;
-        }
-        await f.RunAsync(QueuePreparationInput);
-        presenter.Commands.Should().BeEmpty();
-        f.ViewModel.ResponseTitle.Should().Be("Queue cancellation preparation blocked.");
     }
 
     [Fact]

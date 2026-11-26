@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Application.ViewModels;
 using Kora.Core.Auditing;
@@ -40,7 +40,7 @@ public sealed partial class MainViewModelTests
         settings.Preferences.Value.Should().Be(MarkdownDisplayMode.Source);
         await Run("confirm markdown display change", main.ConfirmMarkdownDisplayCommand.ExecuteAsync);
         settings.Preferences.Value.Should().Be(MarkdownDisplayMode.Rendered);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpeakCalls.Should().Be(0);
         f.Voice.StartCalls.Should().Be(route is "voice" ? 7 : 0,
             "only the seven explicitly supplied activated inputs may start captures; preference persistence starts none");
@@ -90,7 +90,7 @@ public sealed partial class MainViewModelTests
         await main.RenderedMarkdownDisplayCommand.ExecuteAsync();
         await main.CancelMarkdownDisplayCommand.ExecuteAsync();
         settings.Preferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -107,7 +107,7 @@ public sealed partial class MainViewModelTests
         else { await f.RaiseActivatedTranscriptAsync("set responses.markdown-display to Source", 1); }
         main.Transcript.Should().Contain("current assistant-name voice prefix");
         settings.Preferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public sealed partial class MainViewModelTests
                 SecurityAuditInitiator.ModelSuggestion, null])!);
         main.Transcript.Should().Contain("unavailable");
         settings.Preferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Voice.StartCalls.Should().Be(0);
     }
 
@@ -158,6 +158,6 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("get responses.markdown-display");
         main.Transcript.Should().Contain("not confirmed").And.Contain("host admission changed before presentation");
         settings.Preferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

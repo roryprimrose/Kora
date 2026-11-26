@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Skills;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -7,6 +7,23 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task SharedSkillCommandsCannotReplacePendingQuestionOrApproval()
+    {
+        var f = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await f.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var called = false;
+        f.ViewModel.SharedSkillInvocationRequested += (_, _, _) => { called = true; return Task.CompletedTask; };
+        var body = f.ViewModel.ResponseBody;
+        await f.RunAsync("shared skill confirm invocation");
+        called.Should().BeFalse();
+        f.ViewModel.ResponseBody.Should().Be(body);
+        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -35,7 +52,7 @@ public sealed partial class MainViewModelTests
         }
         received.Select(command => command.Action).Should().Equal("McpQuestion", "McpReviewAnswer", "McpConfirmAnswer", "McpCancelAnswer");
         received[0].Argument.Should().Be("  unchanged new question\r\n ");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -69,7 +86,7 @@ public sealed partial class MainViewModelTests
         commands.Select(command => command.Action).Should().Equal("Review", "Targets", "Target", "Address",
             "SecondAddress", "SecondAddress", "SecondAddress", "Request", "ReviewToolRevision", "Enable", "Prepare", "Invoke", "Close");
         commands.Single(command => command.Action is "Request").Argument.Should().Be("  exact comparison  ");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -101,25 +118,7 @@ public sealed partial class MainViewModelTests
         received.Select(item => item.Action).Should().Equal("Review", "Enable", "Request", "Target", "Prepare", "Invoke", "Close");
         received.Single(item => string.Equals(item.Action, "Request", StringComparison.Ordinal)).Argument.Should().Be("  original prose  ");
         origins.Should().OnlyContain(origin => origin == (voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi));
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task SharedSkillCommandsCannotReplacePendingQuestionOrApproval()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        f.Reasoner.Question = new("Keep this exact question?", ["one", "two"]);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("please do this work");
-        await f.ViewModel.ActiveReasoningTask!;
-        var called = false;
-        f.ViewModel.SharedSkillInvocationRequested += (_, _, _) => { called = true; return Task.CompletedTask; };
-        var body = f.ViewModel.ResponseBody;
-        await f.RunAsync("shared skill confirm invocation");
-        called.Should().BeFalse();
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
     }
 
     [Fact]
@@ -159,6 +158,6 @@ public sealed partial class MainViewModelTests
         f.ViewModel.SharedSkillInvocationRequested += (_, _, _) => { calls++; return Task.CompletedTask; };
         await f.RunAsync("Kora, shared skill enable");
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

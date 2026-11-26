@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using AwesomeAssertions;
 
@@ -102,7 +102,7 @@ public sealed partial class MainViewModelTests
             first.IsQuiescent.Should().BeTrue();
             conversation.Turns.IsQuiescent.Should().BeTrue();
             f.ViewModel.ResponseBody.Should().NotContain(WakeAnswerAdapter.Answer);
-            f.Reasoner.Requests.Should().BeEmpty();
+
         }
         finally
         {
@@ -165,7 +165,7 @@ public sealed partial class MainViewModelTests
             conversation.RouteCalls.Should().Be(1);
             conversation.Store.RequestMessage!.AssistantResponse!.Body.Should().Be(WakeAnswerAdapter.Answer);
             f.ViewModel.HasReviewedVoiceCommand.Should().BeFalse();
-            f.Reasoner.Requests.Should().BeEmpty();
+
         }
         finally
         {
@@ -210,7 +210,7 @@ public sealed partial class MainViewModelTests
         conversation.Adapter.Request.SessionId.Should().Be(conversation.Store.Session.Authority.SessionId);
         conversation.Store.RequestMessage!.Body.Should().Be(body);
         conversation.Store.RequestMessage.AssistantResponse.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
 
         conversation.Adapter.Release.SetResult();
         await stage.NextAsync();
@@ -249,7 +249,7 @@ public sealed partial class MainViewModelTests
         conversation.Store.RequestMessage.Reason.Should().Be(ModelTurnReason.QualificationPending);
         conversation.Store.RequestMessage.AssistantResponse.Should().BeNull();
         conversation.Adapter.Calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.ToggleListeningCommand.ExecuteAsync();
         await voice.Completion;
         f.ViewModel.Dispose();
@@ -290,7 +290,7 @@ public sealed partial class MainViewModelTests
         conversation.Store.RequestRetentions.Should().Be(0);
         conversation.Adapter.Calls.Should().Be(0);
         f.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         stage.OpenCount.Should().Be(1);
         f.ViewModel.Dispose();
     }
@@ -351,7 +351,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
         stage.OpenCount.Should().Be(1);
         routes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
         f.ViewModel.Dispose();
     }
@@ -412,7 +412,7 @@ public sealed partial class MainViewModelTests
         await voice.Completion;
         routes.Should().Be(0);
         store.RequestRetentions.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
         stage.OpenCount.Should().Be(1);
         f.ViewModel.Dispose();
@@ -438,7 +438,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync(fabricated ? "Nova, compare these plans" : "compare these plans",
             1, fabricated ? new UnknownWakeEvidence() : null);
         routes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
         stage.OpenCount.Should().Be(0);
         if (!fabricated)
@@ -471,7 +471,7 @@ public sealed partial class MainViewModelTests
         routes.Should().Be(0);
         voice.IsCaptureQuiescent.Should().BeFalse();
         voice.State.Should().Be(HandsFreeVoiceState.RecoveryRequired);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
         stage.OpenCount.Should().Be(1);
         f.ViewModel.Dispose();
@@ -490,8 +490,9 @@ public sealed partial class MainViewModelTests
         first.Wake.SetResult(new(first.Binding.Generation, 12, true));
         first.Result.SetResult(new("compare these plans", 1, first.Binding.Generation));
         await stage.NextAsync();
-        f.ViewModel.ResponseTitle.Should().Be("Session routing unavailable.");
-        f.Reasoner.Requests.Should().BeEmpty();
+        f.ViewModel.ResponseTitle.Should().Be("Model request unavailable.");
+        f.ViewModel.ResponseBody.Should().StartWith("Nothing was sent.");
+
         await f.ViewModel.ToggleListeningCommand.ExecuteAsync();
         await voice.Completion;
         f.ViewModel.Dispose();
@@ -520,15 +521,14 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.InitializeAsync();
         var opened = await stage.NextAsync();
         Kora.Core.Diagnostics.HostActivity? differentChannel = null;
-        void WindowRequested(object? sender, Kora.Application.ViewModels.WindowAction action)
+        if (change is "channel")
         {
-            if (change is "channel" && action == Kora.Application.ViewModels.WindowAction.ShowPresence && differentChannel is null)
+            f.Dispatcher.BeforeInvoke = () =>
             {
                 differentChannel = Kora.Core.Diagnostics.HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
                     Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
-            }
+            };
         }
-        f.ViewModel.WindowActionRequested += WindowRequested;
         if (change is "call-owner")
         { f.Dispatcher.BeforeInvoke = () => f.ViewModel.BindCallOwnershipGate(static () => false); }
         if (change is "call-owner-loss")
@@ -548,6 +548,7 @@ public sealed partial class MainViewModelTests
         {
             "call-owner" => "The command could not be completed.",
             "call-owner-loss" => "Session routing stopped.",
+            "channel" => "The command could not be completed.",
             _ => "Voice request retired.",
         };
         void Presented(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
@@ -570,13 +571,14 @@ public sealed partial class MainViewModelTests
             terminal.Task.IsCompletedSuccessfully.Should().BeTrue();
             f.ViewModel.ResponseTitle.Should().Be(expected);
             calls.Should().Be(0);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
         }
         finally
         {
             f.ViewModel.PropertyChanged -= Presented;
-            f.ViewModel.WindowActionRequested -= WindowRequested;
+            differentChannel?.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Cancelled);
+            differentChannel?.Dispose();
             if (dictation is not null) { dictation.Changed -= Retired; }
             await voice.StopAsync(TestContext.Current.CancellationToken);
             await voice.Completion;
@@ -603,7 +605,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("compare these plans");
         calls.Should().Be(1);
         lease.Disposed.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
     }
 

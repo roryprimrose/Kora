@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Core.Auditing;
@@ -35,7 +35,6 @@ public sealed partial class MainViewModelTests
         }
         var read = Read();
         await f.TextToSpeech.SpeakStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
-        f.Reasoner.Requests.Clear();
         return (f, target, read);
     }
 
@@ -61,7 +60,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsCurrentResponseReadActive.Should().BeFalse();
         f.TextToSpeech.IsSpeaking.Should().BeFalse();
         f.Voice.IsCaptureQuiescent.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         var audits = f.Audit.Events.Where(item => string.Equals(item.ActionId, "speech.interrupt", StringComparison.Ordinal)).ToArray();
         audits.Should().HaveCount(2);
         audits[0].Initiator.Should().Be(voice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand);
@@ -104,7 +103,7 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.StopCalls.Should().Be(calls);
         f.TextToSpeech.IsSpeaking.Should().BeTrue();
         read.IsCompleted.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, "speech.interrupt", StringComparison.Ordinal)
             && item.Outcome == SecurityAuditOutcome.Succeeded);
         f.TextToSpeech.SpeakGate!.TrySetResult();

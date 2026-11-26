@@ -78,16 +78,14 @@ failure messages run through the UI dispatcher.
 Manual changes bind original `RequestOrigin` and observed call revision, then
 recheck live ownership/privacy immediately before application. Host-system or
 unknown mutation origin is not UI authority. Existing voice/input/output and
-approval-prefix preference surfaces also use the protected-call origin rule;
+preference surfaces also use the protected-call origin rule;
 later UI confirmation cannot relabel an admitted voice request. A stale or
 denied request is not deferred. New UI initiation is required. Read-only status,
 stop speech, disable listening and cancellation remain available.
 
-Protected calls ignore legacy Session/Always action-name reuse without changing
-the saved records. Fresh Once approval retains only its existing bounded legacy
-authority; it is not migrated to an exact content grant. Call revision changes
-invalidate pending legacy approvals and reusable dispatch, including final lock/
-restart checks after asynchronous audio shutdown. The same
+Legacy named model-action approvals and Session/Always reuse are retired;
+old preferences are ignored, not migrated to exact grants
+([retention behavior](../docs/settings.md#approvals)). The
 [host observation rule](../src/Kora.Core/Authorization/HostAuthorizationPolicy.cs)
 is used by R05 exact grants. Maintained
 [durable composition tests](../tests/Kora.Windows.IntegrationTests/CallPolicyCompositionTests.cs)

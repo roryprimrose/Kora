@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Application.UnitTests.Interaction;
@@ -15,6 +15,59 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("stop-request")]
+    [InlineData("stop-release")]
+    [InlineData("privacy")]
+    [InlineData("catalog")]
+    [InlineData("catalog-epoch")]
+    [InlineData("command-capture")]
+    [InlineData("busy")]
+    [InlineData("question")]
+    [InlineData("native-speech")]
+    [InlineData("presented-speech")]
+    public async Task EveryCurrentPttAdmissionHoldRemainsFailClosedForLiteralDictation(string hold)
+    {
+        var f = CreateVoicePrivacyFixture();
+        await using var details = new PendingDetailsQuestion(f);
+        f.ViewModel.BindVoiceOwnershipGate(static () => true);
+        f.Voice.IsLiteralDictationAvailable = true;
+        if (hold is "question")
+        {
+            f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
+        }
+        await f.ViewModel.InitializeAsync();
+        using var composer = DictationComposer(f);
+        await using var service = f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance);
+        if (hold is "stop-request") { SetField("listeningStopRequests", 1); }
+        if (hold is "privacy") { PublishVoiceSession(f, WindowsSessionState.Locked); }
+        if (hold is "stop-release")
+        {
+            var stop = typeof(MainViewModel).GetField("listeningStop", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(f.ViewModel)!;
+            stop.GetType().GetField("stopping", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(stop, 1);
+        }
+        if (hold is "catalog") { SetField("microphoneCatalogCurrent", false); }
+        if (hold is "catalog-epoch") { SetField("catalogPrivacyRevision", -1L); }
+        if (hold is "command-capture") { SetField("pushToTalkHeld", 1); }
+        if (hold is "busy") { typeof(MainViewModel).GetProperty(nameof(MainViewModel.IsBusy))!.SetValue(f.ViewModel, true); }
+        if (hold is "presented-speech") { typeof(MainViewModel).GetProperty(nameof(MainViewModel.IsSpeaking))!.SetValue(f.ViewModel, true); }
+        if (hold is "native-speech") { typeof(FakeTextToSpeechService).GetProperty(nameof(FakeTextToSpeechService.IsSpeaking))!.SetValue(f.TextToSpeech, true); }
+        if (hold is "question")
+        {
+            f.ViewModel.CaptureInstructionSaveVoiceEligibility().Should().NotBeNull();
+            await details.PresentAsync();
+            f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+            f.ViewModel.CaptureInstructionSaveVoiceEligibility().Should().BeNull();
+        }
+        await service.BeginAsync(composer, static () => true, TestContext.Current.CancellationToken);
+        service.IsActive.Should().BeFalse();
+        f.Voice.StartCalls.Should().Be(0);
+        composer.Body.Should().BeEmpty();
+        f.ViewModel.Dispose();
+        void SetField<T>(string field, T value) =>
+            typeof(MainViewModel).GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(f.ViewModel, value);
+    }
+
     [Theory]
     [InlineData("name")]
     [InlineData("input")]
@@ -85,64 +138,12 @@ public sealed partial class MainViewModelTests
         composer.Body.Should().Be("Kora, stop listening");
         f.ViewModel.IsVoiceEnabled.Should().BeTrue();
         f.VoiceConsent.Consent.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         f.ClipboardReader.Calls.Should().Be(0);
         editorCalls.Should().Be(0, "literal dictation cannot become editor authoring");
         await f.ViewModel.ExitAsync();
         f.ViewModel.Dispose();
-    }
-
-    [Theory]
-    [InlineData("stop-request")]
-    [InlineData("stop-release")]
-    [InlineData("privacy")]
-    [InlineData("catalog")]
-    [InlineData("catalog-epoch")]
-    [InlineData("command-capture")]
-    [InlineData("busy")]
-    [InlineData("question")]
-    [InlineData("native-speech")]
-    [InlineData("presented-speech")]
-    public async Task EveryCurrentPttAdmissionHoldRemainsFailClosedForLiteralDictation(string hold)
-    {
-        var f = CreateVoicePrivacyFixture();
-        f.ViewModel.BindVoiceOwnershipGate(static () => true);
-        f.Voice.IsLiteralDictationAvailable = true;
-        if (hold is "question")
-        {
-            f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-            f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        }
-        await f.ViewModel.InitializeAsync();
-        using var composer = DictationComposer(f);
-        await using var service = f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance);
-        if (hold is "stop-request") { SetField("listeningStopRequests", 1); }
-        if (hold is "privacy") { PublishVoiceSession(f, WindowsSessionState.Locked); }
-        if (hold is "stop-release")
-        {
-            var stop = typeof(MainViewModel).GetField("listeningStop", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(f.ViewModel)!;
-            stop.GetType().GetField("stopping", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(stop, 1);
-        }
-        if (hold is "catalog") { SetField("microphoneCatalogCurrent", false); }
-        if (hold is "catalog-epoch") { SetField("catalogPrivacyRevision", -1L); }
-        if (hold is "command-capture") { SetField("pushToTalkHeld", 1); }
-        if (hold is "busy") { typeof(MainViewModel).GetProperty(nameof(MainViewModel.IsBusy))!.SetValue(f.ViewModel, true); }
-        if (hold is "presented-speech") { typeof(MainViewModel).GetProperty(nameof(MainViewModel.IsSpeaking))!.SetValue(f.ViewModel, true); }
-        if (hold is "native-speech") { typeof(FakeTextToSpeechService).GetProperty(nameof(FakeTextToSpeechService.IsSpeaking))!.SetValue(f.TextToSpeech, true); }
-        if (hold is "question")
-        {
-            await f.RunAsync("choose");
-            await f.ViewModel.ActiveReasoningTask!;
-            f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        }
-        await service.BeginAsync(composer, static () => true, TestContext.Current.CancellationToken);
-        service.IsActive.Should().BeFalse();
-        f.Voice.StartCalls.Should().Be(0);
-        composer.Body.Should().BeEmpty();
-        f.ViewModel.Dispose();
-        void SetField<T>(string field, T value) =>
-            typeof(MainViewModel).GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(f.ViewModel, value);
     }
 
     [Theory]
@@ -197,7 +198,7 @@ public sealed partial class MainViewModelTests
         await service.EndAsync();
         await service.Quiescence;
         composer.Body.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         if (boundary is "ptt")
         {
             await f.ViewModel.EndPushToTalkAsync();

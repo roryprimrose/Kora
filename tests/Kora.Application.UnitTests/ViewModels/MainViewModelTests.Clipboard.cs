@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.ViewModels;
 using Kora.Core.Context;
@@ -53,7 +53,7 @@ public sealed partial class MainViewModelTests
         fixture.ClipboardExplainFake.Result = new(outcome, ClipboardOutcome.Empty);
         await fixture.ViewModel.ExplainClipboardAsync(Guid.NewGuid());
         fixture.ViewModel.ResponseTitle.Should().Contain(outcome.ToString());
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -115,7 +115,7 @@ public sealed partial class MainViewModelTests
         fixture.HostStore.Records.Should().BeEmpty();
         fixture.Audit.Events.Should().BeEmpty();
         fixture.Session.IsUnlocked.Should().BeTrue();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         var snapshot = fixture.ViewModel.ClipboardPreview;
         fixture.ClipboardReader.Text = "changed";
         await fixture.RunAsync("reuse clipboard snapshot " + snapshot!.SnapshotId.ToString("D"));
@@ -138,7 +138,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Contain("Stale");
         await fixture.RunAsync("reuse clipboard snapshot invalid");
         fixture.ViewModel.ResponseTitle.Should().Be("Clipboard snapshot ID required.");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await fixture.ViewModel.RevokeClipboardAsync();
         fixture.ViewModel.ClipboardPreview.Should().BeNull();
     }
@@ -250,7 +250,7 @@ public sealed partial class MainViewModelTests
         fixture.ClipboardReader.Text = text;
         await fixture.ViewModel.PreviewClipboardAsync();
         fixture.ViewModel.ClipboardPreview!.Text.Should().Be(text);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Audit.Events.Should().BeEmpty();
         fixture.HostStore.Records.Should().BeEmpty();
     }

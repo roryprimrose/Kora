@@ -696,30 +696,17 @@ Removal requires fresh review; close/expiry/privacy/ownership changes never appr
 
 ## Approvals
 
-Model-suggested actions that need approval offer **Once**, **This session**,
-**Always**, and **Reject** on a visible response card. Kora also accepts newly activated push-to-talk
-replies after it finishes speaking the approval question. By default, say the
-assistant name first: **"Kora, approve once"**, **"Kora, approve for this
-session"**, **"Kora, always allow this"**, or **"Kora, reject"**. The
-**Require the assistant name before a verbal approval** setting is on by
-default; turn it off to accept those replies without the name while an
-approval is pending.
-The same name-prefix setting applies to verbal answers to a model's
-clarification question. A clarification choice is not an approval; the
-response card shows numbered options separately from grant/action controls.
+**Approvals** provides **Permission grants...** for the exact-operation manager.
+The legacy named model-action list, session/always preferences, verbal-approval
+setting and model-action review controls are retired
+([settings view](../src/Kora/SettingsView.axaml)).
 
-Approvals are specific to the named built-in action. The **Approvals** tab
-lists active session and always grants separately and lets you revoke either
-kind per action. Session grants end when Kora exits, restarts, or locks
-Windows through Kora. Always grants are stored in Kora's device-local
-Preferences folder and remain until revoked. These grants are action-name-only:
-they do not authorize a script, executable, or particular implementation
-version. They govern model-suggested disruptive actions, not direct exact
-built-in phrases. Windows lock/shutdown/restart instead use the separate
-[bundled package gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge);
-these named-action grants cannot enable its unavailable runtime. Any model-suggested action that requires
-approval can use any of the three scopes; the model cannot choose the scope
-for you.
+An existing device-local `model-approvals.json` is ignored, whether valid or
+malformed. Startup does not read, import, convert, overwrite or delete it; its
+contents never become exact grants
+([composition](../src/Kora/Program.cs),
+[bootstrap regressions](../tests/Kora.Windows.IntegrationTests/DesktopBootstrapIntegrationTests.cs)).
+Exact operation grants and session permission levels remain separate and unchanged.
 
 ## Permission grants
 

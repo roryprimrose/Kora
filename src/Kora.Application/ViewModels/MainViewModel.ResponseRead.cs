@@ -1,4 +1,4 @@
-using Kora.Application.Infrastructure;
+﻿using Kora.Application.Infrastructure;
 using Kora.Application.Diagnostics;
 using Kora.Application.Voice;
 using Kora.Application.Communication;
@@ -44,7 +44,7 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
     public bool IsCurrentResponseReadActive => responseReadCancellation is not null;
     public bool CanReadCurrentResponse => Volatile.Read(ref ordinaryResponse) is not null && IsSpeechResponseEnabled
         && !speechInterruptionActive
-        && !IsProtectedCall && !IsResponseInteractionPending && !IsGrantEditorVisible
+        && !IsProtectedCall && !IsResponseInteractionPending
         && responseReadDecisionsEligible() && !IsSpeechProviderOperationActive
         && !IsBusy && !IsSpeaking && responseReadCancellation is null;
 
@@ -73,7 +73,7 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         bool ChannelEligible() => origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice
             && IsResponseSpeechEligible(callSpeechLease) && (!IsProtectedCall || callSpeechLease is not null)
             && !IsResponseInteractionPending
-            && responseReadDecisionsEligible() && !IsGrantEditorVisible && !IsBusy && !IsSpeechProviderOperationActive
+            && responseReadDecisionsEligible() && !IsBusy && !IsSpeechProviderOperationActive
             && privacyObservation.Current.TopologyRevision == privacy.TopologyRevision
             && privacyObservation.Current.MicrophoneAccess == privacy.MicrophoneAccess
             && privacyObservation.Current.SessionState == privacy.SessionState
@@ -274,7 +274,7 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
             { wakeInterruption = await StartWakeSpeechInterruptionAsync(wakeOwner, cancellation.Token); }
             var played = Eligible() && await TrySpeakCurrentResponseAsync(cancellationToken: cancellation.Token,
                 additionalEligibility: Eligible, spokenText: callSpeechLease?.Text ?? retained?.Source.AssistantResponse!.Body,
-                boundedExactReadback: retained is not null || callSpeechLease is not null, validateReadSource: retained?.Validate,
+                validateReadSource: retained?.Validate,
                 callSpeechLease: callSpeechLease, readOutcome: actual => outcome = actual);
             playbackCompleted = played;
             terminalAuditStarted = true;

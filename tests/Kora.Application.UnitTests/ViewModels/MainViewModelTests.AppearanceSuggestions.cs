@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Configuration;
 using Kora.Core.Conversation;
@@ -106,7 +106,7 @@ public sealed partial class MainViewModelTests
                     .Equal(Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
             }
             else { f.Audit.Events.Should().HaveCount(auditCount, "confirming the current default preserves the writer's no-op behavior"); }
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpokenText.Should().BeNull();
         }
         finally { await f.ViewModel.DisposeAsync(); }
@@ -170,7 +170,7 @@ public sealed partial class MainViewModelTests
             }
             f.Audit.Events.Skip(beforeAudit).Select(item => item.Outcome).Should()
                 .Equal(Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Failed);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpokenText.Should().BeNull();
         }
         finally { await f.ViewModel.DisposeAsync(); }
@@ -207,7 +207,7 @@ public sealed partial class MainViewModelTests
                 f.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.Dark);
             }
             f.ViewModel.IsReaderTypographyUpdatePending.Should().BeFalse();
-            f.Reasoner.Requests.Should().BeEmpty();
+
         }
         await f.ViewModel.DisposeAsync();
     }

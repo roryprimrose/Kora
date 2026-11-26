@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 
 using AwesomeAssertions;
@@ -53,7 +53,7 @@ public sealed partial class MainViewModelTests
         validations.Should().Be(1);
         f.TextToSpeech.SpokenText.Should().Be(source.AssistantResponse!.Body);
         f.ViewModel.ResponseBody.Should().Be(currentBody);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         var audits = f.Audit.Events.Where(item => string.Equals(item.ActionId, SpeechReadOnce.AuditActionId, StringComparison.Ordinal)).ToArray();
         audits.Should().HaveCount(2);
         audits[0].Outcome.Should().Be(SecurityAuditOutcome.Requested);
@@ -145,7 +145,7 @@ public sealed partial class MainViewModelTests
         var f = await CreateReadableResponseAsync();
         await f.RunAsync(text);
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.ReadCurrentResponseStatus.Should().Contain("not accepted");
     }
 
@@ -156,7 +156,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("read selected answer");
         f.ViewModel.ReadCurrentResponseStatus.Should().Contain("Select one exact retained");
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -199,7 +199,7 @@ public sealed partial class MainViewModelTests
         else { await f.RunAsync("read selected answer"); }
         result.Should().Contain("completed once");
         f.TextToSpeech.SpokenText.Should().Be("Retained answer only.");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -250,49 +250,6 @@ public sealed partial class MainViewModelTests
         auditRequests.Should().Equal(request, request);
     }
 
-    [Theory]
-    [InlineData("question")]
-    [InlineData("approval")]
-    [InlineData("grant")]
-    [InlineData("native")]
-    [InlineData("prompt")]
-    public async Task SelectedAnswerDeniedPendingDecisionsRemainUnchangedWithoutConsumingTheirEpochs(string pending)
-    {
-        var f = CreateSummaryFixture(SpeechProviderIds.Windows);
-        await f.ViewModel.InitializeAsync();
-        if (pending is "question" or "approval")
-        {
-            if (pending is "question") { f.Reasoner.Question = new("Choose one", ["A", "B"]); }
-            else { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
-            await f.RunAsync("choose something");
-            await f.ViewModel.ActiveReasoningTask!;
-        }
-        if (pending is "grant")
-        {
-            await f.ViewModel.PrepareGrantChangeAsync(new(Kora.Core.Commands.GrantChangeOperation.Add,
-                Kora.Core.Commands.BuiltInAction.EnableHostedModels, Kora.Core.Commands.ModelApprovalScope.Always));
-        }
-        if (pending is "native") { f.ViewModel.BindResponseReadDecisionGate(() => false); }
-        if (pending is "prompt") { f.ViewModel.BindRetainedAnswerReadDecisionGate(() => false); }
-        f.TextToSpeech.ClearSpokenResponse();
-        f.Reasoner.Requests.Clear();
-        var question = f.ViewModel.IsModelQuestionPending;
-        var approval = f.ViewModel.IsModelActionApprovalPending;
-        var grant = f.ViewModel.IsGrantChangePending;
-        var body = f.ViewModel.ResponseBody;
-        var epoch = typeof(Kora.Application.ViewModels.MainViewModel).GetField("approvalPreparationRevision",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        var before = epoch.GetValue(f.ViewModel);
-        await f.RunAsync("read selected answer");
-        epoch.GetValue(f.ViewModel).Should().Be(before);
-        f.ViewModel.IsModelQuestionPending.Should().Be(question);
-        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        f.ViewModel.IsGrantChangePending.Should().Be(grant);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
-
     [Fact]
     public async Task SelectedAnswerDoesNotRetireOrConsumeCompetingComposerDictation()
     {
@@ -330,7 +287,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("read selected answer");
         reads.Should().Be(1);
         f.ViewModel.ReadCurrentResponseStatus.Should().NotContain("original input belonged");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -410,7 +367,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("read selected answer");
         reads.Should().Be(0);
         f.ViewModel.ReadCurrentResponseStatus.Should().Contain("original input belonged");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -432,6 +389,6 @@ public sealed partial class MainViewModelTests
         f.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, SpeechReadOnce.AuditActionId, StringComparison.Ordinal));
         await f.RunAsync("read selected answer");
         f.ViewModel.ReadCurrentResponseStatus.Should().Contain("original input belonged");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

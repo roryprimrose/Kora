@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.ViewModels;
 using Kora.Core;
@@ -8,6 +8,22 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task DetailsQuestionWaitingInAnInformationStateStillPreventsAutoHiding()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await using var details = new PendingDetailsQuestion(fixture);
+        await details.PresentAsync();
+        SetPresentationProperty(fixture.ViewModel, nameof(MainViewModel.State), AssistantState.Information);
+        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+        fixture.ViewModel.CanAutoHidePresence.Should().BeFalse();
+        fixture.ViewModel.CommandSubmitLabel.Should().Be("Answer");
+        fixture.ViewModel.CommandInputPlaceholder.Should().Contain("Yes or Not now");
+        fixture.ViewModel.RetireDetailsOffer();
+        fixture.ViewModel.CommandSubmitLabel.Should().Be("Run");
+        fixture.ViewModel.CommandInputPlaceholder.Should().Be("Type a command or / for artifacts");
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -35,28 +51,15 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(nameof(MainViewModel.IsBusy))]
     [InlineData(nameof(MainViewModel.IsSpeaking))]
-    [InlineData(nameof(MainViewModel.IsGrantEditorVisible))]
+    [InlineData(nameof(MainViewModel.IsLocalTaskCancellable))]
     [InlineData(nameof(MainViewModel.IsLocalModelSetupActive))]
     [InlineData(nameof(MainViewModel.IsPowerShellSetupActive))]
-    public void Presence_does_not_auto_hide_during_work_speech_or_grant_editing(string property)
+    public void Presence_does_not_auto_hide_during_work_or_speech(string property)
     {
         var fixture = new Fixture();
         SetPresentationProperty(fixture.ViewModel, nameof(MainViewModel.State), AssistantState.Information);
         SetPresentationProperty(fixture.ViewModel, property, true);
 
-        fixture.ViewModel.CanAutoHidePresence.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Approval_waiting_in_an_information_state_still_prevents_auto_hiding()
-    {
-        var fixture = new Fixture();
-        SetPresentationProperty(fixture.ViewModel, nameof(MainViewModel.State), AssistantState.Information);
-        typeof(MainViewModel).GetField("pendingModelAction",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-            .SetValue(fixture.ViewModel, BuiltInAction.LockMachine);
-
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
         fixture.ViewModel.CanAutoHidePresence.Should().BeFalse();
     }
 

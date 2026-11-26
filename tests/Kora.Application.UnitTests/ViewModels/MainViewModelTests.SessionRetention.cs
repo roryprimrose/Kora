@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -46,7 +46,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SavedSessionDeleteDays.Should().Be(30);
         fixture.ViewModel.IsSessionRetentionDraftChanged.Should().BeFalse();
         fixture.DiagnosticPreferences.Value.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ViewModel.Dispose();
     }
 

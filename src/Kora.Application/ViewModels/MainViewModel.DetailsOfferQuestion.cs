@@ -1,4 +1,4 @@
-using Kora.Application.Presentation;
+﻿using Kora.Application.Presentation;
 using Kora.Core.Auditing;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -89,7 +89,6 @@ public sealed partial class MainViewModel
             return () => !disposed && IsHostInputEligible && !IsProtectedCall
                 && input.SkillQuestionEligible!() && input.Revision == CallPolicyRevision
                 && privacy() && native() && name == assistantNameConfiguration.Get().Revision
-                && !IsApprovalPending && !IsModelQuestionPending
                 && revision == Interlocked.Read(ref workspaceSurfaceInputRevision);
         });
 
@@ -105,8 +104,7 @@ public sealed partial class MainViewModel
         try
         {
             await detailsOfferService!.RunAsync(request,
-                () => !disposed && CanRevealPrivatePresentation && detailsOfferPriorityEligible() && pendingModelQuestion is null
-                    && !IsGrantChangePending && !IsModelActionApprovalPending
+                () => !disposed && CanRevealPrivatePresentation && detailsOfferPriorityEligible()
                     && (CurrentDetailsOffer?.DetailsOffer!.OriginalRequest == request.Receipt.Message.Request
                         || (voiceRecognition.IsCaptureQuiescent || CanRetireWakeForManualInput) && IsReviewedVoiceCaptureReleased
                             && promptInputVoice?.IsActive != true && composerDictation?.IsActive != true),

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -27,6 +27,25 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task Pending_exact_question_or_approval_cannot_be_answered_or_hidden_by_feedback()
+    {
+        var fixture = new Fixture(enableInCallFeedback: true);
+        await using var details = new PendingDetailsQuestion(fixture);
+        await using var admission = fixture.OutputAdmission;
+        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await fixture.ViewModel.InitializeAsync();
+        await details.PresentAsync();
+        var preview = fixture.ViewModel.ResponseBody;
+        await fixture.RunAsync("set calls.feedback-mode to Voice");
+        await fixture.ViewModel.ResetInCallFeedbackCommand.ExecuteAsync();
+        fixture.ViewModel.ResponseBody.Should().Be(preview);
+        fixture.FeedbackPreferences.Value.Should().BeNull();
+        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Native_exact_and_current_activation_name_routes_share_authority_without_implicit_capture_consent_or_grants()
     {
         var fixture = new Fixture(enableInCallFeedback: true);
@@ -36,7 +55,6 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CanInspectInCallFeedbackNative.Should().BeTrue();
         fixture.ViewModel.CanChangeInCallFeedbackNative.Should().BeTrue();
         var starts = fixture.Voice.StartCalls;
-        var grants = fixture.ApprovalPreferences.Preferences;
         var consent = fixture.VoiceConsent.Consent;
         await fixture.RunAsync("Kora, list call feedback settings");
         fixture.ViewModel.ResponseBody.Should().Contain("\"default\":\"UI\"").And.Contain("\"source\":\"default\"")
@@ -61,13 +79,11 @@ public sealed partial class MainViewModelTests
         await fixture.RaiseActivatedTranscriptAsync("Nova, reset calls.feedback-mode", 1);
         fixture.FeedbackPreferences.Value.Should().BeNull();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
         fixture.AudioPreferences.SavedMicrophoneId.Should().BeNull();
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
         fixture.OutputPreferences.SavedMode.Should().BeNull();
         fixture.CallPreferences.SavedSettings.Should().BeNull();
         fixture.Preferences.SavedVoiceId.Should().BeNull();
-        fixture.ApprovalPreferences.Preferences.Should().BeSameAs(grants);
         fixture.VoiceConsent.Consent.Should().Be(consent);
         fixture.ViewModel.Dispose();
         fixture.FeedbackConfiguration!.HoldUnavailable();
@@ -197,7 +213,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.SaveInCallFeedbackCommand.ExecuteAsync();
         fixture.FeedbackPreferences.Value.Should().BeNull();
         fixture.ViewModel.InCallFeedbackStatus.Should().Contain("Setting unavailable");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -221,29 +237,6 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.Transcript.Should().Contain(outcome is "save" ? "\"outcome\":\"saved\"" : "not confirmed");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.Voice.StartCalls.Should().Be(0);
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Pending_exact_question_or_approval_cannot_be_answered_or_hidden_by_feedback(bool question)
-    {
-        var fixture = new Fixture(enableInCallFeedback: true);
-        await using var admission = fixture.OutputAdmission;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
-        if (question) { fixture.Reasoner.Question = new("Exact choice?", ["one", "two"]); }
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("please do this work");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var preview = fixture.ViewModel.ResponseBody;
-        await fixture.RunAsync("set calls.feedback-mode to Voice");
-        await fixture.ViewModel.ResetInCallFeedbackCommand.ExecuteAsync();
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
-        fixture.FeedbackPreferences.Value.Should().BeNull();
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using AwesomeAssertions;
 
@@ -43,7 +43,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Session command native-review.");
         opened!.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await Run("session retention confirm " + id + " " + reviewId);
         fixture.ViewModel.ResponseTitle.Should().Be("Session command not confirmed.");
     }
@@ -64,7 +64,7 @@ public sealed partial class MainViewModelTests
             BindSessions(unbound);
             await unbound.RaiseActivatedTranscriptAsync("Kora, session retention status " + store.Session.Authority.SessionId.Value.ToString("D"), 1);
             unbound.ViewModel.ResponseTitle.Should().Be("Session command not confirmed.");
-            unbound.Reasoner.Requests.Should().BeEmpty();
+
             return;
         }
         if (reason is "protected-call")
@@ -77,7 +77,7 @@ public sealed partial class MainViewModelTests
         await fixture.RaiseActivatedTranscriptAsync((reason is "unprefixed" ? "" : reason is "old-name" ? "Nova, " : "Kora, ") + input, 1);
         fixture.ViewModel.ResponseTitle.Should().NotBe("Session command review.");
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -115,7 +115,7 @@ public sealed partial class MainViewModelTests
             fixture.ViewModel.ResponseTitle.Should().Be("Session command not confirmed.");
         }
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private static Task NeverOpenNativeRetention(SessionRetentionReview review, Func<bool> admitted, CancellationToken token) =>

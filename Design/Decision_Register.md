@@ -493,10 +493,13 @@ Failure leaves confidence `Unavailable` and preserves visual privacy fallback.
 Implement the host-owned risk taxonomy and grant types before enabling action approvals.
 Prove exact/non-inherited scope, owner-presence fallback, native review/edit/revoke flows, immediate revocation for new dispatch, truthful in-flight handling, content-minimising audit evidence, and intent lineage against hostile content using already-existing grants.
 No executing model, skill, provider, or tool may classify its own host risk or approve/create/extend a grant without host-mediated direct user confirmation. The proposed separate reviewer supplies only a bounded advisory verdict under the user-selected Model review policy; it has no grant, host-risk, consent, or execution authority.
-The current model path validates registered action/grant proposals and offers
-once/session/always model-action approval, including model-suggested lock.
-Exact direct lock does not yet pass the same gate; executable/script hash-bound
-grants, embedded `.ps1` execution, and the full risk/audit proof are future work.
+The 2026-11-26 P6/P7 decision retires the legacy fallback model proposal tree
+and its once/session/always named model-action preferences. Existing
+`model-approvals.json` is ignored without read, import, conversion or deletion
+([startup evidence](../tests/Kora.Windows.IntegrationTests/DesktopBootstrapIntegrationTests.cs)).
+Exact operation grants, session permission levels and admitted model turns
+retain their separate boundaries. Retirement does not qualify unavailable
+execution ([fixed package gate](../src/Kora/BundledFixedActionController.cs)).
 Keep D-008 open and reconcile both routes under
 [the execution design](../docs/skill-and-task-execution-design.md).
 Use [Interaction and Sessions](Interaction_And_Sessions.md#approval-and-risk-session-trust-not-mouse-superiority): voice and UI express equivalent intent; risk affects exact review/confirmation, not obligatory clicks or blanket Windows Hello.

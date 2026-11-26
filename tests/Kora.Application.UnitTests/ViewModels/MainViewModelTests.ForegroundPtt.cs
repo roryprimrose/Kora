@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Auditing;
@@ -10,6 +10,37 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("native")]
+    [InlineData("owner")]
+    [InlineData("pending")]
+    [InlineData("disposed")]
+    public async Task ShortcutUnavailableHostsAndPendingInteractionsWriteNothing(string boundary)
+    {
+        await using var ptt = new ForegroundPttConfigurationServiceTests.Fixture();
+        var f = new Fixture(foregroundPtt: boundary is "missing" ? null : ptt.Service);
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        if (boundary is "pending")
+        {
+            f.Probe.Status = new("local.inference", "Local inference", Kora.Core.Dependencies.DependencyReadiness.Ready, "fixture");
+        }
+        await f.ViewModel.InitializeAsync();
+        if (boundary is not "native") { f.ViewModel.BindForegroundPttNativeLifetime(static () => true); }
+        if (boundary is "owner") { f.ViewModel.BindCallOwnershipGate(static () => false); }
+        if (boundary is "disposed") { f.ViewModel.Dispose(); }
+        if (boundary is "pending")
+        {
+            await pendingDetails.PresentAsync();
+            f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        }
+        f.ViewModel.CanChangeForegroundPtt.Should().BeFalse();
+        await f.ViewModel.SaveForegroundPttCommand.ExecuteAsync();
+        ptt.Store.Writes.Should().Be(0);
+        f.Voice.StartCalls.Should().Be(0);
+        f.ViewModel.Dispose();
+    }
+
     [Fact]
     public async Task ShortcutInvalidSavedNameRequiresUnprefixedExplicitRecovery()
     {
@@ -57,39 +88,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.EffectiveForegroundPttShortcut.Should().Be(ForegroundPttShortcut.Unassigned);
         ptt.Audit.Events.Should().Contain(item => item.Initiator == SecurityAuditInitiator.VoiceCommand);
         f.Voice.StartCalls.Should().Be(before + 1);
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.ViewModel.Dispose();
-    }
 
-    [Theory]
-    [InlineData("missing")]
-    [InlineData("native")]
-    [InlineData("owner")]
-    [InlineData("pending")]
-    [InlineData("disposed")]
-    public async Task ShortcutUnavailableHostsAndPendingInteractionsWriteNothing(string boundary)
-    {
-        await using var ptt = new ForegroundPttConfigurationServiceTests.Fixture();
-        var f = new Fixture(foregroundPtt: boundary is "missing" ? null : ptt.Service);
-        if (boundary is "pending")
-        {
-            f.Probe.Status = new("local.inference", "Local inference", Kora.Core.Dependencies.DependencyReadiness.Ready, "fixture");
-            f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        }
-        await f.ViewModel.InitializeAsync();
-        if (boundary is not "native") { f.ViewModel.BindForegroundPttNativeLifetime(static () => true); }
-        if (boundary is "owner") { f.ViewModel.BindCallOwnershipGate(static () => false); }
-        if (boundary is "disposed") { f.ViewModel.Dispose(); }
-        if (boundary is "pending")
-        {
-            await f.RunAsync("help me");
-            await f.ViewModel.ActiveReasoningTask!;
-            f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        }
-        f.ViewModel.CanChangeForegroundPtt.Should().BeFalse();
-        await f.ViewModel.SaveForegroundPttCommand.ExecuteAsync();
-        ptt.Store.Writes.Should().Be(0);
-        f.Voice.StartCalls.Should().Be(0);
         f.ViewModel.Dispose();
     }
 

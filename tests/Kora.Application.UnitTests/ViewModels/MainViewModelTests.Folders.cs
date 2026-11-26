@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using AwesomeAssertions;
 using Kora.Core.Context;
 using Kora.Core.Diagnostics;
@@ -50,7 +50,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("search folder private query");
         fixture.ViewModel.ResponseTitle.Should().Contain("Denied");
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ClipboardReader.Calls.Should().Be(0);
         fixture.ViewModel.Transcript.Should().NotContain(FolderInspector.Text);
         fixture.ViewModel.ResponseBody.Should().NotContain(FolderInspector.Text);
@@ -87,7 +87,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.FolderReview.Should().BeNull();
         fixture.ViewModel.FolderRevision.Should().BeNull();
         preview.IsQuiescent.Should().BeTrue();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Contain("Unavailable");
         (await fixture.ViewModel.SearchFolderAsync(new(Guid.NewGuid(), Guid.NewGuid()), "query"))
             .Outcome.Should().Be(LocalFileSearchOutcome.Stale);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.BindClipboardOwnershipGate(() => false);
         (await fixture.ViewModel.SearchFolderAsync(exact, "private")).Outcome.Should().Be(LocalFileSearchOutcome.Stale);
         fixture.ViewModel.FolderRevision.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -153,7 +153,7 @@ public sealed partial class MainViewModelTests
         var result = await fixture.ViewModel.SearchFolderAsync(fixture.ViewModel.FolderRevision!.Reference, "private");
         result.Outcome.Should().Be(LocalFileSearchOutcome.Stale);
         result.Citations.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private sealed class CallbackFolderRetrieval(Action callback) : ILocalFileRetrieval

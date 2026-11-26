@@ -11,6 +11,18 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task RestartCannotDispatchAfterAudioJoinRevokesHostOwnershipWithoutAConversationBinding()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.TextToSpeech.BeforeStop = () => f.ViewModel.BindCallOwnershipGate(static () => false);
+        await f.RunAsync("restart the app");
+        f.Events.Should().NotContain("process.restart");
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+        f.ViewModel.ResponseTitle.Should().Be("Host admission changed.");
+        f.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Denied);
+    }
+
+    [Fact]
     public async Task QuarantinedExitUsesOnlyRetiredInputProofAndKeepsCaptureUnavailable()
     {
         var f = await QuarantinedExitFixtureAsync();
@@ -92,7 +104,6 @@ public sealed partial class MainViewModelTests
     [InlineData("stale-proof")]
     [InlineData("voice")]
     [InlineData("model")]
-    [InlineData("model-dispatch")]
     [InlineData("owner")]
     [InlineData("locked")]
     public async Task QuarantinedExitCannotPromoteMissingInputOrUntrustedAuthority(string boundary)
@@ -117,7 +128,7 @@ public sealed partial class MainViewModelTests
         if (boundary is "model") { request = new(request.RequestId, request.SessionId, request.TaskId, origin, new(Guid.NewGuid())); }
         using (var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request))
         {
-            await f.ViewModel.ExitAsync(fromModelActionDispatch: boundary is "model-dispatch");
+            await f.ViewModel.ExitAsync();
         }
         f.WindowActions.Should().NotContain(WindowAction.Close);
         f.ViewModel.TrayInputStatus.Should().StartWith("Exit not completed");

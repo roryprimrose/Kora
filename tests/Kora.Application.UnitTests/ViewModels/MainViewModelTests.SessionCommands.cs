@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Core.Authorization;
@@ -53,7 +53,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Session command not accepted.");
         fixture.ViewModel.CommandText = "infer something";
         fixture.ViewModel.RunTypedCommand.CanExecute(null).Should().BeFalse();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Probe.Gate.SetResult();
         await busy;
     }
@@ -78,7 +78,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("session help");
         fixture.ViewModel.ResponseBody.Should().Contain("session inspect");
         fixture.HostStore.Records.Select(record => record.Request.RequestId).Distinct().Should().HaveCount(6);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -91,35 +91,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("session list");
         fixture.ViewModel.ResponseTitle.Should().Be("Session commands unavailable.");
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task Session_commands_preserve_pending_question_grant_and_action_approval_targets()
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await fixture.ViewModel.InitializeAsync();
-        BindSessions(fixture);
-        await fixture.RunAsync("choose");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        await fixture.RunAsync("session list");
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.ResponseTitle.Should().Be("Session command blocked.");
-        await fixture.ViewModel.CancelModelQuestionAsync();
-        await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-            BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
-        await fixture.RunAsync("session help");
-        fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
-        await fixture.ViewModel.RejectPendingGrantChangeAsync();
-        fixture.Reasoner.Question = null;
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.RunAsync("please lock");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        await fixture.RunAsync("session help");
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.HostStore.Records.Should().BeEmpty();
     }
 
     [Theory]
@@ -184,7 +156,7 @@ public sealed partial class MainViewModelTests
         if (!closeAfterCommit) { fixture.ViewModel.ResponseTitle.Should().Be("Session command committed."); }
         store.TaskResult.Task.State.Should().Be(HostTaskState.Cancelled);
         store.Origins.Should().Equal(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice, RequestOrigin.ActivatedVoice);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -197,7 +169,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync(text);
         fixture.ViewModel.ResponseTitle.Should().Be(title);
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -214,7 +186,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ExecuteSessionCommandAsync(new(SessionCommandOperation.TaskInspect, store.Session.Authority.SessionId.Value)
             { TaskId = Guid.NewGuid() }, Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand);
         fixture.ViewModel.ResponseBody.Should().NotContain("No task with that exact ID");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         if (scenario is "disposed") { fixture.HostStore.Records.Should().BeEmpty(); }
     }
 

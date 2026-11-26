@@ -194,7 +194,7 @@ internal static class FixtureBoundaries
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    internal sealed class FixtureExecution : ILocalModelSetup, ILocalModelReasoner, IPowerShellSetup, IApplicationProcessController
+    internal sealed class FixtureExecution : ILocalModelSetup, IPowerShellSetup, IApplicationProcessController
     {
         public string TaskId => "fixture.setup.denied";
         public string TaskName => "Setup is unavailable in the native UX fixture";
@@ -203,8 +203,6 @@ internal static class FixtureBoundaries
         public Task InstallAsync(CancellationToken cancellationToken) => throw new InvalidOperationException("Fixture cannot install dependencies.");
         public Task InstallAsync(IProgress<LocalModelSetupProgress> progress, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Fixture cannot install models.");
-        public Task<LocalModelResponse> ReasonAsync(string request, LocalModelContext context, LocalModelArtifact? artifact,
-            CancellationToken cancellationToken) => throw new InvalidOperationException("Fixture cannot invoke a model.");
         public void OpenWindowsMicrophonePrivacySettings() => throw new InvalidOperationException("Fixture cannot open Windows settings.");
         public void RestartCurrentApplication() => throw new InvalidOperationException("Fixture cannot restart applications.");
     }

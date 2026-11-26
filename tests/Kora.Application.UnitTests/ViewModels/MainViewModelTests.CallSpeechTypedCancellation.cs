@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Core.Auditing;
 
 namespace Kora.Application.UnitTests.ViewModels;
@@ -57,7 +57,7 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.SpeakCalls.Should().Be(1);
         f.ViewModel.CallObservation.Should().Be(call);
         f.CallPreferences.SavedSettings.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed partial class MainViewModelTests
                 SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
         f.ViewModel.CallObservation.Should().Be(call);
         f.CallPreferences.SavedSettings.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed partial class MainViewModelTests
             release.TrySetResult();
             await usingSkill;
         }
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private static async Task AssertCallSpeechTypedReentryRefused(Fixture f)

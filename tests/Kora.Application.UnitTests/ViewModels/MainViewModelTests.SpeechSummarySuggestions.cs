@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -26,6 +26,27 @@ public sealed partial class MainViewModelTests
         Converters = { new JsonStringEnumConverter() },
     };
 
+    [Fact]
+    public async Task SpeechSuggestionWithoutPinnedReceiptNeverSelectsAnAnswerOrConsumesPendingQuestion()
+    {
+        var f = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
+        await f.ViewModel.InitializeAsync();
+        BindSpeechSuggestions(f);
+        await f.RunAsync("review speech limit suggestion");
+        f.ViewModel.ResponseTitle.Should().Be("Speech limit source unavailable.");
+        await pendingDetails.PresentAsync();
+        var title = f.ViewModel.ResponseTitle;
+        var question = f.ViewModel.CurrentDetailsOffer;
+        await f.RunAsync("confirm speech limit change");
+        f.ViewModel.ResponseTitle.Should().Be(title);
+        f.ViewModel.CurrentDetailsOffer.Should().BeSameAs(question);
+        f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        f.Preferences.SummaryLimits.Should().BeNull();
+        await f.ViewModel.DisposeAsync();
+    }
+
     [Theory]
     [InlineData("Kora")]
     [InlineData("Nova")]
@@ -50,7 +71,7 @@ public sealed partial class MainViewModelTests
             .Equal("review speech limit suggestion", "confirm speech limit change", "cancel speech limit review");
         f.Voice.StartedPhrases.Select(phrase => phrase.ToUpperInvariant()).Should().OnlyHaveUniqueItems();
         f.Preferences.SummaryLimits.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.DisposeAsync();
     }
 
@@ -128,7 +149,7 @@ public sealed partial class MainViewModelTests
         model.Calls.Should().Be(1);
         store.RequestMessage.Should().Be(retained);
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.DisposeAsync();
     }
 
@@ -160,26 +181,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().NotBe("Speech limit saved.");
         f.Preferences.SummaryLimits.Should().Be(loss is "settings" ? new SpokenSummaryLimits(3, 30) : null);
         model.Calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
-        await f.ViewModel.DisposeAsync();
-    }
 
-    [Fact]
-    public async Task SpeechSuggestionWithoutPinnedReceiptNeverSelectsAnAnswerOrConsumesPendingQuestion()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        BindSpeechSuggestions(f);
-        await f.RunAsync("review speech limit suggestion");
-        f.ViewModel.ResponseTitle.Should().Be("Speech limit source unavailable.");
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        await f.RunAsync("confirm speech limit change");
-        f.ViewModel.ResponseTitle.Should().Be("Speech limit review blocked.");
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        f.Preferences.SummaryLimits.Should().BeNull();
         await f.ViewModel.DisposeAsync();
     }
 
@@ -437,7 +439,7 @@ public sealed partial class MainViewModelTests
         store.TaskResult!.Task.Should().Be(pinnedReceipt.Task);
         store.RequestRetentions.Should().Be(1);
         model.Calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.Voice.StartCalls.Should().Be(starts);
         f.Voice.StopCalls.Should().Be(stops + 1);

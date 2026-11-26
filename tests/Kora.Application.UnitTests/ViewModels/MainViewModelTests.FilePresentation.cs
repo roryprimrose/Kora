@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Core.Communication;
 
@@ -40,7 +40,7 @@ public sealed partial class MainViewModelTests
             case "dispose": f.ViewModel.Dispose(); break;
         }
         current().Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
     }
 }

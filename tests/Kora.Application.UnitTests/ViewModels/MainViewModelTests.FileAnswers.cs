@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
 using Kora.Core.Context;
@@ -29,7 +29,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ConfirmFilePreviewAsync(fixture.ViewModel.FileReview!.ReviewId);
         await fixture.RunAsync(command);
         opened.Should().Be(1);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.HostStore.Records.Should().BeEmpty();
         fixture.ClipboardReader.Calls.Should().Be(0);
         fixture.ViewModel.ClearFilePreview();
@@ -69,7 +69,7 @@ public sealed partial class MainViewModelTests
         runner.AdmissionCalls.Should().Be(0);
         runner.Context.Should().BeNull();
         f.HostStore.Records.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ClipboardReader.Calls.Should().Be(0);
         f.ViewModel.ResponseBody.Should().NotContain(FakeFileInspector.Text);
         f.ViewModel.Transcript.Should().NotContain(question);
@@ -115,7 +115,7 @@ public sealed partial class MainViewModelTests
         }
         f.ViewModel.Transcript.Should().NotContain(question);
         f.ViewModel.ResponseBody.Should().NotContain(FakeFileInspector.Text);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
         using var scope = HostActivity.BeginRoot(source.Review.Request, HostActivityLayer.Application, HostOperation.Request);
         await f.ViewModel.RequestFileAnswerAsync();
@@ -233,7 +233,7 @@ public sealed partial class MainViewModelTests
         result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
         result.Claims.Should().BeEmpty();
         model.Context.Should().NotBeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private sealed class NativeFileAnswerPolicy : ILocalFileModelUsePolicy

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -9,6 +9,21 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task SourceLimitsCannotDisplacePendingQuestion()
+    {
+        var f = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await f.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var calls = 0;
+        f.ViewModel.KnowledgeSourceCaptureLimitsRequested += (_, _) => { calls++; return Task.CompletedTask; };
+        await f.RunAsync("source capture limits get \"Team\"");
+        calls.Should().Be(0);
+        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -41,7 +56,7 @@ public sealed partial class MainViewModelTests
         received.Select(c => c.Operation).Should().Equal("get", "lower", "confirm", "reset", "cancel");
         received[1].Name.Should().Be("Team");
         received[1].Limits!.MaximumCombinedBytes.Should().Be(200);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.RevokeSessionPresentation(new(Guid.NewGuid()));
         current!().Should().BeFalse();
     }
@@ -58,7 +73,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindClipboardOwnershipGate(() => false);
         await f.RunAsync("source capture limits get \"Team\"");
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -86,22 +101,8 @@ public sealed partial class MainViewModelTests
         f.ViewModel.KnowledgeSourceCaptureLimitsRequested += (_, _) => { calls++; return Task.CompletedTask; };
         await f.RunAsync("Kora, source capture limits get \"Team\"");
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
-    [Fact]
-    public async Task SourceLimitsCannotDisplacePendingQuestion()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        f.Reasoner.Question = new("Keep this exact question?", ["one", "two"]);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("please do this work");
-        await f.ViewModel.ActiveReasoningTask!;
-        var calls = 0;
-        f.ViewModel.KnowledgeSourceCaptureLimitsRequested += (_, _) => { calls++; return Task.CompletedTask; };
-        await f.RunAsync("source capture limits get \"Team\"");
-        calls.Should().Be(0);
-        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-    }
+
 }

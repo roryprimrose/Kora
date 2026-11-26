@@ -175,7 +175,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     internal async Task InitializeAsync(Kora.Tools.Network.WebPageGet? webPageGet,
         Kora.Application.Network.WebSummaryWorkflow? webSummary = null,
         Kora.Core.Communication.ICallStateService? callState = null,
-        IUiDispatcher? dispatcher = null, ILocalModelReasoner? modelReasoner = null, ISetupDependencyProbe? modelProbe = null,
+        IUiDispatcher? dispatcher = null, ISetupDependencyProbe? modelProbe = null,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
         OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
@@ -192,7 +192,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         MarkdownDisplayConfigurationService? markdownDisplayConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
-        await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
+        await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher,
             modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
             speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration, foregroundPtt, voiceCaptureTimingConfiguration, quietHoursConfiguration,
@@ -202,7 +202,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     private async Task InitializeCoreAsync(Kora.Tools.Network.WebPageGet? webPageGet,
         Kora.Application.Network.WebSummaryWorkflow? webSummary,
         Kora.Core.Communication.ICallStateService? callState,
-        IUiDispatcher? dispatcher, ILocalModelReasoner? modelReasoner, ISetupDependencyProbe? modelProbe,
+        IUiDispatcher? dispatcher, ISetupDependencyProbe? modelProbe,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
         OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration,
         ConversationExecutionConfigurationService? conversationExecution,
@@ -231,7 +231,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         var consent = new LocalVoiceConsentPreferences(this, NullLogger<LocalVoiceConsentPreferences>.Instance);
         consent.Save(false);
         var models = new LocalModelExecutionPreferences(this);
-        models.Save(new(modelReasoner is not null, false));
+        models.Save(new(false, false));
         var appearances = new LocalAppearancePreferences(
             appearanceStoreFactory?.Invoke(this) ?? new LocalPreferenceStore(this),
             NullLogger<LocalAppearancePreferences>.Instance);
@@ -273,7 +273,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         var preferenceWrites = new AuditedPreferenceWriter(Audit);
         preferenceWriter = preferenceWrites;
         main = new(commands, new(commands), catalogue, new(catalogue), bootstrapper,
-            new(bootstrapper, execution, execution), modelReasoner ?? execution, new LocalModelApprovalPreferences(this), models, Access,
+            new(bootstrapper, execution, execution), models, Access,
             voiceRecognition ?? Voice, speech, assistantNameConfiguration, appearances,
             new LocalOptionalSpeechOfferPreferences(this),
             audioPreferences,

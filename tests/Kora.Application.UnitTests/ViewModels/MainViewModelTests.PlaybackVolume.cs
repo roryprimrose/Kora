@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Commands;
 using Kora.Core.Auditing;
@@ -12,6 +12,33 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Pending_exact_approval_and_unbound_locked_disposed_hosts_cannot_mutate_volume()
+    {
+        var unbound = new Fixture();
+        await using var unboundAdmission = unbound.OutputAdmission;
+        unbound.ViewModel.PlaybackVolumeStatus.Should().Contain("unavailable");
+        await unbound.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync();
+        unbound.ViewModel.Transcript.Should().Contain("owning unlocked host");
+        var fixture = new Fixture(enablePlaybackVolume: true);
+        await using var pendingDetails = new PendingDetailsQuestion(fixture);
+        await using var admission = fixture.OutputAdmission;
+        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await fixture.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var preview = fixture.ViewModel.ResponseBody;
+        await fixture.RunAsync("reset speech.playback-volume");
+        fixture.ViewModel.CanChangePlaybackVolume.Should().BeFalse();
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.ResponseBody.Should().Be(preview);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ViewModel.Dispose();
+        await fixture.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync();
+        fixture.VolumeConfiguration!.HoldUnavailable();
+        fixture.ViewModel.ResponseBody.Should().Be(preview);
+    }
+
     [Fact]
     public async Task Native_volume_without_a_settings_surface_cannot_save()
     {
@@ -264,7 +291,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
         fixture.TextToSpeech.RemoveProviderCalls.Should().Be(0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
         fixture.Preferences.SavedVoiceId.Should().BeNull();
         fixture.ViewModel.Dispose();
@@ -353,34 +380,6 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Get),
             SecurityAuditInitiator.TypedCommand, cancelled.Token);
         fixture.ViewModel.PlaybackVolumeStatus.Should().Contain("Setting unavailable");
-    }
-
-    [Fact]
-    public async Task Pending_exact_approval_and_unbound_locked_disposed_hosts_cannot_mutate_volume()
-    {
-        var unbound = new Fixture();
-        await using var unboundAdmission = unbound.OutputAdmission;
-        unbound.ViewModel.PlaybackVolumeStatus.Should().Contain("unavailable");
-        await unbound.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync();
-        unbound.ViewModel.Transcript.Should().Contain("owning unlocked host");
-        var fixture = new Fixture(enablePlaybackVolume: true);
-        await using var admission = fixture.OutputAdmission;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("lock this workstation please");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var preview = fixture.ViewModel.ResponseBody;
-        await fixture.RunAsync("reset speech.playback-volume");
-        fixture.ViewModel.CanChangePlaybackVolume.Should().BeFalse();
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.ViewModel.Dispose();
-        await fixture.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync();
-        fixture.VolumeConfiguration!.HoldUnavailable();
-        fixture.ViewModel.ResponseBody.Should().Be(preview);
     }
 
     [Fact]

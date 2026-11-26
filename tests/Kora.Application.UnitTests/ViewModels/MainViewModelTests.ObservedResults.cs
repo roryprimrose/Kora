@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Core.Commands;
@@ -27,37 +27,9 @@ public sealed partial class MainViewModelTests
             && string.Equals(request.ObservationName, name, StringComparison.Ordinal));
         observed.Select(request => request.Origin).Should().Equal(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice);
         observed[0].IsAdmitted().Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task ObservedResultCommandCannotBorrowQuestionApprovalOrEditorAuthority()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        var calls = 0;
-        f.ViewModel.WorkspaceSurfaceRequested += request =>
-        {
-            calls++;
-            return Task.CompletedTask;
-        };
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        await f.RaiseActivatedTranscriptAsync("Kora open observed result application.get_version", 1);
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        calls.Should().Be(0);
-        await f.ViewModel.CancelModelQuestionAsync();
-        f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget());
-        await f.RaiseActivatedTranscriptAsync("Kora open observed result application.get_version", 1);
-        calls.Should().Be(0);
-        f.ViewModel.PublishCustomizationVoiceTarget(null);
-        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        await f.RunAsync("open observed result application.get_version");
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        calls.Should().Be(0);
-        await f.ViewModel.RejectPendingGrantChangeAsync();
-    }
+
 }

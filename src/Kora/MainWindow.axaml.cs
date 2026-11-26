@@ -47,7 +47,6 @@ public sealed partial class MainWindow : Window
     private readonly TaskCompletionSource initializationQuiescence = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool positionInitialized;
     private bool shutdownRequested;
-    private readonly PresenceReviewGesture reviewGesture;
     internal Func<Task>? ApplyStartupPresentation { get; set; }
 #pragma warning disable VSTHRD003 // Exposes this window's owned latch for asynchronous teardown while its dispatcher remains active.
     internal Task InitializationQuiescence => initializationQuiescence.Task;
@@ -72,7 +71,6 @@ public sealed partial class MainWindow : Window
         Func<nint, AvaloniaPresencePresenter.IBitmapTarget>? createBitmapTarget = null)
     {
         this.viewModel = viewModel;
-        reviewGesture = new(viewModel);
         this.logger = logger;
         this.rendererLogger = rendererLogger;
         this.createBitmapTarget = createBitmapTarget;
@@ -104,7 +102,6 @@ public sealed partial class MainWindow : Window
         AddHandler(PointerWheelChangedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         PointerPressed += OnPointerPressed;
         PointerReleased += OnPresencePointerReleased;
-        PointerCaptureLost += (_, _) => reviewGesture.Cancel();
         PositionChanged += OnPositionChanged;
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -544,8 +541,7 @@ public sealed partial class MainWindow : Window
             or nameof(MainViewModel.IsLocalModelSetupActive)
             or nameof(MainViewModel.IsPowerShellSetupActive)
             or nameof(MainViewModel.IsResponseInteractionPending)
-            or nameof(MainViewModel.HasResponseActions)
-            or nameof(MainViewModel.IsGrantEditorVisible))
+            or nameof(MainViewModel.HasResponseActions))
         {
             UpdatePresenceTimeoutEligibility();
         }
@@ -568,7 +564,6 @@ public sealed partial class MainWindow : Window
 
     private void HidePresenceWindow()
     {
-        reviewGesture.Cancel();
         nativePresence?.Suspend();
         avaloniaPresence?.Suspend();
         presenceInputTimer.Stop();
@@ -589,14 +584,8 @@ public sealed partial class MainWindow : Window
         var point = eventArgs.GetCurrentPoint(this);
         var button = point.Properties.IsLeftButtonPressed ? MouseButton.Left
             : point.Properties.IsRightButtonPressed ? MouseButton.Right : MouseButton.None;
-        var intent = reviewGesture.Press(presenceInput?.InterceptsMouse == true, eventArgs.KeyModifiers, button);
-        if (intent == PresencePointerIntent.Review)
-        {
-            eventArgs.Handled = true;
-            eventArgs.Pointer.Capture(this);
-            return;
-        }
-        if (intent == PresencePointerIntent.Drag)
+        if (presenceInput?.InterceptsMouse == true && viewModel.CanRevealPrivatePresentation
+            && eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control) && button == MouseButton.Left)
         {
             eventArgs.Handled = true;
             viewModel.NotifyPresenceInteraction();
@@ -606,15 +595,7 @@ public sealed partial class MainWindow : Window
 
     private void OnPresencePointerReleased(object? sender, PointerReleasedEventArgs eventArgs)
     {
-        var target = reviewGesture.Release(presenceInput?.InterceptsMouse == true, eventArgs.KeyModifiers,
-            eventArgs.InitialPressMouseButton, new Rect(Bounds.Size).Contains(eventArgs.GetPosition(this)));
         if (eventArgs.InitialPressMouseButton == MouseButton.Right) { eventArgs.Pointer.Capture(null); }
-        if (target is not null && !shutdownRequested)
-        {
-            eventArgs.Handled = true;
-            HostRequestRunner.Run(RequestOrigin.LocalUi, () => viewModel.ActivateModelActionReview(target),
-                HostActivityLayer.Desktop, HostOperation.Presentation);
-        }
     }
 
     private void OnMouseActivity(object? sender, PointerEventArgs eventArgs)

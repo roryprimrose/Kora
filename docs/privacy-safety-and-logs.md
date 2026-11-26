@@ -376,80 +376,26 @@ Real clipboard/native accessibility/latency acceptance remains outstanding.
 
 ## Local-model actions
 
-**Unavailable in this build:** setup alone does not enable AI. The release
-approves no local model profile, and unmatched commands use an unavailable
-reasoner. The workflow below describes what its model-action review allows;
-it is not a claim that installing Ollama enables it. See [Models](settings.md#models).
+The legacy fallback model action/question/grant/settings-filter proposal route
+is retired. Unmatched requests outside session routing, non-prompt artifact
+commands and legacy clarification re-entry reject immediately: **Model request
+unavailable. Nothing was sent.** They start no task, thinking status, speech or
+inference ([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs),
+[regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ModelActionReview.cs)).
 
-For an independently enabled model-action workflow, Kora sends the current
-unmatched request, the built-in action names/descriptions, and a limited
-snapshot of dependency readiness, task state/progress, listening state, and
-pending power-proposal status to the pinned Ollama model on `127.0.0.1`. It
-does not include earlier conversations, logs, files, clipboard contents,
-device identifiers, or account data. Explicit
-[artifact invocation](commands.md#run-skills-and-artifacts) separately
-includes the selected bundled/compatible profile instruction content and its
-source/version/digest identity in the local-model request, not arbitrary files
-or the instruction's scripts. That content remains untrusted guidance and
-cannot bypass host action/grant policy. For a clarification, Kora sends the
-original request, its question, and the option you selected back to that same
-local model; no unrelated conversation history is sent. The model can return
-a text answer, a bounded question with choices, a grant-change proposal,
-or one registered action identifier. Kora validates the proposal and
-performs the action through the same built-in handler used by typed and voice
-commands. Arbitrary model-generated commands or API calls are never executed.
-Choosing a clarification option does not approve an action or change a grant.
+Older versions stored named model-action preferences in the device-local
+`Preferences/model-approvals.json`. Kora ignores that file, including malformed
+contents, without reading, importing, converting, overwriting or deleting it.
+Retained bytes never confer exact-operation authority
+([composition](../src/Kora/Program.cs),
+[startup regressions](../tests/Kora.Windows.IntegrationTests/DesktopBootstrapIntegrationTests.cs)).
 
-Suggestions to hide or exit Kora, restart it or cancel a task
-require explicit approval unless that exact action
-has a current session or persistent grant. All approval scopes (once, this
-session, and always) are offered for every action that requests approval,
-where applicable. A session grant ends on exit, restart, or when Kora
-locks Windows; an always grant persists locally until revoked in **Settings >
-Approvals**. Grants are keyed to named built-in actions, not arbitrary
-commands, file paths, implementation versions, or model-generated code.
-Rejecting, dismissing, or making a new request discards the pending
-suggestion. This confirmation gate applies to *model-suggested* disruptive
-actions only: direct exact built-in voice and typed commands
-currently dispatch to C# without model-action approval. They remain
-deterministic and take precedence over the model.
+Modern session conversations, exact operation grants and session permission
+levels retain their separate privacy, approval and retention boundaries
+([session routing](../src/Kora.Application/ViewModels/MainViewModel.SessionRouting.cs),
+[permission grants](settings.md#permission-grants)).
 
-Windows lock/shutdown/restart use a separate
-[exact bundled package gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
-Their runtime is unavailable in this build. Model suggestions open source
-inspection only; named-action grants cannot authorize their execution.
-
-Protected manual calls or enabled Active/Suspected/Unknown observations
-temporarily ignore Session/Always reuse without revoking or consuming those
-records. A fresh Once approval retains only existing action-name authority.
-Call revision changes invalidate pending approvals and undispatched reuse;
-lock/restart recheck immediately after asynchronous audio shutdown. This is not
-migration into R05 content/invocation-bound grants or general effect admission.
-
-**Planned, not implemented:** future skill tasks that launch applications or
-scripts would require content-bound execution grants, **not** the current
-built-in-action grants. The design requires changed or unverifiable
-SHA-256 digests to invalidate dependent grants, including always grants, and
-execution-time verification of the exact bytes to launch. It also covers
-standalone application launches. Kora does not yet launch arbitrary
-applications or stored skill scripts; no current grant provides these
-protections. See the
-[skill and task execution design](skill-and-task-execution-design.md) for the
-planned approval, skill-management, and task-runner requirements. That
-proposal embeds `.ps1` definitions for suitable side-effecting built-in tasks
-and adds a read-only syntax-highlighted script review window. Today the
-built-in handlers are C#, not `.ps1` skills, and there is no script review UI.
-PowerShell 7 (`pwsh.exe`) is now a required readiness task; Kora probes a
-known installation location with a no-profile version command. Installing
-the `Microsoft.PowerShell` winget package requires separate on-screen
-consent, and successful installation is verified. This setup does not
-authorize or execute any skill or built-in `.ps1`, nor gate local inference.
-
-The approval request always appears on screen, including in VoiceOnly mode.
-When speech is available, Kora closes command capture while speaking the
-question. A spoken answer requires a new explicit push-to-talk activation. By default, spoken approvals
-must start with the assistant name. Settings can allow an unprefixed spoken
-reply; this changes the recognition gate, not the scope of an existing grant.
+## Local speech assets
 
 Kokoro is an optional local neural text-to-speech provider. Kora makes no
 Kokoro network request unless the user explicitly selects **Download**. That

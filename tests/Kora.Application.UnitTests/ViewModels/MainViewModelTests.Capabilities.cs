@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Core.Tools;
 
 namespace Kora.Application.UnitTests.ViewModels;
@@ -22,7 +22,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CommandText = command;
         await fixture.ViewModel.RunTypedCommand.ExecuteAsync();
         fixture.ViewModel.ResponseBody.Should().Contain(expected);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -42,7 +42,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CommandText = "help";
         await fixture.ViewModel.RunTypedCommand.ExecuteAsync();
         fixture.ViewModel.ResponseBody.Should().Contain("list capabilities").And.Contain("describe capability");
-        fixture.Catalog.GetCommands().Should().HaveCount(27);
+        fixture.Catalog.GetCommands().Should().HaveCount(25);
         ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(7);
     }
 }

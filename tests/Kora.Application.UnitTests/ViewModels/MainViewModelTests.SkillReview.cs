@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Skills;
 using Kora.Core.Commands;
@@ -11,6 +11,22 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task SkillReviewQuestionArrivingInsideQueueRetainsItsCompletePreview()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await using var details = new PendingDetailsQuestion(f);
+        var navigation = new ReviewNavigation();
+        f.ViewModel.BindSkillReviewNavigation(navigation, static () => 1);
+        Task? question = null;
+        f.Dispatcher.BeforeInvoke = () => question = details.PresentAsync();
+        await f.RunAsync("open skill packages");
+        await question!;
+        navigation.Surfaces.Should().BeEmpty();
+        f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        f.ViewModel.DetailsQuestionText.Should().Contain("exact completed answer");
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -29,7 +45,7 @@ public sealed partial class MainViewModelTests
         navigation.Surfaces.Should().Equal(SkillReviewSurface.BundledPackages, SkillReviewSurface.BundledPackages,
             SkillReviewSurface.SharedSources, SkillReviewSurface.SharedSources);
         navigation.Origins.Should().OnlyContain(origin => origin == (voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi));
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         f.CallPreferences.SavedSettings.Should().BeNull();
         if (voice) { f.Voice.StartedPhrases.Should().Contain("Nova open skill packages"); }
@@ -84,37 +100,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("open shared skill sources");
         navigation.Surfaces.Should().BeEmpty();
         f.ViewModel.Transcript.Should().NotContain("review opened");
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task SkillReviewNeverAnswersOrOverwritesPendingQuestionOrSecurityPreview(bool question)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
-        f.Reasoner.Action = question ? null : BuiltInAction.EnableHostedModels;
-        if (question) { f.Reasoner.Question = new("Exact choice?", ["one", "two"]); }
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("please do this work");
-        await f.ViewModel.ActiveReasoningTask!;
-        var body = f.ViewModel.ResponseBody;
-        var title = f.ViewModel.ResponseTitle;
-        var choices = f.ViewModel.ModelQuestionChoices;
-        var requests = f.Reasoner.Requests.Count;
-        var navigation = new ReviewNavigation();
-        f.ViewModel.BindSkillReviewNavigation(navigation, static () => 1);
-        foreach (var text in SkillReviewCommand.FixedPhrases.Append("open skill packages C:\\private"))
-        {
-            await f.RunAsync(text);
-            f.ViewModel.ResponseBody.Should().Be(body);
-            f.ViewModel.ResponseTitle.Should().Be(title);
-            f.ViewModel.ModelQuestionChoices.Should().BeSameAs(choices);
-            f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        }
-        navigation.Surfaces.Should().BeEmpty();
-        f.Reasoner.Requests.Should().HaveCount(requests);
     }
 
     [Fact]
@@ -131,7 +117,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.Transcript.Should().Contain("exact review-only command");
         await f.RaiseActivatedTranscriptAsync("open skill packages", 1);
         navigation.Surfaces.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -182,29 +168,6 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindSkillReviewNavigation(null, static () => 1);
         await f.RunAsync("open skill packages");
         f.ViewModel.Transcript.Should().Contain("unavailable");
-    }
-
-    [Fact]
-    public async Task SkillReviewQuestionArrivingInsideQueueRetainsItsCompletePreview()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
-        f.Reasoner.Question = new("Keep this exact question?", ["one", "two"]);
-        f.Reasoner.DecisionGate = new();
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("please do this work");
-        var navigation = new ReviewNavigation();
-        f.ViewModel.BindSkillReviewNavigation(navigation, static () => 1);
-        f.Dispatcher.BeforeInvoke = () =>
-        {
-            f.Reasoner.DecisionGate.SetResult();
-            f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        };
-        await f.RunAsync("open skill packages");
-        await f.ViewModel.ActiveReasoningTask!;
-        navigation.Surfaces.Should().BeEmpty();
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        f.ViewModel.ResponseBody.Should().Contain("Keep this exact question?");
     }
 
     [Theory]

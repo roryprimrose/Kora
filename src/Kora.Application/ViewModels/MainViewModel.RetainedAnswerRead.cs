@@ -1,4 +1,4 @@
-using Kora.Application.Hosting;
+﻿using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
@@ -39,7 +39,7 @@ public sealed partial class MainViewModel : ISessionAnswerPlayback
 
     private bool CanEnterRetainedAnswerRead => composerDictation?.IsActive != true
         && !speechInterruptionActive
-        && questionVoiceReplies?.IsActive != true && !IsResponseInteractionPending && !IsGrantEditorVisible
+        && questionVoiceReplies?.IsActive != true && !IsResponseInteractionPending
         && responseReadDecisionsEligible() && retainedAnswerDecisionsEligible();
 
     public void BindSelectedAnswerRead(Func<Func<bool>, Func<CancellationToken, Task>?> capture) =>

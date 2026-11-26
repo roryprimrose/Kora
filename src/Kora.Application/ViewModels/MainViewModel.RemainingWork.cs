@@ -168,7 +168,6 @@ public sealed partial class MainViewModel
         if (Current() && IsSpeechResponseEnabled)
         {
             await TrySpeakCurrentResponseAsync(answer.FormatSpeech(), expectedSpeechRevision: speech, additionalEligibility: Current,
-                boundedExactReadback: true,
                 validateReadSource: cancellation => conversation.ValidateRemainingWorkAsync(answer, admitted, cancellation),
                 cancellationToken: token);
         }

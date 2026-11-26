@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Auditing;
@@ -19,6 +19,20 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task PendingQuestionOwnsInputBeforeGeneralRouting()
+    {
+        var f = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
+        await f.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var calls = 0;
+        f.ViewModel.BindSessionRouting((_, _, _) => { calls++; return Task.FromResult<SessionRoutingReceipt?>(null); });
+        await f.RunAsync("Kora, option one");
+        calls.Should().Be(0);
+    }
+
     [Fact]
     public async Task OriginalRoutingHostOwnsIndependentVoiceQuestionsAndRejectsPrematureRelease()
     {
@@ -53,7 +67,7 @@ public sealed partial class MainViewModelTests
             return null;
         });
         await f.RunAsync("Explain the original routing request");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         f.Voice.IsCaptureQuiescent.Should().BeTrue();
         await f.ViewModel.DisposeAsync();
@@ -95,7 +109,7 @@ public sealed partial class MainViewModelTests
             return null;
         });
         await f.RunAsync("Explain held original routing");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         f.Voice.IsCaptureQuiescent.Should().BeTrue();
         if (boundary is not "dispose") { await f.ViewModel.DisposeAsync(); }
@@ -130,7 +144,7 @@ public sealed partial class MainViewModelTests
         await disposal;
         await operation;
         f.Voice.IsCaptureQuiescent.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private static SessionRoutingReview RoutingVoiceReview(string body, RequestOrigin origin)
@@ -184,7 +198,7 @@ public sealed partial class MainViewModelTests
 
         stops.Should().Be(1);
         f.Voice.IsCaptureQuiescent.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         await f.ViewModel.DisposeAsync();
     }
@@ -215,7 +229,7 @@ public sealed partial class MainViewModelTests
         });
         await f.RunAsync("Explain the original admitted routing request");
         f.Voice.StartCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.DisposeAsync();
     }
 
@@ -241,7 +255,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("Explain the original routing request");
         presentations.Should().Be(0);
         f.ViewModel.ResponseTitle.Should().Be("Session routing stopped.");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Voice.StartCalls.Should().Be(0);
         await f.ViewModel.DisposeAsync();
     }
@@ -341,7 +355,7 @@ public sealed partial class MainViewModelTests
                 else { (await reply.StartAsync()).Should().BeNull(); }
                 f.ViewModel.ReleaseSessionRoutingVoiceReply(reply);
                 f.Voice.StartCalls.Should().Be(0);
-                f.Reasoner.Requests.Should().BeEmpty();
+
                 return null;
             }
             finally
@@ -384,7 +398,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("session request review \"Alpha\" -- exact addressed body");
         await f.RunAsync("what version are you running");
         bodies.Should().ContainSingle();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -404,7 +418,7 @@ public sealed partial class MainViewModelTests
         origins.Should().Equal(RequestOrigin.ActivatedVoice);
         await f.RaiseActivatedTranscriptAsync("compare these plans", 1);
         origins.Should().ContainSingle();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -414,7 +428,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindSessionRouting((_, _, _) => throw new InvalidOperationException("stale exact descriptor"));
         await f.RunAsync("compare these plans");
         f.ViewModel.ResponseTitle.Should().Be("Session routing stopped.");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
     }
 
@@ -434,7 +448,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("original");
         f.ViewModel.ResponseTitle.Should().Be(unnamed ? "Request destination: Unnamed conversation." : "Request destination: Reviewed destination.");
         f.ViewModel.ResponseBody.Should().Contain("HOST Unavailable / UnregisteredModel");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -446,7 +460,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync(f.ViewModel.AssistantName);
         f.ViewModel.ResponseTitle.Should().Be("No request was heard.");
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -476,12 +490,24 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsDetailsOfferPending.Should().Be(offers);
         f.ViewModel.ResponseBody.Split(AnswerPresentation.Offer, StringSplitOptions.None)
             .Should().HaveCount(offers ? 2 : 1);
+        if (offers)
+        {
+            var retained = f.ViewModel.ResponseBody;
+            await using var pending = new PendingDetailsQuestion(f);
+            await pending.PresentAsync();
+            f.ViewModel.IsDetailsOfferPending.Should().BeFalse();
+            f.ViewModel.RetireDetailsOffer();
+            f.ViewModel.IsDetailsOfferPending.Should().BeTrue();
+            f.ViewModel.DeclineCurrentDetailsOffer();
+            f.ViewModel.IsDetailsOfferPending.Should().BeFalse();
+            f.ViewModel.ResponseBody.Should().Be(retained);
+        }
         var presenter = new ResponsePresenter(main);
         main.BindCurrentResponsePresentation(presenter);
         await main.OpenCurrentResponseDetailsAsync();
         presenter.Content!.Source.Should().Be(body);
         settings.Preferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -498,7 +524,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Session routing stopped.");
         f.ViewModel.ResponseBody.Should().Contain(submitted.RequestId.Value.ToString("D"));
         if (fresh) { f.ViewModel.ResponseBody.Should().Contain(creation.RequestId.Value.ToString("D")); }
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -516,22 +542,9 @@ public sealed partial class MainViewModelTests
             return null;
         });
         await f.RunAsync("original");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task PendingQuestionOwnsInputBeforeGeneralRouting()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which choice?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("please choose this work");
-        await f.ViewModel.ActiveReasoningTask!;
-        var calls = 0;
-        f.ViewModel.BindSessionRouting((_, _, _) => { calls++; return Task.FromResult<SessionRoutingReceipt?>(null); });
-        await f.RunAsync("Kora, option one");
-        calls.Should().Be(0);
-    }
+
 }

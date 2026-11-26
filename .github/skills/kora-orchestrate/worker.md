@@ -10,6 +10,12 @@ effective model/effort; absent host evidence means UNVERIFIED. Never change host
 permissions or account/global configuration. Honor the supplied publication
 authority and restrictions; agent selection alone does not authorize GitHub writes.
 
+Apply [scope/source authority and quiescence](./SKILL.md#scopesource-authority-and-quiescence)
+in every version. The human user and coordinator may post in any session at any
+time; user messages, coordinator status messages and blocking `ask_user` answers
+are never scope/source authority and never invalidate quiescence. Never ask
+users to promise silence or attest that they have not posted.
+
 ## Version10 execution and retained work
 
 First recover the real ledger version. The
@@ -89,9 +95,11 @@ written files no longer present in the working tree. Do not infer a manifest
 from current dirty status alone. Keep every relevant path within the proposed
 nonempty strict subset, and report concrete preservation receipts.
 
-Stop source writes permanently before acknowledging. Reconcile all queued and
-processing broad instructions with the coordinator; zero pending instructions
-is a verified fact, not a default. Return a fresh acknowledgment ID and concrete
+Stop source writes permanently before acknowledging. Reconcile unconsumed
+coordinator scope/source-authority instructions using the coordinator's own
+sent-instruction readback plus your consumed-instruction record, including exact
+IDs/revisions and rejected stale authority. Zero is verified authority zero,
+not total transport counts, sender enumeration or a default. Return a fresh acknowledgment ID and concrete
 message/receipt bound to the exact complete proof digest, old/proposed scopes
 and revision. Do not acknowledge unknown proof, reserve future expansion, or
 restart source writes after acceptance. This does not waive PR/slot ownership,
@@ -106,10 +114,12 @@ An attached running nonretired worker may request a bounded
 Keep added writes withheld. Report exact owner/key/admitted identity/current
 scope revision, all original scopes, exact additions/full union and complete
 actual/planned/committed/retained/unpreserved writes (including restored files).
-Temporarily pause source work and reconcile queued/processing broad instructions
-with the coordinator before returning a fresh whole-proof acknowledgment.
-Unknown pending counts or exclusivity are blockers, not default success.
-For non-incident additions only, unavailable queue enumeration may use the
+Temporarily pause source work and reconcile unconsumed coordinator scope/source
+authority (including processing authority) with the coordinator's own sent-
+instruction readback plus your consumed-instruction record before returning a
+fresh whole-proof acknowledgment. Genuinely unknown authority or exclusivity
+is a blocker, not default success; unavailable transport/sender enumeration is not.
+For non-incident additions only, genuinely unknown authority may use the
 [explicit human-approved version-2 extension](./README.md#explicit-human-approved-unknown-extension).
 Keep UNKNOWN; actually pause/join all source work and establish a fresh
 same-owner epoch/nonce revoking all earlier broad source authority. Bind current
@@ -150,7 +160,7 @@ General implementation approval and an old receipt/digest are not that decision.
 Use the [exact synthetic input](./README.md#exact-input-and-synthetic-execution)
 only to understand shape; it supplies no live authority or quiescence.
 
-When inbound pending/processing enumeration is unavailable, retain UNKNOWN.
+When scope/source-authority consumption status genuinely remains unknown, retain UNKNOWN.
 Only the separately typed human-approved source-authority fence can reconcile
 this case: actually establish a fresh epoch/nonce revoking all earlier broad
 source instructions; confirm live pause/join and rejection of stale authority
@@ -185,7 +195,7 @@ Accepted local supersession permanently retires the prior writer's source author
 Original commits/publication/history, blocker, slot and cleanup obligations remain; separately authorized truthful publication and actual cleanup are not forbidden by source retirement. No test, receipt string or digest authenticates external human/host facts.
 
 For the [human-fenced local handoff](./README.md#human-fenced-local-holder-handoff),
-UNKNOWN pending/processing counts stay UNKNOWN. As a retained published holder,
+UNKNOWN authority pending/processing counts stay UNKNOWN. As a retained published holder,
 actually stop the entire source identity, join commands, preserve all original/
 dirty/restored/history paths and establish a fresh cooperative epoch/nonce rejecting
 all earlier broad source authority. Return only an actual whole-multi-holder-proof
@@ -216,8 +226,10 @@ retained work merely to free capacity. Caller preservation restrictions control.
    of that local reference is permitted only after proving every commit is
    published and preserved. Preserve open-PR/queue remote branches.
 5. Verify the exact path is absent from disk and Git's worktree list, and the
-   local ref is absent. Report pending instruction IDs; do not allow stale
-   assignments to restart writes.
+   local ref is absent. Report unconsumed coordinator authority instruction
+   IDs/revisions, reconciled against the coordinator's sent-instruction readback
+   and your consumed-instruction record; do not allow stale assignments to
+   restart writes. Ordinary posts do not invalidate this cleanup proof.
 
 Locks, dirty state, shared ownership, access restrictions, or missing proof mean
 CLEANUP_BLOCKED with exact path/ref; preserve work and stop safely. Idle is not

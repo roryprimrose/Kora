@@ -8,6 +8,7 @@ agents: []
 ---
 
 Apply the [planner contract](../skills/kora-orchestrate/planner.md).
+Use its [authority-based quiescence](../skills/kora-orchestrate/SKILL.md#scopesource-authority-and-quiescence), never user silence.
 Investigate only; do not implement, publish, dispatch, or create workers.
 One assignment is one bounded pass, not an endless task.
 Report incrementally to the exact coordinator chat and finish the pass.

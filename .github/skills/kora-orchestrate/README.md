@@ -14,6 +14,18 @@ Child contract links therefore supply behavior, not proof that profiles loaded.
 The caller explicitly permits requested high-reasoning worker definitions with
 unverified effective settings. Report that condition; do not fabricate verification.
 
+All versions use [scope/source authority and quiescence](./SKILL.md#scopesource-authority-and-quiescence):
+`pendingInstructions` counts unconsumed coordinator scope/source-authority
+instructions, not total transport messages. `processingInstructions` counts the
+processing authority subset. Establish zero from the coordinator's own sent-
+instruction readback plus the owner's consumed-instruction record with exact
+IDs/revisions; never use sender enumeration or user silence attestations.
+Human/coordinator posts and blocking `ask_user` answers never confer scope/source
+authority or invalidate quiescence. Widening/resuming writes requires an accepted
+transaction plus a separate exact coordinator continuation naming the accepted
+checkpoint/scope revision (or version10 grant/revision). Preserve every existing
+proof, acknowledgment, frozen union, fence, cleanup gate and schema name.
+
 ## Opt-in version10 lifecycle
 
 The [registry](./scripts/registry.cjs) exports a version10 engineering interface, distinct from legacy versions1-9 below. Loading or merging it performs no migration, adoption, release, host action or source execution. Legacy validation and histories retain their original meanings. All examples in this section are synthetic, not evidence of live consent, quiescence or OS enforcement.
@@ -297,7 +309,12 @@ These are deterministic **consistency verifiers**, not host consent authenticati
 
 ### Pending zero versus UNKNOWN reconciliation
 
-- `enumerated-pending-zero` requires separately observed `pendingInstructions=0` **and** `processingInstructions=0`, with concrete enumeration evidence. Source pause, no running commands and joined current work remain independently required ([validation](./scripts/registry.cjs)).
+- `enumerated-pending-zero` retains its schema name but requires `pendingInstructions=0`
+  **and** `processingInstructions=0` for unconsumed coordinator scope/source authority.
+  Prove zero with coordinator sent-instruction readback plus owner consumption/rejection
+  records, not transport counts, sender enumeration or user silence. Source pause/no
+  commands/join remain independently required ([authority contract](./SKILL.md#scopesource-authority-and-quiescence)).
+- UNKNOWN means genuinely unknown authority, for example stale broad instructions whose consumption status cannot be reconciled. Ordinary posts or unavailable total queue/sender enumeration do not justify UNKNOWN or a fence ([authority contract](./SKILL.md#scopesource-authority-and-quiescence)).
 - `human-approved-source-fence` retains both counts as the literal string `"UNKNOWN"`. Require an actually established same-owner source-authority revocation fence: a positive monotonic `epoch`, fresh `nonce`, `revokesEarlierSourceAuthority=true`, `established=true` and concrete evidence. The final owner acknowledgment and human decision bind that fence; it is not an automatic missing-count fallback ([validation](./scripts/registry.cjs)).
 - Every earlier broad source instruction loses source-write authority under the fence. The same owner must enforce rejection before any write, even if an old instruction later starts processing. The host must enforce that protocol; the reducer cannot cancel a queued message or prove a drain. A later recovery cannot drop an established fence, reuse its nonce or lower its epoch ([validation](./scripts/registry.cjs)).
 - This branch changes no pending-zero requirement for ordinary extension, shrink, supersession, handoff or cleanup. UNKNOWN is never cleanup evidence, and temporary pause/fencing never retires, replaces or duplicates the owner ([legacy and recovery regressions](./scripts/registry.test.cjs)).
@@ -559,8 +576,10 @@ Get-Content -LiteralPath $ProofPath -Raw |
    A merged PR whose remote branch is absent keeps its original publication
    evidence and independent local preservation. Host locks remain cleanup
    blockers. Neither a deleted branch nor idle status proves stopped writing.
-3. Verify source quiescence, permanent frozen expansion and zero queued **and
-   processing** broad instructions. Obtain a concrete fresh owner response
+3. Verify source quiescence, permanent frozen expansion and zero unconsumed
+   coordinator scope/source-authority instructions, including processing authority,
+   through coordinator sent-instruction readback plus owner consumption records.
+   Obtain a concrete fresh owner response
    acknowledging the entire final proof, digest, old/new scopes and revision.
    Unknown host facts fail closed; the reducer does not discover these facts.
 4. Apply once with current `expectedRevision` and `expectedScopeRevision`.
@@ -681,7 +700,9 @@ retain prior actual and planned manifests (planned paths may become actual).
 Unpreserved dirty files remain retained, not permission to delete.
 
 Version-1 `quiescence` requires a concrete temporary paused-source receipt and verified
-zero queued/processing broad instructions. It is not `stoppedWriting` or
+zero unconsumed coordinator scope/source-authority instructions, including
+processing authority, under the [authority contract](./SKILL.md#scopesource-authority-and-quiescence).
+It is not `stoppedWriting` or
 permanent retirement. `unionFrozen=true` acknowledges no writes beyond the
 accepted union. The host/owner must prove those facts; unknown pending counts,
 idle status or a historical pause cannot substitute for a fresh acknowledgment.
@@ -704,7 +725,7 @@ exclusivity snapshot rejects with no effects. Version-1 event replay remains ide
 ### Explicit human-approved UNKNOWN extension
 
 For a **non-incident** mutable closure omission, proof version 2 permits
-UNKNOWN queue counts only through an explicitly established same-owner source
+genuinely UNKNOWN authority counts only through an explicitly established same-owner source
 authority fence. All actual writes must still be covered by original scopes:
 this is not incident recovery or retroactive authorization. Ordinary version-1
 pending-zero behavior, shrink, cleanup, handoff and supersession remain unchanged
@@ -712,8 +733,10 @@ pending-zero behavior, shrink, cleanup, handoff and supersession remain unchange
 
 The host must independently observe current source identity and preservation,
 temporary pause, no running source commands, joined work and effective rejection
-of all earlier broad source instructions. Sender-only pending lists, bounded
-transcripts, idle state, message acceptance, fixture strings and digests do not
+of all earlier broad source instructions. Reconcile known authority from the
+coordinator's sent-instruction readback plus owner consumption records.
+Total transport/sender enumeration and user silence are not required; ordinary
+posts do not invalidate quiescence. Bounded transcripts, idle state, message acceptance, fixture strings and digests do not
 establish these facts or authenticate human consent. If actual enforcement or
 pause/join cannot be established, withhold acknowledgment and continuation;
 never infer a complete queue drain ([worker obligations](./worker.md#mutable-owner-extension-acknowledgment)).
@@ -1052,7 +1075,11 @@ Run the three focused modules and the combined maintained policy selector under 
 
 ### Human-fenced local holder handoff
 
-Proof version 2 is an explicit opt-in alternative for retained **published** local holders when complete queue enumeration is unavailable. It never coerces UNKNOWN to zero, invents `sourceInstructionsCleared`, fabricates an incident or authorizes past effects.
+Proof version 2 is an explicit opt-in alternative for retained **published** local
+holders with genuinely unknown scope/source authority. Missing total queue/sender
+enumeration alone is not unknown authority. It never coerces UNKNOWN to zero,
+invents `sourceInstructionsCleared`, fabricates an incident or authorizes past
+effects ([authority contract](./SKILL.md#scopesource-authority-and-quiescence)).
 Version-1 verified-zero activation/revocation and nonactivating external preparation remain unchanged ([validator](./scripts/registry.cjs)).
 
 Only one independently verified controlling local ledger may activate this path. Every overlapping holder must cooperatively stop its entire source identity, join owned commands and establish a fresh authority-revocation fence rejecting **all** earlier broad source grants. Require each actual whole-proof owner response; version 2 adds no UNKNOWN revocation route ([worker contract](./worker.md)).

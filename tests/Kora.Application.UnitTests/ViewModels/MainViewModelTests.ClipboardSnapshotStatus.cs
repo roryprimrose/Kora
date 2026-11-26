@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Dependencies;
 using Kora.Core;
 using Kora.Core.Commands;
@@ -78,7 +78,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.HostStore.Records.Should().BeEmpty();
         fixture.Audit.Events.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -91,7 +91,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync(command);
         fixture.ViewModel.Transcript.Should().Contain("exact nonempty lowercase");
         fixture.ViewModel.Transcript.Should().NotContain("private-marker");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ClipboardReader.Calls.Should().Be(0);
     }
 
@@ -123,41 +123,5 @@ public sealed partial class MainViewModelTests
         fixture.ClipboardReader.Calls.Should().Be(1);
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Help_and_status_preserve_pending_question_or_action_approval_and_response(bool approval)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new DependencyStatus("local.inference", "Local model inference (Ollama)",
-            DependencyReadiness.Ready, "Inference verified.");
-        if (approval) { fixture.Reasoner.Action = BuiltInAction.EnableHostedModels; }
-        else { fixture.Reasoner.Question = new LocalModelQuestion("Which target?", ["Current", "Other"]); }
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("/lock");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.IsModelQuestionPending.Should().Be(!approval);
-        fixture.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        var body = fixture.ViewModel.ResponseBody;
-        var requests = fixture.Reasoner.Requests.Count;
-        await fixture.RunAsync("clipboard snapshot help");
-        await fixture.RunAsync("clipboard snapshot status invalid");
-        await fixture.RunAsync("clipboard snapshot status 01234567-89ab-cdef-0123-456789abcdef");
-        fixture.ViewModel.IsModelQuestionPending.Should().Be(!approval);
-        fixture.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.Reasoner.Requests.Should().HaveCount(requests);
-    }
 
-    [Fact]
-    public async Task Status_preserves_pending_grant_preview()
-    {
-        var fixture = await Fixture.CreateInitializedAsync();
-        await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
-            GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        var body = fixture.ViewModel.ResponseBody;
-        await fixture.RunAsync("clipboard snapshot help");
-        fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
-        fixture.ViewModel.ResponseBody.Should().Be(body);
-    }
 }

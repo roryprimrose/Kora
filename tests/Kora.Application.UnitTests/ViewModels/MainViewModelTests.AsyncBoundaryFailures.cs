@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 
 using AwesomeAssertions;
 
@@ -13,6 +13,25 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task AnActivePreferenceWriteRefusesAConcurrentExplicitWrite()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        fixture.AppearancePreferences.BeforePresencePreferenceSave = () => { entered.SetResult(); release.Wait(token); };
+        var first = fixture.ViewModel.SetPresencePositionAsync(new(10, 20));
+        try
+        {
+            await entered.Task.WaitAsync(token);
+            (await fixture.ViewModel.SetResponseWindowPositionAsync(new(30, 40))).Should().BeFalse();
+            fixture.ViewModel.ResponseTitle.Should().Be("Preference change busy.");
+        }
+        finally { release.Set(); }
+        await first;
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -86,7 +105,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("No power action is pending.");
         fixture.ViewModel.ResponseBody.Should().Be("Power execution is intentionally disabled in this bootstrap proof.");
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         if (retireTopology)
         {
             fixture.OutputConfiguration.Metadata.Should().BeSameAs(metadata);
@@ -121,7 +140,7 @@ public sealed partial class MainViewModelTests
         (await fixture.ViewModel.ResponseOutputUpdate).Should().BeFalse();
         var speak = typeof(MainViewModel).GetMethod("SpeakCurrentResponseAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
-        await (Task)speak.Invoke(fixture.ViewModel, [Type.Missing, Type.Missing, Type.Missing])!;
+        await (Task)speak.Invoke(fixture.ViewModel, [Type.Missing, Type.Missing])!;
 
         fixture.TextToSpeech.OutputEnumerationCalls.Should().Be(before + 1);
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
@@ -158,111 +177,16 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task ForcedDisposalJoinsEveryOwnedWorkerEvenWhenAnEarlierPreferenceWorkerFails()
-    {
-        var fixture = await Fixture.CreateInitializedAsync();
-        using var appearanceRelease = new ManualResetEventSlim();
-        using var auditRelease = new ManualResetEventSlim();
-        var appearanceEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var auditEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var token = TestContext.Current.CancellationToken;
-        fixture.AppearancePreferences.BeforeThemeSave = () =>
-        {
-            appearanceEntered.SetResult();
-            appearanceRelease.Wait(token);
-            throw new InvalidOperationException("Fixture appearance worker failure.");
-        };
-        fixture.ViewModel.ThemeMode = ApplicationThemeMode.Dark;
-        await appearanceEntered.Task.WaitAsync(token);
-        fixture.Audit.BeforeWrite = audit =>
-        {
-            if (audit.Category != SecurityAuditCategory.SecurityApproval || audit.Outcome != SecurityAuditOutcome.Requested) { return; }
-            auditEntered.SetResult();
-            auditRelease.Wait(token);
-        };
-        var preparation = fixture.ViewModel.PrepareGrantChangeAsync(
-            new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
-        await auditEntered.Task.WaitAsync(token);
-        var dispose = fixture.ViewModel.DisposeAsync().AsTask();
-        appearanceRelease.Set();
-        try
-        {
-            await fixture.ViewModel.AppearanceUpdate;
-            dispose.IsCompleted.Should().BeFalse("the outstanding required audit must be joined even after another worker fails");
-        }
-        finally { auditRelease.Set(); }
-        await preparation;
-        var closed = () => dispose;
-        await closed.Should().ThrowAsync<InvalidOperationException>();
-    }
-
-    [Theory]
-    [InlineData(false, "hide")]
-    [InlineData(false, "lock")]
-    [InlineData(true, "hide")]
-    [InlineData(true, "lock")]
-    [InlineData(true, "call")]
-    public async Task PreferenceCompletionNotificationsCannotReviveAnApprovalWhoseAdmissionChanged(bool modelAction, string transition)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local model",
-            Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        if (modelAction)
-        {
-            await fixture.RunAsync("please lock this workstation");
-            await fixture.ViewModel.ActiveReasoningTask!;
-        }
-        else
-        {
-            await fixture.ViewModel.PrepareGrantChangeAsync(
-                new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
-        }
-        var changed = false;
-        fixture.ViewModel.PropertyChanged += (_, args) =>
-        {
-            if (changed || !string.Equals(args.PropertyName, nameof(MainViewModel.AlwaysAllowedModelActions), StringComparison.Ordinal)
-                || !fixture.Audit.Events.Any(item => item.Category == SecurityAuditCategory.ConfigurationWrite
-                    && item.Outcome == SecurityAuditOutcome.Succeeded)) { return; }
-            changed = true;
-            switch (transition)
-            {
-                case "hide": fixture.ViewModel.HideApplication(); break;
-                case "lock": fixture.Session.IsUnlocked = false; break;
-                default: fixture.CallState.SetState(Kora.Core.Communication.CallState.Active); break;
-            }
-        };
-        if (modelAction) { await fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync(); }
-        else { await fixture.ViewModel.ConfirmGrantChangeAsync(); }
-        if (modelAction && string.Equals(transition, "call", StringComparison.Ordinal))
-        {
-            fixture.ViewModel.AlwaysAllowedModelActions.Should().ContainSingle().Which.Action.Should().Be(BuiltInAction.EnableHostedModels);
-            fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
-        fixture.Session.LockCalls.Should().Be(0);
-        }
-        else
-        {
-            fixture.ViewModel.AlwaysAllowedModelActions.Should().BeEmpty();
-            fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        }
-    }
-
-    [Fact]
     public async Task LateInternalPresentationAndRejectionContinuationsCannotCreateAuthority()
     {
         var fixture = await Fixture.CreateInitializedAsync();
-        var reject = typeof(MainViewModel).GetMethod("RejectPendingModelActionCoreAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .CreateDelegate<Func<Task>>(fixture.ViewModel);
-        await reject();
         var speak = typeof(MainViewModel).GetMethod("SpeakCurrentResponseAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .CreateDelegate<Func<string?, long?, CancellationToken, Task>>(fixture.ViewModel);
+            .CreateDelegate<Func<long?, CancellationToken, Task>>(fixture.ViewModel);
         fixture.TextToSpeech.OutputEnumerationException = new IOException("Fixture late output observation failure.");
-        await speak(null, null, TestContext.Current.CancellationToken);
+        await speak(null, TestContext.Current.CancellationToken);
         fixture.TextToSpeech.OutputEnumerationException = null;
         fixture.Session.IsUnlocked = false;
-        await speak(null, null, TestContext.Current.CancellationToken);
+        await speak(null, TestContext.Current.CancellationToken);
         var propose = typeof(MainViewModel).GetMethod("CreatePowerProposalCoreAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
             .CreateDelegate<Func<BuiltInAction, SecurityAuditInitiator, Task<bool>>>(fixture.ViewModel);
         (await propose(BuiltInAction.ProposeShutdown, SecurityAuditInitiator.TypedCommand)).Should().BeFalse();
@@ -338,43 +262,6 @@ public sealed partial class MainViewModelTests
         fixture.LocalModel.Calls.Should().Be(0);
         fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
         fixture.TextToSpeech.RemoveProviderCalls.Should().Be(0);
-    }
-
-    [Theory]
-    [InlineData("cancel")]
-    [InlineData("owner")]
-    [InlineData("call")]
-    [InlineData("recovery")]
-    [InlineData("input")]
-    public async Task ModelApprovalPreparationCannotPublishAfterRequestedAuditAdmissionChanges(string transition)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local model",
-            Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        fixture.Audit.BeforeWrite = audit =>
-        {
-            if (audit.Category != SecurityAuditCategory.SecurityApproval || audit.Outcome != SecurityAuditOutcome.Requested) { return; }
-            switch (transition)
-            {
-                case "cancel":
-                    typeof(MainViewModel).GetField("activeReasoningCancellation", BindingFlags.NonPublic | BindingFlags.Instance)!
-                        .GetValue(fixture.ViewModel).Should().BeOfType<CancellationTokenSource>().Which.Cancel();
-                    break;
-                case "owner": fixture.ViewModel.BindCallOwnershipGate(static () => false); break;
-                case "call": fixture.CallState.SetState(Kora.Core.Communication.CallState.Active); break;
-                case "recovery": fixture.ViewModel.CloseForObservedPrivacyEvent("fixture", false); break;
-                default: fixture.ViewModel.HideApplication(); break;
-            }
-        };
-        await fixture.RunAsync("please lock this workstation");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        await fixture.ViewModel.PrivacyClosureTask;
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.Audit.Events.Should().Contain(item => item.Outcome == SecurityAuditOutcome.Denied);
     }
 
     [Theory]
@@ -461,37 +348,6 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.PreferenceUpdate;
         await closing;
         fixture.AppearancePreferences.SavedResponseWindowSettings.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task AnActivePreferenceWriteRefusesAConcurrentExplicitWriteAndFailedModelStateStaysHeld()
-    {
-        var fixture = await Fixture.CreateInitializedAsync();
-        using var release = new ManualResetEventSlim();
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var token = TestContext.Current.CancellationToken;
-        fixture.AppearancePreferences.BeforePresencePreferenceSave = () => { entered.SetResult(); release.Wait(token); };
-        var first = fixture.ViewModel.SetPresencePositionAsync(new(10, 20));
-        try
-        {
-            await entered.Task.WaitAsync(token);
-            (await fixture.ViewModel.SetResponseWindowPositionAsync(new(30, 40))).Should().BeFalse();
-            fixture.ViewModel.ResponseTitle.Should().Be("Preference change busy.");
-        }
-        finally { release.Set(); }
-        await first;
-
-        fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.LockMachine]));
-        fixture.ModelExecutionPreferences.SaveFailure = new IOException("Fixture model write failure.");
-        fixture.ViewModel.LocalModelsEnabled = false;
-        await fixture.ViewModel.PreferenceUpdate;
-        fixture.ViewModel.LocalModelsEnabled = false;
-        fixture.ViewModel.RequireAssistantNameForVoiceApproval = false;
-        await fixture.ViewModel.PreferenceUpdate;
-        var save = typeof(MainViewModel).GetMethod("SaveModelApprovalPreferencesAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .CreateDelegate<Func<bool, IEnumerable<BuiltInAction>, SecurityAuditInitiator, Func<bool>?, Task<bool>>>(fixture.ViewModel);
-        (await save(true, [], SecurityAuditInitiator.LocalUser, null)).Should().BeFalse();
-        fixture.ViewModel.ResponseTitle.Should().Be("Model preferences are unavailable.");
     }
 
     [Theory]

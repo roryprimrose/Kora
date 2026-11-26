@@ -28,7 +28,7 @@ public sealed partial class MainViewModelTests
         }
         else { f.ArtifactCatalogue.Publish([source with { }]); }
         (await f.ViewModel.IsPromptSourceCurrent(source, TestContext.Current.CancellationToken)).Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -55,12 +55,12 @@ public sealed partial class MainViewModelTests
             draft.IsCurrent.Should().BeFalse();
             (await f.ViewModel.IsPromptSourceCurrent(source, TestContext.Current.CancellationToken)).Should().BeFalse();
         }
-        f.Reasoner.Requests.Should().BeEmpty();
+
         ((Action)(() => f.ViewModel.BindBundledPromptSources([registered, registered])))
             .Should().Throw<InvalidDataException>();
         await f.RunAsync(command);
         f.ViewModel.ResponseBody.Should().Contain("no exact immutable source registration");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -83,7 +83,7 @@ public sealed partial class MainViewModelTests
         {
             draft!.Source.Should().BeSameAs(source);
             draft.RequiredNames.Should().Equal("topic");
-            f.Reasoner.Requests.Should().BeEmpty();
+
             draft.SetValue("topic", "shutdown");
             var expanded = await draft.Preview(f.ViewModel.IsPromptSourceCurrent, TestContext.Current.CancellationToken);
             expanded.UserRequest.Should().Be("Request shutdown");
@@ -115,7 +115,7 @@ public sealed partial class MainViewModelTests
         if (string.Equals(failure, "inline", StringComparison.Ordinal))
         { f.ViewModel.PromptPreparationRequested += _ => throw new InvalidOperationException("Form must not open for inline values."); }
         await f.RunAsync(string.Equals(failure, "inline", StringComparison.Ordinal) ? "/example secret=value" : "/example");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.ResponseBody.Should().NotContain("${input:topic}");
         f.ViewModel.BindOwnedInstructionFreshness(null);
         (await f.ViewModel.IsPromptSourceCurrent(source, TestContext.Current.CancellationToken)).Should().BeFalse();
@@ -139,7 +139,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync(command, 0.91f);
         if (activated) { draft.Should().NotBeNull(); draft!.Dispose(); }
         else { draft.Should().BeNull(); f.ViewModel.ResponseBody.Should().Contain("current assistant name"); }
-        f.Reasoner.Requests.Should().BeEmpty();
+
         using var cancel = new CancellationTokenSource();
         f.ViewModel.BindOwnedInstructionFreshness(_ => { cancel.Cancel(); return Task.FromResult(true); });
         (await f.ViewModel.IsPromptSourceCurrent(source, cancel.Token)).Should().BeFalse();
@@ -170,7 +170,7 @@ public sealed partial class MainViewModelTests
             draft.CanUse.Should().BeFalse();
             draft.PreviewText.Should().BeNull();
         }
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]

@@ -114,7 +114,6 @@ public sealed class BuiltInCommandRouterTests
         var commands = catalog.GetCommands(name);
         var command = commands.Single(item => item.Action == BuiltInAction.StopAllWork);
         command.Aliases.Should().BeEmpty();
-        command.SupportsModelSuggestion.Should().BeFalse();
         ((int)BuiltInAction.DisableListening).Should().Be(25);
         ((int)command.Action).Should().Be(26);
         new BuiltInCommandRouter(catalog).Match($"{name}, stop all work", name).Command.Should().Be(command);

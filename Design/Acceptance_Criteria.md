@@ -418,7 +418,7 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Wake Listening, Capturing Command, Muted, Session Locked, and Unavailable are distinguishable, including background-app status.
 - Closing/dismissing UI preserves session history and work. Done archives; explicit confirmed deletion and configured inactivity purge remove retained session content under the dedicated lifecycle gate.
 - Restart restores readable Active/Done history and interrupted/unknown evidence, never tools, queued dispatch, provider memory, or consumed approval tokens. Explicit always grants remain subject to exact identity/digest/invocation and fresh policy validation.
-- Exercise all three grant scopes: single-use, the approved operation for an identified Kora work session, and perpetual. Test future executable grants separately against exact version/digest/invocation identity; current named model-action `Always` is not such a grant.
+- Exercise all three grant scopes: single-use, the approved operation for an identified Kora work session, and perpetual. Retired named model-action preferences are ignored, not converted into exact grants ([bootstrap regressions](../tests/Kora.Windows.IntegrationTests/DesktopBootstrapIntegrationTests.cs)).
 - Verify default single-use consumption, session isolation/end, and explicitly approved perpetual reuse without broadening operation/resource/provider/account/skill/device scope; lock/sign-out/policy changes enforce applicability without deleting perpetual records.
 - The native Permissions & Approvals surface lists canonical scope/bound session, identity, destination, hashes, creator channel, creation/edit history, last use/use count, policy revision, and consumed/session-ended/inapplicable/removal reason without raw sensitive content or a perpetual expiry.
 - Narrowing edits in place; permitted broadening, scope conversion, identity/destination change, and replacing consumed/ended/removed access require a newly reviewed exact voice/UI-confirmed grant.
@@ -426,7 +426,8 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Clipboard/private-context capture, egress, remote reads, privacy expansion, persistent preferences, and skill enablement use equivalent exact voice/UI approval rules; ambiguous intent/unsatisfied optional speaker policy pauses rather than inventing approval.
 - Denied canonical proposals are deduplicated/rate-limited and cannot be rephrased, split, or escalated repeatedly by models/tools/providers/skills; distinct resources/effects are never hidden in a broad bundled approval.
 - Newly displayed native approval controls ignore pre-existing key/mouse input and remain unarmed for at least 500 ms.
-- Verify that model answers, clarifying questions, and action/grant proposals cannot execute an unregistered action, invent a grant scope, or bypass host validation; model-suggested lock must require approval. For the future shared execution gate, an exact direct lock request must require the same action-specific grant; the current direct Windows-API lock remains ungated and does not pass this future test.
+- Verify immediate rejection of unmatched requests outside session routing, non-prompt artifact invocation and legacy clarification re-entry, before tasks, thinking status, speech or sends ([retirement regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ModelActionReview.cs)).
+- Verify that modern model output cannot execute an unregistered action, invent a grant scope or bypass host validation; direct computer intents retain exact fixed-package admission ([owner](../src/Kora/BundledFixedActionController.cs)).
 
 ### Mouse-Based Questions and Device Recovery
 

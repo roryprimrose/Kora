@@ -36,11 +36,10 @@ public sealed partial class MainViewModelTests
     [InlineData("text-only")]
     [InlineData("other-speech")]
     [InlineData("prompt")]
-    [InlineData("model-prompt")]
     [InlineData("request-review")]
     public async Task CompletionNoticeNativeReviewRejectsUnavailableOrMisboundVoiceTargets(string change)
     {
-        var f = change is "model-prompt" ? await CreateModelActionReviewFixtureAsync() : await Fixture.CreateInitializedAsync();
+        var f = await Fixture.CreateInitializedAsync();
         using var source = new LocalEventBrokerTests.Fixture();
         await using var broker = source.Create();
         var target = change is "request-review" ? BindRequestCommands(f).Session : BindSessions(f).Session;
@@ -65,7 +64,6 @@ public sealed partial class MainViewModelTests
             await f.TextToSpeech.SpeakAsync("unrelated", f.TextToSpeech.Voices[0], f.TextToSpeech.OutputDevices[0], source.Token);
         }
         if (change is "prompt") { await f.RunAsync("Kora, shut down the computer"); }
-        if (change is "model-prompt") { await ProposeModelActionReviewAsync(f); }
         if (change is "request-review") { await f.RunAsync("ask this conversation original unsent request"); }
         if (change is not ("session" or "generation")) { f.ViewModel.CanEnableCompletionNotices.Should().BeFalse(); }
         using var root = HostActivity.BeginRoot(new(new(Guid.NewGuid()), source.Session, new(Guid.NewGuid()), RequestOrigin.LocalUi),

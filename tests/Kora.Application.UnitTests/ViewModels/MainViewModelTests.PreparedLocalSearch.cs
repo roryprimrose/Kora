@@ -63,7 +63,7 @@ public sealed partial class MainViewModelTests
         folders.Reads.Should().Be(folder ? 2 : 0);
         engine.Calls.Should().Be(0);
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ClipboardReader.Calls.Should().Be(0);
         fixture.Audit.Events.Skip(auditCount).Should().NotContain(item =>
             item.ActionId.Contains("search", StringComparison.Ordinal));
@@ -93,7 +93,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync(command);
         fixture.ViewModel.ResponseTitle.Should().Contain("refused");
         fixture.ViewModel.Transcript.Should().NotContain("private");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.HostStore.Records.Should().BeEmpty();
         fixture.ClipboardReader.Calls.Should().Be(0);
     }
@@ -147,7 +147,7 @@ public sealed partial class MainViewModelTests
         else { await fixture.RunAsync(command); }
         calls.Should().Be(state is "no-window" or "denied-window" ? 1 : 0);
         fixture.ViewModel.ResponseTitle.Should().NotContain("PREPARED");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -192,7 +192,7 @@ public sealed partial class MainViewModelTests
         fixture.Dispatcher.FlushPosts();
         callbacks.Should().Be(0);
         fixture.ViewModel.ResponseTitle.Should().NotContain("PREPARED");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -253,24 +253,7 @@ public sealed partial class MainViewModelTests
         fixture.Dispatcher.FlushPosts();
         callbacks.Should().Be(0);
         fixture.ViewModel.ResponseTitle.Should().NotContain("PREPARED");
-        fixture.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task ReservedPreparationLeavesPendingQuestionIntactWithoutSupplyingItsPrivateLiteral()
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("choose");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var calls = fixture.Reasoner.Requests.Count;
-        await fixture.RunAsync("prepare file search for \"One private query\"");
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.ResponseTitle.Should().Contain("refused");
-        fixture.Reasoner.Requests.Should().HaveCount(calls);
-        fixture.ViewModel.Transcript.Should().NotContain("One private query");
     }
 
     private static async Task AdmitPreparedSource(Fixture fixture, bool folder)

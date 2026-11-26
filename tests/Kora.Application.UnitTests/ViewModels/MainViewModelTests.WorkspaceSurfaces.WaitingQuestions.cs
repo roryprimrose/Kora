@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Core.Commands;
@@ -46,7 +46,7 @@ public sealed partial class MainViewModelTests
         requests[0].IsAdmitted().Should().BeFalse();
         scopes.Should().OnlyContain(scope => scope.Outcome == HostOperationOutcome.Completed);
         f.Voice.StartedPhrases.Should().Contain("Nova show sessions needing an answer");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
         f.Session.LockCalls.Should().Be(0);
     }
@@ -68,7 +68,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("show sessions needing an answer");
         scope!.Outcome.Should().Be(terminal);
         f.ViewModel.ResponseBody.Should().Contain("Waiting questions " + message);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -120,26 +120,8 @@ public sealed partial class MainViewModelTests
         await command;
         scope!.Outcome.Should().Be(HostOperationOutcome.Cancelled);
         f.ViewModel.ResponseBody.Should().Contain("Waiting questions cancelled");
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.HostStore.Records.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task MalformedWaitingGrammarDoesNotAnswerAnExistingQuestion()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        var calls = 0;
-        f.ViewModel.WorkspaceSurfaceRequested += _ => { calls++; return Task.CompletedTask; };
-        await f.RaiseActivatedTranscriptAsync("Kora, show sessions needing an answer extra", 1);
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        f.ViewModel.ResponseBody.Should().Contain("Navigation command not accepted");
-        calls.Should().Be(0);
-        await f.ViewModel.CancelModelQuestionAsync();
+        f.HostStore.Records.Should().BeEmpty();
     }
 
     [Fact]
@@ -155,7 +137,7 @@ public sealed partial class MainViewModelTests
         var run = () => f.RunAsync("show sessions needing an answer");
         await run.Should().ThrowAsync<InvalidOperationException>().WithMessage("Presenter failure.");
         scope!.Outcome.Should().Be(HostOperationOutcome.Failed);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -182,6 +164,6 @@ public sealed partial class MainViewModelTests
         await f.Voice.RaiseTranscriptAsync("Kora, " + "show sessions needing an answer", 1);
         if (intervening is not null) { await intervening; }
         waitingReads.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

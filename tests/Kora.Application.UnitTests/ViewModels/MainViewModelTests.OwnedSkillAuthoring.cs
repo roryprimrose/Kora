@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Skills;
 using Kora.Core.Auditing;
 using Kora.Core.Hosting;
@@ -25,7 +25,7 @@ public sealed partial class MainViewModelTests
         if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, owned skill delete example 1.0.0", 1); }
         else { await f.RunAsync("owned skill delete example 1.0.0"); }
         captured.Should().Be(new OwnedSkillAuthoringCommand("delete", "example", "1.0.0"));
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -53,7 +53,7 @@ public sealed partial class MainViewModelTests
             else { await f.RunAsync(text); }
         }
         captured.Should().HaveCount(12);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -81,7 +81,7 @@ public sealed partial class MainViewModelTests
         captured[0].Literal.Should().Be(" explains failures\r\nowned skill save  ");
         captured[1].Literal.Should().Be(" user text  ");
         captured[2].Literal.Should().Be(" explanation  ");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -105,7 +105,7 @@ public sealed partial class MainViewModelTests
         captured[0].Command.Operation.Should().Be("guidance");
         captured[0].Command.Literal.Should().Be("owned skill save");
         captured[0].Authority.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -130,7 +130,7 @@ public sealed partial class MainViewModelTests
         }
         captured.Select(command => command.Operation).Should().Equal("critique", "refine", "cancel-refinement");
         captured[0].Literal.Should().Be(" unchanged  ");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -154,7 +154,7 @@ public sealed partial class MainViewModelTests
         }
         captured.Select(command => command.Operation).Should().Equal("fixture", "test", "cancel-test");
         captured[0].Literal.Should().Be(" {\"input\":\"owned skill save\"}  ");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -179,7 +179,7 @@ public sealed partial class MainViewModelTests
             case "channel": await f.ViewModel.SetAssistantNameAsync("Nova", SecurityAuditInitiator.LocalUser); break;
         }
         current().Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -194,7 +194,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.InitializeAsync();
         var current = f.ViewModel.CaptureOwnedSkillFixtureEligibility();
         current().Should().BeTrue("the local model admission still independently denies unavailable runtime qualification");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -208,7 +208,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindOwnedSkillAuthoring((_, _) => { calls++; return Task.CompletedTask; }, null);
         await f.RunAsync(input);
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -242,7 +242,7 @@ public sealed partial class MainViewModelTests
         instruction.Should().Be(allow ? 1 : 0);
         if (allow) { f.Events.Should().Contain("process.restart"); }
         else { f.Events.Should().NotContain("process.restart"); }
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -266,6 +266,6 @@ public sealed partial class MainViewModelTests
         if (change is "unprefixed-voice") { await f.RaiseActivatedTranscriptAsync("owned skill list", 1); }
         else { await f.RunAsync(change is "prefix-unavailable" ? "Kora, owned skill list" : "owned skill list"); }
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

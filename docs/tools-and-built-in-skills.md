@@ -138,15 +138,15 @@ grant host authority.
 For one ambiguous conversational observation request, **Ask locally with observations and one choice** in Sessions or its compact view runs the existing six read-only observation tools, permits one bounded native/activated-voice choice, and retains the actual final answer in the original conversation. See the [complete interaction and unavailable boundaries](responses-and-calls.md#conversation-clarification). A choice is not approval, permission, source consent or a reusable grant.
 
 Type a command or hold push-to-talk and use the configured assistant name.
-Exact phrases take precedence; unmatched requests require a verified local
-model. Models propose, while Kora validates and applies approval/privacy policy.
+Exact phrases take precedence; unmatched requests outside session routing reject
+without sending ([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 A clarification answer is not approval. See
 [Getting started](getting-started.md#use-typed-commands).
 
-`/lock`, `/restart`, `/shutdown`, `/skill <name>` and activated **run lock**
-select source-qualified instructions for a local-model request. Compatible
-disk instructions remain untrusted. Shared-profile skills use separate native
-registration/inspection, not startup model exposure. See
+Non-prompt artifact commands such as `/lock`, `/restart` and `/shutdown` reject
+immediately; they no longer select instructions for a fallback model request.
+Prompt-template artifacts and shared-profile skill registration/inspection
+retain their separate workflows. See
 [artifact commands](commands.md#run-skills-and-artifacts).
 
 ## 1. Application and help

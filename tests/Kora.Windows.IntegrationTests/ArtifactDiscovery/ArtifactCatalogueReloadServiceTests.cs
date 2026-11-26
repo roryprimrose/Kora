@@ -95,9 +95,9 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
             router.Match("Kora, use Original", "Kora").Invocation.Should().BeNull();
             native.Main.CommandText = "/replacement";
             await native.Main.RunTypedCommand.ExecuteAsync();
-            native.Main.ResponseTitle.Should().Be("Model use is turned off.");
-            native.Main.IsModelQuestionPending.Should().BeFalse();
-            native.Main.IsModelActionApprovalPending.Should().BeFalse();
+            native.Main.ResponseTitle.Should().Be("Model request unavailable.");
+            native.Main.ResponseBody.Should().StartWith("Nothing was sent.");
+            native.Main.IsResponseInteractionPending.Should().BeFalse();
             await ObserveChange(native.ArtifactCatalogue,
                 () => native.ArtifactCatalogue.Artifacts.Any(item =>
                     string.Equals(item.Content, "Later replacement edit.", StringComparison.Ordinal)),
@@ -319,9 +319,9 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
             await native.Main.ArtifactChangeUpdate;
             native.Main.CommandText = "/recovered";
             await native.Main.RunTypedCommand.ExecuteAsync();
-            native.Main.ResponseTitle.Should().Be("Model use is turned off.");
-            native.Main.IsModelQuestionPending.Should().BeFalse();
-            native.Main.IsModelActionApprovalPending.Should().BeFalse();
+            native.Main.ResponseTitle.Should().Be("Model request unavailable.");
+            native.Main.ResponseBody.Should().StartWith("Nothing was sent.");
+            native.Main.IsResponseInteractionPending.Should().BeFalse();
         });
     }
 

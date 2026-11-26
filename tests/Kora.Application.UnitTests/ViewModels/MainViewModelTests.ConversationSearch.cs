@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Text.Json;
 
 using AwesomeAssertions;
@@ -35,7 +35,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.HostStore.Records.Should().BeEmpty();
         store.SearchOrigins.Should().OnlyContain(origin => origin == (voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi));
         fixture.ViewModel.Transcript.Should().NotContain("MiXeD");
@@ -61,41 +61,9 @@ public sealed partial class MainViewModelTests
         if (fault is "unprefixed") { await fixture.RaiseActivatedTranscriptAsync(command, 1); }
         else { await fixture.RunAsync(command); }
         fixture.ViewModel.ResponseBody.Should().NotContain("original MiXeD");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.HostStore.Records.Should().BeEmpty();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task PendingQuestionAndBothApprovalsKeepTheirExactDecisionTargets(bool voice)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await fixture.ViewModel.InitializeAsync();
-        var store = BindConversationSearch(fixture);
-        var command = "conversation search " + store.Session.Authority.SessionId.Value.ToString("D") + " -- One";
-        Task Search() => voice ? fixture.RaiseActivatedTranscriptAsync("Kora, " + command, 1) : fixture.RunAsync(command);
-        await fixture.RunAsync("choose");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        await Search();
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.ResponseTitle.Should().Be("Session command blocked.");
-        await fixture.ViewModel.CancelModelQuestionAsync();
-        await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-            BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
-        await Search();
-        fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
-        await fixture.ViewModel.RejectPendingGrantChangeAsync();
-        fixture.Reasoner.Question = null;
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await fixture.RunAsync("please lock");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        await Search();
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        store.SearchOrigins.Should().BeEmpty();
     }
 
     [Fact]
@@ -144,7 +112,7 @@ public sealed partial class MainViewModelTests
         store.SearchMessageCount = 30;
         await fixture.RunAsync("conversation search " + store.Session.Authority.SessionId.Value.ToString("D") + " -- MiXeD");
         fixture.ViewModel.ResponseBody.Should().NotContain("original MiXeD");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private static SessionCommandStore BindConversationSearch(Fixture fixture, TimeProvider? time = null)

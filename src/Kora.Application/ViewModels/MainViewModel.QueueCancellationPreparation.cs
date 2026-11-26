@@ -1,4 +1,4 @@
-using Kora.Application.Diagnostics;
+﻿using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -29,11 +29,6 @@ public sealed partial class MainViewModel
                 command.Error ?? SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary);
             return;
         }
-        if (pendingModelQuestion is not null || IsGrantChangePending || IsModelActionApprovalPending)
-        {
-            ShowInformation("Queue cancellation preparation blocked.", "Resolve the current question or approval explicitly first. No target or decision changed.");
-            return;
-        }
         var origin = initiator switch
         {
             SecurityAuditInitiator.VoiceCommand => RequestOrigin.ActivatedVoice,
@@ -55,7 +50,6 @@ public sealed partial class MainViewModel
             && auditImpactOwnerRevision() == owner
             && Interlocked.Read(ref settingsOwnershipBindingRevision) == binding
             && Interlocked.Read(ref workspaceSurfaceInputRevision) == input
-            && pendingModelQuestion is null && !IsGrantChangePending && !IsModelActionApprovalPending
             && (origin == RequestOrigin.LocalUi || origin == RequestOrigin.ActivatedVoice
                 && activationPrefixed && IsVoiceEnabled && HasVoiceConsent && CallObservation.AllowActivation
                 && recovery == Volatile.Read(ref voiceRecoveryRevision)

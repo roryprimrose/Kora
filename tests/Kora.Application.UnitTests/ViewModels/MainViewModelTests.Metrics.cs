@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Application.Tools;
@@ -65,34 +65,10 @@ public sealed partial class MainViewModelTests
             if (route is "speech") { f.TextToSpeech.SpokenText.Should().Contain("No finished model execution"); }
         }
         else { f.ViewModel.ResponseBody.Should().NotContain("Finished model executions"); }
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
         store.RequestRetentions.Should().Be(0);
     }
 
-    [Fact]
-    public async Task MetricsNeverReplaceAnOutstandingQuestionOrApproval()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        var (_, conversation) = BindRemainingWork(f);
-        await using var owned = conversation;
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        var body = f.ViewModel.ResponseBody;
-        await f.RunAsync("show session metrics");
-        await f.RunAsync("session metrics active");
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        await f.ViewModel.ExecuteSessionCommandAsync(new(SessionCommandOperation.Metrics), SecurityAuditInitiator.LocalUser);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        await f.ViewModel.CancelModelQuestionAsync();
-        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        body = f.ViewModel.ResponseBody;
-        await f.RunAsync("show session metrics");
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-    }
+
 }

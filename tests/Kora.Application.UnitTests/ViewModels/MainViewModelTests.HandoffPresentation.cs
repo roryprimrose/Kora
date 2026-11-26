@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Core.Communication;
 using Kora.Core.Platform;
 
@@ -14,7 +14,7 @@ public sealed partial class MainViewModelTests
         var joined = false;
         f.ViewModel.BindOllamaEvaluationQuiescence(() => joined);
         (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         joined = true;
         (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue();
         f.ViewModel.Dispose();
@@ -34,7 +34,7 @@ public sealed partial class MainViewModelTests
         (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
         f.ViewModel.BindCopilotSetupQuiescence(static () => true);
         (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ViewModel.Dispose();
     }
     [Fact]
@@ -49,7 +49,7 @@ public sealed partial class MainViewModelTests
         eligible().Should().BeTrue();
         f.ViewModel.ReviewPendingHandoff();
         requested.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.CallState.SetState(CallState.Active);
         await f.Dispatcher.LastInvocation;

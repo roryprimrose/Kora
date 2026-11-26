@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Core.Hosting;
 using Kora.Core.Maintenance;
 using Kora.Tools.Application;
@@ -26,7 +26,7 @@ public sealed partial class MainViewModelTests
         host.Upgrade.Should().Be(upgrade);
         f.ViewModel.ResponseBody.Should().Be("Fresh check; native review required for installation.");
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         reviews.Should().Be(0, "the shared governed action owns native installer review; the command must not open a duplicate window");
     }
 
@@ -36,7 +36,7 @@ public sealed partial class MainViewModelTests
         var f = await Fixture.CreateInitializedAsync();
         await f.RunAsync("maintenance check");
         f.ViewModel.ResponseBody.Should().Contain("No check or installer was started");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -50,7 +50,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync(text);
         host.Calls.Should().Be(0);
         f.ViewModel.ResponseBody.Should().Contain(MaintenanceUpdateCommand.Syntax);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync("Kora, maintenance check", 1);
         host.Calls.Should().Be(1);
         host.Origin.Should().Be(RequestOrigin.ActivatedVoice);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -103,7 +103,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("maintenance check");
         host.Calls.Should().Be(1);
         f.ViewModel.ResponseBody.Should().NotBe("Fresh check; native review required for installation.");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -124,7 +124,7 @@ public sealed partial class MainViewModelTests
         var f = await Fixture.CreateInitializedAsync();
         f.ViewModel.Dispose();
         await f.ViewModel.ExecuteMaintenanceUpdateCommandAsync(new(false, null), SecurityAuditInitiator.LocalUser);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private sealed class MaintenanceUpdates : IApplicationMaintenance

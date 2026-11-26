@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Kora.Application.Memory;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -43,7 +43,6 @@ public sealed partial class MainViewModel
         var call = CallPolicyRevision;
         var recovery = Volatile.Read(ref voiceRecoveryRevision);
         bool Eligible() => !disposed && IsHostInputEligible && CallPolicyRevision == call
-            && pendingModelQuestion is null && !IsGrantChangePending && !IsModelActionApprovalPending
             && (origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent
                 && CallObservation.AllowActivation && Volatile.Read(ref voiceRecoveryRevision) == recovery);
         try

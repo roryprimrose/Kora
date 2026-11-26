@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Definitions;
 using Kora.Application.UnitTests.Interaction;
@@ -57,7 +57,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync("make this clearer", 1);
         calls.Should().Be(1);
         f.ViewModel.IsBusy.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         host.Store.Snapshot.Questions.Single().Key.Should().Be(unrelated.Key);
         host.Store.Snapshot.Questions.Single().Draft.Should().BeNull();

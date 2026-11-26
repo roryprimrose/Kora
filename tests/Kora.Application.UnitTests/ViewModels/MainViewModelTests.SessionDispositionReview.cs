@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Core.Auditing;
@@ -28,7 +28,7 @@ public sealed partial class MainViewModelTests
         else { await f.RunAsync(input); }
         presenter.Commands.Should().ContainSingle().Which.Should().Be(DispositionTarget with { StopRunningWork = true });
         presenter.Origins.Should().ContainSingle().Which.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
         f.TextToSpeech.SpokenText.Should().BeNull();
     }
@@ -48,7 +48,7 @@ public sealed partial class MainViewModelTests
         presenter.Origins.Should().ContainSingle().Which.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
         f.ViewModel.ResponseTitle.Should().Be(displayed ? "Session disposition preview opened." : "Session disposition preview not opened.");
         f.ViewModel.ResponseBody.Should().Contain("separate deliberate native action").And.NotContain(DispositionTarget.SessionId.ToString("D"));
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
         f.TextToSpeech.SpokenText.Should().BeNull();
     }
@@ -77,7 +77,7 @@ public sealed partial class MainViewModelTests
         };
         await f.RaiseActivatedTranscriptAsync((mode is "unprefixed" ? "" : "Kora, ") + input, 1);
         presenter.Commands.Should().BeEmpty();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
         f.ViewModel.ResponseTitle.Should().Contain(mode is "unbound" ? "unavailable" : mode is "invalid" or "confirm" ? "not accepted" : "denied");
     }
@@ -125,70 +125,7 @@ public sealed partial class MainViewModelTests
             f.ViewModel.ResponseTitle.Should().Be("Session disposition review unavailable.");
             f.ViewModel.ResponseBody.Should().NotContain("private inventory");
         }
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Theory]
-    [InlineData("dispose")]
-    [InlineData("locked")]
-    [InlineData("rebind")]
-    [InlineData("call")]
-    [InlineData("question")]
-    [InlineData("grant")]
-    [InlineData("approval")]
-    public async Task QueuedOrLateDispositionCallbacksLoseAdmissionWithoutPublishingOrChangingPendingDecisions(string mode)
-    {
-        var f = await CreateDispositionReadyFixture();
-        var presenter = new DispositionPresenter();
-        f.ViewModel.BindSessionDispositionReview(presenter);
-        presenter.BeforeReturn = async () =>
-        {
-            switch (mode)
-            {
-                case "dispose": f.ViewModel.Dispose(); break;
-                case "locked": f.Session.IsUnlocked = false; break;
-                case "rebind": f.ViewModel.BindSessionDispositionReview(null); break;
-                case "call": f.CallState.SetState(CallState.Active); await f.Dispatcher.LastInvocation; break;
-                case "grant":
-                    await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
-                    break;
-                default:
-                    f.Reasoner.Question = mode is "question" ? new("Which?", ["One", "Two"]) : null;
-                    f.Reasoner.Action = mode is "approval" ? BuiltInAction.EnableHostedModels : null;
-                    await f.RunAsync("please choose");
-                    await f.ViewModel.ActiveReasoningTask!;
-                    break;
-            }
-        };
-        await f.ViewModel.ExecuteSessionDispositionReviewAsync(DispositionTarget, SecurityAuditInitiator.TypedCommand, false);
-        presenter.LastAdmission.Should().BeFalse();
-        f.ViewModel.ResponseTitle.Should().NotBe("Session disposition preview opened.");
-        if (mode is "question") { f.ViewModel.IsModelQuestionPending.Should().BeTrue(); }
-        if (mode is "grant") { f.ViewModel.IsGrantChangePending.Should().BeTrue(); }
-        if (mode is "approval") { f.ViewModel.IsModelActionApprovalPending.Should().BeTrue(); }
-    }
-
-    [Theory]
-    [InlineData("question")]
-    [InlineData("grant")]
-    [InlineData("approval")]
-    public async Task ExistingPendingDecisionsBlockDispositionWithoutConsumingOrAnsweringThem(string mode)
-    {
-        var f = await CreateDispositionReadyFixture();
-        var presenter = new DispositionPresenter();
-        f.ViewModel.BindSessionDispositionReview(presenter);
-        if (mode is "grant")
-        { await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always)); }
-        else
-        {
-            f.Reasoner.Question = mode is "question" ? new("Which?", ["One", "Two"]) : null;
-            f.Reasoner.Action = mode is "approval" ? BuiltInAction.EnableHostedModels : null;
-            await f.RunAsync("choose");
-            await f.ViewModel.ActiveReasoningTask!;
-        }
-        await f.RunAsync(DispositionInput);
-        f.ViewModel.ResponseTitle.Should().Be("Session disposition review blocked.");
-        presenter.Commands.Should().BeEmpty();
     }
 
     [Fact]
@@ -269,7 +206,7 @@ public sealed partial class MainViewModelTests
         presenter.Origins.Should().ContainSingle().Which.Should().Be(RequestOrigin.ActivatedVoice);
         presenter.LastAdmission.Should().BeFalse();
         f.ViewModel.ResponseTitle.Should().NotBe("Session disposition preview opened.");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]

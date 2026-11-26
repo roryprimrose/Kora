@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -90,7 +90,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("App provider configuration not confirmed.");
         f.ViewModel.SelectedProviderServiceChoice.Should().BeNull();
         f.ProfilePreferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ProviderProfileModels.Should().BeEmpty();
         f.ViewModel.CanSaveProviderProfile.Should().BeFalse();
         f.Voice.StartedPhrases.Should().Contain("refresh providers.app.profile");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -191,7 +191,7 @@ public sealed partial class MainViewModelTests
         f.ProviderPreferences.Mode.Should().BeNull();
         f.Voice.StartedPhrases.Should().Contain("set providers.app.default-service to Claude");
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Contain("Desired configuration saved only");
         await f.ViewModel.ResetProviderProfileCommand.ExecuteAsync();
         f.ProfilePreferences.Value.For(ProviderService.Local).Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -253,7 +253,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("App provider configuration not confirmed.");
         f.ProfilePreferences.Value.Should().BeNull();
         f.ViewModel.ProviderProfileConfigurationStatus.Should().Contain("unavailable");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -271,7 +271,7 @@ public sealed partial class MainViewModelTests
         missing.ViewModel.ProviderProfileDraftStatus.Should().Contain("No models are currently available");
         missing.ViewModel.ProviderProfileConfigurationStatus.Should().Contain("unavailable");
         await missing.RunAsync("reset providers.app.default-service");
-        missing.Reasoner.Requests.Should().BeEmpty();
+
         var f = new Fixture(enableProviderProfiles: true);
         await using var admission = f.OutputAdmission;
         await f.ViewModel.InitializeAsync();
@@ -304,7 +304,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.ExecuteProviderProfileCommandAsync(new(AppearanceCommandOperation.Set, ProviderService.Claude),
             SecurityAuditInitiator.VoiceCommand, cancellationToken: TestContext.Current.CancellationToken);
         (f.ProfilePreferences.Value?.Service).Should().Be(protectedCall ? null : ProviderService.Claude);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -351,7 +351,7 @@ public sealed partial class MainViewModelTests
         };
         await f.RunAsync("get providers.app.profile");
         f.ProfilePreferences.Value.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -366,7 +366,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("App provider configuration not confirmed.");
         f.ViewModel.ResponseBody.Should().Contain("64 KiB");
         f.ProfilePreferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Voice;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -52,7 +52,7 @@ public sealed partial class MainViewModelTests
         f.CallPreferences.SavedSettings.Should().BeNull();
         f.Audit.Events.Where(item => item.ActionId is "speech.call-once").Select(item => item.Outcome)
             .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -204,7 +204,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.CallObservation.Should().Be(call);
         f.Audit.Events.Where(item => string.Equals(item.ActionId, "speech.call-once", StringComparison.Ordinal)).Select(item => item.Outcome)
             .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -351,22 +351,6 @@ public sealed partial class MainViewModelTests
         CallSpeechCommand.Parse("review call speech\0", "Kora")!.Operation.Should().BeNull();
         CallSpeechCommand.Parse("\nreview call speech\n", "Kora")!.Operation.Should().BeNull();
         CallSpeechCommand.Parse("review call speech" + new string(' ', 1024), "Kora")!.Operation.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task CallSpeechInvalidReservedCommandsCannotAnswerQuestionsOrReachInference()
-    {
-        var f = CreateSummaryFixture(SpeechProviderIds.Windows);
-        await PrepareCallSpeechResponse(f, CallState.Active);
-        f.Reasoner.Question = new("Which color?", ["Blue", "Green"]);
-        await f.RunAsync("Kora, choose something");
-        await f.ViewModel.ActiveReasoningTask!;
-        f.Reasoner.Requests.Clear();
-        await f.RunAsync("review call speech and approve once");
-        f.ViewModel.CallSpeechStatus.Should().Contain("was not accepted");
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.TextToSpeech.SpokenText.Should().BeNull();
     }
 
     [Theory]
@@ -696,6 +680,5 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.CallClosureTask;
         await f.RunAsync("what power action is pending");
         f.TextToSpeech.ClearSpokenResponse();
-        f.Reasoner.Requests.Clear();
     }
 }

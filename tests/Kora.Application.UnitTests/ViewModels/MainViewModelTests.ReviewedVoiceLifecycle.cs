@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using System.Diagnostics;
 using Kora.Application.Voice;
 using Kora.Core.Hosting;
@@ -313,7 +313,6 @@ public sealed partial class MainViewModelTests
         h.Fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
         h.Clock.Disposed.Should().BeTrue();
         h.Calls.Should().Be(0);
-        h.Fixture.Reasoner.Requests.Should().BeEmpty();
         h.Fixture.Session.LockCalls.Should().Be(0);
         h.Fixture.ClipboardReader.Calls.Should().Be(0);
         h.Logger.Entries.Should().NotContain(text => text.Contains("PRIVATE_EXPIRED_COMMAND", StringComparison.Ordinal));

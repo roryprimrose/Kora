@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
@@ -19,6 +19,26 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.Voices = f.TextToSpeech.Voices.Append(
             new SpeechVoice("female", "Installed Kokoro voice", "en-US", SpeechVoiceGender.Female)
             { ProviderId = SpeechProviderIds.Kokoro }).ToArray();
+    }
+
+    [Fact]
+    public async Task InstalledVoiceReviewNeverAnswersOrReplacesAnExistingPendingQuestion()
+    {
+        var f = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
+        await f.ViewModel.InitializeAsync();
+        BindSpeechSuggestions(f);
+        await pendingDetails.PresentAsync();
+        var title = f.ViewModel.ResponseTitle;
+        var question = f.ViewModel.CurrentDetailsOffer;
+        await f.RunAsync("review installed voice suggestion");
+        f.ViewModel.ResponseTitle.Should().Be(title);
+        f.ViewModel.CurrentDetailsOffer.Should().BeSameAs(question);
+        f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        f.Preferences.SavedProviderId.Should().BeNull();
+        f.TextToSpeech.InstallProviderCalls.Should().Be(0);
+        await f.ViewModel.DisposeAsync();
     }
 
     [Theory]
@@ -72,7 +92,7 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.SpokenVoice!.ConfigurationId.Should().Be("kokoro / female");
         model.Calls.Should().Be(1);
         store.RequestMessage.Should().Be(retained);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.DisposeAsync();
     }
 
@@ -141,7 +161,7 @@ public sealed partial class MainViewModelTests
         f.Audit.Events.Should().NotContain(item => item.ActionId == SpeechOptionRegistry.Get(SpeechOption.Voice).AuditAction
             && item.Outcome == SecurityAuditOutcome.Succeeded);
         model.Calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpeakCalls.Should().Be(spoken);
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.TextToSpeech.InstallProviderCalls.Should().Be(0);
@@ -158,25 +178,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Installed voice source unavailable.");
         f.Voice.StartedPhrases.Should().Contain(InstalledSpeechVoiceSuggestionCommand.FixedPhrases)
             .And.Contain(["Kora review installed voice suggestion", "Kora confirm installed voice change", "Kora cancel installed voice review"]);
-        f.Reasoner.Requests.Should().BeEmpty();
-        await f.ViewModel.DisposeAsync();
-    }
 
-    [Fact]
-    public async Task InstalledVoiceReviewNeverAnswersOrReplacesAnExistingPendingQuestion()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await f.ViewModel.InitializeAsync();
-        BindSpeechSuggestions(f);
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        await f.RunAsync("review installed voice suggestion");
-        f.ViewModel.ResponseTitle.Should().Be("Installed voice review denied.");
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        f.Preferences.SavedProviderId.Should().BeNull();
-        f.TextToSpeech.InstallProviderCalls.Should().Be(0);
         await f.ViewModel.DisposeAsync();
     }
 

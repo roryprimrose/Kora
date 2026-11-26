@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
 using Kora.Application.ViewModels;
@@ -43,7 +43,7 @@ public sealed partial class MainViewModelTests
         fixture.AppearancePreferences.ConversationOnRight.Should().BeFalse();
         fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.conversation-on-right"
             && item.Outcome == SecurityAuditOutcome.Failed);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await fixture.ViewModel.DisposeAsync();
     }
 
@@ -67,7 +67,7 @@ public sealed partial class MainViewModelTests
             .Be(boundary == SecurityAuditOutcome.Succeeded ? true : null);
         fixture.ViewModel.CanReviewSettingsUndo.Should().BeFalse();
         fixture.ViewModel.CanConfirmSettingsUndo.Should().BeFalse();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await fixture.ViewModel.DisposeAsync();
     }
 
@@ -89,7 +89,7 @@ public sealed partial class MainViewModelTests
             && item.Outcome == SecurityAuditOutcome.Failed);
         fixture.Audit.Events.Should().NotContain(item => item.ActionId == "configuration.reduced-motion"
             && item.Outcome == SecurityAuditOutcome.Succeeded);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         await fixture.ViewModel.DisposeAsync();
     }
 
@@ -151,7 +151,7 @@ public sealed partial class MainViewModelTests
             && item.Outcome == SecurityAuditOutcome.Succeeded);
         fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.native-presence-renderer"
             && item.Outcome == SecurityAuditOutcome.Failed);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.PresenceDotSizePercent = 120;
         fixture.ViewModel.PresenceMovementSpeedPercent = 120;
         await fixture.ViewModel.AppearanceUpdate;
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.AppearancePreferences.SavedPresencePosition.Should().BeNull();
         fixture.AppearancePreferences.SavedResponseWindowSettings.Should().BeNull();
     }
@@ -241,7 +241,7 @@ public sealed partial class MainViewModelTests
         await fixture.RaiseActivatedTranscriptAsync("Nova, set appearance theme to dark", 1);
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.Dark);
         fixture.AppearancePreferences.SavedMode.Should().Be(ApplicationThemeMode.Dark);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.appearance-theme"
             && item.Initiator == SecurityAuditInitiator.VoiceCommand && item.Outcome == SecurityAuditOutcome.Succeeded);
         await fixture.RaiseActivatedTranscriptAsync("Nova, reset appearance theme", 1);
@@ -273,7 +273,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.Dark);
         fixture.ViewModel.AppearanceSettingStatus.Should().Contain("owned fixture failure");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]

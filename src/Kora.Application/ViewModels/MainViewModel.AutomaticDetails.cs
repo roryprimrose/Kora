@@ -1,4 +1,4 @@
-using Kora.Application.Configuration;
+﻿using Kora.Application.Configuration;
 using Kora.Application.Presentation;
 using Kora.Application.Diagnostics;
 using Kora.Core.Hosting;
@@ -18,8 +18,7 @@ public sealed partial class MainViewModel
         var input = Interlocked.Read(ref workspaceSurfaceInputRevision);
         var commandInput = Interlocked.Read(ref attachmentCatalogueComposerRevision);
         var capture = voiceRecognition.CaptureGeneration;
-        bool Current() => IsCallMutationHostEligible && !IsProtectedCall && !IsResponseInteractionPending
-            && !IsGrantEditorVisible && !HasResponseActions && voiceRecognition.IsCaptureQuiescent
+        bool Current() => IsCallMutationHostEligible && !IsProtectedCall && !IsResponseInteractionPending && !HasResponseActions && voiceRecognition.IsCaptureQuiescent
             && composerDictation?.IsActive != true && !IsSpeaking
             && binding == Interlocked.Read(ref settingsOwnershipBindingRevision) && owner == settingsOwnershipRevision()
             && privacy == privacyObservation.Current.TopologyRevision && recovery == Interlocked.Read(ref voiceRecoveryRevision)

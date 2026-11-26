@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Application.Presentation;
@@ -90,7 +90,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.HasSessionOperationReview.Should().BeFalse();
         revealed.Should().Be(route is "native" or "typed" or "voice" or "failure" or "oom" ? 1 : 0);
         await offers.DisposeAsync();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed partial class MainViewModelTests
             realTurn.Store.RequestMessage!.AssistantResponse.Should().BeNull();
             source.Store.Question.Should().BeNull();
             realTurn.Adapter.Calls.Should().Be(1);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             return;
         }
         realTurn.Store.RequestMessage!.AssistantResponse!.Body.Should().Be(realTurn.Adapter.ResponseBody);
@@ -192,7 +192,7 @@ public sealed partial class MainViewModelTests
         }
         reveals.Should().Be(available ? 1 : 0);
         retired.Should().Be(available ? 1 : 0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         realTurn.Turns.IsQuiescent.Should().BeTrue();
         requests.TakeDetailsOffer(new(realTurn.Store.RequestMessage, realTurn.Store.TaskResult!.Task)).Should().BeNull();
         requests.Invoking(value => value.SetDetailsOfferChoice(true)).Should().Throw<InvalidOperationException>();
@@ -226,7 +226,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.AnswerDetailsOfferAsync(false);
         await f.ViewModel.DetailsOfferOperation;
         source.Store.Completed.Should().Equal(false);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -245,7 +245,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.RetireDetailsOffer();
         await f.ViewModel.DetailsOfferOperation;
         source.Store.Completed.Should().Equal(false);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -279,7 +279,7 @@ public sealed partial class MainViewModelTests
             await f.ViewModel.DetailsOfferOperation;
             source.Store.Completed.Should().Equal(accepted);
             f.Voice.StartCalls.Should().Be(0, "the offer never starts a manual or prefix-free capture");
-            f.Reasoner.Requests.Should().BeEmpty();
+
         }
         finally
         {
@@ -364,6 +364,6 @@ public sealed partial class MainViewModelTests
         await foreignRunning;
         source.Store.Completed.Should().Equal(false);
         other.Store.Completed.Should().Equal(false);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

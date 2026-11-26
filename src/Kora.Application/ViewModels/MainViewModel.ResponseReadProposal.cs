@@ -158,10 +158,10 @@ public sealed partial class MainViewModel
         RetireResponseReadProposal();
         var input = captured ?? CaptureResponseReadInput(initiator);
         var source = Volatile.Read(ref ordinaryResponse);
-        var host = CaptureModelActionReviewHost();
+        var host = CaptureCommandHostEligibility();
         if (responseReadPlanner is null || source?.Request is null || input.Target is not { } target
             || target.ResponseId != source.Id || !input.Eligible() || !host() || !CanEnterRetainedAnswerRead
-            || IsSpeaking || activeReasoningCancellation is not null || isModelActionDispatchActive || isModelApprovalPromptActive)
+            || IsSpeaking)
         {
             LastResponseReadOutcome = SpeechReadOutcome.Denied;
             ReportResponseRead("Current-answer proposal unavailable: an eligible exact ordinary answer, idle local planner and unchanged original-user speech admission are required. No decision was answered, source replaced or playback queued.");

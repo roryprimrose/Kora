@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
@@ -27,8 +27,7 @@ public sealed partial class MainViewModel
     public string DetailPresentationStatus => detailPresentation?.Description ?? "Detail preference controls are not composed.";
     public string DetailPresentationReviewText => detailPresentationReview?.Description ?? "No detail preference change is awaiting confirmation.";
     public bool CanControlDetailPresentation => detailPresentation is not null && !disposed && !detailPresentationActive
-        && IsCallMutationHostEligible && CanRevealPrivatePresentation && !IsResponseInteractionPending
-        && !IsGrantEditorVisible && !IsBusy && CanEnterRetainedAnswerRead;
+        && IsCallMutationHostEligible && CanRevealPrivatePresentation && !IsResponseInteractionPending && !IsBusy && CanEnterRetainedAnswerRead;
     public bool CanControlDetailPresentationNative => CanControlDetailPresentation && detailPresentationNativeLifetime();
 
     public void BindDetailPresentationNativeLifetime(Func<bool> lifetime)

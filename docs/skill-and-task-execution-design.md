@@ -3,7 +3,7 @@
 **Execution unavailable:** the [fixed bundled implementation](../src/Kora/BundledFixedActionController.cs) is wired, but its [contained runtime](../src/Kora.Windows/Skills/WindowsBundledScriptWorker.cs) is unqualified.
 Installing PowerShell, inspecting a package or selecting its instructions does not enable execution. General user-program/script execution remains deferred.
 
-Named model-action preferences do not grant files/programs/scripts or bypass the [fixed package gate](../src/Kora.Application/Skills/BundledFixedActionInvocation.cs).
+Retired named model-action preferences confer no authority and are never imported into the [fixed package gate](../src/Kora.Application/Skills/BundledFixedActionInvocation.cs).
 Voluntary lock/shutdown/restart use that gate without a legacy native fallback. See
 [current skills](tools-and-built-in-skills.md#13-built-in-skills) and
 [approval settings](settings.md#approvals).

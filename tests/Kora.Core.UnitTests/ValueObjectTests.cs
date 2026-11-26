@@ -136,20 +136,10 @@ public sealed class ValueObjectTests
     [Fact]
     public void Setup_and_model_value_objects_preserve_their_context()
     {
-        var dependencies = new[] { new LocalModelDependency("SQLite", DependencyReadiness.Missing) };
-        var tasks = new[] { new LocalModelTask("Install SQLite", SetupTaskState.Running, 42) };
-        var context = new LocalModelContext("Nova", true, "Shutdown", dependencies, tasks);
         var question = new LocalModelQuestion("Continue?", ["Yes", "No"]);
         var change = new GrantChange(GrantChangeOperation.Add, BuiltInAction.ShowHelp,
             ModelApprovalScope.Session, ModelApprovalScope.Always);
         var response = new LocalModelResponse("Done", BuiltInAction.ShowHelp, change, question);
-        var approval = new ModelApprovalPreferences(true, [BuiltInAction.ShowHelp]);
-
-        context.AssistantName.Should().Be("Nova");
-        context.IsListening.Should().BeTrue();
-        context.PendingPowerAction.Should().Be("Shutdown");
-        context.Dependencies.Should().BeSameAs(dependencies);
-        context.Tasks.Should().BeSameAs(tasks);
         response.Answer.Should().Be("Done");
         response.Action.Should().Be(BuiltInAction.ShowHelp);
         response.GrantChange.Should().BeSameAs(change);
@@ -158,11 +148,6 @@ public sealed class ValueObjectTests
         change.Action.Should().Be(BuiltInAction.ShowHelp);
         change.Scope.Should().Be(ModelApprovalScope.Session);
         change.TargetScope.Should().Be(ModelApprovalScope.Always);
-        approval.RequireAssistantNameForVoiceApproval.Should().BeTrue();
-        approval.AlwaysAllowedActions.Should().ContainSingle().Which.Should().Be(BuiltInAction.ShowHelp);
-        tasks[0].Name.Should().Be("Install SQLite");
-        tasks[0].State.Should().Be(SetupTaskState.Running);
-        tasks[0].ProgressPercentage.Should().Be(42);
     }
 
     [Fact]

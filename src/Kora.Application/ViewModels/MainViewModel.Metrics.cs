@@ -42,7 +42,7 @@ public sealed partial class MainViewModel
                 if (Current() && IsSpeechResponseEnabled)
                 {
                     await TrySpeakCurrentResponseAsync(snapshot.FormatSpeech(), additionalEligibility: Current,
-                        boundedExactReadback: true, cancellationToken: CancellationToken.None,
+                        cancellationToken: CancellationToken.None,
                         validateReadSource: async token => { await conversation.ReadMetricsAsync(target, Current, token); });
                 }
             }

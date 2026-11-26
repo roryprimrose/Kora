@@ -582,14 +582,12 @@ The running app creates its stores and migrates embedded SQLite schemas; install
 Setup is usable before any model is configured and can offer missing speech/Ollama/model requirements for selected capabilities.
 The current bootstrap checks/initialises storage and SQLite and tracks
 PowerShell 7 readiness/setup independently of Ollama inference. PowerShell
-installation is not execution admission. The current local path requires
-consented per-user Ollama 0.35.1 and digest-pinned `qwen3:1.7b`, with a real
-completed loopback inference check before unmatched requests use it.
-Model-produced answers/questions and registered action/grant proposals are
-host-validated; they are not free-form tool execution. The future common
-version/hash-bound task gate, including direct lock, is specified in
-[skill and task execution design](../docs/skill-and-task-execution-design.md),
-not implemented by this bootstrap.
+installation is not execution admission. Unmatched requests outside the
+admitted session route reject immediately without fallback inference; the legacy
+model action/question/grant/settings-filter proposal tree is retired
+([host guards](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+Modern session turns retain their own runtime, qualification and authorization
+boundaries ([local transport](Local_Inference.md#native-tool-message-transport-boundary)).
 See [Environment Setup](Environment_Setup.md).
 
 Kora-owned native speech workers may run out of process for crash containment.

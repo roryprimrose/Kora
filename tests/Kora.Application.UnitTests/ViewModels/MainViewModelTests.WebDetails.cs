@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 
 using AwesomeAssertions;
@@ -14,6 +14,26 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task PendingQuestionCannotBeReplacedByWebRetrievalOrDetailFeedback()
+    {
+        var fixture = new Fixture(webPageGet: new(new ViewModelWebTransport(WebResponse("https://example.com/", "text")),
+            new ViewModelWebAudit()));
+        await using var pendingDetails = new PendingDetailsQuestion(fixture);
+        fixture.Probe.Status = new("local.inference", "Ollama", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready.");
+        await fixture.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var body = fixture.ViewModel.ResponseBody;
+        var question = fixture.ViewModel.CurrentDetailsOffer;
+        await fixture.RunAsync("get web page https://example.com/");
+        fixture.ViewModel.ReportWebResultDetailStatus("Unavailable.");
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.CurrentDetailsOffer.Should().BeSameAs(question);
+        fixture.ViewModel.ResponseBody.Should().Be(body);
+        fixture.ViewModel.HasWebResultDetails.Should().BeFalse();
+        fixture.ViewModel.Dispose();
+    }
+
     [Fact]
     public async Task ReentrantResponseBodyCallbackCannotReissueWebDetailsAfterControlClosureAndReveal()
     {
@@ -249,24 +269,5 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.Dispose();
     }
 
-    [Fact]
-    public async Task PendingQuestionCannotBeReplacedByWebRetrievalOrDetailFeedback()
-    {
-        var fixture = new Fixture(webPageGet: new(new ViewModelWebTransport(WebResponse("https://example.com/", "text")),
-            new ViewModelWebAudit()));
-        fixture.Probe.Status = new("local.inference", "Ollama", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready.");
-        fixture.Reasoner.Question = new("What should be done?", ["first", "second"]);
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("help with this workstation");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var body = fixture.ViewModel.ResponseBody;
-        var choices = fixture.ViewModel.ModelQuestionChoices;
-        await fixture.RunAsync("get web page https://example.com/");
-        fixture.ViewModel.ReportWebResultDetailStatus("Unavailable.");
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.ModelQuestionChoices.Should().BeSameAs(choices);
-        fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.ViewModel.HasWebResultDetails.Should().BeFalse();
-        fixture.ViewModel.Dispose();
-    }
+
 }

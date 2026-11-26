@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
@@ -16,40 +16,6 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task StopAllNeverAnswersOrCancelsAnUnrelatedForegroundQuestionOrGrantBeforeConfirmation(bool grant)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Question = new("Which operation?", ["stop all work", "keep working"]);
-        await f.ViewModel.InitializeAsync();
-        if (grant)
-        {
-            await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-                BuiltInAction.LockMachine, ModelApprovalScope.Session));
-        }
-        else
-        {
-            await f.RunAsync("choose");
-            await f.ViewModel.ActiveReasoningTask!;
-        }
-        var calls = 0;
-        f.ViewModel.BindAllWorkStop((_, current, _) =>
-        {
-            current().Should().BeTrue();
-            calls++;
-            return Task.FromResult(new AllWorkStopResult(AllWorkStopOutcome.Cancelled));
-        });
-        await f.RunAsync("stop all work");
-        calls.Should().Be(1);
-        f.ViewModel.IsModelQuestionPending.Should().Be(!grant);
-        f.ViewModel.IsGrantChangePending.Should().Be(grant);
-        f.ViewModel.SessionAllowedModelActions.Should().NotContain(item => item.Action == BuiltInAction.LockMachine);
-        f.WindowActions.Should().NotContain(WindowAction.Close);
-    }
-
     [Theory]
     [InlineData(RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice)]
@@ -79,37 +45,14 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task StopAllDeniesModelSuggestionEvenWhenAGenericReusableGrantExists()
+    public async Task StopAllDeniesModelSuggestionWithoutOpeningReview()
     {
         var f = await Fixture.CreateInitializedAsync();
-        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.StopAllWork, ModelApprovalScope.Session));
-        await f.ViewModel.ConfirmGrantChangeAsync();
-        f.ViewModel.SessionAllowedModelActions.Should().Contain(item => item.Action == BuiltInAction.StopAllWork);
         f.ViewModel.BindAllWorkStop((_, _, _) => throw new InvalidOperationException("A model cannot open this review."));
         await f.ViewModel.ExecuteAsync(f.Catalog.GetCommands().Single(item => item.Action == BuiltInAction.StopAllWork),
             SecurityAuditInitiator.ModelSuggestion);
         f.ViewModel.ResponseTitle.Should().Be("Model Stop All is unavailable.");
         f.ViewModel.LastAllWorkStop.Should().BeNull();
-        f.WindowActions.Should().NotContain(WindowAction.Close);
-    }
-
-    [Fact]
-    public async Task StopAllRejectsAnActualModelTurnWithAnExistingGrantWithoutSpeakingOrOpeningReview()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Action = BuiltInAction.StopAllWork;
-        await f.ViewModel.InitializeAsync();
-        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-            BuiltInAction.StopAllWork, ModelApprovalScope.Session));
-        await f.ViewModel.ConfirmGrantChangeAsync();
-        f.ViewModel.BindAllWorkStop((_, _, _) => throw new InvalidOperationException("No model Stop All review."));
-        await f.RunAsync("an original request whose model proposes Stop All");
-        await f.ViewModel.ActiveReasoningTask!;
-        f.ViewModel.ResponseTitle.Should().Be("Model Stop All is unavailable.");
-        f.ViewModel.LastAllWorkStop.Should().BeNull();
-        f.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
-        f.TextToSpeech.SpokenText.Should().BeNull();
         f.WindowActions.Should().NotContain(WindowAction.Close);
     }
 

@@ -46,7 +46,7 @@ public sealed partial class MainViewModelTests
         fixture.CaptionPreferences.Options!.DismissalDelaySeconds.Should().Be(5);
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         var writes = fixture.Audit.Events.Where(item => item.ActionId.StartsWith("configuration.speech-", StringComparison.Ordinal)).ToArray();
         writes.Should().HaveCount(10);
         writes.Chunk(2).Should().OnlyContain(pair =>
@@ -90,7 +90,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain("Setting unavailable");
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -106,7 +106,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.Transcript.Should().Contain("prefix routing is unavailable");
         fixture.CaptionPreferences.Mode.Should().BeNull();
         fixture.CaptionPreferences.Options.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
 
         var protectedFixture = new Fixture(enableSpeechText: true);
         await using var protectedAdmission = protectedFixture.OutputAdmission;
@@ -121,7 +121,7 @@ public sealed partial class MainViewModelTests
         protectedFixture.CaptionPreferences.Options.Should().BeNull();
         protectedFixture.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"denied\"");
         protectedFixture.Audit.Events.Last().Initiator.Should().Be(Kora.Core.Auditing.SecurityAuditInitiator.VoiceCommand);
-        protectedFixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -138,35 +138,7 @@ public sealed partial class MainViewModelTests
         fixture.Voice.StartedPhrases.Should().Contain("Nova show the current sentence")
             .And.Contain("Nova keep speech text visible for twenty-nine seconds")
             .And.Contain("Kora show the current sentence").And.NotContain("Aria show the current sentence");
-        fixture.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task DisplayRecoveryPreservesUnconfirmedPreferencesAndRequiredPanels()
-    {
-        var fixture = new Fixture(enableSpeechText: true, captionReadFailure: new InvalidDataException());
-        await using var admission = fixture.OutputAdmission;
-        await fixture.ViewModel.InitializeAsync();
-        fixture.TextToSpeech.ClearSpokenResponse();
-        await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        var title = fixture.ViewModel.ResponseTitle;
-        var body = fixture.ViewModel.ResponseBody;
-        var state = fixture.ViewModel.SpeechTextConfigurationStatus;
-        fixture.ViewModel.ReportSpeechCaptionDisplayUnavailable();
-        fixture.ViewModel.CanChooseSpeechCaptionDisplay.Should().BeFalse();
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        fixture.ViewModel.ResponseTitle.Should().Be(title);
-        fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.ViewModel.SpeechTextConfigurationStatus.Should().Be(state);
-        var recoveryNotice = fixture.ViewModel.Transcript;
-        fixture.ViewModel.ReportSpeechCaptionDisplayUnavailable(reportRecovery: false);
-        fixture.ViewModel.Transcript.Should().Be(recoveryNotice);
-        fixture.ViewModel.SpeechCaptionPlacement.Should().BeNull();
-        fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
-        var unavailable = new Fixture();
-        await using var noConfiguration = unavailable.OutputAdmission;
-        unavailable.ViewModel.CanChooseSpeechCaptionDisplay.Should().BeFalse();
     }
 
     [Theory]
@@ -203,7 +175,7 @@ public sealed partial class MainViewModelTests
         else { fixture.Session.IsUnlocked = false; }
         fixture.ViewModel.CanChooseSpeechCaptionDisplay.Should().BeFalse();
         fixture.ViewModel.ReportSpeechCaptionDisplayUnavailable();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     private sealed class CaptionPreferences : ISpeechTextPreferences
@@ -247,25 +219,6 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpokenText.Should().NotBeNull();
         fixture.TextToSpeech.CaptionPlaybackId.Should().BeNull();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task Caption_write_failure_preserves_a_required_visual_grant_proposal()
-    {
-        var fixture = new Fixture(enableSpeechText: true);
-        await using var admission = fixture.OutputAdmission;
-        await fixture.ViewModel.InitializeAsync();
-        var preparation = Task.CompletedTask;
-        fixture.CaptionPreferences.AfterSave = () => preparation =
-            fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-                BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        fixture.CaptionPreferences.Failure = new IOException();
-        await fixture.RunAsync("set display.speech-text to CurrentUtterance");
-        await preparation;
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.ViewModel.Transcript.Should().Contain("not confirmed");
-        fixture.ViewModel.ResponseTitle.Should().NotBe("Speech-text preference not confirmed.");
     }
 
     [Fact]
@@ -355,7 +308,7 @@ public sealed partial class MainViewModelTests
         else { await fixture.RunAsync(stage is "late-complete" ? "get display.speech-text" : "set display.speech-text to CurrentUtterance"); }
         if (stage is "late-host" or "late-complete") { fixture.Session.IsUnlocked.Should().BeFalse(); }
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
     }
 
@@ -412,7 +365,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsSpeechCaptionVisible.Should().BeFalse();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         if (stage is not "provider") { fixture.TextToSpeech.SpokenText.Should().BeNull(); }
     }
 
@@ -435,7 +388,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ResetSpeechTextCommand.ExecuteAsync();
         await fixture.RaiseActivatedTranscriptAsync("Kora, set display.speech-text to CurrentUtterance", 1);
         fixture.CaptionPreferences.Mode.Should().Be(SpeechTextMode.CurrentUtterance);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         fixture.OutputPreferences.SavedMode.Should().BeNull();
@@ -472,7 +425,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.Transcript.Should().Contain("requires");
         fixture.CaptionPreferences.Mode.Should().BeNull();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Voice.StartedPhrases.Should().Contain("set display.speech-text-placement to TopLeft");
     }
 
@@ -551,7 +504,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         fixture.TextToSpeech.SpeakGate.SetResult();
         await response;
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         log.Messages.Should().NotContain(message => message.Contains(fixture.TextToSpeech.SpokenText!, StringComparison.Ordinal));
     }
 

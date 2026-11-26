@@ -1,4 +1,4 @@
-using System.Threading.Channels;
+﻿using System.Threading.Channels;
 
 using AwesomeAssertions;
 
@@ -99,7 +99,7 @@ public sealed partial class MainViewModelTests
         setupStates.Count(task => task.State != SetupTaskState.Running).Should().Be(1);
         fixture.LocalModel.Calls.Should().Be(1);
         fixture.PowerShell.InstallCalls.Should().Be(0);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         if (cancel)
         {
             fixture.ViewModel.ResponseTitle.Should().Be("Setup cancelled.");
@@ -119,7 +119,7 @@ public sealed partial class MainViewModelTests
             fixture.ViewModel.Dependencies.Should().ContainSingle()
                 .Which.Readiness.Should().Be(DependencyReadiness.Ready);
             fixture.LocalModel.Calls.Should().Be(1);
-            fixture.Reasoner.Requests.Should().BeEmpty();
+
         }
         else if (readiness == DependencyReadiness.Ready && !failProbe)
         {

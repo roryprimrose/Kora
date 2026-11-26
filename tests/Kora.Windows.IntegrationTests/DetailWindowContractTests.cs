@@ -115,7 +115,6 @@ public sealed class DetailWindowContractTests
         Read("DocumentationView.axaml").Should().Contain("Open details (native)");
         Read("DocumentationView.axaml.cs").Should().Contain("OpenEmbeddedPage(currentPage, owner)")
             .And.Contain("currentPage = page").And.Contain("MarkdownDocumentRenderer.Render(page.Markdown)");
-        Read("GrantListWindow.axaml.cs").Should().Contain("MarkdownDocumentRenderer.Render(markdown)");
         Read("MarkdownDocumentRenderer.cs").Should().Contain("Renderer.Render(markdown)").And.NotContain("Markdown.Parse");
         Read("NativeDetailRenderer.cs").Should().Contain("MaximumNestingDepth = NativeDetailProfile.MaximumNesting")
             .And.NotContain("UseAdvancedExtensions").And.NotContain("ToHtml").And.NotContain("HttpClient");

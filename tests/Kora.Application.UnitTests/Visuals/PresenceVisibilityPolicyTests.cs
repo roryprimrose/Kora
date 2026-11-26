@@ -19,7 +19,7 @@ public sealed class PresenceVisibilityPolicyTests
     [InlineData((AssistantState)999, false)]
     public void Only_idle_listening_and_completed_presence_can_auto_hide(AssistantState state, bool expected)
     {
-        PresenceVisibilityPolicy.CanAutoHide(state, false, false, false, false, false)
+        PresenceVisibilityPolicy.CanAutoHide(state, false, false, false, false)
             .Should().Be(expected);
     }
 
@@ -31,10 +31,9 @@ public sealed class PresenceVisibilityPolicyTests
         foreach (var speaking in new[] { false, true })
         foreach (var prompt in new[] { false, true })
         foreach (var actions in new[] { false, true })
-        foreach (var grants in new[] { false, true })
         {
-            PresenceVisibilityPolicy.CanAutoHide(state, busy, speaking, prompt, actions, grants)
-                .Should().Be(!busy && !speaking && !prompt && !actions && !grants);
+            PresenceVisibilityPolicy.CanAutoHide(state, busy, speaking, prompt, actions)
+                .Should().Be(!busy && !speaking && !prompt && !actions);
         }
     }
 }

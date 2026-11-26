@@ -1,618 +1,584 @@
-using AwesomeAssertions;
 using System.Reflection;
-using Kora.Application.Presentation;
+using AwesomeAssertions;
 using Kora.Application.ViewModels;
-using Kora.Core.Artifacts;
 using Kora.Core;
-using Kora.Core.Auditing;
 using Kora.Core.Commands;
-using Kora.Core.Communication;
-using Kora.Core.Dependencies;
-using Kora.Core.Diagnostics;
-using Kora.Core.Hosting;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    [Theory]
-    [InlineData("current")]
-    [InlineData("stale")]
-    [InlineData("retired")]
-    [InlineData("stale-after-confirmation")]
-    public async Task FileArtifactActionRepeatsSourceValidationAtDecisionWithoutRetargetingOrReusableGrants(string sourceState)
+    [Fact]
+    public async Task ReadProposalWithoutAnOrdinaryAnswerCannotStartPlanningOrSpeech()
     {
-        var f = await CreateModelActionReviewFixtureAsync();
-        var definition = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
-            "---\nname: example\ndescription: Test\n---\nBody", false), ArtifactKind.Skill, "user-profile", "example")
-            .Definition with { UseControlId = "file.example" };
-        f.ArtifactCatalogue.Publish([definition]);
-        f.ViewModel.BindFileArtifactFreshness((_, _) => Task.FromResult(true));
-        await f.RunAsync("/example original request");
-        await f.ViewModel.ActiveReasoningTask!;
-        var original = f.ViewModel.CaptureModelActionReview()!;
-        original.Should().NotBeNull();
-        f.ViewModel.ModelActionReviewDetail.Should()
-            .Be($"Proposed by artifact revision {definition.Digest[..12]}; only a single-use approval is valid.");
-        f.ViewModel.ModelActionReviewCommand.Should().Be("enable hosted models");
-        var decisionReads = 0;
-        f.ViewModel.BindFileArtifactFreshness(async (_, _) =>
-        {
-            decisionReads++;
-            if (sourceState is "retired") { await f.ViewModel.RejectModelActionReviewAsync(original); }
-            return sourceState is not "stale" && (sourceState is not "stale-after-confirmation" || decisionReads == 1);
-        });
-        await f.ViewModel.ConfirmModelActionReviewAsync(original, ModelApprovalScope.Once);
-        f.ViewModel.HostedModelsEnabled.Should().Be(sourceState is "current");
-        f.Session.LockCalls.Should().Be(0);
-        f.ViewModel.PendingModelActionReview.Should().BeNull();
-        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
-        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
-        if (sourceState is "stale-after-confirmation")
-        {
-            f.ViewModel.ResponseTitle.Should().Be("Definition changed before execution.");
-            f.Audit.Events.Should().OnlyContain(entry => entry.Category == SecurityAuditCategory.SecurityApproval,
-                "the consumed approval is evidence of the user's decision, not an executed action");
-            f.Audit.Events.Should().ContainSingle(entry => entry.CorrelationId == original.Audit.CorrelationId
-                && entry.Outcome == SecurityAuditOutcome.Succeeded && string.Equals(entry.ReasonCode, "approved-once", StringComparison.Ordinal));
-        }
-        else if (sourceState is not "current")
-        {
-            f.Audit.Events.Should().NotContain(entry => entry.CorrelationId == original.Audit.CorrelationId
-                && entry.Outcome == SecurityAuditOutcome.Succeeded);
-        }
-    }
-
-    private static async Task<Fixture> CreateModelActionReviewFixtureAsync(bool voice = false)
-    {
-        var f = voice ? CreateVoicePrivacyFixture() : new Fixture();
-        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Synthetic ready seam.");
-        f.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        await f.ViewModel.InitializeAsync();
-        f.ViewModel.BindModelActionReviewPresentation(f.ViewModel.IsModelActionReviewCurrent);
-        return f;
-    }
-
-    private static async Task<ModelActionReviewTarget> ProposeModelActionReviewAsync(Fixture f)
-    {
-        await f.RunAsync("please secure this workstation");
-        await f.ViewModel.ActiveReasoningTask!;
-        return f.ViewModel.CaptureModelActionReview()!;
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ExactModelActionReviewActivationRequiresASeparateOriginalDecision(bool reject)
-    {
-        var f = await CreateModelActionReviewFixtureAsync();
-        f.ViewModel.CanConfirmModelActionReview.Should().BeFalse();
-        f.ViewModel.CanConfirmReusableModelActionReview.Should().BeFalse();
-        f.ViewModel.CanRejectModelActionReview.Should().BeFalse();
-        f.ViewModel.ModelActionReviewTitle.Should().BeEmpty();
-        f.ViewModel.ModelActionReviewDetail.Should().BeEmpty();
-        f.ViewModel.ModelActionReviewCommand.Should().BeEmpty();
-        var target = await ProposeModelActionReviewAsync(f);
-        f.ViewModel.ModelActionReviewTitle.Should().StartWith("Allow Kora to ")
-            .And.Contain("use configured hosted model providers").And.EndWith("?");
-        f.ViewModel.ModelActionReviewDetail.Should().BeEmpty();
-        f.ViewModel.ModelActionReviewCommand.Should().Be("enable hosted models");
-        f.ViewModel.CanConfirmModelActionReview.Should().BeTrue();
-        f.ViewModel.CanConfirmReusableModelActionReview.Should().BeTrue();
-        f.ViewModel.CanRejectModelActionReview.Should().BeTrue();
-        target.Should().NotBeNull();
-        target.Request.SessionId.Validate();
-        target.Epoch.Should().BePositive();
-        f.ViewModel.ModelActionReviews.Should().Equal(target);
-        f.ViewModel.PresenceState.Should().Be(AssistantState.Waiting);
-        f.ViewModel.CanAutoHidePresence.Should().BeFalse();
-        var audits = f.Audit.Events.Count;
-        var requests = f.Reasoner.Requests.Count;
-        f.WindowActions.Clear();
-
-        using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
-            HostActivityLayer.Application, HostOperation.Request))
-        {
-            f.ViewModel.ActivateModelActionReview(target).Should().BeTrue();
-            f.ViewModel.ActivateModelActionReview(target).Should().BeTrue();
-        }
-
-        f.ViewModel.ResponseBody.Should().Contain("Allow Kora to use configured hosted model providers.");
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("Confirm or reject separately");
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        f.Audit.Events.Should().HaveCount(audits);
-        f.Reasoner.Requests.Should().HaveCount(requests);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
-        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
-        f.WindowActions.Should().BeEmpty("exact activation uses its bound native presenter, not generic Show");
-
-        if (reject) { await f.ViewModel.RejectModelActionReviewAsync(target); }
-        else { await f.ViewModel.ConfirmModelActionReviewAsync(target, ModelApprovalScope.Once); }
-
-        f.ViewModel.HostedModelsEnabled.Should().Be(!reject);
-        f.Session.LockCalls.Should().Be(0);
-        f.ViewModel.PendingModelActionReview.Should().BeNull();
-        f.ViewModel.ModelActionReviews.Should().BeEmpty();
-        f.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
-        f.ViewModel.ModelActionReviewTitle.Should().BeEmpty();
-        f.ViewModel.ModelActionReviewDetail.Should().BeEmpty();
-        f.ViewModel.ModelActionReviewCommand.Should().BeEmpty();
-        f.ViewModel.PresenceState.Should().Be(f.ViewModel.State);
-        f.Audit.Events.Should().Contain(audit => audit.CorrelationId == target.Audit.CorrelationId
-            && audit.Outcome == (reject ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Succeeded));
-        f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
-        await f.ViewModel.ConfirmModelActionReviewAsync(target, ModelApprovalScope.Always);
-        await f.ViewModel.RejectModelActionReviewAsync(target);
-        f.ViewModel.HostedModelsEnabled.Should().Be(!reject);
-        f.Session.LockCalls.Should().Be(0);
-        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ExactModelActionReviewKeepsItsDecisionWhenNamedConversationOpeningIsRefused(bool voice)
-    {
-        var f = await CreateModelActionReviewFixtureAsync(voice);
-        var target = await ProposeModelActionReviewAsync(f);
-        var requests = f.Reasoner.Requests.Count;
-        var navigations = 0;
-        f.ViewModel.WorkspaceSurfaceRequested += _ => { navigations++; return Task.CompletedTask; };
-        async Task Run(string command)
-        {
-            if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, " + command, 1); }
-            else { await f.RunAsync(command); }
-        }
-
-        await Run("open conversation \"Another conversation\"");
-        f.ViewModel.ResponseBody.Should().Contain("Conversation opening unavailable");
-        navigations.Should().Be(0);
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target.Audit.CorrelationId
-            && audit.Outcome == SecurityAuditOutcome.Succeeded);
-
-        await Run("review pending action");
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("opened");
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        await Run("approve once");
-        f.ViewModel.HostedModelsEnabled.Should().Be(true);
-        f.Session.LockCalls.Should().Be(0);
-        f.ViewModel.PendingModelActionReview.Should().BeNull();
-        f.ViewModel.ModelActionReviews.Should().BeEmpty();
-        f.Reasoner.Requests.Should().HaveCount(requests);
-        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
-        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
+        var f = await Fixture.CreateInitializedAsync();
+        f.ViewModel.RetireCurrentResponseSpeech();
+        var planner = new ResponseReadPlannerFake();
+        f.ViewModel.BindResponseReadPlanner(planner, TimeProvider.System);
+        var starts = f.TextToSpeech.SpeakCalls;
+        await f.RunAsync("please read this answer aloud");
+        f.ViewModel.HasResponseReadProposal.Should().BeFalse();
+        f.ViewModel.LastResponseReadOutcome.Should().Be(Kora.Core.Voice.SpeechReadOutcome.Denied);
+        f.ViewModel.Transcript.Should().Contain("Current-answer proposal unavailable");
+        planner.Admissions.Should().Be(0);
+        f.TextToSpeech.SpeakCalls.Should().Be(starts);
     }
 
     [Fact]
-    public async Task ExactModelActionReviewReplacementAndForeignOwnerNeverRetarget()
+    public async Task DeferredReadProposalRevalidatesOwnerAfterCapturedInputAdmission()
     {
-        var f = await CreateModelActionReviewFixtureAsync();
-        var first = await ProposeModelActionReviewAsync(f);
-        var second = await ProposeModelActionReviewAsync(f);
-        second.Should().NotBeSameAs(first);
-        second.Epoch.Should().BeGreaterThan(first.Epoch);
-        var originalBody = f.ViewModel.ResponseBody;
-        var other = await CreateModelActionReviewFixtureAsync();
-        var foreign = await ProposeModelActionReviewAsync(other);
-        foreach (var stale in new[] { first, foreign })
+        var f = await Fixture.CreateInitializedAsync();
+        var ownerEligible = true;
+        f.ViewModel.BindCallOwnershipGate(() => ownerEligible);
+        var armed = false;
+        f.ViewModel.BindResponseReadDecisionGate(() =>
         {
-            f.ViewModel.ActivateModelActionReview(stale).Should().BeFalse();
-            await f.ViewModel.ConfirmModelActionReviewAsync(stale, ModelApprovalScope.Once);
-            await f.ViewModel.RejectModelActionReviewAsync(stale);
-        }
-        f.ViewModel.ResponseBody.Should().Be(originalBody);
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(second);
-        other.ViewModel.PendingModelActionReview.Should().BeSameAs(foreign);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        other.ViewModel.HostedModelsEnabled.Should().Be(false);
-        other.Session.LockCalls.Should().Be(0);
-        other.ViewModel.ModelActionReviewStatus.Should().NotContain("unavailable");
-        f.ViewModel.ActivateModelActionReview(second).Should().BeTrue();
-    }
-
-    [Theory]
-    [InlineData("owner")]
-    [InlineData("binding")]
-    [InlineData("revision")]
-    [InlineData("locked")]
-    [InlineData("dismissed")]
-    [InlineData("disposed")]
-    public async Task ExactModelActionReviewWithdrawnHostCannotRevealOrDecide(string withdrawal)
-    {
-        var f = await CreateModelActionReviewFixtureAsync();
-        long owner = 1;
-        f.ViewModel.BindCallOwnershipGate(static () => true, () => owner);
-        var target = await ProposeModelActionReviewAsync(f);
-        switch (withdrawal)
-        {
-            case "owner": f.ViewModel.BindCallOwnershipGate(static () => false); break;
-            case "binding": f.ViewModel.BindCallOwnershipGate(static () => true); break;
-            case "revision": owner++; break;
-            case "locked": f.Session.IsUnlocked = false; break;
-            case "call": f.CallState.SetState(CallState.Active); await f.ViewModel.CallClosureTask; break;
-            case "dismissed": await f.ViewModel.HideApplicationAsync(); break;
-            case "disposed": await f.ViewModel.DisposeAsync(); break;
-        }
-        f.WindowActions.Clear();
-        var body = f.ViewModel.ResponseBody;
-        f.ViewModel.CaptureModelActionReview().Should().BeNull();
-        f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
-        await f.ViewModel.ConfirmModelActionReviewAsync(target, ModelApprovalScope.Always);
-        await f.ViewModel.RejectModelActionReviewAsync(target);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.WindowActions.Should().BeEmpty();
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
-    }
-
-    [Fact]
-    public async Task ExactModelActionReviewRequiresAnOriginalEligibleChannelAndNativePresenter()
-    {
-        var f = await CreateModelActionReviewFixtureAsync();
-        f.ViewModel.ActivateModelActionReview(null).Should().BeFalse();
-        var target = await ProposeModelActionReviewAsync(f);
-        f.ViewModel.BindModelActionReviewPresentation(null);
-        f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
-        f.ViewModel.BindModelActionReviewPresentation(static _ => false);
-        f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
-        f.ViewModel.BindModelActionReviewPresentation(static _ => throw new InvalidOperationException("Synthetic native surface unavailable."));
-        f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
-        f.ViewModel.BindModelActionReviewPresentation(f.ViewModel.IsModelActionReviewCurrent);
-        using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
-            HostActivityLayer.Application, HostOperation.Request))
-        {
-            f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
-            await f.ViewModel.ConfirmModelActionReviewAsync(target, ModelApprovalScope.Once);
-            await f.ViewModel.RejectModelActionReviewAsync(target);
-        }
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        await f.RunAsync("Kora, review pending action");
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("opened");
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-    }
-
-    [Fact]
-    public async Task ExactModelActionReviewActivatedVoiceUsesTheCapturedTargetNotForegroundSelection()
-    {
-        var f = await CreateModelActionReviewFixtureAsync(voice: true);
-        await f.RaiseActivatedTranscriptAsync("Kora, please secure this workstation", 1);
-        await f.ViewModel.ActiveReasoningTask!;
-        var target = f.ViewModel.CaptureModelActionReview()!;
-        target.Should().NotBeNull();
-        await f.RaiseActivatedTranscriptAsync("Kora, review pending action", 1);
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("opened");
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        await f.RaiseActivatedTranscriptAsync("Kora, approve once", 1);
-        f.ViewModel.HostedModelsEnabled.Should().Be(true);
-        f.Session.LockCalls.Should().Be(0);
-        f.ViewModel.PendingModelActionReview.Should().BeNull();
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ExactModelActionReviewAndNamedSkillChoiceKeepIndependentAuthority(bool voice)
-    {
-        var f = await CreateModelActionReviewFixtureAsync(voice);
-        var target = await ProposeModelActionReviewAsync(f);
-        var requests = f.Reasoner.Requests.Count;
-        var calls = 0;
-        f.ViewModel.BindNamedSkillChoiceCapture(() => static () => false);
-        f.ViewModel.NamedSkillInvocationRequested += (command, origin, eligible) =>
-        {
-            command.Action.Should().Be("Choice");
-            command.Choice.Should().Be(1);
-            origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
-            eligible.IsCurrent().Should().BeTrue();
-            calls++;
-            return Task.CompletedTask;
-        };
-        async Task Run(string command)
-        {
-            if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, " + command, 1); }
-            else { await f.RunAsync(command); }
-        }
-
-        await Run("review pending action");
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("opened");
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        f.ViewModel.BindNamedSkillChoiceCapture(() => static () => true);
-        await Run("skill choice 1");
-        calls.Should().Be(0, "a current skill choice cannot replace or decide a pending action");
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target.Audit.CorrelationId
-            && audit.Outcome == SecurityAuditOutcome.Succeeded);
-
-        await f.ViewModel.RejectModelActionReviewAsync(target);
-        await Run("skill choice 1");
-        calls.Should().Be(1);
-        f.ViewModel.PendingModelActionReview.Should().BeNull();
-        f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
-        f.Reasoner.Requests.Should().HaveCount(requests);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
-        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
-    }
-
-    [Theory]
-    [InlineData("Kora, skill choice 1")]
-    [InlineData("Kora, review pending action")]
-    public async Task ExactModelActionReviewQueuedSkillInputCannotAdoptANewReview(string text)
-    {
-        var f = await CreateModelActionReviewFixtureAsync(voice: true);
-        var generation = 1;
-        f.ViewModel.BindNamedSkillChoiceCapture(() =>
-        {
-            var captured = generation;
-            return () => captured == generation;
-        });
-        var calls = 0;
-        f.ViewModel.NamedSkillInvocationRequested += (_, _, _) => { calls++; return Task.CompletedTask; };
-        await f.ViewModel.BeginPushToTalkAsync();
-        await f.ViewModel.EndPushToTalkAsync();
-        ModelActionReviewTarget? target = null;
-        f.Dispatcher.BeforeInvokeAsync = async () =>
-        {
-            generation++;
-            target = await ProposeModelActionReviewAsync(f);
-        };
-
-        await f.Voice.RaiseTranscriptAsync(text, 1);
-        target.Should().NotBeNull();
-        calls.Should().Be(0);
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        f.ViewModel.ModelActionReviewStatus.Should().NotContain("opened");
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().ContainSingle();
-        f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target!.Audit.CorrelationId
-            && audit.Outcome == SecurityAuditOutcome.Succeeded);
-        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
-        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
-        await f.ViewModel.RejectModelActionReviewAsync(target);
-        f.ViewModel.PendingModelActionReview.Should().BeNull();
-    }
-
-    [Theory]
-    [InlineData("Kora, review pending action")]
-    [InlineData("Kora, approve once")]
-    [InlineData("Kora, reject")]
-    public async Task ExactModelActionReviewQueuedVoiceCannotFollowAReplacement(string text)
-    {
-        var f = await CreateModelActionReviewFixtureAsync(voice: true);
-        var first = await ProposeModelActionReviewAsync(f);
-        await f.ViewModel.BeginPushToTalkAsync();
-        await f.ViewModel.EndPushToTalkAsync();
-        f.Dispatcher.BeforeInvokeAsync = async () =>
-        {
-            await f.RunAsync("another request to secure the workstation");
-            await f.ViewModel.ActiveReasoningTask!;
-        };
-        await f.Voice.RaiseTranscriptAsync(text, 1);
-        await f.ViewModel.ActiveReasoningTask!;
-        var second = f.ViewModel.CaptureModelActionReview();
-        second.Should().NotBeNull().And.NotBeSameAs(first);
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task ExactModelActionReviewMissingVoiceActivationDoesNotSupersedeTheDecision()
-    {
-        var f = await CreateModelActionReviewFixtureAsync(voice: true);
-        var target = await ProposeModelActionReviewAsync(f);
-        await f.RaiseActivatedTranscriptAsync("review pending action", 1);
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-    }
-
-    [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    public async Task ExactModelActionReviewRevalidatesAfterAwaitedPromptStop(bool reject, bool lockHost)
-    {
-        var f = await CreateModelActionReviewFixtureAsync();
-        f.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        await f.RunAsync("please secure this workstation");
-        await f.TextToSpeech.SpeakStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
-        var target = f.ViewModel.CaptureModelActionReview()!;
-        f.TextToSpeech.StopGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var decision = reject ? f.ViewModel.RejectModelActionReviewAsync(target)
-            : f.ViewModel.ConfirmModelActionReviewAsync(target, ModelApprovalScope.Once);
-        await f.TextToSpeech.StopStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
-        if (reject) { await f.ViewModel.RejectModelActionReviewAsync(target); }
-        else { await f.ViewModel.ConfirmModelActionReviewAsync(target, ModelApprovalScope.Once); }
-        if (lockHost) { f.Session.IsUnlocked = false; }
-        else { f.ViewModel.BindCallOwnershipGate(static () => false); }
-        f.TextToSpeech.StopGate.SetResult();
-        await decision;
-        await f.ViewModel.ActiveReasoningTask!;
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
-        f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target.Audit.CorrelationId
-            && audit.Outcome == SecurityAuditOutcome.Succeeded);
-    }
-
-    [Theory]
-    [InlineData(ModelApprovalScope.Once)]
-    [InlineData(ModelApprovalScope.Session)]
-    [InlineData(ModelApprovalScope.Always)]
-    public async Task ExactModelActionReviewNativeConfirmationReusesOriginalScopeCommand(ModelApprovalScope scope)
-    {
-        var f = await CreateModelActionReviewFixtureAsync();
-        f.CallState.SetState(CallState.Clear);
-        await f.ViewModel.CallClosureTask;
-        var target = await ProposeModelActionReviewAsync(f);
-        var sessionGrantObserved = false;
-        f.ViewModel.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(MainViewModel.SessionAllowedModelActions)
-                && f.ViewModel.SessionAllowedModelActions.Any(command => command.Action == BuiltInAction.EnableHostedModels))
-            { sessionGrantObserved = true; }
-        };
-        await FluentActions.Awaiting(() => f.ViewModel.ConfirmModelActionReviewAsync(target, (ModelApprovalScope)99))
-            .Should().ThrowAsync<ArgumentOutOfRangeException>();
-        await f.ViewModel.ConfirmModelActionReviewAsync(target, scope);
-        f.ViewModel.HostedModelsEnabled.Should().Be(true);
-        f.Session.LockCalls.Should().Be(0);
-        f.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
-        sessionGrantObserved.Should().Be(scope == ModelApprovalScope.Session);
-        f.ViewModel.SessionAllowedModelActions.Should().HaveCount(scope == ModelApprovalScope.Session ? 1 : 0);
-        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Count.Should().Be(scope == ModelApprovalScope.Always ? 1 : 0);
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public async Task ExactModelActionReviewNativePresentationFailuresRemainExplicit(int kind)
-    {
-        var f = await CreateModelActionReviewFixtureAsync();
-        var target = await ProposeModelActionReviewAsync(f);
-        Exception failure = kind switch
-        {
-            0 => new IOException("Synthetic native presentation I/O failure."),
-            1 => new UnauthorizedAccessException("Synthetic native presentation denial."),
-            _ => new ArgumentException("Synthetic unexpected presenter contract failure."),
-        };
-        f.ViewModel.BindModelActionReviewPresentation(_ => throw failure);
-        if (kind == 2)
-        { FluentActions.Invoking(() => f.ViewModel.ActivateModelActionReview(target)).Should().Throw<ArgumentException>(); }
-        else
-        {
-            f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
-            f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
-        }
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-    }
-
-    [Theory]
-    [InlineData("name-unavailable")]
-    [InlineData("initiator")]
-    [InlineData("origin")]
-    [InlineData("eligibility")]
-    [InlineData("call-revision")]
-    [InlineData("name-revision")]
-    public async Task ExactModelActionReviewCapturedInputAdmissionCannotBePromoted(string change)
-    {
-        var f = await CreateModelActionReviewFixtureAsync();
-        var target = await ProposeModelActionReviewAsync(f);
-        var capture = typeof(MainViewModel).GetMethod("CaptureManualCallInput", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var input = capture.Invoke(f.ViewModel, [RequestOrigin.LocalUi, f.ViewModel.CallPolicyRevision, null, false])!;
-        var initiator = SecurityAuditInitiator.TypedCommand;
-        if (change is "name-unavailable")
-        { typeof(MainViewModel).GetField("isAssistantNameAvailable", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(f.ViewModel, false); }
-        if (change is "initiator") { initiator = SecurityAuditInitiator.ModelSuggestion; }
-        if (change is "eligibility") { f.Session.IsUnlocked = false; }
-        if (change is "call-revision") { f.CallState.SetState(CallState.Active); await f.ViewModel.CallClosureTask; }
-        if (change is "name-revision")
-        { input.GetType().GetProperty("AssistantNameRevision", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(input, -1L); }
-        using var activity = HostActivity.BeginRoot(HostRequest.Create(change is "origin" ? RequestOrigin.HostSystem : RequestOrigin.LocalUi),
-            HostActivityLayer.Application, HostOperation.Request);
-        // The private routing seam permits adversarial host-envelope combinations that native/voice entry points cannot mint.
-        var route = typeof(MainViewModel).GetMethod("HandleTranscriptAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        object?[] arguments = ["Kora, review pending action", 1f, initiator, input,
-            .. route.GetParameters().Skip(4).Select(_ => Type.Missing)];
-        await (Task)route.Invoke(f.ViewModel, arguments)!;
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-    }
-
-    [Theory]
-    [InlineData("modelActionReviewEpoch", -1L)]
-    [InlineData("pendingModelActionAudit", null)]
-    [InlineData("pendingModelAction", null)]
-    public async Task ExactModelActionReviewIncoherentLegacyOwnerStateFailsClosed(string field, object? replacement)
-    {
-        var f = await CreateModelActionReviewFixtureAsync();
-        var target = await ProposeModelActionReviewAsync(f);
-        // Supplemental invariant corruption, not the operation/authority proof supplied by the public-route tests.
-        typeof(MainViewModel).GetField(field, BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(f.ViewModel, replacement);
-        f.ViewModel.IsModelActionReviewCurrent(target).Should().BeFalse();
-        f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task ExactModelActionReviewArtifactAndReentrantPresentationAreRevalidated()
-    {
-        var f = await CreateModelActionReviewFixtureAsync();
-        var target = await ProposeModelActionReviewAsync(f);
-        var field = typeof(MainViewModel).GetField("pendingModelActionArtifact", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        field.SetValue(f.ViewModel, new LocalModelArtifact("missing", Kora.Core.Artifacts.ArtifactKind.Skill,
-            "Synthetic", "synthetic", "1", new string('0', 64), "Synthetic source"));
-        f.ViewModel.IsModelActionReviewCurrent(target).Should().BeFalse();
-        field.SetValue(f.ViewModel, null);
-        f.ViewModel.BindModelActionReviewPresentation(_ =>
-        {
-            f.ViewModel.BindCallOwnershipGate(static () => false);
+            if (armed) { armed = false; ownerEligible = false; }
             return true;
         });
-        f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
+        f.ViewModel.DefaultResponseMode = Kora.Core.Voice.ResponseOutputMode.Hybrid;
+        await f.RunAsync("what power action is pending");
+        var planner = new ResponseReadPlannerFake();
+        f.ViewModel.BindResponseReadPlanner(planner, TimeProvider.System);
+        using var original = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        var capture = typeof(MainViewModel).GetMethod("CaptureResponseReadInput", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var input = capture.Invoke(f.ViewModel, [Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, null])!;
+        ((Func<bool>)input.GetType().GetProperty("Eligible")!.GetValue(input)!)().Should().BeTrue();
+        var body = f.ViewModel.ResponseBody;
+        var starts = f.TextToSpeech.SpeakCalls;
+        armed = true;
+        var request = typeof(MainViewModel).GetMethod("TryHandleResponseReadProposal", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        (await (Task<bool>)request.Invoke(f.ViewModel,
+            ["please read this answer aloud", Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, input])!).Should().BeTrue();
+        ownerEligible.Should().BeFalse();
+        f.ViewModel.HasResponseReadProposal.Should().BeFalse();
+        f.ViewModel.LastResponseReadOutcome.Should().Be(Kora.Core.Voice.SpeechReadOutcome.Denied);
+        f.ViewModel.ResponseBody.Should().Be(body);
+        planner.Admissions.Should().Be(0);
+        f.TextToSpeech.SpeakCalls.Should().Be(starts);
+    }
+
+    [Fact]
+    public async Task DeferredReadProposalCannotEnterWhenRetainedAnswerDecisionsOwnInput()
+    {
+        var f = await CreateReadableResponseAsync();
+        var planner = new ResponseReadPlannerFake();
+        f.ViewModel.BindResponseReadPlanner(planner, TimeProvider.System);
+        f.ViewModel.BindRetainedAnswerReadDecisionGate(static () => false);
+        using var original = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        var body = f.ViewModel.ResponseBody;
+        var starts = f.TextToSpeech.SpeakCalls;
+        var request = typeof(MainViewModel).GetMethod("TryHandleResponseReadProposal", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        (await (Task<bool>)request.Invoke(f.ViewModel,
+            ["please read this answer aloud", Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, null])!).Should().BeTrue();
+        f.ViewModel.HasResponseReadProposal.Should().BeFalse();
+        f.ViewModel.LastResponseReadOutcome.Should().Be(Kora.Core.Voice.SpeechReadOutcome.Denied);
+        f.ViewModel.ResponseBody.Should().Be(body);
+        planner.Admissions.Should().Be(0);
+        f.TextToSpeech.SpeakCalls.Should().Be(starts);
+    }
+
+    [Fact]
+    public async Task DeferredReadProposalCannotSelectAReplacementOrdinaryAnswerWithIdenticalText()
+    {
+        var f = await CreateReadableResponseAsync();
+        var planner = new ResponseReadPlannerFake();
+        f.ViewModel.BindResponseReadPlanner(planner, TimeProvider.System);
+        using var original = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        var capture = typeof(MainViewModel).GetMethod("CaptureResponseReadInput", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var input = capture.Invoke(f.ViewModel, [Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, null]);
+        var body = f.ViewModel.ResponseBody;
+        await f.RunAsync("what power action is pending");
+        f.ViewModel.ResponseBody.Should().Be(body);
+        var starts = f.TextToSpeech.SpeakCalls;
+        var request = typeof(MainViewModel).GetMethod("TryHandleResponseReadProposal", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        (await (Task<bool>)request.Invoke(f.ViewModel,
+            ["please read this answer aloud", Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, input])!).Should().BeTrue();
+        f.ViewModel.HasResponseReadProposal.Should().BeFalse();
+        f.ViewModel.LastResponseReadOutcome.Should().Be(Kora.Core.Voice.SpeechReadOutcome.Denied);
+        f.ViewModel.ResponseBody.Should().Be(body);
+        planner.Admissions.Should().Be(0);
+        f.TextToSpeech.SpeakCalls.Should().Be(starts);
+    }
+
+    [Fact]
+    public async Task RetiredDetailsOfferCannotAuthorizeSpeechOrAnotherOutputDiscovery()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.CallState.SetState(Kora.Core.Communication.CallState.Clear);
+        await f.Dispatcher.LastInvocation;
+        BindCompletedAnswerRouting(f, _ => Task.FromResult(DetailOfferAnswer));
+        await f.RunAsync("original request");
+        f.ViewModel.IsDetailsOfferPending.Should().BeTrue();
+        Func<bool> originalOffer = () => f.ViewModel.IsDetailsOfferPending;
+        f.ViewModel.DeclineCurrentDetailsOffer();
+        var discoveries = f.TextToSpeech.OutputEnumerationCalls;
+        using var request = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        f.ViewModel.IsSpeechResponseEnabled.Should().BeTrue();
+        var speak = typeof(MainViewModel).GetMethod("TrySpeakCurrentResponseAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        (await (Task<bool>)speak.Invoke(f.ViewModel,
+            [null, null, originalOffer, null, null, null, CancellationToken.None])!).Should().BeFalse();
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+        f.TextToSpeech.OutputEnumerationCalls.Should().Be(discoveries);
+    }
+
+    [Fact]
+    public async Task OverBudgetOrdinarySpeechKeepsTheCompleteVisualResultWithoutAWindowSubscriber()
+    {
+        var f = new Fixture(subscribeToWindowActions: false);
+        f.Preferences.SummaryLimits = new(1, 1);
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("what power action is pending");
+        f.ViewModel.ResponseBody.Should().Contain("Power execution is intentionally disabled");
+        f.ViewModel.ResponseOutputStatus.Should().Contain("Speech withheld");
+        f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task DeferredReadProposalCannotStartWhileTheExactOrdinaryAnswerIsAlreadySpeaking()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var planner = new ResponseReadPlannerFake();
+        f.ViewModel.BindResponseReadPlanner(planner, TimeProvider.System);
+        using var sourceRequest = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        f.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var response = f.RunAsync("what power action is pending");
+        try
+        {
+            await Task.WhenAny(response, f.TextToSpeech.SpeakStarted.Task).WaitAsync(TestContext.Current.CancellationToken);
+            f.TextToSpeech.SpeakStarted.Task.IsCompleted.Should().BeTrue();
+            f.ViewModel.CanAnswerRemainingWork.Should().BeTrue();
+            var body = f.ViewModel.ResponseBody;
+            var source = typeof(MainViewModel).GetField("ordinaryResponse", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(f.ViewModel)!;
+            source.GetType().GetProperty("Request")!.GetValue(source).Should().NotBeNull();
+            using var original = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+                Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+                Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+            var capture = typeof(MainViewModel).GetMethod("CaptureResponseReadInput", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var input = capture.Invoke(f.ViewModel, [Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, null])!;
+            ((Func<bool>)input.GetType().GetProperty("Eligible")!.GetValue(input)!)().Should().BeTrue();
+            f.ViewModel.IsSpeaking.Should().BeTrue();
+            var request = typeof(MainViewModel).GetMethod("TryHandleResponseReadProposal", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            (await (Task<bool>)request.Invoke(f.ViewModel,
+                ["please read this answer aloud", Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, input])!).Should().BeTrue();
+            f.ViewModel.HasResponseReadProposal.Should().BeFalse();
+            f.ViewModel.LastResponseReadOutcome.Should().Be(Kora.Core.Voice.SpeechReadOutcome.Denied);
+            f.ViewModel.ResponseBody.Should().Be(body);
+            f.ViewModel.Transcript.Should().Contain("Current-answer proposal unavailable");
+            planner.Admissions.Should().Be(0);
+            f.TextToSpeech.SpeakCalls.Should().Be(1);
+        }
+        finally
+        {
+            f.TextToSpeech.SpeakGate.TrySetResult();
+            await response;
+        }
+    }
+
+    [Fact]
+    public async Task AdmittedVoiceCannotDispatchWhenEarlierOrdinarySpeechCannotStop()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.ViewModel.CommandText = "what power action is pending";
+        if (!f.ViewModel.IsVoiceEnabled) { await f.ViewModel.ToggleListeningCommand.ExecuteAsync(); }
+        await f.ViewModel.BeginPushToTalkAsync();
+        await f.ViewModel.EndPushToTalkAsync();
+        var settings = 0;
+        f.ViewModel.SettingsRequested += (_, _) => settings++;
+        f.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var response = f.ViewModel.RunTypedCommand.ExecuteAsync();
+        try
+        {
+            await Task.WhenAny(response, f.TextToSpeech.SpeakStarted.Task).WaitAsync(TestContext.Current.CancellationToken);
+            f.TextToSpeech.SpeakStarted.Task.IsCompleted.Should().BeTrue();
+            f.TextToSpeech.StopException = new IOException("Owned playback could not stop.");
+            await f.Voice.RaiseTranscriptAsync("Kora, open settings", 1);
+            f.ViewModel.ResponseTitle.Should().Be("Speech output could not be stopped.");
+            settings.Should().Be(0);
+            f.ViewModel.IsSpeaking.Should().BeTrue();
+        }
+        finally
+        {
+            f.TextToSpeech.StopException = null;
+            f.TextToSpeech.SpeakGate.TrySetResult();
+            await response;
+        }
+    }
+
+    [Fact]
+    public async Task ManualCallChangesRetireCapturedOrdinarySpeechEvenAfterReturningToClear()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.RunAsync("what power action is pending");
+        var body = f.ViewModel.ResponseBody;
+        var capturedSpeech = (long)typeof(MainViewModel)
+            .GetField("manualCallSpeechRevision", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(f.ViewModel)!;
+        await f.ViewModel.EnableManualCallCommand.ExecuteAsync();
+        await f.ViewModel.ClearManualCallCommand.ExecuteAsync();
+        var starts = f.TextToSpeech.SpeakCalls;
+        using var original = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        var speak = typeof(MainViewModel).GetMethod("TrySpeakCurrentResponseAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var played = await (Task<bool>)speak.Invoke(f.ViewModel,
+            [null, capturedSpeech, null, null, null, null, CancellationToken.None])!;
+        played.Should().BeFalse();
+        f.ViewModel.ResponseBody.Should().Be(body);
+        f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        f.ViewModel.ResponseOutputStatus.Should().Contain("retired by manual call control");
+        f.TextToSpeech.SpeakCalls.Should().Be(starts);
+    }
+
+    [Theory]
+    [InlineData(Kora.Core.Hosting.RequestOrigin.HostSystem)]
+    [InlineData(Kora.Core.Hosting.RequestOrigin.ActivatedVoice)]
+    public async Task DeferredMetadataReviewRequiresOriginalUserOriginAndItsCurrentVoicePrefix(Kora.Core.Hosting.RequestOrigin origin)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.CallState.SetState(Kora.Core.Communication.CallState.Clear);
+        await f.Dispatcher.LastInvocation;
+        f.ViewModel.BindVoiceOwnershipGate(static () => true);
+        const string text = "review session metadata 10000000-0000-0000-0000-000000000001 for 10000000-0000-0000-0000-000000000002: Original";
+        var requests = 0;
+        f.ViewModel.SessionMetadataRequested += (_, _, _) => { requests++; return Task.CompletedTask; };
+        using var original = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            Kora.Core.Hosting.HostRequest.Create(origin),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        var input = typeof(MainViewModel).GetMethod("CaptureManualCallInput", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(f.ViewModel, [origin, f.ViewModel.CallPolicyRevision, null, false]);
+        var callback = typeof(MainViewModel).GetMethod("ExecuteSessionMetadata", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        await (Task)callback.Invoke(f.ViewModel,
+            [Kora.Application.Tools.SessionMetadataCommand.Parse(text, f.ViewModel.AssistantName), text, input, (Func<bool>)(static () => true)])!;
+        (f.ViewModel.Transcript + " " + f.ViewModel.ResponseBody).Should().Contain("requires original private typed input");
+        requests.Should().Be(0);
+        f.HostStore.Records.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(Kora.Core.Dependencies.DependencyReadiness.Ready, "local model ready")]
+    [InlineData(Kora.Core.Dependencies.DependencyReadiness.Failed, "local reasoning unavailable")]
+    public async Task VersionReportsObservedInferenceAvailabilityWithoutStartingAModel(Kora.Core.Dependencies.DependencyReadiness readiness, string expected)
+    {
+        var f = new Fixture();
+        f.ModelExecutionPreferences.Save(new Kora.Core.Configuration.ModelExecutionSettings(true, false));
+        f.Probe.Status = new("local.inference", "Local inference", readiness, "Observed inference status.");
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("what version are you running");
+        f.ViewModel.ResponseBody.Should().Contain(expected);
+        f.HostStore.Records.Select(record => record.State).Should().Equal(
+            Kora.Core.Hosting.HostTaskState.IntentRecorded, Kora.Core.Hosting.HostTaskState.DispatchRecorded, Kora.Core.Hosting.HostTaskState.Succeeded);
+    }
+
+    [Fact]
+    public async Task CurrentTaskProgressUsesTheAdmittedSetupPercentageWithoutModelReasoning()
+    {
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local inference", Kora.Core.Dependencies.DependencyReadiness.Missing, "Needs approved setup.");
+        await f.ViewModel.InitializeAsync();
+        f.ViewModel.CanInstallLocalModel.Should().BeTrue();
+        f.LocalModel.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var setup = f.ViewModel.InstallLocalModelAsync();
+        try
+        {
+            await Task.WhenAny(setup, f.LocalModel.Started.Task).WaitAsync(TestContext.Current.CancellationToken);
+            f.LocalModel.Started.Task.IsCompleted.Should().BeTrue();
+            await f.RunAsync("what is the current task status");
+            f.ViewModel.ResponseBody.Should().Contain("42%").And.Contain("Downloading the selected local model.");
+            f.HostStore.Records.Should().BeEmpty();
+        }
+        finally
+        {
+            f.LocalModel.Gate.TrySetResult();
+            await setup;
+        }
+    }
+
+    [Theory]
+    [InlineData("show session metrics", "Session metrics are unavailable")]
+    [InlineData("session metrics active", "Session metrics are unavailable")]
+    [InlineData("session remaining 10000000-0000-0000-0000-000000000001", "Remaining-work answer unavailable")]
+    [InlineData("session remaining invalid", "Remaining-work answer unavailable")]
+    [InlineData("open conversation \"Work\"", "Conversation opening unavailable")]
+    public async Task QuestionArrivingAfterInputAdmissionCannotBeDisplacedByLocalObservation(string text, string refusal)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await using var details = new PendingDetailsQuestion(f);
+        var injected = false;
+        Task? question = null;
+        f.ViewModel.CommandText = text;
+        f.ViewModel.PropertyChanged += (_, args) =>
+        {
+            if (injected || !string.Equals(args.PropertyName, nameof(MainViewModel.QuietHoursReviewText), StringComparison.Ordinal)) { return; }
+            injected = true;
+            question = details.PresentAsync();
+        };
+        var tasks = f.HostStore.Records.Count;
+        await f.ViewModel.RunTypedCommand.ExecuteAsync();
+        injected.Should().BeTrue();
+        await question!;
+        (f.ViewModel.Transcript + " " + f.ViewModel.ResponseBody).Should().Contain(refusal);
+        f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        f.HostStore.Records.Count.Should().Be(tasks);
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("open conversation \"Work\"", "Conversation opening unavailable")]
+    [InlineData("show session metrics", "Session metrics are unavailable")]
+    [InlineData("session remaining 10000000-0000-0000-0000-000000000001", "Remaining-work answer unavailable")]
+    public async Task CapturedEditorInputCannotBeRelabelledAsSessionObservation(string text, string refusal)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.CallState.SetState(Kora.Core.Communication.CallState.Clear);
+        await f.Dispatcher.LastInvocation;
+        f.ViewModel.CanAnswerRemainingWork.Should().BeTrue();
+        f.ViewModel.CommandText = text;
+        var tasks = f.HostStore.Records.Count;
+        using var original = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        var dispatch = typeof(MainViewModel).GetMethod("HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        await (Task)dispatch.Invoke(f.ViewModel,
+            [text, 1f, Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, null, null, null, null, null, null, EditorVoiceTarget(), null])!;
+        (f.ViewModel.Transcript + " " + f.ViewModel.ResponseBody).Should().Contain(refusal);
+        f.HostStore.Records.Count.Should().Be(tasks);
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("ExecuteCustomizationDiscovery", "discover customizations Which can help?", "cannot replace a pending question")]
+    [InlineData("ExecuteInstructionUseCommand", InstructionRequest, "unavailable while a question")]
+    [InlineData("ExecuteKnowledgeSourceAnswer", "answer using source \"Notes\": Exact request", "unavailable while a question")]
+    [InlineData("ExecuteSkillReviewCommand", "open skill packages", "unavailable while a question")]
+    [InlineData("ExecuteSpeechCommandAsync", "list speech settings", "pending question")]
+    [InlineData("ExecuteSpeechSummarySuggestionAsync", "Review", "Speech limit review blocked.")]
+    [InlineData("ExecuteSessionMetadata", "review session metadata 10000000-0000-0000-0000-000000000001 for 10000000-0000-0000-0000-000000000002: Original", "requires original private typed input")]
+    [InlineData("ExecuteResponseWindowCommandAsync", "set response-window.topmost to false", "Resolve pending questions")]
+    [InlineData("ExecuteResponseWindowCommandAsync", "set response-window.topmost to invalid", "Clarify the response-window setting.")]
+    [InlineData("ExecuteManualCallCommandAsync", "set call.manual-active to on", "pending question")]
+    [InlineData("ExecuteManualCallCommandAsync", "set call.manual-active to invalid", "call.manual-active")]
+    [InlineData("ExecuteWebPageCommandAsync", "get web page https://example.invalid/", "")]
+    public async Task DeferredNativeCallbacksCannotConsumeAnExistingDetailsQuestion(string methodName, string text, string refusal)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        f.CallState.SetState(Kora.Core.Communication.CallState.Clear);
+        await f.Dispatcher.LastInvocation;
+        f.ViewModel.BindVoiceOwnershipGate(static () => true);
+        await using var details = new PendingDetailsQuestion(f);
+        await details.PresentAsync();
+        var question = f.ViewModel.CurrentDetailsOffer;
+        var questionText = f.ViewModel.DetailsQuestionText;
+        var title = f.ViewModel.ResponseTitle;
+        var body = f.ViewModel.ResponseBody;
+        var tasks = f.HostStore.Records.Count;
+        var audit = f.Audit.Events.Count;
+        var speech = f.TextToSpeech.SpeakCalls;
+        var stops = f.TextToSpeech.StopCalls;
+        using var original = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        var input = typeof(MainViewModel).GetMethod("CaptureManualCallInput", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(f.ViewModel, [Kora.Core.Hosting.RequestOrigin.LocalUi, f.ViewModel.CallPolicyRevision, null, false]);
+        var callback = typeof(MainViewModel).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var parameters = callback.GetParameters();
+        var commandType = parameters[0].ParameterType;
+        object command;
+        if (commandType.IsEnum) { command = Enum.Parse(commandType, text); }
+        else
+        {
+            var parse = commandType.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static)
+                ?? throw new InvalidOperationException("The maintained callback command has no parser.");
+            var parseArguments = parse.GetParameters().Select((parameter, index) =>
+                index == 0 ? (object?)text : parameter.ParameterType == typeof(string)
+                    ? f.ViewModel.AssistantName : parameter.HasDefaultValue
+                        ? parameter.DefaultValue : throw new InvalidOperationException("The maintained parser needs an explicit argument.")).ToArray();
+            command = parse.Invoke(null, parseArguments)
+                ?? throw new InvalidOperationException("The regression input did not parse into its maintained command.");
+        }
+        var arguments = parameters.Select((parameter, index) => index == 0 ? command
+            : parameter.ParameterType == typeof(string) ? text
+            : parameter.ParameterType == typeof(Kora.Core.Auditing.SecurityAuditInitiator) ? (object)Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand
+            : parameter.ParameterType == typeof(CancellationToken) ? TestContext.Current.CancellationToken
+            : parameter.ParameterType == typeof(bool) ? true
+            : parameter.ParameterType == typeof(Func<bool>) ? (Func<bool>)(() => true)
+            : parameter.Name is "input" or "originalInput" ? input
+            : throw new InvalidOperationException("The maintained callback needs an explicit argument.")).ToArray();
+        await (Task)callback.Invoke(f.ViewModel, arguments)!;
+        if (methodName is "ExecuteWebPageCommandAsync")
+        {
+            f.ViewModel.ResponseTitle.Should().Be(title);
+            f.ViewModel.ResponseBody.Should().Be(body);
+        }
+        else { (f.ViewModel.Transcript + " " + f.ViewModel.ResponseTitle + " " + f.ViewModel.ResponseBody).Should().Contain(refusal); }
+        f.ViewModel.CurrentDetailsOffer.Should().BeSameAs(question);
+        f.ViewModel.DetailsQuestionText.Should().Be(questionText);
+        f.HostStore.Records.Count.Should().Be(tasks);
+        f.Audit.Events.Should().HaveCount(audit);
+        f.TextToSpeech.SpeakCalls.Should().Be(speech);
+        f.TextToSpeech.StopCalls.Should().Be(stops);
         f.Session.LockCalls.Should().Be(0);
     }
 
     [Fact]
-    public async Task ExactModelActionReviewClarificationRequiresItsOriginalHostContinuation()
+    public async Task PendingDetailsRetiresNativeQuestionNavigationAndUndoAdmission()
     {
-        var f = await CreateModelActionReviewFixtureAsync();
-        f.Reasoner.Action = null;
-        f.Reasoner.Question = new("Which?", ["One", "Two"]);
-        await f.RunAsync("choose");
-        await f.ViewModel.ActiveReasoningTask!;
-        // A missing legacy continuation must be unavailable, never a fabricated session or action review.
-        typeof(MainViewModel).GetField("pendingModelQuestionContinuation", BindingFlags.NonPublic | BindingFlags.Instance)!
-            .SetValue(f.ViewModel, null);
-        await f.ViewModel.SelectModelQuestionChoiceAsync(f.ViewModel.ModelQuestionChoices[0]);
-        f.ViewModel.ResponseBody.Should().Contain("original host request is unavailable");
-        f.Reasoner.Requests.Should().ContainSingle();
-        f.ViewModel.PendingModelActionReview.Should().BeNull();
+        var f = await Fixture.CreateInitializedAsync();
+        var admitted = f.ViewModel.CaptureQuestionNoticeNavigationEligibility();
+        admitted().Should().BeTrue();
+        await using var details = new PendingDetailsQuestion(f);
+        await details.PresentAsync();
+        var question = f.ViewModel.CurrentDetailsOffer;
+        admitted().Should().BeFalse();
+        f.ViewModel.CaptureQuestionNoticeNavigationEligibility()().Should().BeFalse();
+        await f.ViewModel.ExecuteSettingsUndoAsync(
+            Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionOperation.Review,
+            Kora.Core.Auditing.SecurityAuditInitiator.LocalUser, TestContext.Current.CancellationToken);
+        f.ViewModel.Transcript.Should().Contain("Nothing was applied.");
+        var body = f.ViewModel.ResponseBody;
+        f.ViewModel.ReportEvidencePresentationUnavailable();
+        f.ViewModel.Transcript.Should().Contain("reader text scale is unconfirmed");
+        f.ViewModel.ResponseBody.Should().Be(body);
+        f.ViewModel.CurrentDetailsOffer.Should().BeSameAs(question);
+    }
+
+    [Fact]
+    public async Task ArtifactFreshnessCompletedAfterCancellationCannotAuthorizeInvocation()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var artifact = f.ArtifactCatalogue.SourceCandidates.Single() with { UseControlId = "file-artifact" };
+        using var cancellation = new CancellationTokenSource();
+        var observations = 0;
+        f.ViewModel.BindFileArtifactFreshness((candidate, token) =>
+        {
+            candidate.Should().BeSameAs(artifact);
+            token.Should().Be(cancellation.Token);
+            observations++;
+            cancellation.Cancel();
+            return Task.FromResult(true);
+        });
+        var tasks = f.HostStore.Records.Count;
+        var observe = typeof(MainViewModel).GetMethod("IsArtifactSourceCurrent", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var current = await (Task<bool>)observe.Invoke(f.ViewModel, [artifact, cancellation.Token])!;
+        current.Should().BeFalse();
+        observations.Should().Be(1);
+        f.HostStore.Records.Count.Should().Be(tasks);
+        f.Session.LockCalls.Should().Be(0);
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
     }
 
     [Theory]
-    [InlineData("Kora, review pending action")]
-    [InlineData("Kora, approve once")]
-    public async Task ExactModelActionReviewRetiredVoiceGenerationCannotRevealOrDecide(string text)
+    [InlineData("unmatched", false)]
+    [InlineData("unmatched", true)]
+    [InlineData("artifact", false)]
+    [InlineData("artifact", true)]
+    [InlineData("clarification", false)]
+    [InlineData("clarification", true)]
+    public async Task RetiredModelEntryRejectsImmediatelyWithoutTaskSpeechOrSend(string entry, bool voiceOnly)
     {
-        var f = await CreateModelActionReviewFixtureAsync(voice: true);
-        var target = await ProposeModelActionReviewAsync(f);
-        await f.ViewModel.BeginPushToTalkAsync();
-        await f.ViewModel.EndPushToTalkAsync();
-        f.Dispatcher.BeforeInvoke = () => f.Voice.InvalidateCapture();
-        await f.Voice.RaiseTranscriptAsync(text, 1);
-        f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
-        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
+        var f = await Fixture.CreateInitializedAsync();
+        if (voiceOnly) { f.ViewModel.TaskResponseMode = Kora.Core.Voice.ResponseOutputMode.VoiceOnly; }
+        await f.ViewModel.ResponseOutputUpdate;
+        var sends = 0;
+        f.ViewModel.BindSessionRouting((_, _, _) =>
+        {
+            sends++;
+            throw new InvalidOperationException("Artifact and clarification rejection must not route a conversation.");
+        });
+        if (entry is "unmatched")
+        {
+            f.ViewModel.BindSessionRouting(null);
+            f.ViewModel.TryPresentCapabilityCommand("explain this unmatched request").Should().BeFalse();
+        }
+        f.ViewModel.BindFileArtifactFreshness((_, _) =>
+            throw new InvalidOperationException("A retired non-prompt artifact must not start preparation."));
+        var states = new List<AssistantState>();
+        var titles = new List<string>();
+        var taskChanges = 0;
+        f.ViewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is nameof(MainViewModel.State)) { states.Add(f.ViewModel.State); }
+            if (args.PropertyName is nameof(MainViewModel.ResponseTitle)) { titles.Add(f.ViewModel.ResponseTitle); }
+            if (args.PropertyName is nameof(MainViewModel.SetupTasks)) { taskChanges++; }
+        };
+        var tasks = f.ViewModel.SetupTasks.ToArray();
+        var hostTasks = f.HostStore.Records.Count;
+        var stops = f.TextToSpeech.StopCalls;
+        var discoveries = f.TextToSpeech.OutputEnumerationCalls;
+        if (entry is "clarification")
+        {
+            // The retired UI has no caller; exercise its retained fail-closed re-entry guard.
+            var guard = typeof(MainViewModel).GetMethod("SubmitModelQuestionAnswerAsync",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var operation = (Task)guard.Invoke(f.ViewModel, null)!;
+            operation.IsCompletedSuccessfully.Should().BeTrue();
+            await operation;
+        }
+        else { await f.RunAsync(entry is "artifact" ? "/lock original request" : "explain this unmatched request"); }
+        f.ViewModel.ResponseTitle.Should().Be("Model request unavailable.");
+        f.ViewModel.ResponseBody.Should().StartWith("Nothing was sent.");
+        f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        states.Should().NotContain(AssistantState.Calculating);
+        titles.Should().NotContain(title => title.Contains("Thinking locally", StringComparison.Ordinal));
+        f.ViewModel.SetupTasks.Should().Equal(tasks);
+        taskChanges.Should().Be(0);
+        f.HostStore.Records.Count.Should().Be(hostTasks);
+        f.ViewModel.IsLocalTaskCancellable.Should().BeFalse();
+        f.ViewModel.IsSpeaking.Should().BeFalse();
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.TextToSpeech.StopCalls.Should().Be(stops);
+        f.TextToSpeech.OutputEnumerationCalls.Should().Be(discoveries);
+        sends.Should().Be(0);
         f.Session.LockCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("list grants")]
+    [InlineData("manage grants")]
+    [InlineData("review pending action")]
+    [InlineData("allow once")]
+    [InlineData("always allow")]
+    public async Task RetiredNamedApprovalCommandsCannotExecuteAnAction(string text)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.RunAsync(text);
+        f.ViewModel.ResponseTitle.Should().Be("Model request unavailable.");
+        f.ViewModel.ResponseBody.Should().StartWith("Nothing was sent.");
+        f.Session.LockCalls.Should().Be(0);
+        f.ViewModel.IsResponseInteractionPending.Should().BeFalse();
+        f.TextToSpeech.SpokenText.Should().BeNull();
+    }
+
+    private sealed class PendingDetailsQuestion(Fixture fixture) : IAsyncDisposable
+    {
+        private readonly Kora.Application.UnitTests.Presentation.DetailsOfferServiceTests.DetailsOfferTestSource source = new();
+        private Kora.Application.Presentation.DetailsOfferService? offers;
+
+        internal async Task PresentAsync()
+        {
+            offers ??= new(source.Store, source.Time);
+            fixture.ViewModel.BindDetailsOfferPriority(static () => true);
+            fixture.ViewModel.BindDetailsOffers(offers, () => () => source.Live, (_, _) => Task.FromResult(true));
+            fixture.ViewModel.PresentDetailsOffer(source.Request);
+            await fixture.ViewModel.DetailsOfferPresented;
+            fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (offers is not null) { await offers.DisposeAsync(); }
+            source.Dispose();
+        }
     }
 }

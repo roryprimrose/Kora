@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -43,7 +43,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseBody.Should().Be(body);
         fixture.WindowActions.Should().BeEmpty();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Audit.Events.Should().HaveCount(8).And.OnlyContain(item =>
             item.ActionId == "configuration.response-window" && item.Initiator == SecurityAuditInitiator.TypedCommand);
     }
@@ -65,34 +65,6 @@ public sealed partial class MainViewModelTests
         fixture.Audit.Events.Should().HaveCount(events);
         fixture.WindowActions.Should().BeEmpty();
         HostActivity.Current.Should().BeNull();
-    }
-
-    [Theory]
-    [InlineData("get response-window.topmost")]
-    [InlineData("set response-window.topmost to false")]
-    [InlineData("set response-window.topmost to maybe")]
-    public async Task ResponseWindowCommandsNeverAnswerCancelOrReplaceAPendingQuestion(string command)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Question = new LocalModelQuestion("Choose a color?", ["Blue", "Green"]);
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("choose a color");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var title = fixture.ViewModel.ResponseTitle;
-        var body = fixture.ViewModel.ResponseBody;
-        var question = fixture.ViewModel.ModelQuestionChoices.ToArray();
-        var audits = fixture.Audit.Events.Count;
-        fixture.WindowActions.Clear();
-        await fixture.RunAsync(command);
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.ModelQuestionChoices.Should().Equal(question);
-        fixture.ViewModel.ResponseTitle.Should().Be(title);
-        fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.Reasoner.Requests.Should().ContainSingle();
-        fixture.Audit.Events.Should().HaveCount(audits);
-        fixture.AppearancePreferences.SavedResponseWindowSettings.Should().BeNull();
-        fixture.WindowActions.Should().BeEmpty();
     }
 
     [Theory]
@@ -122,7 +94,7 @@ public sealed partial class MainViewModelTests
             .Should().HaveCount(2).And.OnlyContain(item => item.Initiator == SecurityAuditInitiator.VoiceCommand);
         fixture.Voice.StartedPhrases.Should().Contain("Nova keep responses visible")
             .And.Contain("Kora keep responses visible").And.NotContain("Aria keep responses visible");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         activity.Complete(HostOperationOutcome.Completed);
     }
 
@@ -269,35 +241,6 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsResponseWindowTopmost.Should().BeTrue();
         fixture.AppearancePreferences.SavedResponseWindowSettings.Should().Be(
             revokeAfterWrite ? new ResponseWindowSettings(true, true, null) : null);
-    }
-
-    [Theory]
-    [InlineData("get response-window.topmost")]
-    [InlineData("reset response-window.always-show")]
-    [InlineData("set response-window.topmost to maybe")]
-    public async Task ResponseWindowCommandsPreservePendingSecurityReviewAndGrantEditor(string command)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("lock this computer please");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        SetPresentationProperty(fixture.ViewModel, nameof(Kora.Application.ViewModels.MainViewModel.IsGrantEditorVisible), true);
-        var body = fixture.ViewModel.ResponseBody;
-        var preparation = typeof(Kora.Application.ViewModels.MainViewModel)
-            .GetField("approvalPreparationRevision", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-        var revision = preparation.GetValue(fixture.ViewModel);
-        fixture.WindowActions.Clear();
-        await fixture.RunAsync(command);
-        preparation.GetValue(fixture.ViewModel).Should().Be(revision);
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.ViewModel.IsGrantEditorVisible.Should().BeTrue();
-        fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.WindowActions.Should().BeEmpty();
     }
 
     [Theory]

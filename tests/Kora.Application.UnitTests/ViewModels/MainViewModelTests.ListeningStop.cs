@@ -125,7 +125,7 @@ public sealed partial class MainViewModelTests
         f.Voice.RaiseTranscriptForGeneration(fresh);
         await f.Dispatcher.LastInvocation;
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -168,46 +168,10 @@ public sealed partial class MainViewModelTests
         f.ViewModel.HasVoiceConsent.Should().BeTrue();
         f.Voice.StartCalls.Should().Be(1);
         f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         AssertAuditPair(f, SecurityAuditCategory.ConfigurationWrite, "configuration.listening-disabled",
             voice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand, SecurityAuditOutcome.Succeeded);
-    }
-
-    [Theory]
-    [InlineData("question", false)]
-    [InlineData("question", true)]
-    [InlineData("action", false)]
-    [InlineData("grant", false)]
-    public async Task ListeningStopReservesExactInputBeforePendingDecisionsWithoutChangingThem(string pending, bool voice)
-    {
-        var f = CreateVoicePrivacyFixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
-        if (string.Equals(pending, "question", StringComparison.Ordinal)) { f.Reasoner.Question = new("Exact choice?", ["stop listening", "continue"]); }
-        if (string.Equals(pending, "action", StringComparison.Ordinal)) { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
-        if (string.Equals(pending, "grant", StringComparison.Ordinal)) { f.Reasoner.GrantChange = new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Session); }
-        await f.ViewModel.InitializeAsync();
-        if (voice) { await f.ViewModel.BeginPushToTalkAsync(); await f.ViewModel.EndPushToTalkAsync(); }
-        await f.RunAsync("do this requested work");
-        await f.ViewModel.ActiveReasoningTask!;
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        var choices = f.ViewModel.ModelQuestionChoices;
-        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-
-        if (voice) { await f.Voice.RaiseTranscriptAsync("Kora, stop listening", 1); }
-        else { await f.RunAsync("disable listening"); }
-
-        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.ModelQuestionChoices.Should().BeSameAs(choices);
-        f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        f.ViewModel.Transcript.Should().Contain("Listening disabled.");
-        f.Reasoner.Requests.Should().HaveCount(1);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
     }
 
     [Theory]
@@ -232,68 +196,10 @@ public sealed partial class MainViewModelTests
         host.Store.Snapshot.Questions.Single().Status.Should().Be(QuestionStatus.Pending);
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
         replies.IsActive.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Audit.Events.Where(audit => string.Equals(audit.ActionId, "configuration.listening-disabled", StringComparison.Ordinal))
             .Should().OnlyContain(audit => audit.Initiator == SecurityAuditInitiator.VoiceCommand);
         f.ViewModel.Dispose();
-    }
-
-    [Fact]
-    public async Task ListeningStopRemainsAvailableDuringUnrelatedReasoningWithoutCancellation()
-    {
-        var f = CreateVoicePrivacyFixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
-        f.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("do unrelated work");
-        var reasoning = f.ViewModel.ActiveReasoningTask!;
-        f.ViewModel.CommandText = "stop listening";
-        reasoning.IsCompleted.Should().BeFalse();
-        f.ViewModel.RunTypedCommand.CanExecute(null).Should().BeTrue();
-
-        await f.ViewModel.RunTypedCommand.ExecuteAsync();
-
-        reasoning.IsCompleted.Should().BeFalse();
-        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        f.Reasoner.Gate.SetResult("Work completed normally");
-        await reasoning;
-        f.ViewModel.ResponseBody.Should().Contain("Work completed normally");
-    }
-
-    [Fact]
-    public async Task ListeningStopDoesNotSupersedeAnUnrelatedTypedApprovalPreparation()
-    {
-        var f = CreateVoicePrivacyFixture();
-        await f.ViewModel.InitializeAsync();
-        using var release = new ManualResetEventSlim();
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var token = TestContext.Current.CancellationToken;
-        f.Audit.BeforeWrite = audit =>
-        {
-            if (audit.Category != SecurityAuditCategory.SecurityApproval
-                || audit.Outcome != SecurityAuditOutcome.Requested) { return; }
-            entered.TrySetResult();
-            release.Wait(token);
-        };
-        var preparation = f.ViewModel.PrepareGrantChangeAsync(
-            new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session),
-            SecurityAuditInitiator.TypedCommand);
-        try
-        {
-            await entered.Task.WaitAsync(token);
-            await f.RunAsync("stop listening");
-            f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-            preparation.IsCompleted.Should().BeFalse();
-        }
-        finally { release.Set(); }
-        await preparation;
-
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
-        f.Audit.Events.Should().NotContain(audit => audit.Category == SecurityAuditCategory.SecurityApproval
-            && audit.Outcome == SecurityAuditOutcome.Cancelled);
-        f.Session.LockCalls.Should().Be(0);
     }
 
     [Fact]
@@ -426,7 +332,7 @@ public sealed partial class MainViewModelTests
 
         f.Session.LockCalls.Should().Be(0);
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -505,23 +411,6 @@ public sealed partial class MainViewModelTests
         f.Voice.IsCaptureQuiescent.Should().BeTrue();
         f.Voice.StartCalls.Should().Be(0);
         f.ViewModel.ResponseTitle.Should().NotBe("Listening disabled.");
-    }
-
-    [Fact]
-    public async Task ListeningStopHasNoQualifiedModelLaneAndDoesNotMutateTheReadOnlyRegistry()
-    {
-        var f = CreateVoicePrivacyFixture();
-        await f.ViewModel.InitializeAsync();
-        var command = f.Catalog.GetCommands().Single(item => item.Action == BuiltInAction.DisableListening);
-        await f.ViewModel.ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion);
-
-        f.ViewModel.IsVoiceEnabled.Should().BeTrue();
-        f.ViewModel.ResponseTitle.Should().Be("Model listening control is unavailable.");
-        command.SupportsModelSuggestion.Should().BeFalse();
-        f.ViewModel.GrantActions.Should().NotContain(item => item.Action == BuiltInAction.DisableListening);
-        f.Voice.StopCalls.Should().Be(0);
-        Kora.Core.Tools.ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(7)
-            .And.OnlyContain(descriptor => descriptor.Effect == Kora.Core.Tools.CapabilityEffect.ReadOnlyObservation);
     }
 
     [Theory]

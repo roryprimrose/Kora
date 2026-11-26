@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Configuration;
 using Kora.Core.Hosting;
@@ -31,7 +31,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.ConfirmStartupPresentationCommand.ExecuteAsync();
         startup.Preferences.Value.Should().BeNull();
         f.Events.Should().Equal(events);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Voice.StartCalls.Should().Be(0);
         f.ViewModel.HasVoiceConsent.Should().BeFalse();
         f.ViewModel.Dispose();
@@ -75,7 +75,7 @@ public sealed partial class MainViewModelTests
             Kora.Core.Diagnostics.HostOperation.Request) : null;
         await f.ViewModel.ConfirmStartupPresentationCommand.ExecuteAsync();
         startup.Preferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Voice.StartCalls.Should().Be(0);
         f.ViewModel.Dispose();
     }
@@ -116,34 +116,6 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.ConfirmStartupPresentationCommand.ExecuteAsync();
         f.ViewModel.Transcript.Should().Contain("not confirmed");
         startup.Preferences.Value.Should().Be(StartupPresentation.Workspace);
-        f.ViewModel.Dispose();
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task NativePreferenceCannotConsumeAnActiveQuestionOrApproval(bool approval)
-    {
-        await using var startup = new StartupPresentationConfigurationServiceTests.Fixture();
-        var f = new Fixture(startupPresentationConfiguration: startup.Service);
-        f.ViewModel.BindStartupPresentationNativeLifetime(static () => true);
-        f.Probe.Status = new("local.inference", "Local inference", Kora.Core.Dependencies.DependencyReadiness.Ready, "fixture");
-        if (approval) { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
-        else { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("help me");
-        await f.ViewModel.ActiveReasoningTask!;
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        var eligible = f.ViewModel.CaptureStartupPresentationEligibility();
-        eligible().Should().BeFalse();
-        await f.ViewModel.ReviewWorkspaceStartupCommand.ExecuteAsync();
-        await f.ViewModel.ConfirmStartupPresentationCommand.ExecuteAsync();
-        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        f.ViewModel.IsModelQuestionPending.Should().Be(!approval);
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        startup.Preferences.Writes.Should().Be(0);
         f.ViewModel.Dispose();
     }
 

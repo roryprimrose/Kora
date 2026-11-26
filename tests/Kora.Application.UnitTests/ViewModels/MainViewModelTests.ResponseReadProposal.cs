@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
@@ -59,7 +59,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpeakCalls.Should().Be(calls + 1);
         fixture.TextToSpeech.SpokenText.Should().Be($"{title}. {body}");
         fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.Session.LockCalls.Should().Be(0);
         var audits = fixture.Audit.Events.Where(item => string.Equals(item.ActionId, SpeechReadOnce.AuditActionId, StringComparison.Ordinal)).ToArray();
         audits.Should().HaveCount(2);
@@ -90,7 +90,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.HasResponseReadProposal.Should().BeFalse();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         planner.Disposals.Should().Be(1);
         fixture.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, SpeechReadOnce.AuditActionId, StringComparison.Ordinal));
     }
@@ -161,30 +161,6 @@ public sealed partial class MainViewModelTests
         await confirm();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, SpeechReadOnce.AuditActionId, StringComparison.Ordinal));
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ResponseReadProposalDoesNotAnswerOrRetireAnExistingQuestionOrApproval(bool approval)
-    {
-        var fixture = CreateSummaryFixture(SpeechProviderIds.Windows);
-        await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.BindResponseReadPlanner(new ResponseReadPlannerFake(), TimeProvider.System);
-        if (approval) { fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
-        else { fixture.Reasoner.Question = new("Which color?", ["Blue", "Green"]); }
-        await fixture.RunAsync("choose something");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Reasoner.Requests.Clear();
-        fixture.TextToSpeech.ClearSpokenResponse();
-        var body = fixture.ViewModel.ResponseBody;
-        await fixture.RunAsync("please read this answer aloud");
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.ViewModel.HasResponseReadProposal.Should().BeFalse();
-        fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
-        fixture.ViewModel.HostedModelsEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -287,7 +263,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.ResponseBody.Should().Be(body);
         fixture.ViewModel.LastResponseReadOutcome.Should().NotBe(SpeechReadOutcome.Played);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -321,7 +297,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync(decision);
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.ResponseBody.Should().Be(body);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -496,7 +472,7 @@ public sealed partial class MainViewModelTests
             await fixture.RunAsync("please read this answer aloud again");
             await fixture.RunAsync("some unrelated original request");
             planner.Admissions.Should().Be(1);
-            fixture.Reasoner.Requests.Should().BeEmpty();
+
         }
         finally { planner.RunGate.TrySetResult(); }
         await planning;
@@ -591,7 +567,7 @@ public sealed partial class MainViewModelTests
         await (Task)method.Invoke(fixture.ViewModel, arguments)!;
         fixture.ViewModel.HasResponseReadProposal.Should().BeFalse();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]

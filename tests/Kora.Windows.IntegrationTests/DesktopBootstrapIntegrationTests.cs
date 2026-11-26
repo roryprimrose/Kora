@@ -20,6 +20,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Platform;
 using Kora.Core.Presentation;
+using Kora.Core.Storage;
 using Kora.Core.Voice;
 using Kora.Controls;
 using Kora.NativeUxFixture;
@@ -39,6 +40,38 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class DesktopBootstrapIntegrationTests
 {
+    [Theory]
+    [InlineData("{\"Version\":1,\"RequireAssistantNameForVoiceApproval\":true,\"AlwaysAllowedActions\":[\"LockMachine\"]}")]
+    [InlineData("{malformed legacy approvals")]
+    public Task Retired_model_approvals_are_ignored_without_import_or_file_mutation(string contents) =>
+        HeadlessSession.RunAsync(async () =>
+        {
+            using var listener = Listen();
+            await using var fixture = new BootstrapFixture();
+            var bytes = System.Text.Encoding.UTF8.GetBytes(contents);
+            Directory.CreateDirectory(Path.GetDirectoryName(fixture.LegacyApprovalsPath)!);
+            await File.WriteAllBytesAsync(fixture.LegacyApprovalsPath, bytes, TestContext.Current.CancellationToken);
+            await using (var inaccessible = new FileStream(fixture.LegacyApprovalsPath,
+                FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                fixture.BuildProvider();
+                fixture.StartDesktop();
+                await fixture.RunWindowStartupAsync();
+
+                fixture.Ownership.IsReady.Should().BeTrue();
+                var page = await fixture.ExactGrants.ReadExactGrantPageAsync(null, TestContext.Current.CancellationToken);
+                page.Records.Should().BeEmpty();
+                page.Next.Should().BeNull();
+                fixture.Main.SetupTasks.Should().NotContain(task => task.State == SetupTaskState.Running);
+                fixture.Voice.StartCalls.Should().Be(0);
+                fixture.ForbiddenNetworkCalls.Should().Be(0);
+                fixture.PowerShell.ForbiddenCalls.Should().Be(0);
+                await fixture.StopDesktopAsync();
+            }
+            (await File.ReadAllBytesAsync(fixture.LegacyApprovalsPath, TestContext.Current.CancellationToken))
+                .Should().Equal(bytes);
+        });
+
     [Fact]
     public Task Production_graph_and_framework_binding_complete_with_unavailable_platform_services() =>
         HeadlessSession.RunAsync(async () =>
@@ -176,6 +209,9 @@ public sealed class DesktopBootstrapIntegrationTests
         internal DeniedLifecycle Lifecycle { get; } = new();
         internal UnavailableProbe Probe { get; } = new();
         internal int ForbiddenNetworkCalls => networks.Sum(network => network.ForbiddenCalls);
+        internal string LegacyApprovalsPath => Path.Combine(storage.LocalRoot, "Preferences", "model-approvals.json");
+        internal IExactGrantStore ExactGrants => (provider ?? throw new InvalidOperationException("Bootstrap provider is not built."))
+            .GetRequiredService<IExactGrantStore>();
         internal MainViewModel Main => (provider ?? throw new InvalidOperationException("Bootstrap provider is not built."))
             .GetRequiredService<MainViewModel>();
 

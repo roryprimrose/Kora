@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Agents;
 using Kora.Core.Diagnostics;
@@ -39,7 +39,7 @@ public sealed partial class MainViewModelTests
             AgentProfileAuthoringAction.List, AgentProfileAuthoringAction.Inspect, AgentProfileAuthoringAction.CancelReview,
             AgentProfileAuthoringAction.Describe, AgentProfileAuthoringAction.Ask, AgentProfileAuthoringAction.DraftFromDescription);
         runs.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed partial class MainViewModelTests
         using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem), HostActivityLayer.Application, HostOperation.Request))
         { await f.RunAsync("agent author"); }
         received.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]

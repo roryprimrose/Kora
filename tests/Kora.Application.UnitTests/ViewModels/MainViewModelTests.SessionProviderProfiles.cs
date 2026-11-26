@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.UnitTests.Configuration;
@@ -44,7 +44,7 @@ public sealed partial class MainViewModelTests
         policy.Snapshot.Desired.Reasoning.Should().Be(field is "reasoning" ? new ProviderChoiceId(id) : null);
         policy.Snapshot.Desired.Context.Should().Be(field is "context" ? new ProviderChoiceId(id) : null);
         policy.Profiles.Preferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         policy.Store.Tasks.Should().OnlyContain(task => task.Request.Origin == (voice ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi));
     }
 
@@ -91,7 +91,7 @@ public sealed partial class MainViewModelTests
             failure is "unauthorized" ? SecurityAuditInitiator.System : SecurityAuditInitiator.LocalUser);
         policy.Snapshot.Revision.Should().Be(0);
         policy.Profiles.Preferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Session provider policy not confirmed.");
         f.ViewModel.ResponseBody.Should().Contain("complete byte bound");
         policy.Snapshot.Revision.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
     [Fact]
     public async Task TypedExactSessionReviewAndConfirmationNeverWritesAppOrInvokesReasoner()
@@ -150,7 +150,7 @@ public sealed partial class MainViewModelTests
         using var reset = JsonDocument.Parse(f.ViewModel.ResponseBody);
         await f.RunAsync(reset.RootElement.GetProperty("confirmation").GetString()!);
         policy.Snapshot.Desired.Serialize().Should().Be(SessionProviderOverrides.Inherit.Serialize());
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync("Kora, " + body.RootElement.GetProperty("confirmation").GetString(), 1);
         policy.Snapshot.Desired.Service.Should().Be(ProviderService.Codex);
         policy.Store.Tasks.Should().OnlyContain(task => task.Request.Origin == Kora.Core.Hosting.RequestOrigin.ActivatedVoice);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -202,6 +202,6 @@ public sealed partial class MainViewModelTests
         await f.RunAsync(text);
         policy.Snapshot.Revision.Should().Be(0);
         policy.Profiles.Preferences.Writes.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

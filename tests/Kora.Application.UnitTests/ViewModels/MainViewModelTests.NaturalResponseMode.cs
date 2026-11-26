@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -59,7 +59,7 @@ public sealed partial class MainViewModelTests
             fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
             fixture.OutputPreferences.SavedMutedOutputVisualFallback.Should().BeNull();
             fixture.Preferences.SavedVoiceId.Should().BeNull();
-            fixture.Reasoner.Requests.Should().BeEmpty();
+
 
             await fixture.RunAsync("Nova, check response mode");
             fixture.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"observed\"").And.Contain("\"saved\":\"" + mode + "\"");
@@ -98,7 +98,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.Voice.StartCalls.Should().Be(starts);
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -183,7 +183,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync(text);
         fixture.ViewModel.ResponseTitle.Should().Be("Clarify the response setting.");
         fixture.OutputPreferences.SavedMode.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -213,7 +213,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.Voice.StartCalls.Should().Be(starts);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         if (stage is "save")
         {
             fixture.OutputPreferences.SaveException = null;
@@ -223,31 +223,5 @@ public sealed partial class MainViewModelTests
         }
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Malformed_reserved_aliases_cannot_answer_pending_decisions_or_reach_the_model(bool question)
-    {
-        var fixture = new Fixture(enableResponseModeConfiguration: true);
-        await using var admission = fixture.OutputAdmission;
-        fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
-        if (question) { fixture.Reasoner.Question = new("Exact choice?", ["one", "two"]); }
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("please do this work");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var preview = fixture.ViewModel.ResponseBody;
-        var requests = fixture.Reasoner.Requests.Count;
-        foreach (var text in new[] { "use spoken responses", "use spoken responses and approve once", "use visual response",
-            "use  spoken responses", "use\tvisual responses", "check response mode please", "check  response mode", "check response\tmode" })
-        {
-            await fixture.RunAsync("Kora, " + text);
-            fixture.ViewModel.ResponseBody.Should().Be(preview);
-            fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-            fixture.Reasoner.Requests.Should().HaveCount(requests);
-            fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-            fixture.OutputPreferences.SavedMode.Should().BeNull();
-        }
-    }
+
 }

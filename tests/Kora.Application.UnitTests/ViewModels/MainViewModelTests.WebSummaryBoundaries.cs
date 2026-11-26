@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Network;
 using Kora.Application.UnitTests.Network;
 using Kora.Application.ViewModels;
@@ -90,50 +90,6 @@ public sealed partial class MainViewModelTests
         var fixture = WebFixture(new());
         await fixture.RunAsync("cancel local web summary");
         fixture.ViewModel.WebSummaryStatus.Should().Contain("cancelled");
-        fixture.ViewModel.Dispose();
-    }
-
-    [Theory]
-    [InlineData("disposed")]
-    [InlineData("owner")]
-    [InlineData("question")]
-    [InlineData("busy")]
-    [InlineData("fetch")]
-    public async Task WebSummaryClosedEntryGatesNeverUseSnapshot(string closure)
-    {
-        var fixture = WebFixture(new());
-        var fakeReference = new DetailContentReference(new(Guid.NewGuid()), 1);
-        Task? pending = null;
-        TaskCompletionSource? release = null;
-        if (closure is "disposed") { fixture.ViewModel.Dispose(); }
-        if (closure is "owner") { fixture.ViewModel.BindCallOwnershipGate(static () => false); }
-        if (closure is "question")
-        {
-            fixture.Probe.Status = new("local.inference", "Ollama", DependencyReadiness.Ready, "Ready.");
-            fixture.Reasoner.Question = new("Choose an option.", ["one", "two"]);
-            await fixture.ViewModel.InitializeAsync();
-            await fixture.RunAsync("help with this workstation");
-            await fixture.ViewModel.ActiveReasoningTask!;
-        }
-        if (closure is "busy")
-        {
-            await fixture.ViewModel.InitializeAsync();
-            fixture.Probe.Gate = release = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            pending = fixture.ViewModel.RefreshCommand.ExecuteAsync();
-        }
-        if (closure is "fetch")
-        {
-            release = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            var transport = new ViewModelWebTransport(WebResponse("https://example.com/", "source"))
-            { BeforeSendAsync = () => release.Task };
-            fixture.ViewModel.Dispose();
-            fixture = new Fixture(webPageGet: new(transport, new ViewModelWebAudit()));
-            pending = fixture.RunAsync("get web page https://example.com/");
-        }
-        await fixture.ViewModel.PrepareWebSummaryAsync(fakeReference);
-        fixture.ViewModel.WebSummaryStatus.Should().Contain("operation admission is closed");
-        release?.SetResult();
-        if (pending is not null) { await pending; }
         fixture.ViewModel.Dispose();
     }
 

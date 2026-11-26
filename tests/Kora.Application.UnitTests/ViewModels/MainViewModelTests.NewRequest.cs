@@ -16,6 +16,64 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData("not-opened")]
+    [InlineData("failure")]
+    [InlineData("late")]
+    [InlineData("late-failure")]
+    [InlineData("name")]
+    [InlineData("pending")]
+    public async Task NewRequestNeverClaimsSuccessAfterNativeFailureOrAdmissionLoss(string change)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await using var details = new PendingDetailsQuestion(f);
+        f.ViewModel.NewRequestOpeningRequested += async admitted =>
+        {
+            admitted().Should().BeTrue();
+            if (change is "late" or "late-failure") { f.ViewModel.BindCallOwnershipGate(static () => false); }
+            if (change is "name") { await f.ViewModel.SetAssistantNameAsync("Nova"); }
+            if (change is "pending")
+            {
+                await details.PresentAsync();
+            }
+            if (change is "failure" or "late-failure") { throw new IOException("Synthetic native failure"); }
+            return false;
+        };
+        await f.RunAsync("open new request");
+        f.ViewModel.Transcript.Should().NotContain("activated only");
+        if (change is "failure") { f.ViewModel.Transcript.Should().Contain("opening failed"); }
+        if (change is "not-opened") { f.ViewModel.Transcript.Should().Contain("not confirmed"); }
+    }
+
+    [Fact]
+    public async Task NewRequestCommandsPreserveTheEntirePendingDetailsDecision()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await using var details = new PendingDetailsQuestion(f);
+        await details.PresentAsync();
+        var calls = 0;
+        f.ViewModel.NewRequestOpeningRequested += _ => { calls++; return Task.FromResult(true); };
+        var title = f.ViewModel.ResponseTitle;
+        var body = f.ViewModel.ResponseBody;
+        var question = f.ViewModel.CurrentDetailsOffer;
+        var audit = f.Audit.Events.Count;
+        foreach (var input in new[] { "open new request", "open new request extra" })
+        {
+            await f.RunAsync(input);
+            var queued = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod("ExecuteNewRequestOpenCommand",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            await (Task)queued.Invoke(f.ViewModel,
+                [NewRequestOpenCommand.Parse(input, f.ViewModel.AssistantName), Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, null])!;
+            f.ViewModel.Transcript.Should().Contain("opening blocked");
+            f.ViewModel.ResponseTitle.Should().Be(title);
+            f.ViewModel.ResponseBody.Should().Be(body);
+            f.ViewModel.CurrentDetailsOffer.Should().BeSameAs(question);
+            f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+        }
+        f.Audit.Events.Should().HaveCount(audit);
+        calls.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData("open new request", 1)]
     [InlineData("open new request extra", 0)]
     public async Task NewRequestNavigationDoesNotRetireAnUnrelatedNativeDispositionPreview(string input, int expectedOpens)
@@ -34,7 +92,7 @@ public sealed partial class MainViewModelTests
         presenter.LastAdmission.Should().BeTrue();
         presenter.Commands.Should().ContainSingle().Which.Should().Be(DispositionTarget);
         opens.Should().Be(expectedOpens);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
     }
 
@@ -104,7 +162,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.Transcript.Should().Contain("activated only");
         f.ViewModel.ResponseBody.Should().Be(voiceBody);
         f.HostStore.Records.Should().HaveCount(records);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Session.LockCalls.Should().Be(0);
         await f.RaiseActivatedTranscriptAsync("open new request", 1);
         origins.Should().HaveCount(3);
@@ -124,80 +182,8 @@ public sealed partial class MainViewModelTests
         await f.RunAsync(input);
         f.ViewModel.Transcript.Should().Contain("not accepted");
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.HostStore.Records.Should().BeEmpty();
-    }
-
-    [Theory]
-    [InlineData("question")]
-    [InlineData("grant")]
-    [InlineData("action")]
-    public async Task NewRequestCommandsPreserveTheEntirePendingDecision(string pending)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
-        if (pending is "question") { f.Reasoner.Question = new("Keep this exact choice?", ["One", "Two"]); }
-        if (pending is "action") { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
-        await f.ViewModel.InitializeAsync();
-        if (pending is "grant")
-        {
-            await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-                BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
-        }
-        else
-        {
-            await f.RunAsync("please choose this work");
-            await f.ViewModel.ActiveReasoningTask!;
-        }
-        var calls = 0;
-        f.ViewModel.NewRequestOpeningRequested += _ => { calls++; return Task.FromResult(true); };
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        var choices = f.ViewModel.ModelQuestionChoices;
-        var audit = f.Audit.Events.Count;
-        var requests = f.Reasoner.Requests.Count;
-        foreach (var input in new[] { "open new request", "open new request extra" })
-        {
-            await f.RunAsync(input);
-            f.ViewModel.Transcript.Should().Contain("opening blocked");
-            f.ViewModel.ResponseTitle.Should().Be(title);
-            f.ViewModel.ResponseBody.Should().Be(body);
-            f.ViewModel.ModelQuestionChoices.Should().BeSameAs(choices);
-            f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        }
-        f.Audit.Events.Should().HaveCount(audit);
-        f.Reasoner.Requests.Should().HaveCount(requests);
-        calls.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task NewRequestDoesNotSupersedeAnUnpublishedApprovalPreparation()
-    {
-        var f = await Fixture.CreateInitializedAsync();
-        using var release = new ManualResetEventSlim();
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var token = TestContext.Current.CancellationToken;
-        f.Audit.BeforeWrite = audit =>
-        {
-            if (audit.Outcome != SecurityAuditOutcome.Requested) { return; }
-            entered.TrySetResult();
-            release.Wait(token);
-        };
-        f.ViewModel.NewRequestOpeningRequested += admitted => Task.FromResult(admitted());
-        var preparation = f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-            BuiltInAction.LockMachine, ModelApprovalScope.Session));
-        try
-        {
-            await entered.Task.WaitAsync(token);
-            await f.RunAsync("open new request");
-            f.ViewModel.Transcript.Should().Contain("activated only");
-            preparation.IsCompleted.Should().BeFalse();
-        }
-        finally { release.Set(); }
-        await preparation;
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        f.ViewModel.ResponseBody.Should().Contain(nameof(BuiltInAction.LockMachine));
-        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
     }
 
     [Theory]
@@ -209,7 +195,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.SetAssistantNameAsync(name);
         await f.RunAsync("open new request");
         f.ViewModel.Transcript.Should().Contain("conflicting current assistant name");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -223,7 +209,7 @@ public sealed partial class MainViewModelTests
         await invalid.ViewModel.InitializeAsync();
         await invalid.RunAsync("Kora, open new request");
         invalid.ViewModel.Transcript.Should().Contain("available current assistant name prefix");
-        invalid.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -253,7 +239,7 @@ public sealed partial class MainViewModelTests
         var transcript = f.ViewModel.Transcript;
         await f.Voice.RaiseTranscriptAsync("Kora, open new request", 1);
         f.ViewModel.Transcript.Should().Be(transcript);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -288,7 +274,7 @@ public sealed partial class MainViewModelTests
         };
         await f.Voice.RaiseTranscriptAsync("Kora, open new request", 1);
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -310,36 +296,8 @@ public sealed partial class MainViewModelTests
         }
         else { await f.RunAsync("open new request"); }
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
-    [Theory]
-    [InlineData("not-opened")]
-    [InlineData("failure")]
-    [InlineData("late")]
-    [InlineData("late-failure")]
-    [InlineData("name")]
-    [InlineData("pending")]
-    public async Task NewRequestNeverClaimsSuccessAfterNativeFailureOrAdmissionLoss(string change)
-    {
-        var f = await Fixture.CreateInitializedAsync();
-        f.ViewModel.NewRequestOpeningRequested += async admitted =>
-        {
-            admitted().Should().BeTrue();
-            if (change is "late" or "late-failure") { f.ViewModel.BindCallOwnershipGate(static () => false); }
-            if (change is "name") { await f.ViewModel.SetAssistantNameAsync("Nova"); }
-            if (change is "pending")
-            {
-                await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-                    BuiltInAction.LockMachine, ModelApprovalScope.Always));
-            }
-            if (change is "failure" or "late-failure") { throw new IOException("Synthetic native failure"); }
-            return false;
-        };
-        await f.RunAsync("open new request");
-        f.ViewModel.Transcript.Should().NotContain("activated only");
-        if (change is "failure") { f.ViewModel.Transcript.Should().Contain("opening failed"); }
-        if (change is "not-opened") { f.ViewModel.Transcript.Should().Contain("not confirmed"); }
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
+
 }

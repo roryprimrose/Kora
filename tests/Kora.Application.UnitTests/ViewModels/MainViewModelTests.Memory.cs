@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
@@ -15,7 +15,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync(command);
         fixture.ViewModel.ResponseTitle.Should().Be("Memory command not accepted.");
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -29,7 +29,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Memory command not confirmed.");
         fixture.ViewModel.ResponseBody.Should().Contain("memory management service is unavailable");
         fixture.HostStore.Records.Should().BeEmpty();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed partial class MainViewModelTests
             await fixture.RunAsync("memory help");
             fixture.ViewModel.ResponseTitle.Should().Be("Memory command not confirmed.");
             fixture.ViewModel.IsBusy.Should().BeTrue();
-            fixture.Reasoner.Requests.Should().BeEmpty();
+
             fixture.HostStore.Records.Should().BeEmpty();
         }
         finally

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Core.Commands;
 using Kora.Application.Hosting;
@@ -44,7 +44,7 @@ public sealed partial class MainViewModelTests
         calls.Should().Equal("Review", "Confirm");
         await f.RunAsync("instructions request confirm");
         calls.Should().HaveCount(2);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -74,7 +74,7 @@ public sealed partial class MainViewModelTests
         };
         await f.Voice.RaiseTranscriptAsync("Kora, " + InstructionRequest, 1);
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -91,28 +91,7 @@ public sealed partial class MainViewModelTests
         using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem), HostActivityLayer.Application, HostOperation.Request))
         { await f.RunAsync(InstructionRequest); }
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task InstructionUseCannotReplaceAnUnrelatedQuestionOrPermissionReview(bool question)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        f.Reasoner.Action = question ? null : BuiltInAction.EnableHostedModels;
-        if (question) { f.Reasoner.Question = new("Keep this exact question?", ["one", "two"]); }
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("please do the work");
-        await f.ViewModel.ActiveReasoningTask!;
-        var calls = 0;
-        f.ViewModel.InstructionUseRequested += (_, _, _, _) => { calls++; return Task.FromResult<Guid?>(null); };
-        var body = f.ViewModel.ResponseBody;
-        await f.RunAsync(InstructionRequest);
-        calls.Should().Be(0);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
     }
 
     [Fact]
@@ -157,7 +136,7 @@ public sealed partial class MainViewModelTests
         await f.Voice.RaiseTranscriptAsync("Kora, instructions request confirm", 1);
         calls.Should().Equal("Review");
         f.ViewModel.ResponseBody.Should().Contain("require original private typed input");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -205,7 +184,7 @@ public sealed partial class MainViewModelTests
             host.RetainCalls.Should().Be(1);
             host.ModelCalls.Should().Be(1);
         }
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -230,6 +209,6 @@ public sealed partial class MainViewModelTests
             () => (Task)method.Invoke(f.ViewModel, [InstructionRequest, snapshot, missingEligibility ? null : (Func<bool>)(() => true)])!);
         calls.Should().Be(0);
         f.ViewModel.ResponseBody.Should().Contain("Original queued voice admission is unavailable");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

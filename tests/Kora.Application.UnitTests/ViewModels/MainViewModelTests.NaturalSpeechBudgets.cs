@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -33,7 +33,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.ClearSpokenResponse();
         await fixture.RunAsync("show spoken summary limits");
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -52,7 +52,7 @@ public sealed partial class MainViewModelTests
         fixture.Audit.Events.Should().Contain(item => item.Outcome == SecurityAuditOutcome.Denied
             && string.Equals(item.ActionId, "configuration.speech-summary-words", StringComparison.Ordinal));
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed partial class MainViewModelTests
         fixture.Preferences.SavedProviderId.Should().BeNull();
         fixture.Preferences.SavedVoiceId.Should().BeNull();
         fixture.ViewModel.SelectedOutputDevice.Should().Be(SystemAudioDevices.Output);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -113,7 +113,7 @@ public sealed partial class MainViewModelTests
         fixture.Preferences.SummaryLimits.Should().Be(new SpokenSummaryLimits(1, 80));
         fixture.ViewModel.IsProtectedCall.Should().BeTrue();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -131,37 +131,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SelectedSummaryWords.Should().BeNull();
         fixture.ViewModel.SelectedSummarySentences.Should().BeNull();
         fixture.Audit.Events.Should().NotContain(item => item.ActionId.StartsWith("configuration.speech-summary-", StringComparison.Ordinal));
-        fixture.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task NaturalBudgetCommandsLeavePendingQuestionsAndApprovalsUntouched(bool question)
-    {
-        var fixture = CreateSummaryFixture(SpeechProviderIds.Windows);
-        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
-        if (question) { fixture.Reasoner.Question = new("Which color?", ["Blue", "Green"]); }
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("please do this work");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var title = fixture.ViewModel.ResponseTitle;
-        var body = fixture.ViewModel.ResponseBody;
-        var spoken = fixture.TextToSpeech.SpokenText;
-        foreach (var command in new[] { "show spoken summary limits", "set spoken summary word limit to 40",
-            "reset spoken summary sentence limit", "set spoken summary word limit to 1.5" })
-        {
-            await fixture.RunAsync(command);
-            fixture.ViewModel.ResponseTitle.Should().Be(title);
-            fixture.ViewModel.ResponseBody.Should().Be(body);
-            fixture.ViewModel.Transcript.Should().Contain("pending question or approval");
-            fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        }
-        fixture.Preferences.SummaryLimits.Should().BeNull();
-        fixture.Reasoner.Requests.Should().ContainSingle();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.TextToSpeech.SpokenText.Should().Be(spoken);
     }
 
     [Theory]
@@ -175,31 +145,8 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync(text);
         fixture.ViewModel.ResponseTitle.Should().Be("Clarify the speech setting.");
         fixture.Preferences.SummaryLimits.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
-        fixture.TextToSpeech.SpokenText.Should().BeNull();
-    }
 
-    [Fact]
-    public async Task NaturalBudgetsPreserveFullOversizedVisualResultsAndNeverRegenerateOrReplay()
-    {
-        var fixture = CreateSummaryFixture(SpeechProviderIds.Windows);
-        var answer = string.Join(' ', Enumerable.Repeat("original", 90)) + ". Keep this last sentence.";
-        fixture.Reasoner.Response = new(answer, null);
-        await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
-        await fixture.RunAsync("set spoken summary sentence limit to 1");
-        await fixture.RunAsync("set spoken summary word limit to 1");
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        await fixture.RunAsync("explain this");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.ResponseBody.Should().Be($"Generated locally; verify important details.\n\n{answer}");
-        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Speech withheld").And.Contain("No text was shortened");
-        fixture.Reasoner.Requests.Should().ContainSingle();
-        await fixture.RunAsync("reset spoken summary word limit");
-        fixture.Preferences.SummaryLimits.Should().Be(new SpokenSummaryLimits(1, 80));
-        fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().ContainSingle();
     }
 
     [Fact]
@@ -224,6 +171,6 @@ public sealed partial class MainViewModelTests
         fixture.Dispatcher.BeforeInvoke = fixture.ViewModel.Dispose;
         await fixture.RunAsync("reset spoken summary word limit");
         fixture.Preferences.SummaryLimits.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

@@ -1,4 +1,4 @@
-using Kora.Application.Visuals;
+﻿using Kora.Application.Visuals;
 
 namespace Kora.Application.ViewModels;
 
@@ -9,6 +9,5 @@ public sealed partial class MainViewModel
         IsBusy || IsLocalTaskCancellable || IsLocalModelSetupActive || IsPowerShellSetupActive,
         IsSpeaking,
         IsResponseInteractionPending,
-        HasResponseActions,
-        IsGrantEditorVisible);
+        HasResponseActions);
 }

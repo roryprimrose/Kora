@@ -116,16 +116,6 @@ public sealed partial class ResponseWindow : Window
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
-    private async void OnQuestionChoiceClicked(object? sender, RoutedEventArgs eventArgs)
-    {
-        if (sender is Button { Tag: ModelQuestionChoice choice })
-        {
-            await RunResponseActionAsync(() => viewModel.SelectModelQuestionChoiceAsync(choice));
-        }
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
-        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnResponseActionClicked(object? sender, RoutedEventArgs eventArgs)
     {
         if (sender is Button { Tag: ResponseAction action })
@@ -177,11 +167,6 @@ public sealed partial class ResponseWindow : Window
         { viewModel.ReportWebSummaryFailure(exception); }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
-        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
-    private async void OnCancelQuestionClicked(object? sender, RoutedEventArgs eventArgs) =>
-        await RunResponseActionAsync(viewModel.CancelModelQuestionAsync);
-
     private async Task RunResponseActionAsync(Func<Task> operation)
     {
         try { await operation(); }
@@ -189,37 +174,6 @@ public sealed partial class ResponseWindow : Window
         {
             viewModel.ReportHostInteractionFailure("The response action could not be completed. " + exception.Message);
         }
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
-        Justification = "Native Click requires void; RunResponseActionAsync reports failures.")]
-    private async void OnApproveModelActionOnce(object? sender, RoutedEventArgs e) =>
-        await RunModelActionReviewAsync(sender, ModelApprovalScope.Once);
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
-        Justification = "Native Click requires void; RunResponseActionAsync reports failures.")]
-    private async void OnApproveModelActionForSession(object? sender, RoutedEventArgs e) =>
-        await RunModelActionReviewAsync(sender, ModelApprovalScope.Session);
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
-        Justification = "Native Click requires void; RunResponseActionAsync reports failures.")]
-    private async void OnApproveModelActionAlways(object? sender, RoutedEventArgs e) =>
-        await RunModelActionReviewAsync(sender, ModelApprovalScope.Always);
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
-        Justification = "Native Click requires void; RunResponseActionAsync reports failures.")]
-    private async void OnRejectModelAction(object? sender, RoutedEventArgs e) => await RunModelActionReviewAsync(sender, null);
-
-    private Task RunModelActionReviewAsync(object? sender, ModelApprovalScope? scope)
-    {
-        var target = (sender as ModelActionReviewButton)?.CapturedTarget;
-        // The target is captured first; closing the options flyout detaches its button.
-        (sender as Control)?.FindLogicalAncestorOfType<Avalonia.Controls.Primitives.Popup>()?.Close();
-        return RunResponseActionAsync(() => Kora.Application.Hosting.HostRequestRunner.RunAsync(
-            Kora.Core.Hosting.RequestOrigin.LocalUi,
-            () => scope is { } approval
-                ? viewModel.ConfirmModelActionReviewAsync(target, approval)
-                : viewModel.RejectModelActionReviewAsync(target)));
     }
 
     private void OnArtifactCommandClicked(object? sender, RoutedEventArgs eventArgs)
@@ -455,22 +409,6 @@ public sealed partial class ResponseWindow : Window
         if (restoreMinimized) { RestoreMinimizedState(); }
 
         RestartResponseTimeout();
-    }
-
-    internal bool ShowModelActionReview(Kora.Application.Presentation.ModelActionReviewTarget target)
-    {
-        if (sessionWindowClosed || !viewModel.IsModelActionReviewCurrent(target)) { return false; }
-        SetExpanded(false);
-        PresentCurrentInteraction();
-        ShowResponse();
-        if (sessionWindowClosed || !viewModel.IsModelActionReviewCurrent(target))
-        {
-            HideResponse();
-            return false;
-        }
-        Activate();
-        this.FindControl<TextBox>("CommandInput")?.Focus();
-        return true;
     }
 
     internal void HideResponse()

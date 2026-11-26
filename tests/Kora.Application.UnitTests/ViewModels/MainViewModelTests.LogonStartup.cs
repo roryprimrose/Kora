@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Dependencies;
 
@@ -32,7 +32,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.ConfirmLogonStartupCommand.ExecuteAsync();
         startup.Preferences.Value.Should().BeNull();
         f.Events.Should().Equal(events);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Voice.StartedMicrophone.Should().BeNull();
         f.ViewModel.HasVoiceConsent.Should().BeFalse();
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
@@ -153,35 +153,9 @@ public sealed partial class MainViewModelTests
         f.Voice.StartCalls.Should().Be(0);
         f.Voice.StartedMicrophone.Should().BeNull();
         if (boundary is not "owner") { f.ViewModel.IsVoiceEnabled.Should().BeFalse(); }
-        f.Reasoner.Requests.Should().BeEmpty();
+
         startup.Registration.Writes.Should().Be(0);
         startup.Preferences.Writes.Should().Be(0);
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task LogonStartupDoesNotConsumePendingQuestionOrApproval(bool approval)
-    {
-        await using var startup = new LogonStartupConfigurationServiceTests.Fixture();
-        var f = new Fixture(logonStartupConfiguration: startup.Service);
-        f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "fixture");
-        if (approval) { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
-        else { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("help me");
-        await f.ViewModel.ActiveReasoningTask!;
-        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        f.ViewModel.IsModelQuestionPending.Should().Be(!approval);
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        await f.RunAsync("enable start at logon");
-        await f.RunAsync("confirm start at logon change");
-        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        f.ViewModel.IsModelQuestionPending.Should().Be(!approval);
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        startup.Registration.Writes.Should().Be(0);
     }
 
     [Fact]
@@ -203,6 +177,6 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.EndPushToTalkAsync();
         await f.Voice.RaiseTranscriptAsync("Kora, confirm start at logon change", 0.99f);
         startup.Registration.Writes.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

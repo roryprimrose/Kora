@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Application.ViewModels;
 using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
@@ -9,6 +9,29 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Foreground_question_ABA_retires_preview_without_answering_or_changing_the_question()
+    {
+        var fixture = new Fixture(enableDiagnosticRetention: true, enableDiagnosticImpact: true);
+        await using var details = new PendingDetailsQuestion(fixture);
+        await using var admission = fixture.DiagnosticAdmission;
+        fixture.Probe.Status = new Kora.Core.Dependencies.DependencyStatus("local.inference", "Local model inference (Ollama)",
+            Kora.Core.Dependencies.DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
+        fixture.ViewModel.ProposedDiagnosticImpactDays = 1;
+        await fixture.ViewModel.PreviewDiagnosticImpactCommand.ExecuteAsync();
+        await details.PresentAsync();
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.CanPreviewDiagnosticImpact.Should().BeFalse();
+        fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("retired");
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        fixture.ViewModel.RetireDetailsOffer();
+        fixture.ViewModel.HasDetailsQuestion.Should().BeFalse();
+        fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("retired");
+        fixture.ViewModel.Dispose();
+    }
+
     [Fact]
     public async Task Diagnostic_preview_is_explicit_native_read_only_separate_from_future_save_reset_and_foreground_response()
     {
@@ -49,7 +72,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.Transcript.Should().Be(transcript);
         fixture.DiagnosticPreferences.Value.Should().BeNull();
         fixture.DiagnosticPolicy.Effective.Should().Be(DiagnosticRetentionDays.Default);
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         fixture.ViewModel.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName is nameof(fixture.ViewModel.ProposedDiagnosticImpactDays)
@@ -140,30 +163,6 @@ public sealed partial class MainViewModelTests
         fixture.DiagnosticConfiguration!.Get().Available.Should().BeTrue();
         fixture.ViewModel.Invoking(model => model.ProposedDiagnosticImpactDays = 0)
             .Should().Throw<ArgumentOutOfRangeException>();
-        fixture.ViewModel.Dispose();
-    }
-
-    [Fact]
-    public async Task Foreground_question_ABA_retires_preview_without_answering_or_changing_the_question()
-    {
-        var fixture = new Fixture(enableDiagnosticRetention: true, enableDiagnosticImpact: true);
-        await using var admission = fixture.DiagnosticAdmission;
-        fixture.Probe.Status = new Kora.Core.Dependencies.DependencyStatus("local.inference", "Local model inference (Ollama)",
-            Kora.Core.Dependencies.DependencyReadiness.Ready, "Inference verified.");
-        await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
-        fixture.ViewModel.ProposedDiagnosticImpactDays = 1;
-        await fixture.ViewModel.PreviewDiagnosticImpactCommand.ExecuteAsync();
-        fixture.Reasoner.Question = new Kora.Core.Dependencies.LocalModelQuestion("Which?", ["One", "Two"]);
-        await fixture.RunAsync("choose a colour");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.CanPreviewDiagnosticImpact.Should().BeFalse();
-        fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("retired");
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        await fixture.ViewModel.CancelModelQuestionAsync();
-        fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
-        fixture.ViewModel.DiagnosticImpactPreviewStatus.Should().Contain("retired");
         fixture.ViewModel.Dispose();
     }
 

@@ -40,6 +40,6 @@ public sealed partial class MainViewModelTests
                 break;
         }
         current().Should().Be(change is "none");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

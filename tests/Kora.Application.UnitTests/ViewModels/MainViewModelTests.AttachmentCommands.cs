@@ -96,7 +96,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseBody.Should().NotContain(FakeFileInspector.Text).And.NotContain("never-read.md");
         fixture.ViewModel.Transcript.Should().NotContain(FakeFileInspector.Text);
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         capture.Reads.Should().Be(0);
         fixture.HostStore.Records.Should().BeEmpty();
         string.Join("\n", log.Events.Select(entry => entry.Message)).Should().NotContain(FakeFileInspector.Text).And.NotContain("never-read.md");
@@ -109,25 +109,6 @@ public sealed partial class MainViewModelTests
             activity.Baggage.Should().BeEmpty();
             activity.Status.Should().NotBe(ActivityStatusCode.Unset);
         }
-    }
-
-    [Theory]
-    [InlineData("session attachment inspect selected")]
-    [InlineData("Kora, session attachment inspect file:///C:/private/file.md")]
-    public async Task InvalidReservedAttachmentInputCannotAnswerPendingQuestion(string command)
-    {
-        var fixture = new Fixture();
-        fixture.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Question = new("Which target?", ["One", "Two"]);
-        await fixture.ViewModel.InitializeAsync();
-        BindSessions(fixture);
-        await fixture.RunAsync("choose");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        var count = fixture.Reasoner.Requests.Count;
-        await fixture.RunAsync(command);
-        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        fixture.ViewModel.ResponseTitle.Should().Be("Session command not accepted.");
-        fixture.Reasoner.Requests.Should().HaveCount(count);
     }
 
     private sealed class RoutingAttachmentViewer(Func<Task> opened) : IRetainedAttachmentViewer

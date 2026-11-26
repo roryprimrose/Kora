@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using AwesomeAssertions;
 using Kora.Application.Interaction;
 using Kora.Application.UnitTests.Interaction;
@@ -115,7 +115,7 @@ public sealed partial class MainViewModelTests
         await replies.Quiescence;
         host.Store.Snapshot.Questions.Single().Draft!.Choices.Should().Equal("a");
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.ClipboardReader.Calls.Should().Be(0);
         f.ViewModel.IsVoiceEnabled.Should().BeTrue();
         f.Voice.IsListening.Should().BeFalse();
@@ -231,25 +231,6 @@ public sealed partial class MainViewModelTests
         await replies.OpenAsync(question, static () => true, _ => { }, false, TestContext.Current.CancellationToken);
         f.Voice.StartCalls.Should().Be(0);
         if (speaking is not null) { f.TextToSpeech.SpeakGate!.SetResult(); await speaking; }
-        f.ViewModel.Dispose();
-    }
-
-    [Fact]
-    public async Task A_model_question_is_not_the_native_foreground_voice_target()
-    {
-        var f = await ReplyHostAsync();
-        f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "Synthetic");
-        f.Reasoner.Question = new("Which?", ["One", "Two"]);
-        await f.ViewModel.RefreshCommand.ExecuteAsync();
-        using var host = new InteractionFixture();
-        var question = await host.QuestionAsync();
-        await using var replies = f.ViewModel.BindQuestionVoiceReplies(host.Questions, host.Time,
-            NullLogger<HostQuestionVoiceReplyService>.Instance)!;
-        await f.RunAsync("help with this computer");
-        await f.ViewModel.ActiveReasoningTask!;
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        await replies.OpenAsync(question, static () => true, _ => { }, false, TestContext.Current.CancellationToken);
-        f.Voice.StartCalls.Should().Be(0);
         f.ViewModel.Dispose();
     }
 

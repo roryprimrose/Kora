@@ -1307,8 +1307,9 @@ The compact command box and activated voice also expose bounded
 They share this host service/store, never inherit the selected row/window,
 and require explicit generation/metadata revisions for mutations. Structured
 results are observations rather than runtime progress or conversation history.
-Protected-call voice mutations remain unavailable; pending bootstrap questions
-and approvals are preserved and must be resolved explicitly.
+Protected-call voice mutations remain unavailable; session questions and exact
+approvals retain their original decision targets. Legacy fallback questions and
+named model-action approvals are retired ([host routing](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
 ### Use clipboard as an ordinary clarification answer
 

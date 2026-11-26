@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
@@ -9,6 +9,28 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Question_arriving_during_admitted_native_control_keeps_its_complete_preview_and_failed_automatic_stop_keeps_it_visible()
+    {
+        var f = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
+        await f.ViewModel.InitializeAsync();
+        Task? question = null;
+        f.ManualCallStore.AfterOperation = () => question = pendingDetails.PresentAsync();
+        await f.ViewModel.EnableManualCallCommand.ExecuteAsync();
+        await question!;
+        f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        var preview = f.ViewModel.ResponseBody;
+        f.TextToSpeech.StopException = new IOException("owned closure failure");
+        f.CallState.SetState(CallState.Unknown);
+        var release = () => f.ViewModel.CallClosureTask;
+        await release.Should().ThrowAsync<IOException>();
+        f.ViewModel.ResponseBody.Should().Be(preview);
+        f.ViewModel.Transcript.Should().Contain("complete pending interaction remains visual");
+        f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -54,83 +76,7 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.CallPreferences.SavedSettings.Should().BeNull();
         f.AudioPreferences.SavedMicrophoneId.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Reserved_exact_call_routes_preserve_complete_pending_question_and_security_approval(bool question)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
-        f.Reasoner.Action = question ? null : BuiltInAction.EnableHostedModels;
-        if (question) { f.Reasoner.Question = new("Exact choice?", ["one", "two"]); }
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("please do this work");
-        await f.ViewModel.ActiveReasoningTask!;
-        var preview = f.ViewModel.ResponseBody;
-        var title = f.ViewModel.ResponseTitle;
-        var choices = f.ViewModel.ModelQuestionChoices;
-        var auditCount = f.Audit.Events.Count;
-        var tasks = f.ManualCallStore.Tasks.Count;
-        foreach (var input in new[] { "list call settings", "get call.manual-active", "status call.manual-active",
-            "set call.manual-active to on", "set call.manual-active to off", "reset call.manual-active", "set call.manual-active to true",
-            "turn on manual call protection", "turn off manual call protection", "show manual call status",
-            "turn on manual call protection please", "show manual call" })
-        {
-            await f.RunAsync(input);
-            f.ViewModel.ResponseBody.Should().Be(preview);
-            f.ViewModel.ResponseTitle.Should().Be(title);
-            f.ViewModel.ModelQuestionChoices.Should().BeSameAs(choices);
-            f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-            f.ViewModel.IsManualCallActive.Should().BeFalse();
-        }
-        await f.ViewModel.EnableManualCallCommand.ExecuteAsync();
-        await f.ViewModel.ResetManualCallCommand.ExecuteAsync();
-        await f.ViewModel.GetManualCallStatusCommand.ExecuteAsync();
-        f.ViewModel.ResponseBody.Should().Be(preview);
-        f.Audit.Events.Should().HaveCount(auditCount);
-        f.ManualCallStore.Tasks.Should().HaveCount(tasks);
-        f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task NaturalStatusDuringWorkDoesNotDispatchActivityOrReplaceTheRequest()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
-        f.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("please answer this work");
-        var work = f.ViewModel.ActiveReasoningTask!;
-        work.IsCompleted.Should().BeFalse();
-        var tasks = f.ManualCallStore.Tasks.Count;
-        var audits = f.Audit.Events.Count;
-        var requests = f.Reasoner.Requests.Count;
-        var starts = f.Voice.StartCalls;
-        foreach (var input in new[] { "turn on manual call protection", "turn off manual call protection",
-            "show manual call status", "turn on manual call protection please", "show manual call" })
-        {
-            f.ViewModel.CommandText = input;
-            f.ViewModel.RunTypedCommand.CanExecute(null).Should().BeTrue();
-        }
-        await f.RunAsync("turn on manual call protection please");
-        f.ViewModel.Transcript.Should().Contain("turn on manual call protection");
-        f.ViewModel.IsManualCallActive.Should().BeFalse();
-        await f.RunAsync("show manual call status");
-        using var status = JsonDocument.Parse(f.ViewModel.Transcript);
-        status.RootElement.GetProperty("syntax").GetString().Should().Contain("turn off manual call protection");
-        status.RootElement.GetProperty("observation").GetProperty("manualActive").GetBoolean().Should().BeFalse();
-        f.ManualCallStore.Tasks.Should().HaveCount(tasks);
-        f.Audit.Events.Should().HaveCount(audits);
-        f.Reasoner.Requests.Should().HaveCount(requests);
-        f.Voice.StartCalls.Should().Be(starts);
-        f.ViewModel.ActiveReasoningTask.Should().BeSameAs(work);
-        f.Reasoner.Gate.SetResult("The original work completes.");
-        await work;
     }
 
     [Fact]
@@ -150,7 +96,7 @@ public sealed partial class MainViewModelTests
             }
             await f.RunAsync("show manual call status");
             f.ViewModel.IsBusy.Should().BeTrue();
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.ManualCallStore.Tasks.Should().BeEmpty();
         }
         finally
@@ -182,7 +128,7 @@ public sealed partial class MainViewModelTests
         observation.GetProperty("manualActive").GetBoolean().Should().BeFalse();
         observation.GetProperty("automaticState").GetString().Should().Be(automatic.ToString());
         observation.GetProperty("isProtected").GetBoolean().Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -223,7 +169,7 @@ public sealed partial class MainViewModelTests
             f.ViewModel.IsManualCallActive.Should().BeTrue();
         }
         f.CallPreferences.SavedSettings.Should().BeNull();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -245,7 +191,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("turn off manual call protection");
         f.ViewModel.IsManualCallActive.Should().BeFalse();
         f.Voice.StartCalls.Should().Be(starts);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -313,28 +259,6 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task Manual_transition_retires_pending_synthesis_and_future_speech_from_an_old_local_request_without_hiding_full_result()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
-        await f.ViewModel.InitializeAsync();
-        f.TextToSpeech.ClearSpokenResponse();
-        f.Reasoner.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        await f.RunAsync("please answer this work");
-        var starts = f.Voice.StartCalls;
-        await f.RunAsync("turn on manual call protection");
-        await f.RunAsync("reset call.manual-active");
-        f.Reasoner.Gate.SetResult("Complete old response must remain visual.");
-        await f.ViewModel.ActiveReasoningTask!;
-        f.ViewModel.ResponseBody.Should().Contain("Complete old response must remain visual.");
-        f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        f.TextToSpeech.SpokenText.Should().BeNull();
-        f.Voice.StartCalls.Should().Be(starts);
-        await f.RunAsync("what power action is pending");
-        f.TextToSpeech.SpokenText.Should().NotBeNull();
-    }
-
-    [Fact]
     public async Task Missing_control_and_unavailable_live_prefix_are_explicit_without_unprefixed_fallback_aliases()
     {
         var missing = new Fixture(enableManualCallControl: false);
@@ -368,28 +292,6 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.EnableManualCallCommand.ExecuteAsync();
         f.ViewModel.IsManualCallActive.Should().BeTrue();
         f.ViewModel.Transcript.Should().NotContain("\"outcome\":\"applied\"");
-    }
-
-    [Fact]
-    public async Task Question_arriving_during_admitted_native_control_keeps_its_complete_preview_and_failed_automatic_stop_keeps_it_visible()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
-        f.Reasoner.Question = new("Keep all options?", ["one", "two"]);
-        await f.ViewModel.InitializeAsync();
-        f.ManualCallStore.AfterOperation = () =>
-            f.RunAsync("please do this work").IsCompletedSuccessfully.Should().BeTrue();
-        await f.ViewModel.EnableManualCallCommand.ExecuteAsync();
-        await f.ViewModel.ActiveReasoningTask!;
-        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        var preview = f.ViewModel.ResponseBody;
-        f.TextToSpeech.StopException = new IOException("owned closure failure");
-        f.CallState.SetState(CallState.Unknown);
-        var release = () => f.ViewModel.CallClosureTask;
-        await release.Should().ThrowAsync<IOException>();
-        f.ViewModel.ResponseBody.Should().Be(preview);
-        f.ViewModel.Transcript.Should().Contain("complete pending interaction remains visual");
-        f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
     }
 
     [Fact]

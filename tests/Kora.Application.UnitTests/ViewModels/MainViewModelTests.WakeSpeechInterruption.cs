@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Voice;
 using Kora.Core.Auditing;
@@ -35,7 +35,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ReadCurrentResponseStatus.Should().Contain("Exact session speech interrupted");
         f.TextToSpeech.IsSpeaking.Should().BeFalse();
         voice.IsCaptureQuiescent.Should().BeTrue();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Audit.Events.Should().ContainSingle(item => item.ActionId == "speech.interrupt"
             && item.Outcome == SecurityAuditOutcome.Succeeded && item.Initiator == SecurityAuditInitiator.VoiceCommand);
         await f.ViewModel.DisposeAsync();
@@ -87,7 +87,7 @@ public sealed partial class MainViewModelTests
         await read.WaitAsync(TestContext.Current.CancellationToken);
         f.TextToSpeech.StopCalls.Should().Be(stops);
         f.Session.LockCalls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Audit.Events.Should().NotContain(item => item.ActionId == "speech.interrupt" && item.Outcome == SecurityAuditOutcome.Succeeded);
         f.Voice.PreventQuiescence = false;
         await f.ViewModel.DisposeAsync();
@@ -115,7 +115,7 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.SpeakGate!.TrySetResult();
         (await read.WaitAsync(TestContext.Current.CancellationToken)).Should().Contain("completed once");
         f.Audit.Events.Should().NotContain(item => item.ActionId == "speech.interrupt");
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.DisposeAsync();
     }
 

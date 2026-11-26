@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Dependencies;
 using Kora.Core.Diagnostics;
@@ -31,6 +31,13 @@ public sealed partial class MainViewModelTests
         await FluentActions.Awaiting(() => fixture.ViewModel.ApplySpeechComponentAsync(plan, true, component.Progress,
             TestContext.Current.CancellationToken)).Should().ThrowAsync<UnauthorizedAccessException>();
         component.Store.Prepares.Should().Be(0);
+        await using var pending = new PendingDetailsQuestion(fixture);
+        await pending.PresentAsync();
+        var inspections = component.Store.Inspections;
+        await FluentActions.Awaiting(() => fixture.ViewModel.InspectSpeechComponentAsync(component.Component.Identity,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        component.Store.Inspections.Should().Be(inspections);
+        fixture.ViewModel.HasDetailsQuestion.Should().BeTrue();
     }
 
     [Fact]
@@ -91,24 +98,6 @@ public sealed partial class MainViewModelTests
         await FluentActions.Awaiting(() => fixture.ViewModel.InspectSpeechComponentAsync(component.Component.Identity,
             TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
         component.Store.Inspections.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task SpeechComponentSettingsCannotSupersedeAnExistingApproval()
-    {
-        var component = new SpeechComponentSetupFixture();
-        var fixture = new Fixture(speechComponentSetup: component.Service);
-        await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.BindSpeechComponentNativeLifetime(() => true);
-        using var host = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
-        await fixture.ViewModel.PrepareGrantChangeAsync(new Kora.Core.Commands.GrantChange(
-            Kora.Core.Commands.GrantChangeOperation.Add, Kora.Core.Commands.BuiltInAction.LockMachine,
-            Kora.Core.Commands.ModelApprovalScope.Always));
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        await FluentActions.Awaiting(() => fixture.ViewModel.InspectSpeechComponentAsync(component.Component.Identity,
-            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
-        component.Store.Inspections.Should().Be(0);
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
     }
 
     [Fact]

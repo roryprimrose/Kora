@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
@@ -30,7 +30,7 @@ public sealed partial class MainViewModelTests
         }
         received.Should().Equal(SessionCommandOperation.InstructionScopeReview, SessionCommandOperation.InstructionScopeConfirm,
             SessionCommandOperation.InstructionScopeStatus, SessionCommandOperation.InstructionScopeStop);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.CloseForObservedPrivacyEvent("locked", true);
         retires.Should().BeGreaterThan(0);
         f.ViewModel.BindSessionInstructionScopes(null, null);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -70,7 +70,7 @@ public sealed partial class MainViewModelTests
         await f.Voice.RaiseTranscriptAsync("Kora, session instruction apply \"example\"", 1);
         await consent;
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -90,6 +90,6 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Session command not confirmed.");
         f.ViewModel.CloseForObservedPrivacyEvent("locked", true);
         native().Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
@@ -45,8 +45,8 @@ public sealed partial class MainViewModel
             ShowInformation("Clarify the input setting.", command.Error!);
             return;
         }
-        if (!IsCallMutationHostEligible || pendingModelQuestion is not null
-            || IsGrantChangePending || IsModelActionApprovalPending)
+        if (!IsCallMutationHostEligible
+           )
         {
             ShowFailure("Input configuration unavailable.", "Use the owning unlocked host and resolve pending questions/approvals first.");
             return;

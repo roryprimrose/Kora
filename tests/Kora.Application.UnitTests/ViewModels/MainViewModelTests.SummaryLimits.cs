@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -54,48 +54,11 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SelectedSummarySentences = null;
         await fixture.RunAsync("set speech.summary-words to forty");
         fixture.ViewModel.ResponseTitle.Should().Contain("Choose");
-        fixture.Reasoner.Requests.Should().BeEmpty();
+
         notified.Should().Contain(nameof(fixture.ViewModel.SelectedSummaryWords)).And.Contain(nameof(fixture.ViewModel.SelectedSummarySentences));
         fixture.ViewModel.SelectedOutputDevice.Should().Be(SystemAudioDevices.Output);
         fixture.Preferences.SavedProviderId.Should().BeNull();
         fixture.ViewModel.SelectedSummarySentences.Should().Be(2);
-    }
-
-    [Theory]
-    [InlineData(SpeechProviderIds.Windows, 72, false, true)]
-    [InlineData(SpeechProviderIds.Kokoro, 72, false, true)]
-    [InlineData(SpeechProviderIds.Windows, 73, false, false)]
-    [InlineData(SpeechProviderIds.Kokoro, 73, false, false)]
-    [InlineData(SpeechProviderIds.Windows, 1, true, false)]
-    [InlineData(SpeechProviderIds.Kokoro, 1, true, false)]
-    public async Task Normal_local_results_are_measured_at_exact_both_caps_without_changing_visual_or_warning(
-        string provider, int words, bool extraSentence, bool allowed)
-    {
-        var fixture = CreateSummaryFixture(provider);
-        var answer = string.Join(' ', Enumerable.Repeat("word", words)) + "." + (extraSentence ? " Another." : "");
-        fixture.Reasoner.Response = new(answer, null);
-        await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
-        await fixture.RunAsync("explain this");
-        await fixture.ViewModel.ActiveReasoningTask!.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        fixture.ViewModel.ResponseTitle.Should().Be("Local model response");
-        fixture.ViewModel.ResponseBody.Should().Be($"Generated locally; verify important details.\n\n{answer}");
-        var full = $"{fixture.ViewModel.ResponseTitle}. {fixture.ViewModel.ResponseBody}";
-        if (allowed)
-        {
-            SpokenSummaryMeasure.Count(full).Should().Be(new SpokenSummaryMeasure(3, 80));
-            fixture.TextToSpeech.SpokenText.Should().Be(full);
-            fixture.TextToSpeech.SpokenVoice!.ProviderId.Should().Be(provider);
-            fixture.ViewModel.IsVisualResponseVisible.Should().BeFalse();
-        }
-        else
-        {
-            fixture.TextToSpeech.SpokenText.Should().BeNull();
-            fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-            fixture.ViewModel.ResponseOutputStatus.Should().Contain("Speech withheld").And.Contain("No text was shortened");
-        }
-        fixture.Reasoner.Requests.Should().ContainSingle();
-        fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
     }
 
     [Theory]
@@ -126,28 +89,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("what power action is pending");
         fixture.ViewModel.ResponseOutputStatus.Should().Contain("2 sentences");
         fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.Reasoner.Requests.Should().BeEmpty();
-    }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Mandatory_question_or_approval_readback_is_exact_despite_one_word_one_sentence_caps(bool question)
-    {
-        var fixture = CreateSummaryFixture(SpeechProviderIds.Windows);
-        fixture.Preferences.SummaryLimits = new(1, 1);
-        if (question) { fixture.Reasoner.Question = new("Which color?", ["Blue", "Green"]); }
-        else { fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
-        await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("choose");
-        await fixture.ViewModel.ActiveReasoningTask!.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        fixture.TextToSpeech.SpokenText.Should().Contain(question ? "Choose an option by number" : "grant permission once");
-        fixture.TextToSpeech.SpokenText.Should().Contain("Begin your answer by addressing me by name");
-        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
-        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.ViewModel.ResponseOutputStatus.Should().NotContain("Speech withheld");
     }
 
     [Theory]
@@ -181,30 +123,6 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.Voices = [new("female", "Windows", "en-US", SpeechVoiceGender.Female), CreateKokoroVoice("af_heart", "Heart")];
         fixture.Preferences.ProviderId = provider;
         return fixture;
-    }
-
-    [Fact]
-    public async Task Corrupt_limit_state_is_visible_in_native_getters_and_status_without_disabling_exact_readback()
-    {
-        var fixture = CreateSummaryFixture(SpeechProviderIds.Windows);
-        fixture.Preferences.SummaryLimitsLoadFailure = new InvalidDataException("unknown format");
-        await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.SelectedSummaryWords.Should().BeNull();
-        fixture.ViewModel.SelectedSummarySentences.Should().BeNull();
-        fixture.ViewModel.SpeechSettingStatus.Should().Contain("Spoken summary limits are unavailable")
-            .And.Contain("could not be read or are invalid").And.Contain("repair");
-        await fixture.RunAsync("reset speech.summary-words");
-        fixture.ViewModel.ResponseTitle.Should().Contain("Choose");
-        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
-        await fixture.RunAsync("what power action is pending");
-        fixture.TextToSpeech.SpokenText.Should().BeNull();
-        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.ViewModel.ResponseOutputStatus.Should().Contain("repair");
-        fixture.ViewModel.ResponseBody.Should().Contain("intentionally disabled");
-        fixture.Reasoner.Question = new("Continue?", ["Yes", "No"]);
-        await fixture.RunAsync("choose");
-        await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.TextToSpeech.SpokenText.Should().Contain("Choose an option by number");
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Application.Configuration.RegisteredSettings;
@@ -79,7 +79,7 @@ public sealed partial class MainViewModelTests
             f.Audit.Events.Skip(auditCount).Should().OnlyContain(item => item.Initiator == SecurityAuditInitiator.LocalUser);
             f.ViewModel.IsProtectedCall.Should().BeTrue();
             f.CallState.CurrentState.Should().Be(call);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpokenText.Should().BeNull();
         }
         finally { await f.ViewModel.DisposeAsync(); }
@@ -156,7 +156,7 @@ public sealed partial class MainViewModelTests
             f.AppearancePreferences.SavedMode.Should().BeNull();
             f.AppearancePreferences.LoadResponseTimeoutSeconds().Should().BeNull();
             f.Audit.Events.Should().HaveCount(auditCount);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpokenText.Should().BeNull();
         }
         finally { await f.ViewModel.DisposeAsync(); }
@@ -197,7 +197,7 @@ public sealed partial class MainViewModelTests
             f.ViewModel.IsProtectedCall.Should().BeTrue();
             f.Audit.Events.Skip(auditCount).Select(item => item.Outcome).Should()
                 .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpokenText.Should().BeNull();
         }
         finally { await f.ViewModel.DisposeAsync(); }
@@ -248,7 +248,7 @@ public sealed partial class MainViewModelTests
             f.Audit.Events.Should().HaveCount(auditCount + (closePrivacy ? 0 : 2));
             f.ViewModel.IsProtectedCall.Should().BeTrue();
             f.CallState.CurrentState.Should().Be(call);
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpokenText.Should().BeNull();
         }
         finally { await f.ViewModel.DisposeAsync(); }
@@ -286,7 +286,7 @@ public sealed partial class MainViewModelTests
                 f.Audit.Events.Should().HaveCount(auditCount);
             }
             f.ViewModel.IsProtectedCall.Should().BeTrue();
-            f.Reasoner.Requests.Should().BeEmpty();
+
             f.TextToSpeech.SpokenText.Should().BeNull();
         }
         finally { await f.ViewModel.DisposeAsync(); }

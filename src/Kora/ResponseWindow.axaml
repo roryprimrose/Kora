@@ -1,4 +1,4 @@
-<Window
+﻿<Window
     x:Class="Kora.ResponseWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -330,7 +330,6 @@
             <Binding Path="ReadCurrentResponseStatus" Converter="{x:Static StringConverters.IsNotNullOrEmpty}" />
             <Binding Path="HasResponseReadProposal" />
             <Binding Path="IsDetailsOfferPending" />
-            <Binding Path="IsModelQuestionPending" />
           </MultiBinding>
         </StackPanel.IsVisible>
         <TextBlock Text="{Binding PendingQuestionNavigationStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap"
@@ -356,112 +355,6 @@
                 AutomationProperties.Name="Decline this detail offer without discarding the result" />
           </WrapPanel>
         </StackPanel>
-      <StackPanel Spacing="6" IsVisible="{Binding IsModelQuestionPending}">
-        <TextBlock Text="CHOOSE AN OPTION (NOT AN APPROVAL)" Classes="eyebrow" />
-        <TextBlock Text="Choose a suggestion or type or speak your own answer." Classes="muted" FontSize="11" />
-        <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{Binding ModelQuestionChoices}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <Button Tag="{Binding}" Click="OnQuestionChoiceClicked"
-                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,2">
-                  <TextBlock Text="{Binding DisplayText}" TextWrapping="Wrap" MaxWidth="390" />
-                </Button>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
-        <Button Content="Cancel question" Click="OnCancelQuestionClicked" HorizontalAlignment="Left" />
-      </StackPanel>
-
-      </StackPanel>
-
-      <StackPanel Spacing="6">
-        <StackPanel.IsVisible>
-          <MultiBinding Converter="{x:Static BoolConverters.Or}">
-            <Binding Path="PendingModelActionReview" Converter="{x:Static ObjectConverters.IsNotNull}" />
-            <Binding Path="ModelActionReviewStatus" Converter="{x:Static StringConverters.IsNotNullOrEmpty}" />
-          </MultiBinding>
-        </StackPanel.IsVisible>
-        <ItemsControl ItemsSource="{Binding ModelActionReviews}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <Border Classes="permission-card"
-                  AutomationProperties.Name="{Binding $parent[Window].DataContext.ModelActionReviewTitle}">
-                <Grid RowDefinitions="Auto,Auto,Auto">
-                  <Grid Classes="permission-header" ColumnDefinitions="*,Auto">
-                    <TextBlock Text="{Binding $parent[Window].DataContext.ModelActionReviewTitle}"
-                        FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
-                    <controls:ModelActionReviewButton Grid.Column="1" Classes="permission-close"
-                        Click="OnRejectModelAction" ToolTip.Tip="Reject" AutomationProperties.Name="Reject and close"
-                        IsEnabled="{Binding $parent[Window].DataContext.CanRejectModelActionReview}">
-                      <PathIcon Data="M 3,3 L 13,13 M 13,3 L 3,13" Width="10" Height="10" />
-                    </controls:ModelActionReviewButton>
-                  </Grid>
-                  <StackPanel Grid.Row="1" Classes="permission-body" Spacing="8">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                      <TextBlock Text="Run" VerticalAlignment="Center" />
-                      <Border Classes="permission-chip">
-                        <TextBlock Text="{Binding $parent[Window].DataContext.ModelActionReviewCommand}" />
-                      </Border>
-                    </StackPanel>
-                    <TextBlock Text="{Binding $parent[Window].DataContext.ModelActionReviewDetail}"
-                        IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                        Classes="muted" FontSize="12" TextWrapping="Wrap" />
-                  </StackPanel>
-                  <StackPanel Grid.Row="2" Classes="permission-footer" Orientation="Horizontal" Spacing="8">
-                    <StackPanel Orientation="Horizontal" Spacing="1">
-                      <controls:ModelActionReviewButton Classes="primary split-main" Content="Allow once"
-                          Click="OnApproveModelActionOnce"
-                          AutomationProperties.Name="Allow once"
-                          IsEnabled="{Binding $parent[Window].DataContext.CanConfirmModelActionReview}" />
-                      <Button x:Name="AllowOptionsButton" Classes="split-arrow"
-                          ToolTip.Tip="More allow options" AutomationProperties.Name="More allow options"
-                          IsEnabled="{Binding $parent[Window].DataContext.CanConfirmReusableModelActionReview}">
-                        <PathIcon Data="M 3,6 L 8,11 L 13,6" Width="10" Height="10" />
-                        <Button.Flyout>
-                          <Flyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="allow-options">
-                            <StackPanel DataContext="{Binding #AllowOptionsButton.DataContext}">
-                              <controls:ModelActionReviewButton Classes="allow-option" Content="Allow for this session"
-                                  Click="OnApproveModelActionForSession"
-                                  IsEnabled="{Binding #AllowOptionsButton.IsEnabled}" />
-                              <controls:ModelActionReviewButton Classes="allow-option" Content="Always allow"
-                                  Click="OnApproveModelActionAlways"
-                                  IsEnabled="{Binding #AllowOptionsButton.IsEnabled}" />
-                            </StackPanel>
-                          </Flyout>
-                        </Button.Flyout>
-                      </Button>
-                    </StackPanel>
-                    <controls:ModelActionReviewButton Classes="quiet" Content="Skip" Click="OnRejectModelAction"
-                        AutomationProperties.Name="Reject"
-                        IsEnabled="{Binding $parent[Window].DataContext.CanRejectModelActionReview}" />
-                  </StackPanel>
-                </Grid>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <TextBlock Text="{Binding ModelActionReviewStatus}" TextWrapping="Wrap"
-                   IsVisible="{Binding ModelActionReviewStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                   AutomationProperties.LiveSetting="Polite" />
-      </StackPanel>
-
-      <StackPanel Spacing="6" IsVisible="{Binding IsGrantEditorVisible}">
-        <TextBlock Text="Choose exact grant change" Classes="eyebrow" />
-        <ComboBox ItemsSource="{Binding GrantActions}" SelectedItem="{Binding SelectedGrantAction}" DisplayMemberBinding="{Binding Action}" />
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <ComboBox ItemsSource="{Binding GrantOperations}" SelectedItem="{Binding SelectedGrantOperation}" />
-          <ComboBox ItemsSource="{Binding GrantScopes}" SelectedItem="{Binding SelectedGrantScope}" />
-          <TextBlock Text="to" VerticalAlignment="Center" />
-          <ComboBox ItemsSource="{Binding GrantScopes}" SelectedItem="{Binding SelectedGrantTargetScope}" />
-          <Button Content="Prepare" Command="{Binding PrepareGrantChangeCommand}" />
-        </StackPanel>
-      </StackPanel>
-
-      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsGrantChangePending}">
-        <Button Classes="primary" Content="Confirm grant change" Command="{Binding ConfirmGrantChangeCommand}" />
-        <Button Content="Reject" Command="{Binding RejectGrantChangeCommand}" />
       </StackPanel>
 
       <Border IsVisible="{Binding IsArtifactCommandDropdownVisible}"

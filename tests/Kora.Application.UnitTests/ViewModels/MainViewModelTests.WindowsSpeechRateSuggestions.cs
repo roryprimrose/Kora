@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
@@ -50,7 +50,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Rate source unavailable.");
         model.Calls.Should().Be(1);
         store.RequestMessage.Should().Be(retained);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.TextToSpeech.InstallProviderCalls.Should().Be(0);
         f.TextToSpeech.RemoveProviderCalls.Should().Be(0);
@@ -116,7 +116,7 @@ public sealed partial class MainViewModelTests
         f.Audit.Events.Should().NotContain(item => item.ActionId == "configuration.windows-speech-rate"
             && item.Outcome == SecurityAuditOutcome.Succeeded && loss != "settings");
         model.Calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.Audit.BeforeWrite = null;
         await f.ViewModel.DisposeAsync();
@@ -130,7 +130,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Rate source unavailable.");
         f.Voice.StartedPhrases.Should().Contain(WindowsSpeechRateSuggestionCommand.FixedPhrases)
             .And.Contain(["Kora review rate suggestion", "Kora confirm rate change", "Kora cancel rate review"]);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.DisposeAsync();
     }
 

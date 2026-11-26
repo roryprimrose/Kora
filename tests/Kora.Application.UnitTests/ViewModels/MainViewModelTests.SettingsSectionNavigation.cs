@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Hosting;
@@ -14,6 +14,32 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task SettingsSectionNavigationPreservesPendingDetailsQuestion()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await using var details = new PendingDetailsQuestion(f);
+        await details.PresentAsync();
+        var title = f.ViewModel.ResponseTitle;
+        var body = f.ViewModel.ResponseBody;
+        var question = f.ViewModel.CurrentDetailsOffer;
+        f.ViewModel.BindSettingsSectionNavigation(new SettingsNavigationFake());
+        await f.RunAsync("open call settings");
+        await f.RunAsync("open speech settings and approve once");
+        var queued = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod("ExecuteSettingsSectionCommand",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        await (Task)queued.Invoke(f.ViewModel,
+            [Kora.Application.Configuration.SettingsSectionCommand.Parse("open speech settings and approve once", f.ViewModel.AssistantName),
+                "open speech settings and approve once", Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand, null])!;
+        f.ViewModel.HasDetailsQuestion.Should().BeTrue();
+        f.ViewModel.CurrentDetailsOffer.Should().BeSameAs(question);
+        f.ViewModel.ResponseTitle.Should().Be(title);
+        f.ViewModel.ResponseBody.Should().Be(body);
+        f.ViewModel.HostedModelsEnabled.Should().BeFalse();
+        f.Session.LockCalls.Should().Be(0);
+        f.ViewModel.Transcript.Should().StartWith("Clarify the Settings section.");
+    }
+
     [Theory]
     [InlineData("show setting speech.windows-rate")]
     [InlineData("view setting speech.windows-rate")]
@@ -29,62 +55,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.Transcript.Should().StartWith("Settings search opened.");
         f.AppearancePreferences.SavedMode.Should().BeNull();
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
-        f.Audit.Events.Should().BeEmpty();
-    }
 
-    [Fact]
-    public async Task ConversationalLocalReasonerUsesTheSameSettingsSearchPresenter()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "fixture");
-        await f.ViewModel.InitializeAsync();
-        var presenter = new SettingsNavigationFake();
-        f.ViewModel.BindSettingsSectionNavigation(presenter);
-        f.Reasoner.Response = new(null, null, SettingsFilter: "speech.windows-rate");
-        await f.RunAsync("Where can I change how fast you speak?");
-        await f.ViewModel.ActiveReasoningTask!;
-        presenter.Filters.Should().Equal("speech.windows-rate");
-        f.AppearancePreferences.SavedMode.Should().BeNull();
-        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-    }
-
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task ConversationalSettingsSearchRejectsArtifactAuthorityAndHostChangesBeforeTheModelReturns(bool artifact)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "fixture");
-        await f.ViewModel.InitializeAsync();
-        var presenter = new SettingsNavigationFake();
-        f.ViewModel.BindSettingsSectionNavigation(presenter);
-        long ownerRevision = 1;
-        f.ViewModel.BindCallOwnershipGate(static () => true, () => ownerRevision);
-        f.Reasoner.DecisionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        f.Reasoner.Response = new(null, null, SettingsFilter: "speech.windows-rate");
-        var consent = f.ViewModel.HasVoiceConsent;
-
-        await f.RunAsync(artifact ? "/lock" : "Where can I change how fast you speak?");
-        var reasoning = f.ViewModel.ActiveReasoningTask!;
-        f.Reasoner.Requests.Should().ContainSingle();
-        if (artifact) { f.Reasoner.LastArtifact.Should().NotBeNull(); }
-        else
-        {
-            f.Reasoner.LastArtifact.Should().BeNull();
-            ownerRevision++;
-        }
-        f.Reasoner.DecisionGate.SetResult();
-        await reasoning;
-
-        f.ViewModel.ResponseTitle.Should().Be("Local reasoning failed.");
-        f.ViewModel.ResponseBody.Should().Contain("Settings navigation requires the current original user request.");
-        presenter.Filters.Should().BeEmpty();
-        presenter.Sections.Should().BeEmpty();
-        f.AppearancePreferences.SavedMode.Should().BeNull();
-        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
-        f.ViewModel.HasVoiceConsent.Should().Be(consent);
-        f.Session.LockCalls.Should().Be(0);
         f.Audit.Events.Should().BeEmpty();
     }
 
@@ -186,60 +157,9 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsVoiceEnabled.Should().BeFalse();
         f.ViewModel.HasVoiceConsent.Should().BeFalse();
         f.ViewModel.IsManualCallActive.Should().BeFalse();
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.Audit.Events.Should().BeEmpty();
         generic.Should().Be(0);
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task SettingsSectionNavigationPreservesPendingQuestionAndApproval(bool approval)
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "fixture");
-        if (approval) { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
-        else { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("help with this machine");
-        await f.ViewModel.ActiveReasoningTask!;
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        var requests = f.Reasoner.Requests.Count;
-        f.ViewModel.BindSettingsSectionNavigation(new SettingsNavigationFake());
-
-        await f.RunAsync("open call settings");
-        await f.RunAsync("open speech settings and approve once");
-
-        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
-        f.ViewModel.IsModelQuestionPending.Should().Be(!approval);
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.Reasoner.Requests.Should().HaveCount(requests);
-        f.ViewModel.HostedModelsEnabled.Should().Be(false);
-        f.Session.LockCalls.Should().Be(0);
-        f.ViewModel.Transcript.Should().StartWith("Clarify the Settings section.");
-    }
-
-    [Fact]
-    public async Task SettingsSectionNavigationPreservesTheExactPendingGrantReview()
-    {
-        var f = new Fixture();
-        await f.ViewModel.InitializeAsync();
-        await f.ViewModel.PrepareGrantChangeAsync(new GrantChange(
-            GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        var title = f.ViewModel.ResponseTitle;
-        var body = f.ViewModel.ResponseBody;
-        var auditCount = f.Audit.Events.Count;
-        f.ViewModel.BindSettingsSectionNavigation(new SettingsNavigationFake());
-        await f.RunAsync("open response settings");
-        await f.RunAsync("open microphone settings and confirm");
-        f.ViewModel.IsGrantChangePending.Should().BeTrue();
-        f.ViewModel.ResponseTitle.Should().Be(title);
-        f.ViewModel.ResponseBody.Should().Be(body);
-        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
-        f.Audit.Events.Should().HaveCount(auditCount);
     }
 
     [Fact]
@@ -296,7 +216,7 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("open audio settings");
         presenter.Sections.Should().BeEmpty();
         f.ViewModel.Transcript.Should().StartWith("Settings navigation unavailable:");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Theory]
@@ -310,7 +230,7 @@ public sealed partial class MainViewModelTests
         if (dispatcher) { f.Dispatcher.InvokeException = new InvalidOperationException("dispatch unavailable"); }
         await f.RunAsync("open audio settings");
         f.ViewModel.Transcript.Should().Contain("native view did not confirm navigation");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]

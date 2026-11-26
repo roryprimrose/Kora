@@ -1,4 +1,4 @@
-using Kora.Application.Diagnostics;
+﻿using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -27,11 +27,6 @@ public sealed partial class MainViewModel
             ShowInformation("Session disposition review not accepted.", command.Error);
             return;
         }
-        if (pendingModelQuestion is not null || IsGrantChangePending || IsModelActionApprovalPending)
-        {
-            ShowInformation("Session disposition review blocked.", "Resolve the current question or approval explicitly first. No target or decision changed.");
-            return;
-        }
         var origin = initiator switch
         {
             SecurityAuditInitiator.VoiceCommand => RequestOrigin.ActivatedVoice,
@@ -44,8 +39,7 @@ public sealed partial class MainViewModel
         var originalName = AssistantName;
         bool Eligible() => !disposed && epoch == Interlocked.Read(ref dispositionReviewEpoch)
             && ReferenceEquals(presenter, dispositionReviewPresenter) && IsHostInputEligible && !IsProtectedCall
-            && CallPolicyRevision == callRevision && pendingModelQuestion is null
-            && !IsGrantChangePending && !IsModelActionApprovalPending
+            && CallPolicyRevision == callRevision
             && (origin == RequestOrigin.LocalUi || origin == RequestOrigin.ActivatedVoice
                 && activationPrefixed && IsVoiceEnabled && HasVoiceConsent && CallObservation.AllowActivation
                 && recoveryRevision == Volatile.Read(ref voiceRecoveryRevision)

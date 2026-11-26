@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
@@ -49,7 +49,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Volume source unavailable.");
         model.Calls.Should().Be(1);
         store.RequestMessage.Should().Be(retained);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.TextToSpeech.InstallProviderCalls.Should().Be(0);
         f.TextToSpeech.RemoveProviderCalls.Should().Be(0);
@@ -96,7 +96,7 @@ public sealed partial class MainViewModelTests
         f.Audit.Events.Should().NotContain(item => item.ActionId == "configuration.playback-volume"
             && item.Outcome == SecurityAuditOutcome.Succeeded && !string.Equals(loss, "settings", StringComparison.Ordinal));
         model.Calls.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         f.TextToSpeech.SpokenText.Should().BeNull();
         await f.ViewModel.DisposeAsync();
     }
@@ -117,7 +117,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Volume source unavailable.");
         f.Voice.StartedPhrases.Should().Contain(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .And.Contain(["Kora review volume suggestion", "Kora confirm volume change", "Kora cancel volume review"]);
-        f.Reasoner.Requests.Should().BeEmpty();
+
         await f.ViewModel.DisposeAsync();
     }
 

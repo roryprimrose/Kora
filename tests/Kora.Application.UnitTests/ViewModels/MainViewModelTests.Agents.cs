@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Agents;
 using Kora.Application.Hosting;
@@ -15,6 +15,21 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task AgentCannotReplacePendingQuestion()
+    {
+        var f = new Fixture();
+        await using var pendingDetails = new PendingDetailsQuestion(f);
+        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
+        await f.ViewModel.InitializeAsync();
+        await pendingDetails.PresentAsync();
+        var calls = 0;
+        f.ViewModel.AgentRunRequested += (_, _, _) => { calls++; return Task.CompletedTask; };
+        await f.RunAsync("agent confirm invocation");
+        calls.Should().Be(0);
+        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+    }
+
     [Fact]
     public async Task NativeAgentTaskEligibilityRetainsItsOriginalHostBinding()
     {
@@ -188,7 +203,7 @@ public sealed partial class MainViewModelTests
         }
         received.Select(item => item.Action).Should().Equal("Named", "Open", "Source", "Request", "Targets",
             "NextTargets", "Target", "Review", "Review", "Resolve", "Invoke", "Stop");
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -203,22 +218,6 @@ public sealed partial class MainViewModelTests
         using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem), HostActivityLayer.Application, HostOperation.Request))
         { await f.RunAsync("agent confirm invocation"); }
         calls.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task AgentCannotReplacePendingQuestion()
-    {
-        var f = new Fixture();
-        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        f.Reasoner.Question = new("Original question?", ["one", "two"]);
-        await f.ViewModel.InitializeAsync();
-        await f.RunAsync("do the work");
-        await f.ViewModel.ActiveReasoningTask!;
-        var calls = 0;
-        f.ViewModel.AgentRunRequested += (_, _, _) => { calls++; return Task.CompletedTask; };
-        await f.RunAsync("agent confirm invocation");
-        calls.Should().Be(0);
-        f.ViewModel.IsResponseInteractionPending.Should().BeTrue();
     }
 
     [Theory]
@@ -259,7 +258,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindAgentRunSetShutdown(() => { closed++; return Task.CompletedTask; });
         await f.ViewModel.ExitAsync();
         closed.Should().Be(1);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 
     [Fact]
@@ -272,6 +271,6 @@ public sealed partial class MainViewModelTests
         f.ViewModel.AgentRunRequested += (_, _, _) => { calls++; return Task.CompletedTask; };
         await f.RunAsync("Kora, review agent");
         calls.Should().Be(0);
-        f.Reasoner.Requests.Should().BeEmpty();
+
     }
 }

@@ -1869,7 +1869,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public bool CanPushToTalk =>
         captureOpenCancellation is null
-        && IsReviewedVoiceCaptureReleased && Volatile.Read(ref listeningStopRequests) == 0
+        && Volatile.Read(ref listeningStopRequests) == 0
         && !CanRetireWakeForManualInput && listeningStop.CanRecover
         && IsVoiceReadinessEligible(privacyObservation.Current, pushToTalk: true)
         && IsHostInputEligible
@@ -3203,7 +3203,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await JoinCustomizationClarification();
             await JoinSessionRoutingVoice();
             if (composerDictation is not null) { await composerDictation.Quiescence; }
-            if (reviewedVoiceCommand is not null) { await reviewedVoiceCommand.Quiescence; }
 #pragma warning restore VSTHRD003
             activeSpokenText = null;
             IsSpeaking = false;
@@ -3389,15 +3388,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private async void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs) =>
         await DispatchRecognizedVoiceTranscriptAsync(eventArgs);
 
-    private async Task DispatchRecognizedVoiceTranscriptAsync(VoiceTranscriptEventArgs eventArgs, HostRequest? originalRequest = null,
-        Func<bool>? reviewedEligibility = null)
+    private async Task DispatchRecognizedVoiceTranscriptAsync(VoiceTranscriptEventArgs eventArgs, HostRequest? originalRequest = null)
     {
         var callCapture = Volatile.Read(ref pushToTalkCall);
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
         using var activity = HostActivity.BeginRoot(originalRequest ?? HostRequest.Create(RequestOrigin.ActivatedVoice),
             HostActivityLayer.Application, HostOperation.Request, causes);
-        if (sessionRoutingVoiceReply is not null || reviewedEligibility?.Invoke() == false
-            || !IsCurrentPushToTalkCall(callCapture) || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
+        if (sessionRoutingVoiceReply is not null || !IsCurrentPushToTalkCall(callCapture)
+            || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
             || eventArgs.Generation != voiceRecognition.Generation)
         {
             ApplicationLog.Debug(logger, "Discarded an unactivated or retired voice callback before UI dispatch");
@@ -3447,7 +3445,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     };
                 }
                 return HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
-                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget, speechInput, reviewedEligibility);
+                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget, speechInput);
             });
             if (originalRequest is null && voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
             {
@@ -3493,9 +3491,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
         Func<bool> reviewEligibility, Func<bool> newRequestEligibility, CurrentResponseInput currentResponseInput,
         PendingQuestionCapture questionTarget, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget,
-        ForegroundConversationTarget? foregroundTarget, SpeechInterruptionInput? speechInput, Func<bool>? reviewedEligibility = null)
+        ForegroundConversationTarget? foregroundTarget, SpeechInterruptionInput? speechInput)
     {
-        if (reviewedEligibility?.Invoke() == false || !IsCurrentPushToTalkCall(manualInput.PushToTalkCall)
+        if (!IsCurrentPushToTalkCall(manualInput.PushToTalkCall)
             || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked()
             || manualInput.WakeActivationCurrent is { } wakeCurrent && !wakeCurrent())
@@ -3572,7 +3570,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
         }
 
-        if (reviewedEligibility?.Invoke() == false || !IsCurrentPushToTalkCall(manualInput.PushToTalkCall)
+        if (!IsCurrentPushToTalkCall(manualInput.PushToTalkCall)
             || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible
             || manualInput.WakeActivationCurrent is { } currentWake && !currentWake())
         {

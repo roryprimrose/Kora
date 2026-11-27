@@ -13,6 +13,24 @@ public sealed partial class MainViewModelTests
         else { await fixture.RunAsync("stop speaking"); }
     }
 
+    [Fact]
+    public async Task OrdinarySpeechRecoveryDirectVoiceStopWithoutRetainedTargetUsesSharedStop()
+    {
+        var f = CreateVoicePrivacyFixture();
+        await f.ViewModel.InitializeAsync();
+        await f.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        await f.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+        var stops = f.TextToSpeech.StopCalls;
+        await f.Voice.RaiseTranscriptAsync("Kora, stop speaking", 1);
+        f.TextToSpeech.StopCalls.Should().Be(stops + 1);
+        f.ViewModel.ResponseTitle.Should().Be("Speech is stopped.");
+        f.ViewModel.ResponseBody.Should().Be("No speech playback is active.");
+        f.ViewModel.IsSpeaking.Should().BeFalse();
+        f.Voice.StartCalls.Should().Be(1);
+        f.VoiceConsent.Consent.Should().BeTrue();
+        f.ViewModel.Dispose();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -171,21 +189,4 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.StopSpeakingFromTrayAsync();
     }
 
-    [Fact]
-    public async Task OrdinarySpeechRecoveryReviewedVoiceStopWithoutRetainedTargetUsesSharedStop()
-    {
-        var f = await ReviewedCommandFixture();
-        await f.ViewModel.BeginReviewedVoiceCommandAsync(static () => true);
-        await f.Voice.RaiseTranscriptAsync("Kora, stop speaking", 1);
-        await f.ViewModel.FinishReviewedVoiceCommandAsync();
-        f.ViewModel.HasReviewedVoiceCommand.Should().BeTrue();
-        var stops = f.TextToSpeech.StopCalls;
-        await f.ViewModel.CaptureReviewedVoiceCommandConfirmation()();
-        f.TextToSpeech.StopCalls.Should().Be(stops + 1);
-        f.ViewModel.ResponseTitle.Should().Be("Speech is stopped.");
-        f.ViewModel.ResponseBody.Should().Be("No speech playback is active.");
-        f.ViewModel.IsSpeaking.Should().BeFalse();
-
-        f.ViewModel.Dispose();
-    }
 }

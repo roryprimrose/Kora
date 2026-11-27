@@ -57,7 +57,6 @@ public sealed partial class MainViewModel
     public void PublishCustomizationVoiceTarget(CustomizationVoiceTarget? target)
     {
         Interlocked.Exchange(ref customizationVoiceTarget, target)?.Retire();
-        reviewedVoiceCommand?.Revalidate();
     }
 
     public Func<bool> CaptureCustomizationVoiceEligibility()

@@ -147,32 +147,42 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task HandsFree_wake_resume_waits_for_reviewed_command_owner_even_after_physical_capture_release()
+    public async Task OrdinaryWakeStopWithoutRetainedTargetUsesSharedStopAndResumesAfterCaptureRelease()
     {
         var stage = new HandsFreeStage();
         HandsFreeVoiceRecognitionService? decorated = null;
         var fixture = CreateHandsFreeFixture(stage, value => decorated = value);
         await using var voice = decorated!;
-        fixture.ViewModel.BindReviewedVoiceCommand(NullLogger<ReviewedVoiceCommandCapture>.Instance, TimeProvider.System);
         await fixture.ViewModel.InitializeAsync();
         var wake = await stage.NextAsync();
-        await voice.PauseWakeForReplyAsync();
-        await fixture.ViewModel.BeginReviewedVoiceCommandAsync(static () => true);
-        wake.IsQuiescent.Should().BeTrue();
-        fixture.Voice.RaiseTranscript("Kora, what version are you running", 1);
-        await fixture.ViewModel.FinishReviewedVoiceCommandAsync();
-        fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
-        fixture.ViewModel.HasReviewedVoiceCommand.Should().BeTrue();
-        await voice.ResumeAfterActivatedInputAsync();
-        stage.OpenCount.Should().Be(1);
-        fixture.ViewModel.ResponseTitle.Should().NotBe("Kora version");
-        await fixture.ViewModel.CancelReviewedVoiceCommandAsync();
-        await voice.ResumeAfterActivatedInputAsync();
+        var stops = fixture.TextToSpeech.StopCalls;
+        wake.Wake.SetResult(new(wake.Binding.Generation, 12, true));
+        await wake.CaptureStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        wake.Result.SetResult(new("Kora, stop speaking", 1, wake.Binding.Generation));
         await stage.NextAsync();
+        fixture.TextToSpeech.StopCalls.Should().Be(stops + 1);
+        fixture.ViewModel.ResponseTitle.Should().Be("Speech is stopped.");
+        fixture.ViewModel.ResponseBody.Should().Be("No speech playback is active.");
+        fixture.ViewModel.IsSpeaking.Should().BeFalse();
+        wake.IsQuiescent.Should().BeTrue();
         stage.OpenCount.Should().Be(2);
-        fixture.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
-
+        fixture.VoiceConsent.Consent.Should().BeTrue();
         fixture.ViewModel.Dispose();
+    }
+
+    private sealed partial class FakeVoiceRecognitionService
+    {
+        internal Action CaptureReviewedTerminalCallback()
+        {
+            var failure = RecognitionFailed;
+            var completed = RecognitionCompleted;
+            var generation = Generation;
+            return () =>
+            {
+                failure?.Invoke(this, new("PRIVATE_LATE_FAILURE", generation, VoiceRecognitionFailureReason.CaptureFailure));
+                completed?.Invoke(this, new(generation, VoiceRecognitionCompletionReason.Failed));
+            };
+        }
     }
 
     [Theory]

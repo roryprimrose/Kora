@@ -67,7 +67,6 @@ public sealed partial class MainViewModel
     {
         voiceOwnershipEligible = gate;
         Interlocked.Increment(ref voiceOwnershipBindingRevision);
-        reviewedVoiceCommand?.Revalidate();
         BindHandsFreeVoiceRuntime();
         if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree) { handsFree.Revalidate(); }
     }
@@ -91,7 +90,6 @@ public sealed partial class MainViewModel
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
         RetireComposerDictation();
-        RetireReviewedVoiceCommand();
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
             | WindowsPrivacyChangeReason.MicrophonePermission | WindowsPrivacyChangeReason.InputTopology
             | WindowsPrivacyChangeReason.DefaultMicrophone)) != WindowsPrivacyChangeReason.Unknown
@@ -349,12 +347,6 @@ public sealed partial class MainViewModel
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
         PropertyChanged -= ComposerVoiceReadinessChanged;
         composerDictation?.CloseAdmission();
-        PropertyChanged -= RevalidateReviewedVoiceCommand;
-        if (reviewedVoiceCommand is not null)
-        {
-            reviewedVoiceCommand.CloseAdmission();
-            reviewedVoiceCommand.Changed -= OnReviewedVoiceCommandChanged;
-        }
         if (dictationQuestions is not null) { dictationQuestions.ReplyTargetChanging -= OnComposerQuestionChanging; }
         // Refresh cancellation can release an awaiting caller before Dispose returns.
         HoldVoiceInput("Microphone closed · host disposed");
@@ -582,7 +574,6 @@ public sealed partial class MainViewModel
         RetireSessionRoutingVoice();
         RetireQuestionVoiceReply();
         RetireComposerDictation();
-        RetireReviewedVoiceCommand();
         uiDispatcher.Post(() =>
         {
             if (revision != Interlocked.Read(ref voiceRecoveryRevision))
@@ -786,11 +777,6 @@ public sealed partial class MainViewModel
             return;
         }
         var detailsTarget = CurrentDetailsOffer?.Key;
-        if (!IsReviewedVoiceCaptureReleased)
-        {
-            ShowInformation("Reviewed command owns input.", "Finish or cancel its exact review before starting a direct command.");
-            return;
-        }
         var editorTarget = Volatile.Read(ref customizationVoiceTarget);
         var speechInput = CaptureSpeechInterruptionInput();
         if (speechInput.Playback is not null && !voiceRecognition.IsSpeechInterruptionAvailable)

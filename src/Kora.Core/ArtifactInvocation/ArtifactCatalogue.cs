@@ -63,11 +63,6 @@ public sealed class ArtifactCatalogue : IDisposable
             && string.Equals(artifact.Digest, digest, StringComparison.Ordinal));
     }
 
-    public bool IsCapturedRevisionCurrent(string id, string digest) =>
-        Candidates.Any(artifact => (artifact.IsUseEnabled || artifact.PreservesCapturedUse)
-            && string.Equals(artifact.Id, id, StringComparison.Ordinal)
-            && string.Equals(artifact.Digest, digest, StringComparison.Ordinal));
-
     private void OnUsePolicyChanged(object? sender, EventArgs args)
     {
         lock (gate) { maskedCandidates = null; }

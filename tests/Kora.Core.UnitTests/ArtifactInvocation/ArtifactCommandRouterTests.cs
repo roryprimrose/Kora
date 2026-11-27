@@ -14,15 +14,14 @@ public sealed class ArtifactCommandRouterTests
         var catalogue = new ArtifactCatalogue([original]);
         var changes = 0;
         catalogue.Changed += (_, _) => changes++;
-        catalogue.IsCapturedRevisionCurrent(original.Id, original.Digest).Should().BeTrue();
+        catalogue.IsCurrent(original.Id, original.Digest).Should().BeTrue();
         catalogue.Update(items => items.Select(item => item with { IsUseEnabled = false, PreservesCapturedUse = true }).ToArray());
         catalogue.Artifacts.Should().BeEmpty();
         catalogue.IsCurrent(original.Id, original.Digest).Should().BeFalse();
-        catalogue.IsCapturedRevisionCurrent(original.Id, original.Digest).Should().BeTrue();
-        catalogue.IsCapturedRevisionCurrent("other", original.Digest).Should().BeFalse();
-        catalogue.IsCapturedRevisionCurrent(original.Id, new string('b', 64)).Should().BeFalse();
+        catalogue.Candidates.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            original with { IsUseEnabled = false, PreservesCapturedUse = true });
         catalogue.Update(items => items.Select(item => item with { PreservesCapturedUse = false }).ToArray());
-        catalogue.IsCapturedRevisionCurrent(original.Id, original.Digest).Should().BeFalse();
+        catalogue.Candidates.Should().ContainSingle().Which.PreservesCapturedUse.Should().BeFalse();
         catalogue.Candidates.Should().ContainSingle();
         changes.Should().Be(2);
         ((Action)(() => catalogue.Update(_ => []))).Should().Throw<ArgumentException>();
@@ -250,7 +249,7 @@ public sealed class ArtifactCommandRouterTests
         foreach (var file in files)
         {
             catalogue.IsCurrent(file.Id, file.Digest).Should().BeFalse();
-            catalogue.IsCapturedRevisionCurrent(file.Id, file.Digest).Should().BeFalse();
+            catalogue.Candidates.Single(item => string.Equals(item.Id, file.Id, StringComparison.Ordinal)).PreservesCapturedUse.Should().BeFalse();
             new ArtifactCommandRouter(catalogue).Match("/" + file.CommandName, "Kora").Invocation.Should().BeNull();
         }
         catalogue.Publish(observed);

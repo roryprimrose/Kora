@@ -109,7 +109,7 @@ public sealed class CustomizationContractTests
         catalogue.Candidates.Should().ContainSingle().Which.IsUseDisabled.Should().BeTrue();
         catalogue.Artifacts.Should().BeEmpty();
         catalogue.IsCurrent("test", definition.Digest).Should().BeFalse();
-        catalogue.IsCapturedRevisionCurrent("test", definition.Digest).Should().BeFalse();
+        catalogue.Candidates.Should().ContainSingle().Which.PreservesCapturedUse.Should().BeFalse();
         catalogue.Publish([definition]);
         catalogue.Artifacts.Should().BeEmpty("reload cannot discard the persisted exclusion");
         policy.Set(false);
@@ -168,7 +168,7 @@ public sealed class CustomizationContractTests
             catalogue.Candidates.Should().NotBeSameAs(original);
             catalogue.Candidates.Single(item => string.Equals(item.Id, file.Id, StringComparison.Ordinal)).IsUseEnabled.Should().BeFalse();
             catalogue.IsCurrent(file.Id, file.Digest).Should().BeFalse();
-            catalogue.IsCapturedRevisionCurrent(file.Id, file.Digest).Should().BeFalse();
+            catalogue.Candidates.Single(item => string.Equals(item.Id, file.Id, StringComparison.Ordinal)).PreservesCapturedUse.Should().BeFalse();
             catalogue.Artifacts.Should().ContainSingle().Which.Should().BeSameAs(bundled);
         }
         void ReloadFailed(object? sender, ArtifactCatalogueReloadFailedEventArgs args)
@@ -278,9 +278,9 @@ public sealed class CustomizationContractTests
         var definition = new ArtifactDefinition("test", ArtifactKind.Skill, "Example", "Description", "example", ["example"],
             "bundled", "1", new string('a', 64), "Guidance") { UseControlId = "file.source" };
         using var catalogue = new ArtifactCatalogue([definition], policy);
-        catalogue.IsCapturedRevisionCurrent("other", definition.Digest).Should().BeFalse();
-        catalogue.IsCapturedRevisionCurrent("test", "other").Should().BeFalse();
-        catalogue.IsCapturedRevisionCurrent("test", definition.Digest).Should().BeTrue();
+        catalogue.IsCurrent("other", definition.Digest).Should().BeFalse();
+        catalogue.IsCurrent("test", "other").Should().BeFalse();
+        catalogue.IsCurrent("test", definition.Digest).Should().BeTrue();
         policy.Set(true);
         catalogue.Artifacts.Should().BeEmpty("an artifact-ID hold also masks a mapped physical source");
         using var noPolicy = new ArtifactCatalogue([definition]);

@@ -106,7 +106,7 @@ public sealed class HostContractTests
     [Fact]
     public async Task Unadmitted_store_fails_without_creating_replacement_data()
     {
-        var store = new UnavailableHostTaskStore();
+        var store = new UnadmittedTaskStore();
         var record = new HostTaskRecord(HostRequest.Create(RequestOrigin.HostSystem), new(1), HostTaskState.IntentRecorded);
         var commit = async () => await store.CommitAsync(record, 0, CancellationToken.None);
         await commit.Should().ThrowAsync<StorageAdmissionException>();
@@ -126,5 +126,14 @@ public sealed class HostContractTests
         origin.Should().Throw<ArgumentOutOfRangeException>();
         var resource = () => new ResourceDescriptor(new(Guid.NewGuid()), (ResourceAccess)999);
         resource.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    private sealed class UnadmittedTaskStore : IHostTaskStore
+    {
+        public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken) =>
+            ValueTask.FromException(new StorageAdmissionException());
+
+        public ValueTask<IReadOnlyList<HostTaskRecord>> ReadIncompleteAsync(int limit, CancellationToken cancellationToken) =>
+            ValueTask.FromException<IReadOnlyList<HostTaskRecord>>(new StorageAdmissionException());
     }
 }

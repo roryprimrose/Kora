@@ -226,7 +226,8 @@ public sealed partial class MainViewModel
                 Transcript = "Review the complete original request in the foreground conversation. Confirm separately or cancel; nothing has been submitted.";
                 sessionPresentationSources.Add(foregroundReview.Target.Authority.SessionId.Value);
             }
-            else if (result.RequestReview is { } review && (command.RequestActiveTarget || command.RequestTargetName is not null))
+            else if (result.RequestReview is { } review && (command.RequestActiveTarget || command.RequestTargetName is not null
+                || command.RequestSpokenNameRoute is not null))
             {
                 ShowInformation("Review conversation request.",
                     "Conversation: " + (review.Target.Metadata?.Name.Value ?? "Active conversation")
@@ -250,7 +251,7 @@ public sealed partial class MainViewModel
             if (command.SessionId is { } id) { sessionPresentationSources.Add(id); }
             foreach (var row in result.Sessions) { sessionPresentationSources.Add(row.Id); }
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or InvalidDataException
             or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
         {
             if (attachmentCommand)

@@ -10,6 +10,46 @@ public sealed class SessionRequestCommandTests
     private const string Id = "12345678-1234-1234-1234-123456789012";
 
     [Theory]
+    [InlineData("Nova, in Build plan,  Original\r\nbody  ")]
+    [InlineData("Nova in Build plan  Original\r\nbody  ")]
+    public void SpokenNameRoutePreservesPayloadAndRequiresActivation(string input)
+    {
+        var command = SessionCommand.Parse(input, "Nova")!;
+        command.Operation.Should().Be(SessionCommandOperation.RequestReview);
+        command.RequestSpokenNameRoute.Should().Be(input[(input.IndexOf("in ", StringComparison.Ordinal) + 3)..]);
+        command.RequestActivationPrefixed.Should().BeTrue();
+        command.RequestTargetName.Should().BeNull();
+        command.RequestBody.Should().BeNull();
+        command.SessionId.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("in Build plan, body")]
+    [InlineData("Kora, inside Build plan")]
+    [InlineData("Nova, in Build plan, body")]
+    public void UnaddressedInTextIsNotIntercepted(string input) =>
+        SessionCommand.Parse(input, "Kora").Should().BeNull();
+
+    [Theory]
+    [InlineData("Kora, in")]
+    [InlineData("Kora, in ")]
+    [InlineData("Kora, in   ")]
+    [InlineData("Kora, in topic, \0")]
+    [InlineData("Kora, in topic, api_key=synthetic-only-value")]
+    public void InvalidAddressedNameRouteIsReservedWithoutFallback(string input) =>
+        SessionCommand.Parse(input, "Kora")!.Operation.Should().Be(SessionCommandOperation.Invalid);
+
+    [Fact]
+    public void SpokenNameRouteRejectsMalformedUnicodeAndOversizedPayloadWithoutTruncation()
+    {
+        SessionCommand.Parse("Kora, in topic, \ud800", "Kora")!.Operation.Should().Be(SessionCommandOperation.Invalid);
+        SessionCommand.Parse("Kora, in " + new string('x', ConversationText.MaximumUtf16Characters + 243), "Kora")!
+            .Operation.Should().Be(SessionCommandOperation.Invalid);
+        SessionCommand.Parse("Kora, in " + new string('\ufffd', ConversationText.MaximumUtf16Characters + 243), "Kora")!
+            .Operation.Should().Be(SessionCommandOperation.Invalid);
+    }
+
+    [Theory]
     [InlineData("active", "", SessionRequestReview.ProviderChoice.Default)]
     [InlineData("ACTIVE", "COPILOT", SessionRequestReview.ProviderChoice.Copilot)]
     [InlineData("active", "claude", SessionRequestReview.ProviderChoice.Claude)]

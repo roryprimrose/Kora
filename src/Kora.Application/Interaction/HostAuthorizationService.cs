@@ -251,6 +251,62 @@ public sealed partial class HostAuthorizationService(
         RequestOrigin channel, CancellationToken cancellationToken) =>
         transaction.RunAsync(key.Request, "approval.confirm", snapshot => Approve(snapshot, key, answer, channel), cancellationToken);
 
+    public static bool SupportsSpokenReply(HostQuestionRecord question) =>
+        question.Proposal is { } proposal
+        && question.Spec.Kind == QuestionKind.SingleChoice
+        && string.Equals(question.Spec.Purpose, "authorization", StringComparison.Ordinal)
+        && question.Spec.SourceId is "host-operation" or "clipboard-read" or "clipboard-local-explanation"
+        && !proposal.Binding.ActionId.StartsWith("mcp.", StringComparison.Ordinal)
+        && !string.Equals(proposal.Binding.ActionId, WebPageAccessBinding.ActionId, StringComparison.Ordinal);
+
+    public static bool MatchesReplyTarget(HostQuestionRecord expected, HostQuestionRecord? actual) =>
+        actual is not null && expected.Key == actual.Key && expected.Spec.Matches(actual.Spec)
+        && expected.SessionGeneration == actual.SessionGeneration && expected.ExpiresAt == actual.ExpiresAt
+        && expected.Status == actual.Status && expected.Proposal == actual.Proposal;
+
+    public ValueTask<HostInteractionDecision> ReviewReplyAsync(HostQuestionRecord expected,
+        RequestOrigin channel, Func<bool> admitted, CancellationToken cancellationToken) =>
+        transaction.RunAsync(expected.Key.Request, "approval.reply-review", snapshot =>
+            Reply(snapshot, expected, channel, admitted, () =>
+                (snapshot, new(HostInteractionOutcome.Presented, "exact-approval-reviewed", expected))),
+            cancellationToken);
+
+    public ValueTask<HostInteractionDecision> ApproveAsync(HostQuestionRecord expected, QuestionAnswer answer,
+        RequestOrigin channel, Func<bool> admitted, CancellationToken cancellationToken) =>
+        transaction.RunAsync(expected.Key.Request, "approval.confirm", snapshot =>
+            channel == RequestOrigin.ActivatedVoice && answer.Choices is not (["once"] or ["session"])
+                ? InteractionTransaction.Reject(snapshot, "native-approval-required")
+                : Reply(snapshot, expected, channel, admitted, () => Approve(snapshot, expected.Key, answer, channel)),
+            cancellationToken);
+
+    public ValueTask<HostInteractionDecision> CancelReplyAsync(HostQuestionRecord expected,
+        RequestOrigin channel, Func<bool> admitted, CancellationToken cancellationToken) =>
+        transaction.RunAsync(expected.Key.Request, "approval.cancel-reply", snapshot =>
+            Reply(snapshot, expected, channel, admitted, () =>
+                HostQuestionService.Replace(snapshot, expected with
+                {
+                    Key = expected.Key.Next(), Status = QuestionStatus.Cancelled, AnswerChannel = channel,
+                }, HostInteractionOutcome.Cancelled, "exact-approval-denied")), cancellationToken);
+
+    private (HostInteractionSnapshot, HostInteractionDecision) Reply(HostInteractionSnapshot snapshot,
+        HostQuestionRecord expected, RequestOrigin channel, Func<bool> admitted,
+        Func<(HostInteractionSnapshot, HostInteractionDecision)> accept)
+    {
+        var index = InteractionTransaction.FindQuestion(snapshot, expected.Key);
+        if (index < 0 || !MatchesReplyTarget(expected, snapshot.Questions[index])
+            || expected.Status != QuestionStatus.Pending || expected.SessionGeneration != snapshot.Session.Generation
+            || expected.ExpiresAt <= time.GetUtcNow() || !Eligible(snapshot, expected.Key.Request)
+            || expected.Proposal is null || expected.Proposal != snapshot.Proposal
+            || snapshot.EffectivePermission.Level == Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll
+            || !admitted())
+        { return InteractionTransaction.Reject(snapshot, "exact-approval-reply-unavailable"); }
+        if (!snapshot.Policy.AllowsApprovalChannel(channel))
+        { return InteractionTransaction.Reject(snapshot, "approval-channel-unavailable-use-native-ui"); }
+        if (!SupportsSpokenReply(expected))
+        { return InteractionTransaction.Reject(snapshot, "native-approval-required"); }
+        return accept();
+    }
+
     private (HostInteractionSnapshot, HostInteractionDecision) Approve(HostInteractionSnapshot snapshot,
         HostQuestionKey key, QuestionAnswer answer, RequestOrigin channel)
     {
@@ -282,6 +338,8 @@ public sealed partial class HostAuthorizationService(
             && (channel != RequestOrigin.LocalUi || answer.Choices is not ["once"]
                 || !string.Equals(question.Spec.SourceId, question.Proposal.Binding.ActionId.Replace("mcp.process.", "mcp-process-", StringComparison.Ordinal), StringComparison.Ordinal)))
         { return InteractionTransaction.Reject(snapshot, "native-once-process-consent-required"); }
+        if (channel == RequestOrigin.ActivatedVoice && !SupportsSpokenReply(question))
+        { return InteractionTransaction.Reject(snapshot, "native-approval-required"); }
         var scope = answer.Choices[0] switch
         {
             "once" => OperationGrantScope.Once,

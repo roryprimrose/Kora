@@ -156,6 +156,7 @@ public sealed partial class App : Avalonia.Application
                 questions => viewModel.BindQuestionVoiceReplies(questions, Services.GetRequiredService<TimeProvider>(),
                     Services.GetRequiredService<ILogger<Kora.Application.Interaction.HostQuestionVoiceReplyService>>()));
             nativeQuestions.BindWorkspace(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
+            viewModel.BindSpokenToolApprovals(nativeQuestions.CaptureSpokenToolApprovals);
             viewModel.BindDetailsOfferPriority(() => !nativeQuestions.IsWaiting);
             nativeQuestions.BindPrivateRevision(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().ControlRevision);
             nativeQuestions.BindClipboardAnswers(model => new QuestionClipboardAnswer(model,

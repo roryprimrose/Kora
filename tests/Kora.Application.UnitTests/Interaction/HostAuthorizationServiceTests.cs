@@ -10,6 +10,176 @@ namespace Kora.Application.UnitTests.Interaction;
 public sealed class HostAuthorizationServiceTests
 {
     [Theory]
+    [InlineData("once", OperationGrantScope.Once)]
+    [InlineData("session", OperationGrantScope.Session)]
+    public async Task SpokenExactReplyCommitsTheActualChannelWithoutDispatch(string choice, OperationGrantScope scope)
+    {
+        using var f = new InteractionFixture();
+        var question = (await f.RunAsync(() => f.Authorization.PresentAsync(f.Request, CancellationToken.None))).Question!;
+        var reviewed = await f.RunAsync(() =>
+            f.Authorization.ReviewReplyAsync(question, RequestOrigin.ActivatedVoice, static () => true, CancellationToken.None));
+        reviewed.Question.Should().BeSameAs(question);
+        var result = await f.RunAsync(() =>
+            f.Authorization.ApproveAsync(question, new([choice]), RequestOrigin.ActivatedVoice, static () => true, CancellationToken.None));
+        result.Outcome.Should().Be(HostInteractionOutcome.Approved);
+        result.Grant!.Scope.Should().Be(scope);
+        result.Grant.CreatorChannel.Should().Be(RequestOrigin.ActivatedVoice);
+        result.Question!.AnswerChannel.Should().Be(RequestOrigin.ActivatedVoice);
+        result.Question.Key.Should().Be(question.Key.Next());
+        f.Store.Snapshot.Admissions.Should().BeEmpty();
+        f.Request.Origin.Should().Be(RequestOrigin.LocalUi);
+        f.Store.Commits.Last().Audit.Initiator.Should().Be(Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand);
+    }
+
+    [Fact]
+    public async Task SpokenDenialCancelsOnlyTheExactApprovalWithoutCreatingAuthority()
+    {
+        using var f = new InteractionFixture();
+        var other = await f.QuestionAsync();
+        var question = (await f.RunAsync(() => f.Authorization.PresentAsync(f.Request, CancellationToken.None))).Question!;
+        var result = await f.RunAsync(() =>
+            f.Authorization.CancelReplyAsync(question, RequestOrigin.ActivatedVoice, static () => true, CancellationToken.None));
+        result.Outcome.Should().Be(HostInteractionOutcome.Cancelled);
+        result.Question!.AnswerChannel.Should().Be(RequestOrigin.ActivatedVoice);
+        f.Store.Snapshot.Questions.Single(q => q.Key == other.Key).Status.Should().Be(QuestionStatus.Pending);
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+        f.Store.Snapshot.Admissions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("absent")]
+    [InlineData("changed")]
+    [InlineData("closed")]
+    [InlineData("generation")]
+    [InlineData("expired")]
+    [InlineData("proposal")]
+    [InlineData("unlocked")]
+    [InlineData("admission")]
+    [InlineData("call")]
+    [InlineData("approve-all")]
+    public async Task ReplyRefusalRetainsPendingCardsAndNeverCreatesAGrant(string boundary)
+    {
+        using var f = new InteractionFixture();
+        var question = (await f.RunAsync(() => f.Authorization.PresentAsync(f.Request, CancellationToken.None))).Question!;
+        f.Store.Change(s => boundary switch
+        {
+            "absent" => s with { Questions = [] },
+            "changed" => s with { Questions = s.Questions.SetItem(0, question with
+                { Spec = new("Changed operation", QuestionKind.SingleChoice, [new("once", "Once")],
+                    purpose: "authorization", sourceId: "host-operation") }) },
+            "closed" => s with { Questions = s.Questions.SetItem(0, question with { Status = QuestionStatus.Cancelled }) },
+            "generation" => s with { Session = s.Session with { Generation = new(2) } },
+            "proposal" => s with { Proposal = null },
+            "unlocked" => s with { Policy = s.Policy with { IsUnlocked = false } },
+            "call" => s with { Policy = s.Policy with { IsProtectedCall = true, AllowSpokenApprovalsDuringCalls = false } },
+            "approve-all" => s with { Permission = new(s.Session.SessionId, s.Session.Generation, new(1),
+                Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll) },
+            _ => s,
+        });
+        if (boundary is "expired") { f.Time.Now = question.ExpiresAt; }
+        var before = f.Store.Snapshot.Questions;
+        var result = await f.RunAsync(() => f.Authorization.ApproveAsync(question, new(["once"]),
+            RequestOrigin.ActivatedVoice, () => boundary is not "admission", CancellationToken.None));
+        result.Outcome.Should().Be(HostInteractionOutcome.Denied);
+        f.Store.Snapshot.Questions.Should().Equal(before);
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+        f.Store.Snapshot.Admissions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("local-web-page")]
+    [InlineData("mcp-https-read-only")]
+    [InlineData("mcp-stdio-read-only")]
+    [InlineData("mcp-local-result-continuation")]
+    [InlineData("mcp-process-start")]
+    [InlineData("bundled-fixed-script")]
+    public async Task NativeOnlyCardsRefuseRepliesEvenOutsideCalls(string source)
+    {
+        using var f = new InteractionFixture();
+        var spec = new QuestionSpec("Exact native-only consent", QuestionKind.SingleChoice,
+            [new("once", "Once")], purpose: "authorization", sourceId: source);
+        var question = (await f.RunAsync(() =>
+            f.Authorization.RequestGrantAsync(f.Request, spec, CancellationToken.None))).Question!;
+        var result = await f.RunAsync(() => f.Authorization.ReviewReplyAsync(question,
+            RequestOrigin.ActivatedVoice, static () => true, CancellationToken.None));
+        result.Reason.Should().Be("native-approval-required");
+        (await f.RunAsync(() => f.Authorization.ApproveAsync(question.Key, new(["once"]),
+            RequestOrigin.ActivatedVoice, CancellationToken.None))).Outcome.Should().Be(HostInteractionOutcome.Denied);
+        f.Store.Snapshot.Questions.Single().Status.Should().Be(QuestionStatus.Pending);
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AlwaysByVoiceIsRejectedAndExplicitCallAdmissionKeepsOnceAndSession()
+    {
+        using var f = new InteractionFixture();
+        var question = (await f.RunAsync(() => f.Authorization.PresentAsync(f.Request, CancellationToken.None))).Question!;
+        (await f.RunAsync(() => f.Authorization.ApproveAsync(question, new(["perpetual"]),
+            RequestOrigin.ActivatedVoice, static () => true, CancellationToken.None))).Reason.Should().Be("native-approval-required");
+        f.Store.Change(s => s with { Policy = s.Policy with { IsProtectedCall = true, AllowSpokenApprovalsDuringCalls = true } });
+        (await f.RunAsync(() => f.Authorization.ApproveAsync(question, new(["session"]),
+            RequestOrigin.ActivatedVoice, static () => true, CancellationToken.None))).Outcome.Should().Be(HostInteractionOutcome.Approved);
+    }
+
+    [Theory]
+    [InlineData("closed")]
+    [InlineData("ordinary")]
+    [InlineData("stale-proposal")]
+    public async Task ClosedOrdinaryAndSupersededRecordsCannotBecomeApprovalAnswers(string boundary)
+    {
+        using var f = new InteractionFixture();
+        var question = boundary is "ordinary" ? await f.QuestionAsync()
+            : (await f.RunAsync(() => f.Authorization.PresentAsync(f.Request, CancellationToken.None))).Question!;
+        if (boundary is "closed")
+        {
+            question = question with { Status = QuestionStatus.Cancelled };
+            f.Store.Change(s => s with { Questions = s.Questions.SetItem(0, question) });
+        }
+        if (boundary is "stale-proposal") { f.ChangeProposal(revision: new(2)); }
+        var before = f.Store.Snapshot.Questions;
+        var result = await f.RunAsync(() => f.Authorization.CancelReplyAsync(question,
+            RequestOrigin.ActivatedVoice, static () => true, CancellationToken.None));
+        result.Outcome.Should().Be(HostInteractionOutcome.Denied);
+        f.Store.Snapshot.Questions.Should().Equal(before);
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("mcp.inspect")]
+    [InlineData("network.get-web-page")]
+    public async Task NativeBindingCannotBeRelabeledAsAGenericHostApproval(string action)
+    {
+        using var f = new InteractionFixture();
+        var digest = new string('a', 64);
+        f.ChangeProposal(binding: new(action, "builtin", "inspect", digest, digest, digest, digest,
+            digest, digest, digest, digest, digest, new(1)));
+        var question = (await f.RunAsync(() => f.Authorization.PresentAsync(f.Request, CancellationToken.None))).Question!;
+        var result = await f.RunAsync(() => f.Authorization.ReviewReplyAsync(question,
+            RequestOrigin.ActivatedVoice, static () => true, CancellationToken.None));
+        result.Reason.Should().Be("native-approval-required");
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("clipboard-read")]
+    [InlineData("clipboard-local-explanation")]
+    public async Task ClipboardApprovalSourcesUseTheSameExactSpokenGrantReview(string source)
+    {
+        using var f = new InteractionFixture();
+        var spec = new QuestionSpec("Approve this exact local clipboard operation?", QuestionKind.SingleChoice,
+            [new("once", "Once")], purpose: "authorization", sourceId: source);
+        var question = (await f.RunAsync(() => f.Authorization.RequestGrantAsync(
+            f.Request, spec, CancellationToken.None))).Question!;
+        var review = await f.RunAsync(() => f.Authorization.ReviewReplyAsync(question,
+            RequestOrigin.ActivatedVoice, static () => true, CancellationToken.None));
+        review.Outcome.Should().Be(HostInteractionOutcome.Presented);
+        var answer = await f.RunAsync(() => f.Authorization.ApproveAsync(question, new(["once"]),
+            RequestOrigin.ActivatedVoice, static () => true, CancellationToken.None));
+        answer.Outcome.Should().Be(HostInteractionOutcome.Approved);
+        f.Store.Snapshot.Grants.Single().CreatorChannel.Should().Be(RequestOrigin.ActivatedVoice);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task ToolGrantSkipsReviewOnlyForAdmittedApproveAll(bool eligible)

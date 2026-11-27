@@ -62,6 +62,11 @@ public sealed partial class MainViewModel
 
     internal async Task ExecuteForegroundPttCommandAsync(ForegroundPttCommand command, SecurityAuditInitiator initiator)
     {
+        if (command.IsGlobal)
+        {
+            await ExecuteGlobalPttCommandAsync(command, initiator);
+            return;
+        }
         var service = foregroundPtt;
         var native = foregroundPttNativeLifetime;
         if (service is null || foregroundPttSettingActive || !IsCallMutationHostEligible || IsResponseInteractionPending

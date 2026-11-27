@@ -21,6 +21,134 @@ const coordinator = 'agent-host-session://coordinator';
 const planner = 'agent-host-session://coordinator?chat=planner';
 const owner = key => `agent-host-session://coordinator?chat=${key}`;
 
+function plannerReplacementInput(state, type, revision, reservationId = 'reserve-replacement', newOwner = owner('replacement')) {
+  const event = { id: type === 'reserve-planner-replacement' ? reservationId : `attach-${reservationId}`,
+    type, oldOwner: state.planner.owner, pass: state.planner.pass, checkpointRevision: revision,
+    oldProof: { owner: state.planner.owner, pass: state.planner.pass, status: 'archived',
+      stoppedWriting: true, pendingInstructions: 0, receipt: 'SYNTHETIC terminal and consumed authority readback.' } };
+  if (type === 'reserve-planner-replacement') {
+    event.authorization = { id: `human-${reservationId}`, actor: 'SYNTHETIC user', userAuthorized: true,
+      oldOwner: event.oldOwner, pass: event.pass, checkpointRevision: revision,
+      receipt: 'SYNTHETIC explicit user decision.' };
+  } else {
+    Object.assign(event, { reservationId, owner: newOwner,
+      standbyProof: { owner: newOwner, reservationId, scanning: false, productionWrites: false,
+        pendingInstructions: 0, receipt: 'SYNTHETIC standby consumed initialization.' } });
+  }
+  return { event, revision, plannerReplacementEvidence: {
+    kind: 'host-verified-planner-replacement', eventDigest: digest(event), coordinator: state.coordinator,
+    ledgerAuthorityVerified: true, userAuthorizationVerified: true, oldPlannerVerified: true,
+    authorityReconciled: true, standbyVerified: true, receipt: 'SYNTHETIC independent live readback.'
+  } };
+}
+
+test('authorized planner recovery initializes only standby then discovers exactly pass+1 with retained frontier', () => {
+  let state = applyEvent(createState(coordinator, sha(1), 'delivery'),
+    { id: 'planner', type: 'planner', owner: planner }).state;
+  state = applyEvent(state, { id: 'worker', type: 'adopt', key: 'held', owner: owner('worker'),
+    outcome: 'SYNTHETIC retained worker', pool: 'ready', kind: 'feature', head: sha(1),
+    scopes: ['src\\held.cs'], evidence: 'SYNTHETIC exclusive scope.' }).state;
+  state = applyEvent(state, { id: 'end', type: 'pass-ended', owner: planner, pass: 1,
+    readyExamined: true, repairExamined: true, remaining: true,
+    inventoryComplete: true, remainingFrontier: ['retained session operation'] }).state;
+  state = applyEvent(state, { id: 'waiting', type: 'candidate', owner: planner, pass: 2,
+    key: 'waiting', outcome: 'SYNTHETIC unfinished maintenance discovery', pool: 'ready',
+    kind: 'maintenance', head: sha(1), scopes: ['src\\waiting.cs'],
+    evidence: 'SYNTHETIC admitted maintenance.' }).state;
+  const before = structuredClone(state);
+  const reserve = plannerReplacementInput(state, 'reserve-planner-replacement', 4);
+  let result = applyEvent(state, reserve.event, reserve);
+  assert.deepEqual(result.actions, [{ type: 'initialize-planner-replacement',
+    reservationId: reserve.event.id, oldOwner: planner, pass: 2, standby: true }]);
+  state = result.state;
+  assert.deepEqual(state.items, before.items);
+  assert.deepEqual(state.planner.frontier, before.planner.frontier);
+  assert.deepEqual(applyEvent(state, reserve.event), { state, actions: [], duplicate: true });
+  assert.throws(() => applyEvent(state, { ...reserve.event, pass: 9 }), /replay/);
+  assert.throws(() => applyEvent(state, { id: 'late-end', type: 'pass-ended', owner: planner, pass: 2 }), /active/);
+  const refresh = applyEvent(state, { id: 'rescan', type: 'refresh', head: sha(1), rescan: true });
+  assert.deepEqual(refresh.actions, []);
+  const attach = plannerReplacementInput(refresh.state, 'replace-planner', 6);
+  result = applyEvent(refresh.state, attach.event, attach);
+  assert.deepEqual(result.actions, [{ type: 'discover', owner: owner('replacement'), pass: 3,
+    capacity: { ready: 9, repair: 4 }, examine: ['ready', 'repair'], head: sha(1),
+    frontier: before.planner.frontier }]);
+  assert.deepEqual(applyEvent(result.state, attach.event), { state: result.state, actions: [], duplicate: true });
+  for (const type of ['candidate', 'pass-ended', 'revalidate-candidate', 'refresh', 'adopt', 'attached']) {
+    assert.throws(() => applyEvent(result.state, { id: `old-${type}`, type, owner: planner }), /Retired planner/);
+  }
+  const missingHistory = structuredClone(result.state); delete missingHistory.planner.replacements;
+  assert.throws(() => validate(missingHistory), /history binding/);
+  const rewritten = structuredClone(result.state);
+  rewritten.planner.replacements[0].reservation.event.authorization.actor = 'rewritten';
+  assert.throws(() => validate(rewritten), /host planner replacement evidence/);
+  const changedFrontier = structuredClone(result.state);
+  changedFrontier.planner.replacements[0].replacement.commands[0].frontier.remainingFrontier = ['rewritten'];
+  assert.throws(() => validate(changedFrontier), /history binding/);
+  const next = plannerReplacementInput(result.state, 'reserve-planner-replacement', 8, 'next');
+  const reserved = applyEvent(result.state, next.event, next).state;
+  const reuse = plannerReplacementInput(reserved, 'replace-planner', 10, 'next', planner);
+  assert.throws(() => applyEvent(reserved, reuse.event, reuse), /Retired planner/);
+  const fresh = plannerReplacementInput(reserved, 'replace-planner', 10, 'next', owner('third'));
+  assert.equal(applyEvent(reserved, fresh.event, fresh).actions[0].pass, 4);
+});
+
+test('planner recovery fails closed for absent user authority, stale identity/revision and unverified terminal/standby facts', () => {
+  const state = applyEvent(createState(coordinator, sha(1)),
+    { id: 'planner', type: 'planner', owner: planner }).state;
+  for (const change of [
+    i => { delete i.event.authorization; },
+    i => { i.event.authorization.userAuthorized = false; },
+    i => { i.event.authorization.pass++; },
+    i => { i.event.oldOwner = owner('wrong'); },
+    i => { i.event.pass++; },
+    i => { i.revision++; },
+    i => { i.event.oldProof.status = 'idle'; },
+    i => { i.event.oldProof.stoppedWriting = false; },
+    i => { i.event.oldProof.pendingInstructions = 'UNKNOWN'; },
+    i => { delete i.plannerReplacementEvidence; },
+    i => { i.plannerReplacementEvidence.coordinator = owner('wrong'); },
+    i => { i.plannerReplacementEvidence.userAuthorizationVerified = false; },
+    i => { i.plannerReplacementEvidence.oldPlannerVerified = false; },
+    i => { i.plannerReplacementEvidence.authorityReconciled = false; }
+  ]) {
+    const input = plannerReplacementInput(state, 'reserve-planner-replacement', 3);
+    change(input);
+    if (input.plannerReplacementEvidence) input.plannerReplacementEvidence.eventDigest = digest(input.event);
+    assert.throws(() => applyEvent(state, input.event, input));
+    assert.equal(state.planner.active, true);
+  }
+  for (const status of ['archived', 'error', 'admission-rejected']) {
+    const input = plannerReplacementInput(state, 'reserve-planner-replacement', 3);
+    input.event.oldProof.status = status;
+    input.plannerReplacementEvidence.eventDigest = digest(input.event);
+    const reserved = applyEvent(state, input.event, input).state;
+    assert.throws(() => applyEvent(reserved, { ...input.event, id: 'second' }, input));
+    for (const change of [
+      i => { i.event.reservationId = 'wrong'; },
+      i => { i.event.owner = planner; },
+      i => { i.event.owner = coordinator; i.event.standbyProof.owner = coordinator; },
+      i => { i.event.oldProof.stoppedWriting = false; },
+      i => { i.event.standbyProof.scanning = true; },
+      i => { i.event.standbyProof.productionWrites = true; },
+      i => { i.event.standbyProof.pendingInstructions = 1; },
+      i => { i.plannerReplacementEvidence.standbyVerified = false; },
+      i => { i.plannerReplacementEvidence.oldPlannerVerified = false; }
+    ]) {
+      const attach = plannerReplacementInput(reserved, 'replace-planner', 4);
+      change(attach); attach.plannerReplacementEvidence.eventDigest = digest(attach.event);
+      assert.throws(() => applyEvent(reserved, attach.event, attach));
+      assert.equal(reserved.planner.owner, planner);
+    }
+  }
+  const reserve = plannerReplacementInput(state, 'reserve-planner-replacement', 3);
+  const replaced = applyEvent(state, reserve.event, reserve).state;
+  const attach = plannerReplacementInput(replaced, 'replace-planner', 4);
+  const discovered = applyEvent(replaced, attach.event, attach);
+  assert.equal(Object.hasOwn(discovered.actions[0], 'frontier'), false);
+  assert.equal(discovered.state.version, 1);
+});
+
 const { createLifecycleState, lifecycleProjection, lifecycleRevisions, lifecycleProofDigest,
   previewLifecycleMigration, adoptLifecycle, validateSourceGrant } = require('./registry.cjs');
 const { lifecycleFixture, lifecycleInput } = require('./refinement-fixture.cjs');
@@ -2031,7 +2159,8 @@ test('legacy v1/v2/v3 migrate without changing owner proofs and successive readm
     assert.throws(() => applyEvent(first, { ...firstEvent, id: 'replayed-with-new-id' }), /Stale/);
     const ended = applyEvent(second, { id: 'end-readmission-pass', type: 'pass-ended',
       owner: second.planner.owner, pass: second.planner.pass, head: second.head,
-      readyExamined: true, repairExamined: true, remaining: false }).state;
+      readyExamined: true, repairExamined: true, remaining: false,
+      inventoryComplete: true, remainingFrontier: [] }).state;
     validate(ended);
     assert.equal(ended.items.find(value => value.key === item.key).phase, 'reserved');
   }
@@ -2155,6 +2284,81 @@ test('bootstrap requests one bounded pass examining both pools', () => {
   }]);
 });
 
+test('terminal inventory is retained, forwarded without aliasing, and replaced by the latest pass', () => {
+  for (const inventoryComplete of [false, true]) {
+    for (const remainingFrontier of [[], ['session conversation', 'governed tools']]) {
+      const f = fixture();
+      const frontier = { inventoryComplete, remainingFrontier };
+      const remaining = !inventoryComplete || remainingFrontier.length > 0;
+      const result = f.send({ type: 'pass-ended', owner: planner,
+        readyExamined: true, repairExamined: true, remaining, ...frontier });
+      assert.deepEqual(result.state.planner.frontier, frontier);
+      assert.equal(result.state.planner.active, remaining);
+      assert.equal(result.actions.length, Number(remaining));
+      if (remaining) {
+        assert.equal(result.actions[0].type, 'discover');
+        assert.deepEqual(result.actions[0].frontier, frontier);
+        result.actions[0].frontier.remainingFrontier.push('action mutation');
+        assert.deepEqual(result.state.planner.frontier, frontier);
+        const steered = f.send({ type: 'refresh', head: sha(2) });
+        assert.equal(steered.actions[0].type, 'steer-planner');
+        assert.deepEqual(steered.actions[0].frontier, frontier);
+        const ended = f.send({ type: 'pass-ended', owner: planner,
+          readyExamined: true, repairExamined: true, remaining: false,
+          inventoryComplete: true, remainingFrontier: [] });
+        assert.deepEqual(ended.state.planner.frontier,
+          { inventoryComplete: true, remainingFrontier: [] });
+        assert.deepEqual(ended.actions[0].frontier, ended.state.planner.frontier);
+      } else {
+        const refreshed = f.send({ type: 'refresh', head: sha(2) });
+        assert.deepEqual(refreshed.actions[0].frontier, frontier);
+      }
+      assert.deepEqual(remainingFrontier, frontier.remainingFrontier);
+    }
+  }
+});
+
+test('new terminal reports reject missing, malformed or inconsistent inventory without mutation', () => {
+  const f = fixture(), state = f.state();
+  const valid = { id: 'end', type: 'pass-ended', owner: planner, pass: 1,
+    readyExamined: true, repairExamined: true, remaining: false,
+    inventoryComplete: true, remainingFrontier: [] };
+  for (const bad of [
+    { inventoryComplete: undefined }, { inventoryComplete: null }, { inventoryComplete: 'true' },
+    { remainingFrontier: undefined }, { remainingFrontier: null }, { remainingFrontier: 'next' },
+    { remainingFrontier: [''] }, { remainingFrontier: [' '] }, { remainingFrontier: [' next'] },
+    { remainingFrontier: ['next '] }, { remainingFrontier: [1] }, { remainingFrontier: [null] },
+    { remainingFrontier: ['next', 'next'] }, { remainingFrontier: Array(1) },
+    { remaining: true }, { inventoryComplete: false }, { remainingFrontier: ['next'] }
+  ]) {
+    assert.throws(() => applyEvent(state, { ...valid, ...bad }), /frontier|Remaining/);
+    assert.deepEqual(state, f.state());
+  }
+  for (const frontier of [null, {}, { inventoryComplete: true, remainingFrontier: [' next'] }]) {
+    assert.throws(() => validate({ ...state, planner: { ...state.planner, frontier } }), /frontier/);
+  }
+});
+
+test('saved candidate-readmission state and seen legacy terminal events need no frontier migration', () => {
+  const state = structuredClone(require('./candidate-readmission-fixture.json').state);
+  const original = structuredClone(state);
+  validate(state);
+  for (const id of state.seen.filter(id => id.startsWith('planner-pass-ended-'))) {
+    const result = applyEvent(state, { id, type: 'pass-ended', owner: state.planner.owner,
+      pass: 1, readyExamined: true, repairExamined: true, remaining: false });
+    assert.equal(result.duplicate, true);
+    assert.deepEqual(result.state, original);
+    assert.deepEqual(result.actions, []);
+  }
+  const refreshed = applyEvent(state, { id: 'legacy-rescan', type: 'refresh', head: state.head, rescan: true });
+  assert.equal(refreshed.actions[0].type, 'discover');
+  assert.equal(Object.hasOwn(refreshed.actions[0], 'frontier'), false);
+  const steered = applyEvent(refreshed.state, { id: 'legacy-change', type: 'refresh', head: sha(2) });
+  assert.equal(steered.actions[0].type, 'steer-planner');
+  assert.equal(Object.hasOwn(steered.actions[0], 'frontier'), false);
+  assert.equal(steered.state.version, original.version);
+});
+
 test('unknown source can reserve discovery immediately but cannot admit or launch workers', () => {
   const initial = createState(coordinator, null);
   const attached = applyEvent(initial, { id: 'planner', type: 'planner', owner: planner });
@@ -2269,7 +2473,8 @@ test('refresh coalesces, exhausted discovery does not loop, and stale candidates
   assert.deepEqual(f.send({ type: 'refresh', head: sha(2) }).actions, []);
   assert.throws(() => f.offer('stale', 'ready', { head: sha(1) }), /source refresh/);
   const end = () => f.send({ type: 'pass-ended', owner: planner,
-    readyExamined: true, repairExamined: true, remaining: false });
+    readyExamined: true, repairExamined: true, remaining: false,
+    inventoryComplete: true, remainingFrontier: [] });
   assert.equal(end().actions[0].type, 'discover');
   assert.deepEqual(end().actions, []);
   assert.equal(f.state().enabled, true);
@@ -2282,7 +2487,8 @@ test('a pass cannot omit feature discovery, and unexamined scope continues witho
     readyExamined: false, repairExamined: true, remaining: false }), /both pools/);
   f.offer('running');
   assert.equal(f.send({ type: 'pass-ended', owner: planner,
-    readyExamined: true, repairExamined: true, remaining: true }).actions[0].type, 'discover');
+    readyExamined: true, repairExamined: true, remaining: true,
+    inventoryComplete: false, remainingFrontier: [] }).actions[0].type, 'discover');
 });
 
 test('early maintenance proposals cannot consume feature slots before bounded discovery finishes', () => {
@@ -2292,7 +2498,8 @@ test('early maintenance proposals cannot consume feature slots before bounded di
   }
   assert.deepEqual(f.offer('feature').actions, [{ type: 'launch', key: 'feature', pool: 'ready' }]);
   const result = f.send({ type: 'pass-ended', owner: planner,
-    readyExamined: true, repairExamined: true, remaining: false });
+    readyExamined: true, repairExamined: true, remaining: false,
+    inventoryComplete: true, remainingFrontier: [] });
   assert.equal(result.actions.filter(action => action.type === 'launch').length, 9);
 });
 
@@ -2377,7 +2584,8 @@ test('unknown events and malformed saved state fail without modifying input', ()
 test('delayed reports cannot terminate or populate a newer discovery pass', () => {
   const f = fixture();
   f.send({ type: 'pass-ended', owner: planner,
-    readyExamined: true, repairExamined: true, remaining: true });
+    readyExamined: true, repairExamined: true, remaining: true,
+    inventoryComplete: false, remainingFrontier: [] });
   assert.equal(f.state().planner.pass, 2);
   assert.throws(() => f.send({ type: 'pass-ended', pass: 1, owner: planner,
     readyExamined: true, repairExamined: true, remaining: false }), /active assigned pass/);
@@ -2430,7 +2638,8 @@ test('first source discovery and unchanged refresh do not restart an exhausted p
   state = applyEvent(state, { id: 'planner', type: 'planner', owner: planner }).state;
   state = applyEvent(state, { id: 'source', type: 'refresh', head: sha(1) }).state;
   let result = applyEvent(state, { id: 'end', type: 'pass-ended', pass: 1,
-    owner: planner, readyExamined: true, repairExamined: true, remaining: false });
+    owner: planner, readyExamined: true, repairExamined: true, remaining: false,
+    inventoryComplete: true, remainingFrontier: [] });
   assert.deepEqual(result.actions, []);
   result = applyEvent(result.state, { id: 'same', type: 'refresh', head: sha(1) });
   assert.deepEqual(result.actions, []);
@@ -2648,7 +2857,8 @@ test('refinement schema, proof, history and retirement survive resume and later 
 test('unpreserved local writes and planned writes stay covered, while exhausted discovery restarts only on acceptance', () => {
   let state = refinementFixture();
   state = applyEvent(state, { id: 'end', type: 'pass-ended', owner: 'planner', pass: 1,
-    readyExamined: true, repairExamined: true, remaining: false }).state;
+    readyExamined: true, repairExamined: true, remaining: false,
+    inventoryComplete: true, remainingFrontier: [] }).state;
   assert.equal(state.planner.active, false);
   const event = refinementEvent(state);
   event.proof.preservation.unpreserved = event.proof.preservation.retained;

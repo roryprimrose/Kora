@@ -75,11 +75,11 @@ public sealed partial class SessionRoutingTests
             await original.Capture.Started.Task;
             original.Capture.Transcript("compare these original plans");
             original.Capture.Done.SetResult();
-            var advice = await AwaitWakeOpening(f.Voice, adviceOpening.Task);
-            await ActivateRoutingWindow(advice, f.Composition.Ui.Window);
-            ClickAdvice(advice, "RoutingAdviceAllow");
             var window = await AwaitWakeOpening(f.Voice, routeOpening.Task);
             await ActivateRoutingWindow(window, f.Composition.Ui.Window);
+            adviceOpening.Task.IsCompleted.Should().BeFalse("foreground preselection requires no advice consent");
+            f.Composition.Adapter.Calls.Should().Be(0);
+            Find<ComboBox>(window, "RoutingDestinations").SelectedItem!.ToString().Should().EndWith(": Alpha");
             await SpeakChoice(window, capture, "1");
             Find<TextBlock>(window, "RoutingAcknowledgment").Text.Should().StartWith("Destination: Alpha.");
             await SpeakChoice(window, capture, "Correct destination");
@@ -105,10 +105,10 @@ public sealed partial class SessionRoutingTests
             await f.Voice.StopAsync(TestContext.Current.CancellationToken);
             await f.Voice.Completion;
             f.Diagnostics.Failure.Should().BeNull();
-            f.Composition.Adapter.Calls.Should().Be(2);
-            f.Composition.Adapter.Originals.Should().Equal("compare these original plans", "compare these original plans");
-            f.Composition.Adapter.Requests[1].Origin.Should().Be(RequestOrigin.ActivatedVoice);
-            if (!fresh) { f.Composition.Adapter.Requests[1].SessionId.Should().Be(f.Composition.Ui.Second.Authority.SessionId); }
+            f.Composition.Adapter.Calls.Should().Be(1);
+            f.Composition.Adapter.Originals.Should().Equal("compare these original plans");
+            f.Composition.Adapter.Requests[0].Origin.Should().Be(RequestOrigin.ActivatedVoice);
+            if (!fresh) { f.Composition.Adapter.Requests[0].SessionId.Should().Be(f.Composition.Ui.Second.Authority.SessionId); }
             capture.Opens.Should().Be(4);
             capture.IsCaptureQuiescent.Should().BeTrue();
         });

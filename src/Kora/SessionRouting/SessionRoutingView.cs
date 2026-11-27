@@ -29,6 +29,8 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
     private readonly TextBlock voiceStatus = new() { Name = "RoutingVoiceStatus", Text = "Microphone closed. Voice replies require a separate explicit gesture for each question.", TextWrapping = TextWrapping.Wrap };
     private readonly Func<SessionRoutingReview, IEnumerable<SessionRouteDescriptor>, SessionRoutingSelection?, Func<bool>, SessionRoutingVoiceReply?>? createVoiceReply;
     private readonly Action<SessionRoutingVoiceReply>? releaseVoiceReply;
+    private readonly Func<SessionRoutingReview, SessionRoutingSelection, Func<bool>, SessionRoutingVoiceReply?>? createSpokenSendReply;
+    private SessionRoutingSelection? spokenSendAttempt;
     private SessionRoutingVoiceReply? voiceReply;
     private Destination[] presented = [];
     private bool voiceBusy;
@@ -46,7 +48,8 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
     internal SessionRoutingView(Window owner, SessionRoutingService routing, SessionRoutingReview review,
         Func<bool> admitted, Action<Exception> reportFailure,
         Func<SessionRoutingReview, IEnumerable<SessionRouteDescriptor>, SessionRoutingSelection?, Func<bool>, SessionRoutingVoiceReply?>? createVoiceReply = null,
-        Action<SessionRoutingVoiceReply>? releaseVoiceReply = null)
+        Action<SessionRoutingVoiceReply>? releaseVoiceReply = null,
+        Func<SessionRoutingReview, SessionRoutingSelection, Func<bool>, SessionRoutingVoiceReply?>? createSpokenSendReply = null)
     {
         Owner = owner;
         this.routing = routing;
@@ -55,6 +58,7 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
         this.reportFailure = reportFailure;
         this.createVoiceReply = createVoiceReply;
         this.releaseVoiceReply = releaseVoiceReply;
+        this.createSpokenSendReply = createSpokenSendReply;
         presentation = new(this, owner, () => !retired && admitted());
         presentation.PresentationChanged += (_, _) =>
         { if (Owner is ResponseWindow && !presentation.IsPresented && !closed) { Withdraw(); } };
@@ -63,7 +67,9 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
         var root = new StackPanel { Margin = new(16), Spacing = 12 };
         root.Children.Add(new TextBlock
         {
-            Text = review.Match switch
+            Text = review.Preselection is { Basis: SessionRoutingReview.PreselectionBasis.Foreground }
+                ? "The original foreground conversation is preselected. Review its name, correct the destination or choose New. Nothing has been submitted."
+                : review.Match switch
             {
                 SessionRouteMatch.Clear => "One related Active conversation proposed. Review its name, correct the destination or choose New before submitting.",
                 SessionRouteMatch.Ambiguous => "Several related Active conversations proposed. Choose one exact candidate or New. Nothing has been submitted.",
@@ -113,9 +119,10 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
     internal void Show()
     {
         if (Owner is not ResponseWindow primary) { Owner.Show(); return; }
-        primary.ShowSessions(expanded: true, preservePresentation: true);
+        var activate = review.Origin != Kora.Core.Hosting.RequestOrigin.ActivatedVoice;
+        primary.ShowSessions(expanded: true, activate: activate, preservePresentation: true);
         primary.ShowNativeReview(this, "Review request destination", this, admitted,
-            shown => { if (!shown && !closed) { Withdraw(); } });
+            shown => { if (!shown && !closed) { Withdraw(); } }, activate: activate);
         OnOwnerOpened(this, EventArgs.Empty);
     }
 
@@ -134,7 +141,9 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
         presented = descriptors.Select((item, index) => new Destination(
             (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + ": " + item.Name, item)).Append(new("New conversation (fresh session)", null)).ToArray();
         destinations.ItemsSource = presented;
-        destinations.SelectedIndex = 0;
+        var preselected = Array.FindIndex(presented,
+            item => item.Descriptor is not null && ReferenceEquals(item.Descriptor, review.Preselection?.Destination));
+        destinations.SelectedIndex = preselected < 0 ? 0 : preselected;
     }
 
     private bool Current() => !retired && (Owner is not ResponseWindow || presentation.IsPresented)
@@ -169,6 +178,7 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
             choosing = false;
             choose.IsEnabled = Current();
         }
+        TryStartSpokenSendReply();
     }
 
     private void ClearAcknowledgment()
@@ -180,7 +190,15 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
         submit.IsEnabled = false;
     }
 
-    private async Task AnswerByVoiceAsync()
+    private void TryStartSpokenSendReply()
+    {
+        if (!Current() || voiceBusy || choosing || selection is not { } selected || ReferenceEquals(spokenSendAttempt, selected)
+            || createSpokenSendReply is null) { return; }
+        spokenSendAttempt = selected;
+        VoiceOperation = AnswerByVoiceAsync(automatic: true);
+    }
+
+    private async Task AnswerByVoiceAsync(bool automatic = false)
     {
         voiceBusy = true;
         voice.IsEnabled = false;
@@ -189,11 +207,14 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
         bool Exact() => Current() && revision == choiceRevision && ReferenceEquals(selection, acknowledged);
         try
         {
-            var reply = createVoiceReply?.Invoke(review, presented.Where(item => item.Descriptor is not null).Select(item => item.Descriptor!),
-                acknowledged, Exact);
+            var reply = automatic
+                ? createSpokenSendReply!(review, acknowledged!, Exact)
+                : createVoiceReply?.Invoke(review, presented.Where(item => item.Descriptor is not null).Select(item => item.Descriptor!),
+                    acknowledged, Exact);
             if (reply is null)
             {
-                voiceStatus.Text = "Voice replies are unavailable. Microphone closed; use the native destination and confirmation controls.";
+                if (!automatic)
+                { voiceStatus.Text = "Voice replies are unavailable. Microphone closed; use the native destination and confirmation controls."; }
                 return;
             }
             voiceReply = reply;
@@ -250,6 +271,7 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
             voiceBusy = false;
             voice.IsEnabled = Current();
         }
+        TryStartSpokenSendReply();
     }
 
     private void VoiceChanged(object? sender, EventArgs args) => Dispatcher.UIThread.Post(() =>

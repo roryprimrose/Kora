@@ -31,6 +31,10 @@ internal sealed class SessionRequestReviewPanel : StackPanel
         body.Bind(TextBox.TextProperty, new Binding(nameof(MainViewModel.ForegroundRequestReviewText)));
         body.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasForegroundRequestReview)));
         Children.Add(body);
+        var voiceStatus = new TextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+        voiceStatus.Bind(TextBlock.TextProperty, new Binding(nameof(MainViewModel.SessionRequestVoiceReplyStatus)));
+        voiceStatus.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasForegroundRequestReview)));
+        Children.Add(voiceStatus);
         var offer = new CheckBox { Name = "OfferDetailsOnce", Content = "Offer to open Details once for this request (no listening)" };
         offer.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasForegroundRequestReview)));
         offer.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(MainViewModel.OfferDetailsOnce)) { Mode = BindingMode.TwoWay });

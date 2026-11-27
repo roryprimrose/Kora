@@ -27,6 +27,19 @@ internal sealed partial class NativeQuestionHost : IDisposable
     private NativeQuestionViewModel? current;
     private int waiting;
     internal bool IsWaiting => Volatile.Read(ref waiting) != 0;
+    internal IReadOnlyList<Kora.Application.ViewModels.MainViewModel.SpokenToolApprovalTarget> CaptureSpokenToolApprovals()
+    {
+        var model = current;
+        if (disposed || model is null || admissionRevision is null || privateRevision is null
+            || currentAdmission?.Invoke() != true || !canInteract())
+        { return []; }
+        var ownership = admissionRevision();
+        var privacy = privateRevision();
+        var target = model.CaptureSpokenToolApproval(() => !disposed && ReferenceEquals(current, model)
+            && currentAdmission?.Invoke() == true && canInteract()
+            && ownership == admissionRevision() && privacy == privateRevision());
+        return target is null ? [] : [target];
+    }
     private volatile bool disposed;
     private readonly HostQuestionVoiceReplyService? voiceReplies;
     private Func<long>? privateRevision;

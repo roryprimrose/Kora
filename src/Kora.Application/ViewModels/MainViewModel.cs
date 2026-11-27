@@ -3677,6 +3677,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteCallSpeechAsync(operation, initiator);
             return;
         }
+        if (SpokenApprovalReply.Parse(spokenText, AssistantName) is { } approvalReply)
+        {
+            await ExecuteSpokenToolApprovalAsync(approvalReply, spokenText, initiator);
+            return;
+        }
         if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target is
                 (WorkspaceSurfaceTarget.OpenNamedConversation or WorkspaceSurfaceTarget.ObservedResult)
             && (!CanEnterRetainedAnswerRead || editorTarget is not null))
@@ -3684,7 +3689,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportHostInteractionFailure("Conversation opening unavailable while a question, approval, review, editor or dictation owns input. Nothing was answered or submitted.");
             return;
         }
-        var addressedWorkCommand = SessionCommand.Parse(spokenText, AssistantName);
+        var addressedWorkCommand = ParseAddressedSessionCommand(spokenText, initiator);
         if ((addressedWorkCommand?.Operation == SessionCommandOperation.Metrics
                 || string.Equals(addressedWorkCommand?.Error, SessionCommand.MetricsSyntax, StringComparison.Ordinal))
             && (!CanAnswerRemainingWork || editorTarget is not null))
@@ -4206,7 +4211,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 sessionCommand.IsPermissionCommand
                     ? CapturePermissionReviewSource(manualInput
                         ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision))
-                    : null);
+                    : null,
+                CaptureSessionRequestVoiceInput(manualInput));
             return;
         }
         if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)
@@ -5264,6 +5270,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(QuietHoursCommand.FixedPhrases)
             .Concat(ForegroundPttCommand.FixedPhrases)
+            .Concat(SpokenApprovalReply.FixedPhrases)
             .Concat(VoiceCaptureTimingCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)

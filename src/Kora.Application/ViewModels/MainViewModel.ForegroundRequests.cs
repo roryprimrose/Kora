@@ -8,6 +8,7 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private ForegroundConversationTarget? foregroundConversationTarget;
+    private ForegroundConversationTarget? voiceConversationTarget;
     private long foregroundConversationRevision;
     private SessionRequestReview? foregroundRequestReview;
     public event Action<ConversationSubmissionReceipt>? ForegroundRequestSubmitted;
@@ -26,14 +27,29 @@ public sealed partial class MainViewModel
     public void PublishForegroundConversationTarget(ForegroundConversationTarget? target)
     {
         var previous = Interlocked.Exchange(ref foregroundConversationTarget, target);
-        if (ReferenceEquals(previous, target)) { return; }
-        Interlocked.Increment(ref foregroundConversationRevision);
-        previous?.Retire();
+        var resourceRetired = voiceConversationTarget is { IsResourceCurrent: false };
+        if (voiceConversationTarget is { IsResourceCurrent: false } retiredTarget)
+        {
+            retiredTarget.Retire();
+            voiceConversationTarget = null;
+            Interlocked.Increment(ref foregroundConversationRevision);
+        }
+        if (ReferenceEquals(previous, target) && !resourceRetired) { return; }
+        previous?.ReleaseForeground();
+        if (target is not null && (previous is not null || voiceConversationTarget?.Entry != target.Entry))
+        {
+            voiceConversationTarget?.Retire();
+            voiceConversationTarget = target;
+            Interlocked.Increment(ref foregroundConversationRevision);
+        }
         completionNotices?.Revalidate();
-        if (foregroundRequestReview is not null)
+        if (foregroundRequestReview is { } review
+            && (review.Origin != Kora.Core.Hosting.RequestOrigin.ActivatedVoice
+                || voiceConversationTarget?.IsResourceCurrent != true))
         {
             RetireSessionCommandReviews();
         }
+        sessionRoutingVoiceReply?.Revalidate();
     }
 
     public Task ConfirmForegroundRequestAsync() => CaptureForegroundRequestDecision(confirm: true)();
@@ -46,11 +62,22 @@ public sealed partial class MainViewModel
         var command = new SessionCommand(confirm ? SessionCommandOperation.RequestConfirm : SessionCommandOperation.RequestCancel,
             review?.Target.Authority.SessionId.Value)
         { RequestReviewId = review?.Id };
-        return () => ExecuteSessionCommandAsync(command, SecurityAuditInitiator.LocalUser);
+        return () => sessionRequestNativeDecision = DecideAsync();
+
+        async Task DecideAsync()
+        {
+            if (sessionRoutingVoiceReply is { } reply)
+            {
+                await reply.DisposeAsync();
+                ReleaseSessionRoutingVoiceReply(reply);
+            }
+            await ExecuteSessionCommandAsync(command, SecurityAuditInitiator.LocalUser);
+        }
     }
 
     private void SetForegroundRequestReview(SessionRequestReview? review)
     {
+        if (!ReferenceEquals(foregroundRequestReview, review)) { sessionRoutingVoiceReply?.Cancel(); }
         foregroundRequestReview = review;
         uiDispatcher.Post(() =>
         {

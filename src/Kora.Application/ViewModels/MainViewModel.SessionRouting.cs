@@ -1,4 +1,5 @@
 using Kora.Application.Diagnostics;
+using Kora.Application.Hosting;
 using Kora.Application.Hosting.SessionRouting;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -11,10 +12,18 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private Func<string, RequestOrigin, Func<bool>, Task<SessionRoutingReceipt?>>? routeSessionRequest;
+    private Func<string, RequestOrigin, Func<bool>, ForegroundConversationTarget?, Task<SessionRoutingReceipt?>>? routeSessionRequest;
     private Func<IDisposable?>? retainRoutingPresentation;
 
     public void BindSessionRouting(Func<string, RequestOrigin, Func<bool>, Task<SessionRoutingReceipt?>>? route,
+        Func<IDisposable?>? retainPresentation = null)
+    {
+        routeSessionRequest = route is null ? null : (body, origin, admitted, _) => route(body, origin, admitted);
+        retainRoutingPresentation = retainPresentation;
+    }
+
+    public void BindForegroundSessionRouting(
+        Func<string, RequestOrigin, Func<bool>, ForegroundConversationTarget?, Task<SessionRoutingReceipt?>> route,
         Func<IDisposable?>? retainPresentation = null)
     {
         routeSessionRequest = route;
@@ -25,6 +34,8 @@ public sealed partial class MainViewModel
     {
         if (routeSessionRequest is not { } route) { return false; }
         var origin = OriginalOrigin(initiator);
+        var foreground = origin == RequestOrigin.ActivatedVoice
+            ? Volatile.Read(ref foregroundConversationTarget) : null;
         var wakeCurrent = original?.WakeActivationCurrent;
         if (wakeCurrent is not null && (origin != RequestOrigin.ActivatedVoice || !wakeCurrent()))
         {
@@ -63,7 +74,8 @@ public sealed partial class MainViewModel
         var eligible = CaptureNewRequestOpeningEligibility(input with { Eligible = () => voiceRequest.IsLive });
         var inputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision);
         var composerRevision = Interlocked.Read(ref attachmentCatalogueComposerRevision);
-        bool Live() => eligible() && Interlocked.Read(ref workspaceSurfaceInputRevision) == inputRevision
+        bool Live() => eligible() && (foreground is null || foreground.IsResourceCurrent)
+            && Interlocked.Read(ref workspaceSurfaceInputRevision) == inputRevision
             && (origin != RequestOrigin.LocalUi || Interlocked.Read(ref attachmentCatalogueComposerRevision) == composerRevision)
             && (input.RoutingWakeContinuation is not null || wakeCurrent?.Invoke() != false);
         if (!Live())
@@ -80,9 +92,10 @@ public sealed partial class MainViewModel
             PrivacyClosureRequested += RoutingVoicePrivacyClosed;
             var wasBusy = IsBusy;
             IsBusy = true;
-            using var routingPresentationLease = retainRoutingPresentation?.Invoke();
+            using var routingPresentationLease = origin == RequestOrigin.ActivatedVoice
+                ? null : retainRoutingPresentation?.Invoke();
             SessionRoutingReceipt? result;
-            try { result = await route(body, origin, Live); }
+            try { result = await route(body, origin, Live, foreground); }
             finally
             {
                 await JoinSessionRoutingVoice();

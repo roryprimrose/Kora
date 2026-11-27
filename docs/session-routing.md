@@ -16,11 +16,36 @@ Confirmation retains the original USER message in that exact session and consume
 
 The body starts after the single space following `ask this conversation`. Subsequent case, spaces, Unicode and line breaks are unchanged within existing text/credential bounds. Words such as `shutdown` in this body are user content, not another static command. No earlier history, memory or instruction source is authorized, and neither this session's unsent buffer nor another session's input is submitted or overwritten ([request regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs)).
 
-Missing, competing, hidden, Done, read-only or stale presenters refuse without choosing another target or creating a session. Changing focus, selection, target metadata, session generation, control, privacy or original voice/call/name admission requires a fresh review; returning to the old view cannot revive it. Keyboard activation and readable automation values use the same native confirmation path ([presenter owner](../src/Kora/SessionsPresentationOwner.Foreground.cs), [headless evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs)).
+Missing, competing, hidden, Done, read-only or stale presenters refuse without choosing another target or creating a session. A captured voice-originated review survives unrelated focus and app switches; typed reviews remain focus-bound. Changed selection, target metadata, session generation, control, privacy, lock or original voice/call/name admission requires a fresh review; returning to the old view cannot revive it. Keyboard activation and readable automation values use the same native confirmation path ([presenter owner](../src/Kora/SessionsPresentationOwner.Foreground.cs), [headless evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs)).
 
 Auxiliary session views without an original-request review panel retain their existing conversation controls. Opening, hiding or closing such a view does not confirm a request or create a conversation message.
 
 Sessions and compact presenters also retain the separate [exact-answer reply review](reviewed-context.md). Choosing Reply on the retained answer does not submit the foreground request again or consume unsent input. Hiding and reopening that reply presenter invalidates its review rather than sending the follow-up as plain input.
+
+## Optional spoken send or cancel
+
+In **Settings > Speech and audio**, **Spoken send or cancel** is **Off** by
+default. Enabling this device-local preference does not grant microphone
+consent, enable listening or authorize a hosted transfer
+([preference owner](../src/Kora.Application/Configuration/SpokenSendReplyConfigurationService.cs)).
+
+When enabled, a voice-originated foreground or named-conversation request
+review, or an acknowledged routing destination, reads back
+**Send to &lt;chat&gt;: &lt;exact text&gt;?**. Only after playback finishes does
+one bounded reply open. Say exactly **send** or **cancel**, without an activation
+name. **send** uses the existing confirmation path and preserves the original
+voice channel. **cancel**, a mismatch, no-speech timeout, changed target or lost
+privacy/call/ownership admission submits nothing. Capture release is joined
+before confirmation. The existing 60-second review expiry is not renewed
+([exact reply](../src/Kora.Application/Hosting/SessionRequestVoiceReply.cs),
+[capture owner](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingVoiceReply.cs)).
+
+Native confirmation/cancellation and destination correction remain available.
+Typed/native-originated reviews never open this automatic reply. Authentication,
+provider readiness and separate native approval of each hosted physical send
+remain independent. Task-output and Details-offer questions are unchanged
+([host admission](../src/Kora.Application/ViewModels/MainViewModel.Sessions.cs),
+[native regressions](../tests/Kora.Windows.IntegrationTests/SessionRoutingTests.SpokenSend.cs)).
 
 ## Choose a profile for this request only
 
@@ -62,7 +87,20 @@ An ordinary untargeted local request, typed globally or activated with the curre
 assistant name, first opens **Review local destination advice**. The same operation applies
 with the main conversation collapsed or expanded.
 
+For an activated-voice untargeted request while Kora's chat window is foreground,
+the exact Active foreground chat is instead preselected in **Review request destination**.
+No advice consent or inference runs for that proposal. **Review this destination**
+and **Submit original request to acknowledged destination** are still required;
+correction to another presented Active chat or New remains available. A changed or
+retired target resource invalidates the original review without substitution.
+This preserves the foreground-as-proposal decision ([D2a](../Design/Decision_Register.md#voice-to-action-interaction---2026-11-27)).
+
 Advice and destination acknowledgment use supporting tabs in the same expanded workbench, not additional application windows ([advice view](../src/Kora/SessionRouting/SessionRoutingAdviceView.cs), [destination view](../src/Kora/SessionRouting/SessionRoutingView.cs)).
+Voice-originated reviews are shown without activating their window or moving keyboard focus.
+Unrelated focus/app switches do not cancel a review or its wake evidence; clicking
+the review activates its window normally. Target/session/metadata changes, privacy,
+lock, ownership, call/owner binding, name/profile changes, expiry and cancellation
+still retire it. Typed/LocalUi activation remains unchanged.
 Changing or hiding that review retires its consent/acknowledgment; returning cannot submit an old choice. Original typed/voice channel and unchanged input stay bound through separate acknowledgment and submission ([hosted operations and withdrawal](../tests/Kora.Windows.IntegrationTests/SessionRoutingTests.Workbench.cs)).
 
 Exact conversation composers and `session request review "<name>" -- <body>`
@@ -80,7 +118,7 @@ A denied or ambiguous editor route is never retried as a general request.
   or several exact candidates. The choice always includes **New conversation (fresh session)**.
 - No clear match, or unqualified/unavailable inference, offers fresh **New**.
   Unqualified production providers remain unavailable; composing matching does not
-  qualify them. The host never substitutes a guess from current selection, focus,
+  qualify them. Apart from the explicit foreground voice proposal above, the host never substitutes a guess from current selection, focus,
   recent activity or window size.
 - Choose **Review this destination** to acknowledge the exact name. Nothing has
   been submitted or created yet.

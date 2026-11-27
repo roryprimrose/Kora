@@ -204,6 +204,120 @@ function candidateCheckpoint(released = true) {
   return f;
 }
 
+function replacementInput(value, type) {
+  const { owner, pass } = value.state.planner;
+  const event = { id: type, type, oldOwner: owner, pass, checkpointRevision: value.revision,
+    oldProof: { owner, pass, status: 'error', stoppedWriting: true, pendingInstructions: 0,
+      receipt: 'SYNTHETIC stopped planner and consumed authority.' } };
+  if (type === 'reserve-planner-replacement') {
+    event.authorization = { id: 'decision', actor: 'SYNTHETIC user', userAuthorized: true,
+      oldOwner: owner, pass, checkpointRevision: value.revision, receipt: 'SYNTHETIC explicit authorization.' };
+  } else {
+    Object.assign(event, { owner: 'fixture-replacement', reservationId: 'reserve-planner-replacement',
+      standbyProof: { owner: 'fixture-replacement', reservationId: 'reserve-planner-replacement',
+        scanning: false, productionWrites: false, pendingInstructions: 0, receipt: 'SYNTHETIC standby.' } });
+  }
+  return { operation: 'apply', expectedRevision: value.revision, event,
+    plannerReplacementEvidence: { kind: 'host-verified-planner-replacement', eventDigest: digest(event),
+      coordinator: value.state.coordinator, ledgerAuthorityVerified: true, authorityReconciled: true,
+      userAuthorizationVerified: true, oldPlannerVerified: true, standbyVerified: true,
+      receipt: 'SYNTHETIC independent host proof.' } };
+}
+
+test('checkpoint planner replacement reconciles pending old actions and standby send, binds history and preserves atomic replay', () => {
+  const f = fixture();
+  let value = f.run({ operation: 'apply', expectedRevision: 1,
+    event: { id: 'planner', type: 'planner', owner: 'fixture-planner' } });
+  let bytes = f.files.get(f.file);
+  assert.throws(() => f.run(replacementInput(value, 'reserve-planner-replacement')), /pending old-planner/);
+  assert.equal(f.files.get(f.file), bytes);
+  value = f.run({ operation: 'ack', expectedRevision: value.revision, actionId: 'planner:0',
+    status: 'blocked', evidence: 'SYNTHETIC verified terminal rejection, no pending authority.' });
+  const reserve = replacementInput(value, 'reserve-planner-replacement');
+  f.failReplacement();
+  bytes = f.files.get(f.file);
+  assert.throws(() => f.run(reserve), /Replacement failed/);
+  assert.equal(f.files.get(f.file), bytes);
+  f.failReplacement(false);
+  value = f.run(reserve);
+  assert.deepEqual(f.run({ ...reserve, expectedRevision: value.revision }), value);
+  bytes = f.files.get(f.file);
+  assert.throws(() => f.run(replacementInput(value, 'replace-planner')), /initialization action/);
+  assert.equal(f.files.get(f.file), bytes);
+  value = f.run({ operation: 'ack', expectedRevision: value.revision,
+    actionId: 'reserve-planner-replacement:0', status: 'done', evidence: 'SYNTHETIC exact standby host readback.' });
+  const attach = replacementInput(value, 'replace-planner');
+  bytes = f.files.get(f.file);
+  const pending = structuredClone(value);
+  pending.actions.push({ id: 'old-pause:0', status: 'pending',
+    command: { type: 'pause', owner: 'fixture-planner' } });
+  f.files.set(f.file, JSON.stringify(pending));
+  assert.throws(() => f.run(attach), /pending old-planner/);
+  f.files.set(f.file, bytes);
+  assert.throws(() => f.run({ ...attach, expectedRevision: value.revision - 1 }), /Stale checkpoint/);
+  f.files.set(`${f.file}.lock`, 'other writer');
+  assert.throws(() => f.run(attach), /locked/);
+  f.files.delete(`${f.file}.lock`);
+  value = f.run(attach);
+  assert.deepEqual(value.actions.at(-1).command, { type: 'discover', owner: 'fixture-replacement',
+    capacity: { ready: 10, repair: 4 }, examine: ['ready', 'repair'], head: null, pass: 2 });
+  bytes = f.files.get(f.file);
+  assert.deepEqual(f.run({ ...attach, expectedRevision: value.revision }), value);
+  assert.equal(f.files.get(f.file), bytes);
+  for (const mutate of [
+    v => { v.events.pop(); },
+    v => { v.events.at(-1).digest = 'wrong'; },
+    v => { v.actions.pop(); },
+    v => { v.actions.at(-1).command.pass = 1; },
+    v => { v.events.at(-1).commands[0].owner = 'wrong'; },
+    v => { v.events.at(-1).commands[0].head = '9'.repeat(40); v.actions.at(-1).command.head = '9'.repeat(40); },
+    v => { delete v.state.planner.replacements; },
+    v => { v.state.planner.replacements[0].replacement.hostEvidence.oldPlannerVerified = false; }
+  ]) {
+    const changed = structuredClone(value); mutate(changed);
+    f.files.set(f.file, JSON.stringify(changed));
+    assert.throws(() => f.run({ operation: 'read' }));
+  }
+  f.files.set(f.file, bytes);
+  assert.deepEqual(f.run({ operation: 'read' }), value);
+});
+
+test('checkpoint persists terminal frontier and queued actions; invalid or duplicate reports preserve bytes', () => {
+  const f = fixture();
+  const attached = f.run({ operation: 'apply', expectedRevision: 1,
+    event: { id: 'planner', type: 'planner', owner: 'fixture-planner' } });
+  const event = { id: 'end', type: 'pass-ended', owner: 'fixture-planner', pass: 1,
+    readyExamined: true, repairExamined: true, remaining: true,
+    inventoryComplete: true, remainingFrontier: ['session conversation'] };
+  const bytes = f.files.get(f.file);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: attached.revision,
+    event: { ...event, remaining: false } }), /Remaining/);
+  assert.equal(f.files.get(f.file), bytes);
+  const ended = f.run({ operation: 'apply', expectedRevision: attached.revision, event });
+  assert.equal(ended.version, 1);
+  assert.equal(ended.state.version, 1);
+  assert.deepEqual(ended.state.planner.frontier,
+    { inventoryComplete: true, remainingFrontier: ['session conversation'] });
+  assert.deepEqual(ended.actions.at(-1).command.frontier, ended.state.planner.frontier);
+  assert.deepEqual(f.run({ operation: 'read' }), ended);
+  const persisted = f.files.get(f.file);
+  assert.deepEqual(f.run({ operation: 'apply', expectedRevision: ended.revision, event }), ended);
+  assert.equal(f.files.get(f.file), persisted);
+  assert.equal([...f.files.keys()].some(file => file.endsWith('.lock') || file.endsWith('.tmp')), false);
+});
+
+test('saved candidate-readmission checkpoint reads and replays seen terminal events without rewriting', () => {
+  const f = candidateCheckpoint();
+  const bytes = f.files.get(f.file), original = f.run({ operation: 'read' });
+  assert.equal(Object.hasOwn(original.state.planner, 'frontier'), false);
+  for (const id of original.state.seen.filter(id => id.startsWith('planner-pass-ended-'))) {
+    assert.deepEqual(f.run({ operation: 'apply', expectedRevision: original.revision,
+      event: { id, type: 'pass-ended', owner: original.state.planner.owner, pass: 1,
+        readyExamined: true, repairExamined: true, remaining: false } }), original);
+    assert.equal(f.files.get(f.file), bytes);
+  }
+});
+
 function supersessionCheckpoint() {
   const f = fixture();
   f.files.set(f.file, JSON.stringify({ version: 1, revision: 41,

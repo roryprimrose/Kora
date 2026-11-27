@@ -34,6 +34,12 @@ Use its [authority-based quiescence](../skills/kora-orchestrate/SKILL.md#scopeso
   **queued separate turn in the same planner chat**. Do not wait for a later
   completed-turn notification that might never arrive. Never steer a new pass
   into the old turn or release/archive a worker using this planning-only rule.
+- An archived/error/admission-rejected planner may be replaced only through
+  [explicit user-authorized recovery](../skills/kora-orchestrate/README.md#explicit-user-authorized-planner-recovery).
+  Reserve standby before creation, reconcile old pending actions/authority,
+  freshly verify old terminal and new standby evidence, attach once and queue
+  the sole pass+1 discovery with retained frontier. Never infer recovery
+  permission from inactivity or handoff; retain retired-owner history.
 - Publication is not release. Legacy versions1-9 require their original proven
   cleanup. Version10 close-and-preserve requires actual terminated/joined grants,
   durable bytes/refs/history, delivery and explicit remaining holds; physical
@@ -60,6 +66,10 @@ Use its [authority-based quiescence](../skills/kora-orchestrate/SKILL.md#scopeso
    delivery mode requires recorded ready-PR/repair authority at initialization.
 4. Dispatch eligible ready and repair reservations independently. Send changes
    and released capacity to the planner; coalesce an active refresh.
+   Validate PASS_ENDED inventory through the reducer and forward optional
+   discover/steer `frontier` unchanged under the
+   [inventory contract](../skills/kora-orchestrate/README.md#structured-planner-inventory).
+   Do not replace structured metadata with prose or treat absence as exhaustion.
 5. Record message IDs/revisions and handle already-delivered events in this
    batch. End the turn without waiting for workers or another planning pass.
 

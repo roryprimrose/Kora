@@ -85,6 +85,16 @@ Use original private typed input or current-name activated voice:
 
 Names must resolve uniquely. All three numbers must be positive and at most **32 / 262144 / 1048576**. Confirmation saves, audits and reads back a numeric preference, not a source capture. Only the next separately reviewed native refresh consumes its immutable tuple and rejects the whole excess source without truncation. Pending/pinned captures, model permissions and other sources remain unchanged. Source selection, field changes, stale inventory/preferences or lost privacy retire confirmation. This is not a model `set` proposal, arbitrary filesystem authority or natural-language numeric guessing. See [source controls and recovery](knowledge-sources.md#lower-the-next-capture-limits-for-one-source).
 
+## Address an exact chat by name
+
+Use `Kora, in Build plan, check the next step` with your current assistant name in the global command box or during **Push to talk**. The comma after the chat name is optional, so `Kora in Build plan check the next step` also works ([parser](../src/Kora.Core/Commands/SessionCommand.SpokenNameRoute.cs)).
+
+Names match exactly, including case. Kora resolves the longest unique Active chat name at the start of the addressed request. For chats named **Build** and **Build plan**, the example targets **Build plan**. Duplicate longest names, absent names, incomplete inventory or an empty body refuse without choosing another destination or creating a chat ([resolution](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
+Review the exact destination, complete message, original channel and 60-second expiry, then separately use `session request confirm` or `session request cancel`. Native confirmation preserves a voice request's original channel; it does not bypass privacy, call, ownership or hosted final-send checks ([review owner](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
+After the wake word, you can say `in Build plan, check the next step` without repeating the assistant name. Only the current trusted wake capture admits this bare form; typed and push-to-talk input still require the literal assistant-name prefix. Wake bodies not starting with `in ` keep their existing routing. The same exact-name review, separate confirmation, original voice channel and expiry apply. The quoted `session request review "<exact readable name>" -- <original body>` form remains available ([activation boundary](../src/Kora.Application/ViewModels/MainViewModel.SpokenNameWake.cs)).
+
 ## Ask once about this request's Details
 
 Use `ask this conversation with details offer <original message>` in the global command box, or prefix it with the current assistant name during deliberate push-to-talk.

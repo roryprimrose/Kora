@@ -178,6 +178,8 @@ a second child.
 | Event | Required inputs / action |
 | --- | --- |
 | `planner` | Attach its exact `owner`; at most one reusable planner. |
+| `reserve-planner-replacement` | Explicit current-revision user authorization and verified terminal old owner/pass; emits standby initialization only. See [authorized recovery](./README.md#explicit-user-authorized-planner-recovery). |
+| `replace-planner` | Exact reservation, unused distinct owner, freshly reverified old proof and verified new standby; emits exactly one pass+1 discovery with retained frontier. |
 | `candidate` | Planner `owner`, assigned `pass`, `key`, unique `outcome`, `pool`, `kind`, `head`, `scopes`, admission `evidence`; repair also requires `pr`. |
 | `revalidate-candidate` | Active planner `owner/pass`, existing unowned candidate `key`, complete `expectedItemDigest`, current `head`, canonical complete `scopes`, fresh `evidence`, `manifestComplete=true`. Atomic current-checkpoint apply; held conflict rejects without mutation. See [same-key input and migration](./README.md#same-key-unowned-candidate-revalidation). |
 | `adopt` | Existing worker `owner` and the candidate fields, with concrete exclusive-ownership evidence; no new launch. |
@@ -191,7 +193,7 @@ a second child.
 | `renew-recovery-continuation` | Explicit same-owner unchanged-grant/source/scopes/fence renewal for compatible main advancement; fresh current item/revision/held guards, complete independent compatibility readback and whole-proof owner acknowledgment. No actions or new authority. See [renewal input and sequencing](./README.md#same-owner-continuation-renewal). |
 | `supersede-write-reservations` | Versioned whole `proof` and explicit human `authorization`, bound to the current durable revision/source/coordinator, complete candidate and every exact prior holder. Local-ledger activation only; external preparation never launches. See [exact input and limitations](./README.md#exact-path-write-reservation-supersession). |
 | `completed` | Published worker `owner/key`; verified cleanup `proof`: matching `remoteHead`, `stoppedWriting`, `worktreeAbsent`, `branchAbsent`, `pendingInstructions=0`. |
-| `pass-ended` | Planner `owner`, assigned `pass`, `readyExamined=true`, `repairExamined=true`, boolean `remaining`; optional shortage receipt. |
+| `pass-ended` | Planner `owner`, assigned `pass`, `readyExamined=true`, `repairExamined=true`, boolean `inventoryComplete`, unique nonempty trimmed string array `remainingFrontier`, boolean `remaining = (!inventoryComplete || remainingFrontier.length > 0)`; optional shortage receipt. |
 | `refresh` | Verified current `head`; invalidate stale undispatched candidates and coalesce discovery. |
 | `pause` | Disable dispatch, notify owned children; retain unfinished ownership. |
 | `handoff` | Paused workflow, exact `fromCoordinator/toCoordinator`, verified stopped old-owner addresses and `pendingInstructions=0`; retain reservations and stay paused. |
@@ -298,7 +300,10 @@ standalone session isolation remains a distinct host capability.
 
 `discover` starts one bounded pass; `steer-planner` coalesces changed state into
 an active pass. Send its numbered `pass`, current reservations, free capacities,
-and changed keys. Reject delayed reports from earlier passes without ending the
+and changed keys. When the action has `frontier`, forward its `inventoryComplete`
+and `remainingFrontier` unchanged; absence means legacy inventory is unknown,
+not complete. See [structured inventory](./README.md#structured-planner-inventory).
+Reject delayed reports from earlier passes without ending the
 current pass or changing its frontier.
 Ready-feature candidates precede maintenance within the delivery backlog.
 Maintenance waits for the finite discovery pass to finish so early maintenance
@@ -309,7 +314,10 @@ Every pass examines both pools, even when repair capacity is full.
 ### Terminal planner report and serialized next turn
 
 A matching final PASS_ENDED with both examined flags, final receipt, numbered
-pass, and remaining frontier is the event for the planner transition. Do not
+pass, `inventoryComplete`, `remainingFrontier` and consistent `remaining` is the
+event for the planner transition. The reducer validates and retains the latest
+metadata as optional `planner.frontier`; do not infer it from prose or shortage.
+Do not
 wait for a later host `complete` status before queuing the next pass: that later
 status may not produce another coordinator event.
 
@@ -319,9 +327,21 @@ resulting discover action. Send the next pass with `delivery=queue` to the
 This is an intended separate turn, never steering permission to begin a new
 pass inside the old turn. Host queue serialization prevents overlapping
 execution. Retain the returned message ID/status and accept STARTED only for
-the assigned pass; do not create another planner or replay an uncertain send.
+the assigned pass; do not create another planner or replay an uncertain send
+outside the [explicit user-authorized recovery protocol](./README.md#explicit-user-authorized-planner-recovery).
 If the host cannot serialize queued turns, report `UnsupportedQueuedTurns`
-instead of replacing the planner or assuming safe overlap.
+instead of automatically replacing the planner or assuming safe overlap.
+
+Recovery is never a liveness response. Only an explicit user decision bound to
+the exact old owner/current pass/revision permits `reserve-planner-replacement`,
+after independently verified archived/error/admission-rejected terminal state,
+actual stopped writing and reconciled authority zero. Persist the standby-only
+action before creating one replacement; an ambiguous launch retains that
+reservation. Do not scan in standby. Reconcile all old-planner pending actions
+and verify the standby initialization result before `replace-planner`.
+Freshly reverify both owners; attach once, forward the persisted frontier and
+queue the one pass+1 discovery. Keep the coordinator as sole checkpoint writer,
+retain retired-owner history and reject old-owner reports or reuse.
 
 This rule only schedules the next read-only pass. It does not release file
 ownership, archive a child, or weaken worker publication/cleanup proof.

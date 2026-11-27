@@ -1160,6 +1160,108 @@ function validateReadmissions(state) {
   'Candidate revalidation index/history/event binding missing or inconsistent.');
 }
 
+function validatePlannerFrontier(frontier) {
+  requireValue(frontier && typeof frontier.inventoryComplete === 'boolean' &&
+    Array.isArray(frontier.remainingFrontier) &&
+    Array.from(frontier.remainingFrontier).every(value => text(value) && value.trim() === value) &&
+    new Set(frontier.remainingFrontier).size === frontier.remainingFrontier.length,
+  'Planner frontier requires boolean inventoryComplete and unique nonempty trimmed remainingFrontier strings.');
+}
+
+const PLANNER_REPLACEMENT_MARKER = 'planner-replacement:';
+
+function validatePlannerReplacementEvent(event) {
+  requireValue(event && text(event.id) && text(event.oldOwner) &&
+    Number.isSafeInteger(event.pass) && event.pass > 0 &&
+    Number.isSafeInteger(event.checkpointRevision) && event.checkpointRevision > 0,
+  'Planner replacement requires exact old owner/pass and checkpoint revision.');
+  const proof = event.oldProof;
+  requireValue(proof && proof.owner === event.oldOwner && proof.pass === event.pass &&
+    ['archived', 'error', 'admission-rejected'].includes(proof.status) &&
+    proof.stoppedWriting === true && proof.pendingInstructions === 0 &&
+    text(proof.receipt), 'Terminal stopped old planner and reconciled authority-zero proof required.');
+  if (event.type === 'reserve-planner-replacement') {
+    const a = event.authorization;
+    requireValue(a && text(a.id) && text(a.actor) && text(a.receipt) &&
+      a.userAuthorized === true && a.oldOwner === event.oldOwner && a.pass === event.pass &&
+      a.checkpointRevision === event.checkpointRevision,
+    'Explicit user authorization bound to old planner/pass/revision required.');
+  } else {
+    requireValue(event.type === 'replace-planner' && text(event.reservationId) &&
+      text(event.owner) && event.owner !== event.oldOwner,
+    'Fresh distinct replacement owner and reservation required.');
+    const standby = event.standbyProof;
+    requireValue(standby && standby.owner === event.owner && standby.reservationId === event.reservationId &&
+      standby.scanning === false && standby.productionWrites === false &&
+      standby.pendingInstructions === 0 && text(standby.receipt),
+    'Replacement standby must not scan, write production or hold pending authority.');
+  }
+}
+
+function validatePlannerReplacementRecord(record) {
+  validatePlannerReplacementEvent(record.event);
+  const e = record.hostEvidence, event = record.event;
+  requireValue(e && e.kind === 'host-verified-planner-replacement' &&
+    e.eventDigest === digest(event) && text(e.coordinator) &&
+    e.ledgerAuthorityVerified === true && e.oldPlannerVerified === true &&
+    e.authorityReconciled === true && text(e.receipt) &&
+    (event.type === 'reserve-planner-replacement'
+      ? e.userAuthorizationVerified === true : e.standbyVerified === true),
+  'Independent current host planner replacement evidence required.');
+}
+
+function validatePlannerReplacements(state, owners) {
+  const planner = state.planner, history = Object.hasOwn(planner, 'replacements') ? planner.replacements : [];
+  requireValue(Array.isArray(history), 'Malformed planner replacement history.');
+  let previous = null;
+  const ids = new Set();
+  const records = [];
+  for (const record of history) {
+    validatePlannerReplacementRecord(record.reservation);
+    validatePlannerReplacementRecord(record.replacement);
+    const reserve = record.reservation.event, replace = record.replacement.event;
+    requireValue(reserve.type === 'reserve-planner-replacement' && replace.type === 'replace-planner' &&
+      replace.reservationId === reserve.id && replace.oldOwner === reserve.oldOwner &&
+      replace.pass === reserve.pass && replace.checkpointRevision > reserve.checkpointRevision &&
+      (!previous || reserve.oldOwner === previous.owner && reserve.pass >= previous.pass + 1) &&
+      [reserve.id, replace.id].every(id => state.seen.includes(id) && !ids.has(id)) &&
+      !owners.has(reserve.oldOwner), 'Inconsistent planner replacement history/retired owner.');
+    owners.add(reserve.oldOwner);
+    ids.add(reserve.id); ids.add(replace.id);
+    previous = replace;
+    records.push(record.reservation, record.replacement);
+  }
+  requireValue(!previous || planner.owner === previous.owner && planner.pass >= previous.pass + 1,
+    'Current planner disagrees with replacement history.');
+  if (Object.hasOwn(planner, 'replacement')) {
+    const record = planner.replacement;
+    validatePlannerReplacementRecord(record);
+    requireValue(record.event.type === 'reserve-planner-replacement' &&
+      record.event.oldOwner === planner.owner && record.event.pass === planner.pass &&
+      state.seen.includes(record.event.id) && !ids.has(record.event.id) &&
+      !planner.active && !planner.notified,
+    'Malformed pending planner replacement reservation.');
+    records.push(record);
+  }
+  for (const record of records) {
+    const event = record.event, command = record.commands?.[0];
+    requireValue(record.commands?.length === 1 && (event.type === 'reserve-planner-replacement'
+      ? equal(command, { type: 'initialize-planner-replacement', reservationId: event.id,
+        oldOwner: event.oldOwner, pass: event.pass, standby: true })
+      : command?.type === 'discover' && command.owner === event.owner &&
+        command.pass === event.pass + 1 && (command.head === null || head(command.head)) &&
+        equal(command.examine, ['ready', 'repair']) &&
+        Object.entries(LIMITS).every(([pool, limit]) =>
+          Number.isSafeInteger(command.capacity?.[pool]) && command.capacity[pool] >= 0 &&
+          command.capacity[pool] <= limit)),
+    'Planner replacement must retain its exact single standby/discovery command.');
+    if (Object.hasOwn(command, 'frontier')) validatePlannerFrontier(command.frontier);
+  }
+  requireValue(equal(state.seen.filter(id => id.startsWith(PLANNER_REPLACEMENT_MARKER)).sort(),
+    records.map(record => `${PLANNER_REPLACEMENT_MARKER}${digest(record)}`).sort()),
+  'Planner replacement complete history binding is inconsistent.');
+}
+
 function validate(state) {
   if (state?.version === 10) { lifecycleProjection(state); return; }
   requireValue([1, 2, 3, 4, 5, 6, 7, 8, 9].includes(state?.version) && typeof state.enabled === 'boolean' &&
@@ -1169,6 +1271,7 @@ function validate(state) {
   requireValue(state.planner && ['active', 'requested', 'notified']
     .every(key => typeof state.planner[key] === 'boolean') &&
     Number.isSafeInteger(state.planner.pass) && state.planner.pass >= 0, 'Malformed planner state.');
+  if (Object.hasOwn(state.planner, 'frontier')) validatePlannerFrontier(state.planner.frontier);
   requireValue(state.seen.every(text) && new Set(state.seen).size === state.seen.length,
     'Malformed event history.');
   const active = [];
@@ -1179,6 +1282,7 @@ function validate(state) {
     requireValue(text(state.planner.owner) && !owners.has(state.planner.owner), 'Invalid planner owner.');
     owners.add(state.planner.owner);
   }
+  validatePlannerReplacements(state, owners);
   requireValue(!state.planner.active || state.planner.owner !== null, 'Active planner has no owner.');
   for (const item of state.items) {
     requireValue(text(item.key) && text(item.outcome) && text(item.evidence) &&
@@ -1274,7 +1378,7 @@ function dispatch(state, actions) {
     if (pool === 'ready') waiting.sort((a, b) =>
       Number(a.kind !== 'feature') - Number(b.kind !== 'feature'));
     for (const item of waiting) {
-      if (item.kind === 'maintenance' && state.planner.active) continue;
+      if (item.kind === 'maintenance' && (state.planner.active || state.planner.replacement)) continue;
       const active = state.items.filter(holdsSlot);
       if (active.filter(other => other.pool === pool).length >= LIMITS[pool]) break;
       if (item.blocker || preparedCandidate(state, item.key) ||
@@ -1284,13 +1388,20 @@ function dispatch(state, actions) {
       actions.push({ type: 'launch', key: item.key, pool });
     }
   }
-  if (!state.planner.owner || !state.planner.requested) return;
+  dispatchPlanner(state, actions);
+}
+
+function dispatchPlanner(state, actions) {
+  if (!state.enabled || state.planner.replacement ||
+    !state.planner.owner || !state.planner.requested) return;
   const capacity = Object.fromEntries(Object.entries(LIMITS).map(([pool, limit]) =>
     [pool, limit - state.items.filter(item => item.pool === pool && holdsSlot(item)).length]));
+  const frontier = Object.hasOwn(state.planner, 'frontier')
+    ? { frontier: structuredClone(state.planner.frontier) } : {};
   if (state.planner.active) {
     if (!state.planner.notified) {
       state.planner.notified = true;
-      actions.push({ type: 'steer-planner', owner: state.planner.owner, capacity });
+      actions.push({ type: 'steer-planner', owner: state.planner.owner, capacity, ...frontier });
     }
   } else {
     state.planner.active = true;
@@ -1298,7 +1409,7 @@ function dispatch(state, actions) {
     state.planner.requested = false;
     state.planner.notified = false;
     actions.push({ type: 'discover', owner: state.planner.owner, capacity,
-      examine: ['ready', 'repair'], head: state.head, pass: state.planner.pass });
+      examine: ['ready', 'repair'], head: state.head, pass: state.planner.pass, ...frontier });
   }
 }
 
@@ -1306,11 +1417,19 @@ function applyEvent(current, event, context = {}) {
   if (current?.version === 10) return applyLifecycleEvent(current, event, context);
   validate(current);
   requireValue(event && text(event.id) && text(event.type), 'Event identity/type missing.');
-  requireValue(![REFINEMENT_MARKER, AMENDMENT_MARKER, READMISSION_MARKER, SUPERSESSION_MARKER, RECOVERY_MARKER, RENEWAL_MARKER]
+  requireValue(![REFINEMENT_MARKER, AMENDMENT_MARKER, READMISSION_MARKER, SUPERSESSION_MARKER,
+    RECOVERY_MARKER, RENEWAL_MARKER, PLANNER_REPLACEMENT_MARKER]
     .some(prefix => event.id.startsWith(prefix)),
     'Reserved scope event identity.');
   const state = structuredClone(current);
   if (state.seen.includes(event.id)) {
+    const plannerRecord = [state.planner.replacement, ...(state.planner.replacements ?? [])
+      .flatMap(record => [record.reservation, record.replacement])]
+      .find(record => record?.event.id === event.id);
+    if (plannerRecord || ['reserve-planner-replacement', 'replace-planner'].includes(event.type)) {
+      requireValue(plannerRecord && equal(plannerRecord.event, event),
+        'Planner replacement replay must match its original complete event.');
+    }
     requireValue(!(event.type === 'extend-scopes' && event.proof?.version === 2) &&
       !state.items.some(item => (item.scopeAmendments ?? []).some(record =>
         record.eventId === event.id && record.proof.version === 2)),
@@ -1340,6 +1459,9 @@ function applyEvent(current, event, context = {}) {
     return { state, actions: [], duplicate: true };
   }
   const actions = [];
+  requireValue(!(state.planner.replacements ?? []).some(record =>
+    record.reservation.event.oldOwner === event.owner),
+  'Retired planner owner cannot report or be reused.');
   if (['refine-scopes', 'extend-scopes', 'revalidate-candidate', 'recover-scope-incident'].includes(event.type)) {
     requireValue(!supersessionParticipant(state, event.key),
       'Supersession participants require fresh authority, not scope/readmission mutation.');
@@ -1354,6 +1476,41 @@ function applyEvent(current, event, context = {}) {
       requireValue(state.planner.owner === null && text(event.owner), 'Planner already reserved or invalid.');
       state.planner.owner = event.owner;
       break;
+    case 'reserve-planner-replacement':
+    case 'replace-planner': {
+      validatePlannerReplacementEvent(event);
+      requireValue(state.enabled && event.oldOwner === state.planner.owner &&
+        event.pass === state.planner.pass && context.revision === event.checkpointRevision,
+      'Planner replacement requires enabled workflow and current owner/pass/revision.');
+      const record = { event: structuredClone(event),
+        hostEvidence: structuredClone(context.plannerReplacementEvidence) };
+      validatePlannerReplacementRecord(record);
+      requireValue(record.hostEvidence.coordinator === state.coordinator,
+        'Planner replacement requires the sole current coordinator.');
+      if (event.type === 'reserve-planner-replacement') {
+        requireValue(!state.planner.replacement, 'Planner replacement already reserved.');
+        state.planner.replacement = record;
+        state.planner.active = false;
+        state.planner.requested = false;
+        state.planner.notified = false;
+        actions.push({ type: 'initialize-planner-replacement', reservationId: event.id,
+          oldOwner: event.oldOwner, pass: event.pass, standby: true });
+      } else {
+        const reservation = state.planner.replacement;
+        requireValue(reservation && reservation.event.id === event.reservationId &&
+          !state.items.some(item => item.owner === event.owner) && event.owner !== state.coordinator &&
+          !(state.planner.replacements ?? []).some(r => r.reservation.event.oldOwner === event.owner),
+        'Exact pending reservation and unused replacement owner required.');
+        (state.planner.replacements ??= []).push({ reservation, replacement: record });
+        delete state.planner.replacement;
+        state.planner.owner = event.owner;
+        state.planner.requested = true;
+        dispatchPlanner(state, actions);
+      }
+      record.commands = structuredClone(actions);
+      state.seen.push(`${PLANNER_REPLACEMENT_MARKER}${digest(record)}`);
+      break;
+    }
     case 'candidate':
       requireValue(state.enabled && state.planner.active && event.owner === state.planner.owner,
         'Candidate must come from the active assigned planner.');
@@ -1673,15 +1830,22 @@ function applyEvent(current, event, context = {}) {
       state.planner.requested = true;
       break;
     }
-    case 'pass-ended':
+    case 'pass-ended': {
       requireValue(state.planner.active && event.owner === state.planner.owner &&
         event.pass === state.planner.pass &&
         event.readyExamined === true && event.repairExamined === true &&
         typeof event.remaining === 'boolean', 'The active assigned pass must examine both pools.');
+      const frontier = { inventoryComplete: event.inventoryComplete,
+        remainingFrontier: event.remainingFrontier };
+      validatePlannerFrontier(frontier);
+      requireValue(event.remaining === (!frontier.inventoryComplete || frontier.remainingFrontier.length > 0),
+        'Remaining must agree with planner inventory and frontier.');
+      state.planner.frontier = structuredClone(frontier);
       state.planner.active = false;
       state.planner.notified = false;
       state.planner.requested ||= event.remaining;
       break;
+    }
     case 'refresh': {
       requireValue(head(event.head), 'Verified source head required.');
       if (event.rescan !== undefined) {
@@ -1701,6 +1865,7 @@ function applyEvent(current, event, context = {}) {
       if (state.planner.owner) actions.push({ type: 'pause', owner: state.planner.owner });
       break;
     case 'handoff': {
+      requireValue(!state.planner.replacement, 'Reconcile pending planner replacement before handoff.');
       requireValue(!state.enabled && event.fromCoordinator === state.coordinator &&
         text(event.toCoordinator) && event.toCoordinator !== state.coordinator,
       'Handoff requires a paused workflow and exact old/new coordinator identities.');
@@ -1743,7 +1908,8 @@ function applyEvent(current, event, context = {}) {
     }
   }
   validate(state);
-  if (!['recover-scope-incident', 'renew-recovery-continuation'].includes(event.type) &&
+  if (!['recover-scope-incident', 'renew-recovery-continuation',
+    'reserve-planner-replacement', 'replace-planner'].includes(event.type) &&
     !(['extend-scopes', 'supersede-write-reservations'].includes(event.type) &&
       event.proof.version === 2)) dispatch(state, actions);
   if (event.type === 'supersede-write-reservations') {

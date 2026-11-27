@@ -16,11 +16,13 @@ internal sealed class SessionRoutingWindow : Window
     internal SessionRoutingWindow(SessionRoutingService routing, SessionRoutingReview review,
         Func<bool> admitted, Action<Exception> reportFailure,
         Func<SessionRoutingReview, IEnumerable<SessionRouteDescriptor>, SessionRoutingSelection?, Func<bool>, SessionRoutingVoiceReply?>? createVoiceReply = null,
-        Action<SessionRoutingVoiceReply>? releaseVoiceReply = null)
+        Action<SessionRoutingVoiceReply>? releaseVoiceReply = null,
+        Func<SessionRoutingReview, SessionRoutingSelection, Func<bool>, SessionRoutingVoiceReply?>? createSpokenSendReply = null)
     {
         Title = "Review request destination";
+        ShowActivated = review.Origin != Kora.Core.Hosting.RequestOrigin.ActivatedVoice;
         Width = 700; Height = 540; MinWidth = 500; MinHeight = 400;
-        View = new(this, routing, review, admitted, reportFailure, createVoiceReply, releaseVoiceReply);
+        View = new(this, routing, review, admitted, reportFailure, createVoiceReply, releaseVoiceReply, createSpokenSendReply);
         Content = View;
         KeyDown += (_, args) => { if (ReferenceEquals(args.Source, this)) { View.ForwardRootKey(args); } };
     }

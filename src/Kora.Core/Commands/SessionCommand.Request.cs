@@ -21,7 +21,7 @@ public sealed partial record SessionCommand
         + "Voice requires the current assistant-name prefix. No implicit selected-session, question or approval routing. "
         + "Model/provider submission is unavailable: original-user authority is required; no model submission capability is registered. "
         + LocalRequestProfileSyntax + " "
-        + ForegroundRequestSyntax + " " + TaskResponseModeSyntax;
+        + ForegroundRequestSyntax + " " + TaskResponseModeSyntax + " " + SpokenNameRouteSyntax;
     public const string TaskResponseModeSyntax =
         "session request output <session-id> <generation> <metadata-revision> <Inherit|VisualOnly|Hybrid|VoiceOnly> -- <original body>. "
         + "Review the unchanged input, exact Active conversation and this one task's configured output, then confirm separately. "
@@ -78,8 +78,9 @@ public sealed partial record SessionCommand
         return null;
     }
 
-    private static SessionCommand? ParseRequest(string text)
+    private static SessionCommand? ParseRequest(string text, bool activationPrefixed = false)
     {
+        if (ParseSpokenNameRoute(text, activationPrefixed) is { } named) { return named; }
         if (ParseForegroundRequest(text) is { } foreground) { return foreground; }
         var words = text.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
         if (words.Length < 2 || !words[0].Equals("session", StringComparison.OrdinalIgnoreCase)

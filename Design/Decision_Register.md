@@ -28,6 +28,52 @@ The product owner directed: "There should be no ordinary submit vs copilot submi
 
 Runtime/account evaluation admission, entitlement, possible charges and production qualification remain separate; this decision enables no unavailable provider.
 
+## Voice-to-action interaction - 2026-11-27
+
+The product owner recorded the following decisions for the approved
+[voice-control outcome](MVP_Scope.md#approved-core-outcomes). Kora owns wake
+admission, microphone lifetime, destination routing and request review; actions
+remain governed tools, MCP and skills.
+
+- **R1 (2026-11-27):** the Kora wake word must work when the chat window is
+  not in the foreground. For example, the user is working in another
+  application and says "Kora, …" without first switching to Kora.
+
+| ID | Decision |
+|---|---|
+| D1a | **Approved (a):** global push-to-talk hotkey, configurable, default unassigned. |
+| D2a | **Approved (a):** when Kora's chat window is foreground, preselect that chat in the destination review; acknowledgment is still required. The 2026-10-25 decision stands. |
+| D3a | **Approved (a):** reopen the microphone once for a spoken "send" / "cancel", as an opt-in device preference, default Off. |
+| D4b | **Approved (b):** in an **Approve all** session, skip the request review and submit after a spoken readback only. |
+| D5b-modified | **Approved (b, modified):** when Kora is not foreground, Kora tries to decide whether the last selected (current) chat is the intended target, given the request content. It may identify a more appropriate Active chat instead. The chosen chat is preselected; "send" is still required unless D4 applies. The spoken name route (D5a) remains as the explicit override. |
+| D6a | **Approved (a):** voice-originated reviews are shown without taking focus; working in another application does not retire them. |
+
+The product owner also answered these questions on 2026-11-27; these answers
+constrain the decisions above:
+
+- **Q1:** replace per-request advice consent with a **standing opt-in
+  preference, default Off**, for voice requests.
+- **Q2:** when inference is unavailable, **preselect the last selected chat
+  alone**.
+- **Q3:** Approve all skips the review **only for foreground or named
+  destinations**; an inferred destination still needs "send".
+- **Q4:** the **destination chat's** Approve all level applies, revalidated at
+  submission.
+
+D2a keeps [Adaptive interaction and routing - 2026-10-25](#adaptive-interaction-and-routing---2026-10-25);
+D5b-modified refines that record for voice-originated destination preselection,
+not unconditional submission to an inferred chat. The explicit spoken name
+override is `Kora, in <chat name>, <body>`.
+The [speech-input focus-retirement text](Speech_Input.md#admitted-wake-utterance-routing-source-only)
+and [session-routing no-guess text](../docs/session-routing.md#choose-acknowledge-correct-submit)
+are to be updated by the later I7 and I8 implementation increments respectively,
+not by this transcription.
+
+These are accepted product decisions, not implementation, enablement or
+qualification evidence. Existing privacy, authentication, ownership and
+protected-call boundaries remain in force. The reviewed spoken-command owner
+retired in #985 stays retired; these decisions do not revive that route.
+
 ## Grant-free Approve all session mode - 2026-11-26
 
 The product owner approved these amendments to [Session Permission Levels](Session_Permission_Levels.md). This extends the existing Approve all level, not a fourth level, global grant or new executor.

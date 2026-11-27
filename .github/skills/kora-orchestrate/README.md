@@ -26,6 +26,117 @@ transaction plus a separate exact coordinator continuation naming the accepted
 checkpoint/scope revision (or version10 grant/revision). Preserve every existing
 proof, acknowledgment, frozen union, fence, cleanup gate and schema name.
 
+## Structured planner inventory
+
+For legacy versions1-9, each new `pass-ended` event requires `inventoryComplete`
+(boolean), `remainingFrontier` (an array of unique nonempty trimmed strings) and
+`remaining === (!inventoryComplete || remainingFrontier.length > 0)`. The
+[registry reducer](./scripts/registry.cjs) rejects inconsistent or malformed
+reports before changing the planner. Both examined-pool flags and the exact
+active owner/pass remain required.
+
+The reducer stores the latest complete report as optional
+`planner.frontier = { inventoryComplete, remainingFrontier }`. Each emitted
+`discover` or `steer-planner` action carries an independent copy as `frontier`
+only when present; coordinators forward both fields unchanged and planners
+continue from that inventory. An incomplete inventory with an empty frontier
+still requires discovery; a complete empty inventory does not itself request
+another pass. Changed source/eligibility can still request one.
+
+Saved states without `planner.frontier` remain valid and their planner actions
+omit it. Absence means unknown legacy inventory, not a claim of exhaustion.
+Already-seen legacy terminal event IDs remain idempotent before new report
+validation. The [checkpoint wrapper](./scripts/checkpoint.cjs) persists the state
+and action metadata through its existing atomic write; reads and duplicate
+replays do not rewrite bytes or revisions. No schema bump, downgrade or migration
+is required, including for the
+[candidate-readmission fixture](./scripts/candidate-readmission-fixture.json).
+Version10 lifecycle remains separate. Legacy planner recovery uses the distinct
+[explicit authorization protocol](./README.md#explicit-user-authorized-planner-recovery).
+
+Example new terminal event (the source/receipt evidence remains caller-owned):
+
+```javascript
+const event = {
+  "id": "planner-pass-ended-1",
+  "type": "pass-ended",
+  "owner": "assigned-planner-chat",
+  "pass": 1,
+  "readyExamined": true,
+  "repairExamined": true,
+  "inventoryComplete": true,
+  "remainingFrontier": ["permissioned session conversation"],
+  "remaining": true
+};
+```
+
+## Explicit user-authorized planner recovery
+
+For actual versions1-9 only, the [reducer](./scripts/registry.cjs) and
+[checkpoint wrapper](./scripts/checkpoint.cjs) implement reserve-before-create
+recovery of an archived, errored or admission-rejected reusable planner.
+Never replace automatically for silence, idle status, queue limitations or a
+missing report. The coordinator remains the sole checkpoint writer; this is
+not coordinator handoff, workflow reinitialization or a worker source grant.
+
+1. Reconcile pending old-planner actions through their exact host identities;
+   acknowledge each `done` or `blocked` with concrete disposition. Reconcile
+   [scope/source authority](./SKILL.md#scopesource-authority-and-quiescence)
+   using coordinator sent-instruction readback and owner consumed/rejected
+   IDs/revisions. No unconsumed authority may remain. Ordinary posts, sender
+   enumeration, user silence and transport acceptance prove none of this.
+2. Obtain a new explicit user authorization record for the exact old owner,
+   current pass and durable checkpoint revision. Independently verify its
+   terminal status, actual stopped writing and authority zero. Apply
+   `reserve-planner-replacement`; persist its sole
+   `initialize-planner-replacement` action before creating a child.
+3. Initialize one fresh distinct chat in standby with the planner contract,
+   exact coordinator return address and reservation ID. It must not scan or
+   write production, and must consume the initialization with no remaining
+   authority. Retain chat/message IDs and reconcile ambiguous sends; do not
+   create a second child. Acknowledge the initialization action `done` only
+   after actual standby proof.
+4. Read the latest revision, freshly reverify the old terminal proof and new
+   standby proof, and apply `replace-planner` for that exact reservation.
+   Persist its sole `discover` action for old pass+1 and queue it to the new
+   owner. Forward optional `frontier` unchanged; absent metadata stays unknown.
+
+Both events contain `id,type,oldOwner,pass,checkpointRevision,oldProof`.
+`oldProof` contains `{owner,pass,status,stoppedWriting:true,pendingInstructions:0,receipt}`;
+`status` is exactly `archived|error|admission-rejected`. Zero is verified
+unconsumed coordinator scope/source authority, not an assumed transport count.
+The reserve event adds
+`authorization:{id,actor,userAuthorized:true,oldOwner,pass,checkpointRevision,receipt}`.
+The attach event adds `reservationId,owner,standbyProof`, where standby is
+`{owner,reservationId,scanning:false,productionWrites:false,pendingInstructions:0,receipt}`.
+The new owner must differ from coordinator, all workers and every retired planner.
+
+Each checkpoint `apply` input additionally carries independent
+`plannerReplacementEvidence:{kind:'host-verified-planner-replacement',eventDigest,coordinator,ledgerAuthorityVerified:true,oldPlannerVerified:true,authorityReconciled:true,receipt}`.
+Reserve requires `userAuthorizationVerified:true`; attach requires
+`standbyVerified:true`. `eventDigest` is `digest(event)` from the reducer.
+The coordinator derives these facts independently from fresh concrete evidence;
+strings, digests, synthetic tests and user answers alone do not authenticate
+host facts or confer source authority.
+
+The checkpoint rejects either transition while old-owner actions are pending,
+and attachment before initialization is acknowledged `done`. A blocked or
+ambiguous initialization retains the reservation; it does not authorize retry
+creation. During reservation no planner discovery/steer or old-pass reports
+are admitted; ordinary worker reservations/history remain intact. Recovery
+requires an enabled workflow; complete interruption/resume separately. A
+pending replacement must be reconciled before coordinator handoff.
+
+Optional `planner.replacement` retains the pending complete event/host evidence
+and exact emitted command.
+Optional `planner.replacements` retains each accepted reservation and attachment,
+with digest-bound seen markers and checkpoint action journals. Retired owners
+cannot report new events or be reused as any owner. Exact seen replacement-event
+replay emits no actions and changes no bytes/revision; changed same-ID recovery
+replay fails. Older saved states without this history remain readable without
+schema adoption. Worker custody, publication, blockers, frontier and source
+freshness are preserved; attachment emits only one discovery, not worker launches.
+
 ## Opt-in version10 lifecycle
 
 The [registry](./scripts/registry.cjs) exports a version10 engineering interface, distinct from legacy versions1-9 below. Loading or merging it performs no migration, adoption, release, host action or source execution. Legacy validation and histories retain their original meanings. All examples in this section are synthetic, not evidence of live consent, quiescence or OS enforcement.

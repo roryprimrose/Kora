@@ -382,6 +382,97 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             ? questions.CancelAsync(target, CancellationToken.None) : new(cancel(target)));
     }
 
+    internal Kora.Application.ViewModels.MainViewModel.SpokenToolApprovalTarget? CaptureSpokenToolApproval(Func<bool> ownsTarget)
+    {
+        var expected = Question;
+        var presentation = presentationRevision;
+        var draft = draftRevision;
+        bool Current(bool duringCommit = false)
+        {
+            if (!canInteract() || !ownsTarget()) { return false; }
+            lock (stateGate)
+            {
+                return !closed && !cleared && (duringCommit || !busy) && ReferenceEquals(question, expected)
+                    && presentation == presentationRevision && draft == draftRevision
+                    && expected.Status == QuestionStatus.Pending && expected.ExpiresAt > time.GetUtcNow();
+            }
+        }
+        if (expected.Proposal is null || !Current()) { return null; }
+        return new(expected, () => Current(), async (channel, admitted) =>
+        {
+            using var activity = HostActivity.BeginRoot(expected.Key.Request, HostActivityLayer.Desktop,
+                HostOperation.Presentation, links);
+            var result = await authorization.ReviewReplyAsync(expected, channel,
+                () => Current() && admitted(), CancellationToken.None);
+            activity.Complete(result.Outcome == HostInteractionOutcome.Presented
+                ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+            return result;
+        }, async (reply, channel, admitted) =>
+        {
+            var operation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!Current() || !admitted() || reply.Decision is null)
+            { return new(HostInteractionOutcome.Denied, "exact-approval-reply-unavailable"); }
+            using var activity = HostActivity.BeginRoot(expected.Key.Request, HostActivityLayer.Desktop,
+                HostOperation.Presentation, links);
+            lock (stateGate)
+            {
+                if (busy || closed || cleared || !ReferenceEquals(question, expected))
+                {
+                    activity.Complete(HostOperationOutcome.Failed);
+                    return new(HostInteractionOutcome.Denied, "exact-approval-reply-unavailable");
+                }
+                busy = true;
+                pendingOperation = operation;
+            }
+            try
+            {
+                Notify();
+                bool Eligible() => Current(duringCommit: true) && admitted();
+                var result = reply.Decision == Kora.Core.Commands.SpokenApprovalReply.Operation.Deny
+                    ? await authorization.CancelReplyAsync(expected, channel, Eligible, CancellationToken.None)
+                    : await authorization.ApproveAsync(expected,
+                        new([reply.Decision == Kora.Core.Commands.SpokenApprovalReply.Operation.Once ? "once" : "session"]),
+                        channel, Eligible, CancellationToken.None);
+                var eligible = Eligible();
+                lock (stateGate)
+                {
+                    if (!eligible)
+                    { CloseState("Approval reply admission withdrawn. No late result is presented or dispatched."); }
+                    else
+                    {
+                        status = result.Reason;
+                        if (result.Outcome is HostInteractionOutcome.Approved or HostInteractionOutcome.Cancelled)
+                        {
+                            var accepted = result.Question;
+                            if (accepted is null || accepted.Key != expected.Key.Next()
+                                || accepted.Proposal != expected.Proposal)
+                            { throw new InvalidDataException("The approval receipt changed the exact target."); }
+                            question = accepted;
+                            closed = true;
+                            ClearAnswer();
+                            completion.TrySetResult(result);
+                        }
+                    }
+                }
+                activity.Complete(result.Outcome is HostInteractionOutcome.Approved or HostInteractionOutcome.Cancelled
+                    ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+                return result;
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+                Fail(exception);
+                throw;
+            }
+            finally
+            {
+                lock (stateGate) { busy = false; }
+                try { Notify(); }
+                finally { operation.TrySetResult(); }
+            }
+        });
+    }
+
     internal void AcceptCommittedCancellation(HostTaskObservation observation)
     {
         if (!canInteract()) { return; }

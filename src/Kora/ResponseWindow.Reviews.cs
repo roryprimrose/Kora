@@ -8,13 +8,14 @@ public sealed partial class ResponseWindow
     private Control[]? conversationColumnControls;
     private bool nativeReviewPaneRequested;
 
-    internal void ShowNativeReview(Control owner, string title, Control body, Func<bool> admitted, Action<bool> presented)
+    internal void ShowNativeReview(Control owner, string title, Control body, Func<bool> admitted, Action<bool> presented,
+        bool activate = true)
     {
         if (sessionWindowClosed || !IsVisible || !viewModel.CanRevealPrivatePresentation || !admitted())
         { throw new InvalidOperationException("The original native review workbench is unavailable."); }
         if (!IsExpanded) { SetExpanded(true, preservePresentation: true); }
         nativeReviewPaneRequested = true;
-        Activate();
+        if (activate) { Activate(); }
         if (nativeReviews is null)
         {
             nativeReviews = new(this);
@@ -29,10 +30,10 @@ public sealed partial class ResponseWindow
             SizeChanged += (_, _) => UpdateNativeReviewLayout();
             Closed += (_, _) => nativeReviews.Dispose();
         }
-        nativeReviews.ShowReview(owner, title, body, admitted, presented);
+        nativeReviews.ShowReview(owner, title, body, admitted, presented, requireActivation: activate);
         UpdateNativeReviewLayout();
         UpdateLayout();
-        if (body.IsEffectivelyVisible && admitted()) { body.Focus(); }
+        if (activate && body.IsEffectivelyVisible && admitted()) { body.Focus(); }
     }
 
     internal void RemoveNativeReview(Control owner) => nativeReviews?.RemoveReview(owner);

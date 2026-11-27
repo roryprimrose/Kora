@@ -28,7 +28,7 @@ public sealed partial class SessionRoutingTests
     [Theory]
     [InlineData("capture")]
     [InlineData("join")]
-    [InlineData("advice")]
+    [InlineData("destination")]
     public async Task NativeWakeCannotRouteAfterEligibleCallOwnerReplacement(string phase)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -52,11 +52,11 @@ public sealed partial class SessionRoutingTests
                     session.Capture.Done.SetResult();
                     await session.Closing.Task.WaitAsync(TestContext.Current.CancellationToken);
                     f.Voice.IsCaptureQuiescent.Should().BeFalse();
-                    if (phase is "advice")
+                    if (phase is "destination")
                     {
                         session.ReleaseClose.SetResult();
-                        var advice = await AwaitWakeOpening(f.Voice, adviceOpening.Task);
-                        await ActivateRoutingWindow(advice, f.Composition.Ui.Window);
+                        var route = await AwaitWakeOpening(f.Voice, routeOpening.Task);
+                        await ActivateRoutingWindow(route, f.Composition.Ui.Window);
                         Dispatcher.UIThread.RunJobs();
                     }
                 }
@@ -69,11 +69,10 @@ public sealed partial class SessionRoutingTests
                     session.Capture.Done.TrySetResult();
                 }
                 session.ReleaseClose.TrySetResult();
-                if (phase is "advice")
+                if (phase is "destination")
                 {
-                    ClickAdvice(await adviceOpening.Task, "RoutingAdviceAllow");
-                    await Task.WhenAny(f.Voice.Completion, routeOpening.Task);
-                    routeOpening.Task.IsCompleted.Should().BeFalse();
+                    Click(await routeOpening.Task, "RoutingSubmit");
+                    adviceOpening.Task.IsCompleted.Should().BeFalse();
                 }
                 else
                 {
@@ -218,7 +217,7 @@ public sealed partial class SessionRoutingTests
     [InlineData(true, "compare these plans")]
     [InlineData(false, "Nova explains these plans")]
     [InlineData(true, "Nova explains these plans")]
-    public async Task IdleTypingThenNativeWakeSurvivesOwnedAdviceAndDestinationFocusTransfers(bool expanded, string body)
+    public async Task IdleTypingThenNativeWakeShowsDestinationWithoutTakingFocus(bool expanded, string body)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -251,29 +250,24 @@ public sealed partial class SessionRoutingTests
             adviceOpening.Task.IsCompleted.Should().BeFalse();
             f.Voice.IsCaptureQuiescent.Should().BeFalse();
             session.ReleaseClose.SetResult();
-            var advice = await AwaitWakeOpening(f.Voice, adviceOpening.Task);
-            await ActivateRoutingWindow(advice, original);
+            var route = await AwaitWakeOpening(f.Voice, routeOpening.Task,
+                () => native.Main.ResponseTitle + " | " + native.Main.ResponseBody + " | " + f.Diagnostics.Failure);
             Dispatcher.UIThread.RunJobs();
-            original.IsActive.Should().BeFalse("the native advice window actually takes foreground focus");
-            advice.IsActive.Should().BeTrue();
-            advice.IsVisible.Should().BeTrue();
-            advice.GetVisualDescendants().OfType<TextBlock>().Single(item => item.Name is "RoutingAdviceBody")
-                .Text.Should().Be(body);
+            original.IsActive.Should().BeTrue("showing a voice review must not take foreground focus");
+            route.ShowActivated.Should().BeFalse();
+            route.IsActive.Should().BeFalse();
+            route.IsVisible.Should().BeTrue();
+            adviceOpening.Task.IsCompleted.Should().BeFalse("foreground preselection never requests advice consent");
+            Find<ComboBox>(route, "RoutingDestinations").SelectedItem!.ToString().Should().EndWith(": Alpha");
+            route.GetVisualDescendants().OfType<TextBlock>().Should().Contain(item => string.Equals(item.Text, body, StringComparison.Ordinal));
+            Find<Button>(route, "RoutingSubmit").IsEnabled.Should().BeFalse();
             session.Session.IsQuiescent.Should().BeTrue();
             session.Assets.Disposed.Should().BeTrue();
             f.Voice.IsCaptureQuiescent.Should().BeTrue();
             f.Stage.Opens.Should().Be(1);
             f.Composition.Adapter.Calls.Should().Be(0);
 
-            ClickAdvice(advice, "RoutingAdviceAllow");
-            var route = await AwaitWakeOpening(f.Voice, routeOpening.Task,
-                () => native.Main.ResponseTitle + " | " + native.Main.ResponseBody + " | " + f.Diagnostics.Failure);
-            await ActivateRoutingWindow(route, original);
-            Dispatcher.UIThread.RunJobs();
-            route.IsActive.Should().BeTrue();
-            original.IsActive.Should().BeFalse();
-            advice.View.Content.Should().BeNull();
-            f.Composition.Adapter.Calls.Should().Be(1);
+            f.Composition.Adapter.Calls.Should().Be(0, "no relatedness inference runs for the foreground proposal");
             await Choose(route);
             var answering = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseAnswer = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -288,7 +282,7 @@ public sealed partial class SessionRoutingTests
                 await answering.Task.WaitAsync(TestContext.Current.CancellationToken);
                 f.Stage.Opens.Should().Be(1, "no ambient capture may rearm during an admitted model operation");
                 f.Composition.Adapter.Requests.Should().OnlyContain(request => request.Origin == RequestOrigin.ActivatedVoice);
-                f.Composition.Adapter.Requests[1].SessionId.Should().Be(f.Composition.Ui.First.Authority.SessionId);
+                f.Composition.Adapter.Requests.Should().ContainSingle().Which.SessionId.Should().Be(f.Composition.Ui.First.Authority.SessionId);
             }
             finally { releaseAnswer.TrySetResult(); }
             // Stop an optional fresh wake generation without revoking the request while it is still running.
@@ -310,12 +304,12 @@ public sealed partial class SessionRoutingTests
                 null, 50, native.Token);
             page.Messages.Should().ContainSingle().Which.Body.Should().Be(body);
             page.Messages[0].AssistantResponse!.Body.Should().Be("Genuine second-turn answer");
-            f.Composition.Adapter.Originals.Should().Equal(body, body);
+            f.Composition.Adapter.Originals.Should().Equal(body);
             native.Voice.StartCalls.Should().Be(0);
             native.Main.CommandText.Should().Be("independent main input");
             f.Composition.Ui.Model.ComposerBody.Should().Be("independent session input");
             f.Composition.Audit.Events.Where(item => string.Equals(item.ActionId, "model.turn", StringComparison.Ordinal))
-                .Count(item => item.Outcome == SecurityAuditOutcome.Succeeded).Should().Be(4);
+                .Count(item => item.Outcome == SecurityAuditOutcome.Succeeded).Should().Be(2);
             f.Composition.Turns.IsQuiescent.Should().BeTrue();
             f.Voice.State.Should().NotBe(HandsFreeVoiceState.RecoveryRequired);
         });
@@ -362,9 +356,7 @@ public sealed partial class SessionRoutingTests
     [InlineData("session")]
     [InlineData("replacement")]
     [InlineData("hide")]
-    [InlineData("unrelated-focus")]
-    [InlineData("response-window-focus")]
-    public async Task NativeAdviceFocusLeaseDoesNotRenewChangedSourceOrAcceptLateConsent(string change)
+    public async Task NativeForegroundDestinationFocusLeaseDoesNotRenewChangedSourceOrAcceptLateSubmission(string change)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -372,18 +364,19 @@ public sealed partial class SessionRoutingTests
             await f.Initialize(expanded: true);
             var native = f.Composition.Ui.Native;
             var session = await f.Stage.NextAsync();
-            var opening = new TaskCompletionSource<SessionRoutingAdviceWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
-            using var opened = Window.WindowOpenedEvent.AddClassHandler<SessionRoutingAdviceWindow>((window, _) => opening.TrySetResult(window));
+            var opening = new TaskCompletionSource<SessionRoutingWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<SessionRoutingWindow>((window, _) => opening.TrySetResult(window));
             session.Wake();
             await session.Capture.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
             session.Capture.Transcript("compare these plans");
             session.Capture.Done.SetResult();
-            var advice = await AwaitWakeOpening(f.Voice, opening.Task);
-            await ActivateRoutingWindow(advice, f.Composition.Ui.Window);
+            var route = await AwaitWakeOpening(f.Voice, opening.Task);
+            await ActivateRoutingWindow(route, f.Composition.Ui.Window);
             Dispatcher.UIThread.RunJobs();
-            advice.IsVisible.Should().BeTrue();
+            route.IsVisible.Should().BeTrue();
             f.Composition.Ui.Window!.IsActive.Should().BeFalse();
-            var late = advice.GetVisualDescendants().OfType<Button>().Single(item => item.Name is "RoutingAdviceAllow");
+            await Choose(route);
+            var late = Find<Button>(route, "RoutingSubmit");
             var other = change is "response-window-focus" ? new ResponseWindow(native.Main) : new Window();
             try
             {
@@ -393,13 +386,13 @@ public sealed partial class SessionRoutingTests
                 { native.Main.PublishForegroundConversationTarget(new(f.Composition.Ui.Second, static () => true)); }
                 if (change is "hide") { f.Composition.Ui.Window.Hide(); }
                 if (change is "unrelated-focus" or "response-window-focus")
-                { other.Show(); await ActivateRoutingWindow(other, advice); }
+                { other.Show(); await ActivateRoutingWindow(other, route); }
                 Dispatcher.UIThread.RunJobs();
                 late.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await f.Voice.Completion;
                 f.Composition.Adapter.Calls.Should().Be(0);
                 f.Stage.Opens.Should().Be(1);
-                advice.View.Content.Should().BeNull();
+                route.View.Content.Should().BeNull();
                 f.Voice.IsCaptureQuiescent.Should().BeTrue();
                 native.Voice.StartCalls.Should().Be(0);
                 f.Composition.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
@@ -503,6 +496,7 @@ public sealed partial class SessionRoutingTests
         {
             Composition.Ui.AutoAllowAdvice = false;
             await Composition.Initialize(expanded, voiceRecognition: Voice, speechInputConfiguration: configuration);
+            Composition.Adapter.AdviceExpected = false;
             var main = Composition.Ui.Native.Main;
             main.BindSessionRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease.Preserved);
             await main.SetAssistantNameAsync("Nova");

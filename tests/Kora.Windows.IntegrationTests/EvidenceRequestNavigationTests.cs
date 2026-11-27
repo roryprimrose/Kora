@@ -209,8 +209,18 @@ public sealed class EvidenceRequestNavigationTests
         await viewer.SearchAsync();
         viewer.Select(viewer.Records.Single());
         await viewer.ReadRequestAsync();
-        viewer.Records.Should().HaveCount(EvidencePage.MaximumRecords);
-        System.Text.Encoding.UTF8.GetByteCount(viewer.ResultText).Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
+        var pageBytes = System.Text.Encoding.UTF8.GetByteCount(viewer.ResultText);
+        pageBytes.Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
+        viewer.Records.Should().NotBeEmpty().And.HaveCountLessThanOrEqualTo(EvidencePage.MaximumRecords);
+        using (var page = System.Text.Json.JsonDocument.Parse(viewer.ResultText))
+        {
+            // Candidates share one serialized shape, so a short page must be exactly the byte-bounded maximum.
+            var recordBytes = System.Text.Encoding.UTF8.GetByteCount(page.RootElement.GetProperty("Records")[0].GetRawText());
+            if (viewer.Records.Count < EvidencePage.MaximumRecords)
+            {
+                (pageBytes + 1 + recordBytes).Should().BeGreaterThan(EvidencePage.MaximumBytes);
+            }
+        }
         viewer.RequestSummary.Should().Contain("Incomplete bounded snapshot").And.Contain("pending or missing");
         viewer.CanNext.Should().BeTrue();
         await viewer.NextAsync();

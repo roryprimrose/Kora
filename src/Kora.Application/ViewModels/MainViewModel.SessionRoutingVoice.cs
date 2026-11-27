@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 
 using Kora.Application.Hosting.SessionRouting;
+using Kora.Application.Hosting;
 using Kora.Application.Voice;
 using Kora.Core.Conversation.SessionRouting;
 using Kora.Core.Voice;
@@ -45,6 +46,22 @@ public sealed partial class MainViewModel
         return reply;
     }
 
+    public SessionRoutingVoiceReply? CreateSessionRoutingSpokenSendReply(SessionRoutingReview review,
+        SessionRoutingSelection selection, Func<bool> exact)
+    {
+        if (!AreSpokenSendRepliesEnabled || review.Origin != Kora.Core.Hosting.RequestOrigin.ActivatedVoice
+            || sessionRoutingVoiceRequest is not { } request) { return null; }
+        if (!ReferenceEquals(selection.Review, review) || !string.Equals(request.Body, review.Body, StringComparison.Ordinal)
+            || sessionRoutingVoiceReply is not null)
+        { throw new InvalidOperationException("Spoken send requires the exact unowned original routing selection."); }
+        var preference = spokenSendReplies!.Get();
+        var reply = SessionRequestVoiceReply.Create(request, selection.Target?.Metadata?.Name.Value ?? "New conversation",
+            () => exact() && spokenSendReplies.Get() == preference,
+            () => ObserveSessionRoutingVoiceAdmission(request), SpeakSendReviewAsync, logger);
+        sessionRoutingVoiceReply = reply;
+        return reply;
+    }
+
     public void ReleaseSessionRoutingVoiceReply(SessionRoutingVoiceReply reply)
     {
         if (!ReferenceEquals(sessionRoutingVoiceReply, reply)) { return; }
@@ -56,7 +73,7 @@ public sealed partial class MainViewModel
 
     private QuestionVoiceAdmission? ObserveSessionRoutingVoiceAdmission(SessionRoutingVoiceRequest request) =>
         request.IsLive && customizationClarification is null
-        && activeCustomizationVoice is null && !questionSpeech && questionVoiceReplies?.IsActive != true
+        && activeCustomizationVoice is null && (!questionSpeech || spokenSendReadback) && questionVoiceReplies?.IsActive != true
         && promptInputVoice?.IsActive != true && Volatile.Read(ref pushToTalkHeld) == 0
         && Volatile.Read(ref listeningStopRequests) == 0 && !listeningStop.IsStopping
             ? ObserveAdmittedVoiceCaptureReadiness() : null;

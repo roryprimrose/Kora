@@ -493,6 +493,9 @@ internal static class Program
         services.AddSingleton<IConversationalReplyPreferences>(provider =>
             new LocalConversationalReplyPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<ConversationalReplyConfigurationService>();
+        services.AddSingleton<LocalSpokenSendReplyPreferences>(provider =>
+            new LocalSpokenSendReplyPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<SpokenSendReplyConfigurationService>();
         services.AddSingleton<IConversationExecutionPreferences>(provider =>
             new LocalConversationExecutionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton(provider =>

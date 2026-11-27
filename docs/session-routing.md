@@ -22,6 +22,31 @@ Auxiliary session views without an original-request review panel retain their ex
 
 Sessions and compact presenters also retain the separate [exact-answer reply review](reviewed-context.md). Choosing Reply on the retained answer does not submit the foreground request again or consume unsent input. Hiding and reopening that reply presenter invalidates its review rather than sending the follow-up as plain input.
 
+## Optional spoken send or cancel
+
+In **Settings > Speech and audio**, **Spoken send or cancel** is **Off** by
+default. Enabling this device-local preference does not grant microphone
+consent, enable listening or authorize a hosted transfer
+([preference owner](../src/Kora.Application/Configuration/SpokenSendReplyConfigurationService.cs)).
+
+When enabled, a voice-originated foreground or named-conversation request
+review, or an acknowledged routing destination, reads back
+**Send to &lt;chat&gt;: &lt;exact text&gt;?**. Only after playback finishes does
+one bounded reply open. Say exactly **send** or **cancel**, without an activation
+name. **send** uses the existing confirmation path and preserves the original
+voice channel. **cancel**, a mismatch, no-speech timeout, changed target or lost
+privacy/call/ownership admission submits nothing. Capture release is joined
+before confirmation. The existing 60-second review expiry is not renewed
+([exact reply](../src/Kora.Application/Hosting/SessionRequestVoiceReply.cs),
+[capture owner](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingVoiceReply.cs)).
+
+Native confirmation/cancellation and destination correction remain available.
+Typed/native-originated reviews never open this automatic reply. Authentication,
+provider readiness and separate native approval of each hosted physical send
+remain independent. Task-output and Details-offer questions are unchanged
+([host admission](../src/Kora.Application/ViewModels/MainViewModel.Sessions.cs),
+[native regressions](../tests/Kora.Windows.IntegrationTests/SessionRoutingTests.SpokenSend.cs)).
+
 ## Choose a profile for this request only
 
 In **Sessions**, select an existing Active conversation and enter the original

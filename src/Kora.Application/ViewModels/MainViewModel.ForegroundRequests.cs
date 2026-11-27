@@ -49,6 +49,7 @@ public sealed partial class MainViewModel
         {
             RetireSessionCommandReviews();
         }
+        sessionRoutingVoiceReply?.Revalidate();
     }
 
     public Task ConfirmForegroundRequestAsync() => CaptureForegroundRequestDecision(confirm: true)();
@@ -61,11 +62,22 @@ public sealed partial class MainViewModel
         var command = new SessionCommand(confirm ? SessionCommandOperation.RequestConfirm : SessionCommandOperation.RequestCancel,
             review?.Target.Authority.SessionId.Value)
         { RequestReviewId = review?.Id };
-        return () => ExecuteSessionCommandAsync(command, SecurityAuditInitiator.LocalUser);
+        return () => sessionRequestNativeDecision = DecideAsync();
+
+        async Task DecideAsync()
+        {
+            if (sessionRoutingVoiceReply is { } reply)
+            {
+                await reply.DisposeAsync();
+                ReleaseSessionRoutingVoiceReply(reply);
+            }
+            await ExecuteSessionCommandAsync(command, SecurityAuditInitiator.LocalUser);
+        }
     }
 
     private void SetForegroundRequestReview(SessionRequestReview? review)
     {
+        if (!ReferenceEquals(foregroundRequestReview, review)) { sessionRoutingVoiceReply?.Cancel(); }
         foregroundRequestReview = review;
         uiDispatcher.Post(() =>
         {

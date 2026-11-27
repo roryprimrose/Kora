@@ -1,4 +1,5 @@
 using Kora.Application.Hosting;
+using Kora.Application.Configuration;
 using Kora.Application.Hosting.SessionRouting;
 using Kora.Core.Conversation.SessionRouting;
 using Kora.Core.Storage;
@@ -13,6 +14,22 @@ public partial class App
 
     private void BindSessionRouting(Kora.Application.ViewModels.MainViewModel main)
     {
+        main.BindSpokenSendReplyConfiguration(Services.GetRequiredService<SpokenSendReplyConfigurationService>());
+        main.BindSpokenSendReview(admitted =>
+        {
+            var workbench = (responseWindow
+                ?? throw new InvalidOperationException("Spoken request review requires the owning response workbench.")).PrepareWorkbenchOwner();
+            var panel = new SessionRequestReviewPanel();
+            panel.Bind(main);
+            var shown = false;
+            workbench.ShowSessions(expanded: true, activate: false, preservePresentation: true);
+            workbench.ShowNativeReview(panel, "Review original request", panel, admitted, value => shown = value, activate: false);
+            return (() => shown && admitted(), () =>
+            {
+                workbench.RemoveNativeReview(panel);
+                panel.Bind(null);
+            });
+        });
         main.BindSessionRoutingCaptureRelease(Kora.Application.Voice.HandsFreeVoiceContinuation.CaptureRelease.InvalidatedOnce);
         sessionRouting = new(main, Services.GetRequiredService<SessionWorkspaceService>(),
             Services.GetRequiredService<SessionConversationService>(), Services.GetRequiredService<ISessionWorkspaceAccess>(),

@@ -4211,7 +4211,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 sessionCommand.IsPermissionCommand
                     ? CapturePermissionReviewSource(manualInput
                         ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision))
-                    : null);
+                    : null,
+                CaptureSessionRequestVoiceInput(manualInput));
             return;
         }
         if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)

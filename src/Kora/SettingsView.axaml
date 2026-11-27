@@ -648,6 +648,19 @@
               </StackPanel>
             </Border>
 
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Spoken send or cancel (off by default)" Classes="settings-title" />
+                <TextBlock Text="{Binding SpokenSendReplyStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="For voice-originated request reviews only: hear the exact destination and message, then say exactly send or cancel once. No listening during playback. Native buttons remain available. This does not grant microphone consent or authorize hosted disclosure."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Enable spoken send replies" Command="{Binding EnableSpokenSendRepliesCommand}" IsEnabled="{Binding CanChangeSpokenSendReplies}" />
+                  <Button Content="Turn off" Command="{Binding DisableSpokenSendRepliesCommand}" IsEnabled="{Binding CanChangeSpokenSendReplies}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
             <Border Classes="settings-card" controls:SettingsSearch.Id="voice.command-start-wait voice.reply-start-wait voice.trailing-silence voice.maximum-capture" controls:SettingsSearch.Group="Input">
               <controls:SettingsSearch.Value>
                 <MultiBinding StringFormat="{}{0} {1} {2}">

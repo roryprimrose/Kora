@@ -96,7 +96,11 @@ internal sealed partial class OwnedSkillPackagePublication : IDisposable
         var status = NtSetInformationFile(staging, out _, buffer, (uint)buffer.Length, 65);
         if (status == 0xc0000035)
         { throw new InvalidOperationException("That exact skill version already exists. Choose a new ID/version or cancel; nothing was replaced."); }
-        if (status != 0) { throw new IOException("Atomic no-replace skill directory publication failed.", new Win32Exception(unchecked((int)status))); }
+        if (status != 0)
+        {
+            throw new IOException("Atomic no-replace skill directory publication failed.",
+                new Win32Exception(unchecked((int)RtlNtStatusToDosError(status))));
+        }
     }
 
     private static IOException Failure(string message) => new(message, new Win32Exception(Marshal.GetLastWin32Error()));
@@ -124,4 +128,6 @@ internal sealed partial class OwnedSkillPackagePublication : IDisposable
     private static partial bool SetFileInformationByHandle(SafeFileHandle handle, int kind, byte[] data, uint size);
     [LibraryImport("ntdll.dll")]
     private static partial uint NtSetInformationFile(SafeFileHandle handle, out IoStatus status, byte[] data, uint size, int kind);
+    [LibraryImport("ntdll.dll")]
+    private static partial uint RtlNtStatusToDosError(uint status);
 }

@@ -94,6 +94,17 @@ Call evidence is rechecked inside the exact authorization commit.
 
 Approve all never bypasses microphone consent, memory admission, credential entry, OS/UAC/provider authentication, privileged lifecycle confirmations, hard denials, exact capture/egress enforcement or physical resource joins. Audit failure blocks automatic admission; no raw content is written into automatic approval records ([audit contract](../src/Kora.Core/Auditing/AutomaticApprovalAudit.cs)).
 
+For exactly one live eligible tool-approval card, say **Kora, approve once**,
+**Kora, approve for session**, or **Kora, deny**. Kora reads back the host-owned
+operation before answering that same card. The actual answer channel is recorded
+in the approval audit; the original request origin is unchanged. Typed equivalents
+use the same exact-card checks and display the operation review.
+
+No card, multiple eligible cards, expiry, changed authority or failed readback
+refuses the reply without selecting another card or sending it to a model.
+**Always** is not available by voice. Native-only confirmations, including
+web/MCP disclosure, MCP process and bundled-script package reviews, stay native-only.
+
 Enabling this setting does not enable listening, new speech-capture surfaces,
 authentication, model execution or consent. The existing exact web/MCP cards
 remain native-only in Review all/Model review; Approve all skips their Kora-owned prompts, but this setting does not create a spoken-answer route for

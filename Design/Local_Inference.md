@@ -317,9 +317,10 @@ conversation body or create source/session/task admission.
 The existing [clipboard context factory](../src/Kora.Core/Context/ClipboardExplanationContext.cs)
 selects `ModelToolMode.None`; its [workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)
 supplies the current immutable source fence through the same execution port.
-This wiring does not replace source-use policy or enable clipboard explanation:
-the production [source-use policy](../src/Kora.Tools/Clipboard/UnavailableClipboardSourceUsePolicy.cs)
-remains explicitly unavailable.
+This wiring does not replace source-use policy or independently enable clipboard explanation:
+the production [source-use policy](../src/Kora.Application/Context/ClipboardPermissionSourceUsePolicy.cs)
+consumes real session permission admission and revalidates the exact source permission.
+It does not classify clipboard content; source consent and model qualification remain independent gates.
 
 The execution port attaches the consumer's supplemental source-current/revocation
 predicate and optional asynchronous exact-source validator to the single-use
@@ -484,7 +485,8 @@ The file consumer's required pre-context secret/sensitive-content detection prod
 Its file-owned policy seam therefore remains unavailable in production; deterministic allow/deny fakes demonstrate behavior only and do not qualify real source use.
 That is a concrete file-feature readiness boundary, separate from successful shared lifecycle tests and from model runtime qualification. No generic detector is implemented or claimed here.
 
-Web has no delivered source-specific sensitivity/use service. Its [policy contract](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) has an [unavailable implementation](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs), blocking before durable admission or context construction. Credential heuristics and retrieval consent do not satisfy it.
+Web's [policy contract](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) is implemented by [LocalSourceUsePolicy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs), which evaluates source content and provenance through the [shared risk policy](../src/Kora.Core/Context/LocalSourceRiskPolicy.cs) before durable admission or context construction.
+Detected risk is denied; incomplete or unsupported classification remains unavailable. Retrieval consent does not replace this decision.
 
 Tools and other Core-only consumers use a two-phase host contract, without referencing Application:
 

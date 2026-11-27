@@ -16,6 +16,10 @@ param(
     [Parameter()]
     [string] $ExpectedSourceRevision,
 
+    # Lists partitions for an existing discovery catalog without building or running tests.
+    [Parameter()]
+    [string] $CatalogPath,
+
     [Parameter()]
     [switch] $ListShards,
 
@@ -51,6 +55,9 @@ if ($Partition -and ($Shard -cne 'All' -or $ListShards)) {
 }
 if ([bool] $TestModuleDirectory -ne [bool] $ExpectedSourceRevision) {
     throw 'Artifact execution requires both a test-module directory and its expected source revision.'
+}
+if ($CatalogPath -and ($TestModuleDirectory -or -not $ListPartitions)) {
+    throw 'A supplied catalog is only valid for partition listing without an artifact.'
 }
 
 $platformEditorPrefix = 'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests.'
@@ -101,125 +108,7 @@ if ($ListShards) {
     return @($shards | Where-Object { $Shard -ceq 'All' -or $_.Name -ceq $Shard })
 }
 
-function Add-FilterExclusions {
-    param([string] $Filter, [string[]] $Prefixes)
-
-    ($Filter -split '\|' | ForEach-Object {
-        $alternative = $_
-        foreach ($prefix in $Prefixes) {
-            $alternative += "&FullyQualifiedName!~$prefix"
-        }
-        $alternative
-    }) -join '|'
-}
-
-# Method-family filters keep every theory row together without changing hosted job identities.
-$conversationActions = @(
-    "${conversationPrefix}Native"
-)
-$conversationCore = @('B', 'E', 'M') | ForEach-Object { "$conversationPrefix$_" }
-$executionSplits = @{
-    'ui-definitions' = @(
-        @{ Name = 'ui-definition-dialogs'; Prefixes = @(
-            'Kora.Windows.IntegrationTests.ArtifactDiscovery.CustomizationWindowTests.'
-            'Kora.Windows.IntegrationTests.ArtifactDiscovery.PromptParameterWindowTests.'
-        ); Exclusions = @() }
-        @{ Name = 'ui-conversations'; Prefixes = @($conversationPrefix); Exclusions = ($conversationActions + $conversationCore) }
-        @{ Name = 'ui-conversation-core'; Prefixes = $conversationCore; Exclusions = @() }
-        @{ Name = 'ui-conversation-actions'; Prefixes = $conversationActions; Exclusions = @() }
-    )
-    'ui-platform' = @(
-        @{ Name = 'ui-editors'; Prefixes = @($platformEditorPrefix); Exclusions = @() }
-        @{ Name = 'ui-workflows'; Prefixes = @(
-            'Kora.Windows.IntegrationTests.OwnedSkillAuthoringNativeTests.'
-            'Kora.Windows.IntegrationTests.HostedClaudeSessionRequestTests.'
-            'Kora.Windows.IntegrationTests.ClaudeUiContractTests.'
-            'Kora.Windows.IntegrationTests.NewRequestControllerTests.'
-            'Kora.Windows.IntegrationTests.ForegroundPttUiContractTests.'
-        ); Exclusions = @() }
-        @{ Name = 'ui-presentation'; Prefixes = @(
-            'Kora.Windows.IntegrationTests.LocalFileWrappingWindowTests.'
-            'Kora.Windows.IntegrationTests.AgentProfileConversationalAuthoringTests.'
-            'Kora.Windows.IntegrationTests.SessionsMemoryFilterTests.'
-            'Kora.Windows.IntegrationTests.AdaptiveInteractionTests.'
-            'Kora.Windows.IntegrationTests.EvidenceLiteralFindTests.'
-            'Kora.Windows.IntegrationTests.PreparedLocalSearchWindowTests.'
-            'Kora.Windows.IntegrationTests.LocalFileTextMeasurementWindowTests.'
-            'Kora.Windows.IntegrationTests.AdaptiveSessionNameSearchTests.'
-        ); Exclusions = @() }
-    )
-}
-$partitions = @(
-    foreach ($definition in $shards) {
-        if ($executionSplits.ContainsKey($definition.Name)) {
-            $splits = $executionSplits[$definition.Name]
-            $excluded = @($splits.Prefixes | Sort-Object -Unique)
-            [pscustomobject]@{
-                Name = $definition.Name
-                Shard = $definition.Name
-                Filter = Add-FilterExclusions $definition.Filter $excluded
-            }
-            foreach ($split in $splits) {
-                $filter = ($split.Prefixes | ForEach-Object { "FullyQualifiedName~$_" }) -join '|'
-                [pscustomobject]@{
-                    Name = $split.Name
-                    Shard = $definition.Name
-                    Filter = Add-FilterExclusions $filter $split.Exclusions
-                }
-            }
-        }
-        else {
-            [pscustomobject]@{
-                Name = $definition.Name
-                Shard = $definition.Name
-                Filter = $definition.Filter
-            }
-        }
-    }
-)
-$hostedAssignments = @{
-    'storage-heavy' = 'storage-heavy'
-    'ui-conversations' = 'storage-heavy'
-    'ui-conversation-core' = 'storage-heavy'
-    'storage-other' = 'storage-other'
-    'ui-conversation-actions' = 'storage-other'
-    'ui-definition-dialogs' = 'storage-other'
-    'ui-definitions' = 'ui-definitions'
-    'ui-editors' = 'ui-definitions'
-    'native-ux' = 'native-ux'
-    'ui-platform' = 'ui-platform'
-    'ui-workflows' = 'ui-platform'
-    'ui-presentation' = 'ui-platform'
-}
-# Summed passing test durations in minutes from complete CI run 45801316727; they order local execution.
-$measuredMinutes = @{
-    'ui-platform' = 20.8; 'ui-conversations' = 14.7; 'ui-conversation-actions' = 14.3; 'ui-editors' = 12.2
-    'ui-presentation' = 10.7; 'ui-workflows' = 10.6; 'ui-definitions' = 9.7; 'ui-definition-dialogs' = 9.5
-    'ui-conversation-core' = 6.8; 'storage-other' = 6.5; 'native-ux' = 6.3; 'storage-heavy' = 4.9
-}
-foreach ($executionPartition in $partitions) {
-    if (-not $hostedAssignments.ContainsKey($executionPartition.Name) -or
-        $hostedAssignments[$executionPartition.Name] -cnotin $shards.Name) {
-        throw "Windows partition $($executionPartition.Name) has no valid hosted assignment."
-    }
-    $executionPartition | Add-Member -NotePropertyName HostedShard -NotePropertyValue $hostedAssignments[$executionPartition.Name]
-    if (-not $measuredMinutes.ContainsKey($executionPartition.Name)) {
-        throw "Windows partition $($executionPartition.Name) has no measured duration."
-    }
-    $executionPartition | Add-Member -NotePropertyName MeasuredMinutes -NotePropertyValue $measuredMinutes[$executionPartition.Name]
-}
-if ($Shard -cne 'All') {
-    $partitions = @($partitions | Where-Object HostedShard -CEQ $Shard)
-}
-if ($Partition) {
-    $partitions = @($partitions | Where-Object Name -CEQ $Partition)
-}
-if ($ListPartitions) {
-    return $partitions
-}
-
-$dotnetPath = (Get-Command dotnet -CommandType Application, ExternalScript -ErrorAction Stop |
-    Select-Object -First 1).Source
+$dotnetPath = $null
 $moduleRoot = $null
 if ($TestModuleDirectory) {
     $moduleRoot = [IO.Path]::GetFullPath($TestModuleDirectory, $repositoryRoot)
@@ -249,7 +138,13 @@ if ($TestModuleDirectory) {
         throw 'The Windows test catalog does not match the admitted source revision.'
     }
 }
+elseif ($CatalogPath) {
+    $catalog = Get-Content -Raw -LiteralPath ([IO.Path]::GetFullPath($CatalogPath, $repositoryRoot)) | ConvertFrom-Json
+    if ($catalog.Version -ne 2) { throw 'Partition listing requires a version 2 Windows test catalog.' }
+}
 else {
+    $dotnetPath = (Get-Command dotnet -CommandType Application, ExternalScript -ErrorAction Stop |
+        Select-Object -First 1).Source
     $localModules = Join-Path $repositoryRoot 'tests\Kora.Windows.IntegrationTests\bin\Release\net11.0-windows10.0.19041.0\win-x64'
     try { $catalog = Get-WindowsTestCatalog $dotnetPath $localModules }
     catch {
@@ -259,11 +154,54 @@ else {
         throw
     }
 }
+
+# Every job derives the same assignment from the exact discovery catalog and committed measured durations.
+# native-ux keeps its fixed filter and buffered evidence profile; whole classes (or whole methods of measured
+# oversized classes) are packed longest-first into the other eleven partitions, so new tests are spread by load.
+$durations = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'windows-test-durations.json') | ConvertFrom-Json
+$partitionNames = @('storage-heavy', 'storage-other', 'ui-definitions', 'ui-definition-dialogs', 'ui-conversations',
+    'ui-conversation-core', 'ui-conversation-actions', 'native-ux', 'ui-platform', 'ui-editors', 'ui-workflows', 'ui-presentation')
+$partitions = @(Get-WindowsExecutionPartitions $catalog $durations $partitionNames 'native-ux' $nativeUiPrefixes)
+Assert-WindowsPartitionCoverage $catalog $partitions
+$hostedAssignments = @{
+    'storage-heavy' = 'storage-heavy'
+    'ui-conversations' = 'storage-heavy'
+    'ui-conversation-core' = 'storage-heavy'
+    'storage-other' = 'storage-other'
+    'ui-conversation-actions' = 'storage-other'
+    'ui-definition-dialogs' = 'storage-other'
+    'ui-definitions' = 'ui-definitions'
+    'ui-editors' = 'ui-definitions'
+    'native-ux' = 'native-ux'
+    'ui-platform' = 'ui-platform'
+    'ui-workflows' = 'ui-platform'
+    'ui-presentation' = 'ui-platform'
+}
+foreach ($executionPartition in $partitions) {
+    if (-not $hostedAssignments.ContainsKey($executionPartition.Name) -or
+        $hostedAssignments[$executionPartition.Name] -cnotin $shards.Name) {
+        throw "Windows partition $($executionPartition.Name) has no valid hosted assignment."
+    }
+    $executionPartition | Add-Member -NotePropertyName HostedShard -NotePropertyValue $hostedAssignments[$executionPartition.Name]
+}
+if ($Shard -cne 'All') {
+    $partitions = @($partitions | Where-Object HostedShard -CEQ $Shard)
+}
+if ($Partition) {
+    $partitions = @($partitions | Where-Object Name -CEQ $Partition)
+}
+if ($ListPartitions) {
+    return $partitions
+}
+if ($null -eq $dotnetPath) {
+    $dotnetPath = (Get-Command dotnet -CommandType Application, ExternalScript -ErrorAction Stop |
+        Select-Object -First 1).Source
+}
 $resultsRoot = Join-Path $resultsRoot ([guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $resultsRoot -Force | Out-Null
 
 # Start the longest partitions first so a throttled local run is not left waiting on one long partition.
-$executionOrder = @($partitions | Sort-Object -Stable -Descending -Property MeasuredMinutes)
+$executionOrder = @($partitions | Sort-Object -Stable -Descending -Property EstimatedSeconds)
 if (-not $PSBoundParameters.ContainsKey('ThrottleLimit')) {
     # Each partition is a mostly serial UI process; about one per physical core avoids oversubscription.
     $ThrottleLimit = [Math]::Max(1, [Math]::Floor([Environment]::ProcessorCount / 2))

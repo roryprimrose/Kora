@@ -91,9 +91,9 @@ internal sealed class SessionRoutingController : IDisposable
                 "Destination review stopped. No rerouting or submission retry. Failure type: " + exception.GetType().Name);
             var opened = getWorkbench is not null
                 ? new SessionRoutingView(getWorkbench(), routing, review, () => !disposed && admitted(), Failure,
-                    main.CreateSessionRoutingVoiceReply, main.ReleaseSessionRoutingVoiceReply)
+                    main.CreateSessionRoutingVoiceReply, main.ReleaseSessionRoutingVoiceReply, main.CreateSessionRoutingSpokenSendReply)
                 : new SessionRoutingWindow(routing, review, () => !disposed && admitted(), Failure,
-                    main.CreateSessionRoutingVoiceReply, main.ReleaseSessionRoutingVoiceReply).View;
+                    main.CreateSessionRoutingVoiceReply, main.ReleaseSessionRoutingVoiceReply, main.CreateSessionRoutingSpokenSendReply).View;
             window = opened;
             opened.Closed += (_, _) => result.TrySetResult(opened.Result);
             if (getWorkbench is not null) { opened.Show(); } else { Show(opened.Owner); }

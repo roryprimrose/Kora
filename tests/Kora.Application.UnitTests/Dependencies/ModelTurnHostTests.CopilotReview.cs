@@ -42,12 +42,11 @@ public sealed partial class ModelTurnHostTests
     [InlineData("request")]
     [InlineData("current")]
     [InlineData("cancel")]
-    [InlineData("presenter")]
-    [InlineData("cancel-presenter")]
+    [InlineData("current-throws")]
+    [InlineData("unrelated-cancel")]
     [InlineData("revoked-after")]
     [InlineData("current-after")]
-    [InlineData("decline")]
-    public async Task Final_review_failure_has_a_typed_terminal_audit_and_never_admits_bytes(string fault)
+    public async Task Final_admission_failure_has_a_typed_terminal_audit_and_never_admits_bytes(string fault)
     {
         using var f = new Fixture();
         using var root = f.Root();
@@ -61,57 +60,21 @@ public sealed partial class ModelTurnHostTests
             new("https://api.githubcopilot.com/chat/completions"), new byte[] { 1 });
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
         var checks = 0;
-        reviews.Offered += review =>
+        ValueTask<bool> Current(CancellationToken _)
         {
-            review.IsPending.Should().BeTrue();
-            if (fault is "presenter") { throw new IOException("synthetic presenter failure"); }
-            if (fault is "cancel-presenter") { throw new OperationCanceledException("synthetic unrelated cancellation"); }
-            reviews.Confirm(review, fault is not "decline", RequestOrigin.ActivatedVoice).Should().BeTrue();
+            checks++;
+            if (fault is "current-throws") { throw new IOException("synthetic current-host failure"); }
+            if (fault is "unrelated-cancel") { throw new OperationCanceledException("synthetic unrelated cancellation"); }
             if (fault is "revoked-after") { root.Complete(HostOperationOutcome.Failed); }
-        };
-        CopilotTransmissionReview? retired = null;
-        reviews.Retired += review => retired = review;
-        if (fault is "cancel") { await cancellation.CancelAsync(); }
-        var run = () => reviews.ReviewAsync(authorization, transmission,
-            _ => ValueTask.FromResult(++checks != (fault is "current" ? 1 : fault is "current-after" ? 2 : -1)),
-            cancellation.Token).AsTask();
-        if (fault is "cancel" or "cancel-presenter") { await run.Should().ThrowAsync<OperationCanceledException>(); }
-        else if (fault is "presenter") { await run.Should().ThrowAsync<IOException>(); }
-        else { (await run()).Should().BeFalse(); }
-        if (retired is not null)
-        {
-            retired.IsPending.Should().BeFalse();
-            reviews.Confirm(retired, true, RequestOrigin.LocalUi).Should().BeFalse();
+            return ValueTask.FromResult(checks != (fault is "current" ? 1 : fault is "current-after" ? 2 : -1));
         }
+        if (fault is "cancel") { await cancellation.CancelAsync(); }
+        var run = () => reviews.ReviewAsync(authorization, transmission, Current, cancellation.Token).AsTask();
+        if (fault is "cancel" or "unrelated-cancel") { await run.Should().ThrowAsync<OperationCanceledException>(); }
+        else if (fault is "current-throws") { await run.Should().ThrowAsync<IOException>(); }
+        else { (await run()).Should().BeFalse(); }
         f.Audits.Last().Outcome.Should().Be(fault is "cancel" ? SecurityAuditOutcome.Cancelled
-            : fault is "presenter" or "cancel-presenter" ? SecurityAuditOutcome.Unknown : SecurityAuditOutcome.Denied);
-    }
-
-    [Fact]
-    public async Task Concurrent_review_is_denied_without_retiring_the_original_and_cancellation_retires_exact_review()
-    {
-        using var f = new Fixture();
-        using var root = f.Root();
-        var reviews = new HostedTransmissionReviewService(f, f.Time);
-        var authorization = reviews.PrepareTurn(f.Context(), Profile(ProviderService.Copilot));
-        var transmission = new CopilotTransmission(new(new(Guid.NewGuid()), f.Request, ModelProviderSelection.CopilotCandidate),
-            authorization.Profile, new("https://api.githubcopilot.com/chat/completions"), new byte[] { 1 });
-        CopilotTransmissionReview? first = null;
-        reviews.Offered += review => first = review;
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
-        var pending = reviews.ReviewAsync(authorization, transmission, _ => ValueTask.FromResult(true), cancellation.Token).AsTask();
-        (await reviews.ReviewAsync(authorization, transmission, _ => ValueTask.FromResult(true), Token)).Should().BeFalse();
-        first!.IsPending.Should().BeTrue();
-        using (var foreign = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request))
-        { reviews.Confirm(first, true, RequestOrigin.LocalUi).Should().BeFalse(); }
-        root.Complete(HostOperationOutcome.Completed);
-        reviews.Confirm(first, true, RequestOrigin.LocalUi).Should().BeFalse();
-        root.Complete(HostOperationOutcome.Unknown);
-        root.Activity!.Stop();
-        reviews.Confirm(first, true, RequestOrigin.LocalUi).Should().BeFalse();
-        await cancellation.CancelAsync();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
-        first.IsPending.Should().BeFalse();
-        f.Audits.Last().Outcome.Should().Be(SecurityAuditOutcome.Cancelled);
+            : fault is "current-throws" or "unrelated-cancel" ? SecurityAuditOutcome.Unknown : SecurityAuditOutcome.Denied);
+        f.Audits.Last().ReasonCode.Should().BeNull();
     }
 }

@@ -21,11 +21,9 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class CopilotCustomizationWorkflowTests
 {
     [Theory]
-    [InlineData(true, true)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(false, false)]
-    public async Task SeparateSourceAndRetentionDecisionsUseExactNativeSelectionAndRetainOriginalOnce(bool skill, bool sendApproved)
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SeparateSourceAndRetentionDecisionsUseExactNativeSelectionAndRetainOriginalOnce(bool skill)
     {
         using var storage = new InteractionStorageFixture();
         await storage.InitializeAsync();
@@ -42,16 +40,7 @@ public sealed class CopilotCustomizationWorkflowTests
             composed.Conversation, composed.Turns, composed.Audit, storage.Time);
         var target = await composed.Workspace.CreateAsync(new("Selected native target"), RequestOrigin.LocalUi, storage.Token);
         const string original = "  unchanged original\r\ntask  ";
-        var finalReviews = 0;
-        composed.Reviews.Offered += review =>
-        {
-            finalReviews++;
-            var bytes = Encoding.UTF8.GetString(review.Transmission.Body.AsSpan());
-            bytes.Should().Contain("Use brief paragraphs.").And.Contain("unchanged original");
-            using var presentation = review.Presentation();
-            composed.Reviews.Confirm(review, sendApproved, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
+        var finalBodies = new List<string>();
         sdk.Client.BeforeSend = async token =>
         {
             var configuration = sdk.Client.Configuration!;
@@ -78,6 +67,7 @@ public sealed class CopilotCustomizationWorkflowTests
                 Headers = { Authorization = new("Bearer", "synthetic") },
                 Content = new StringContent(JsonSerializer.Serialize(new { model = SessionsConversationTests.SelectedCopilotProfile.Model.Value, messages = new[] { native, sdk.Client.Prompt } })),
             };
+            finalBodies.Add(await request.Content.ReadAsStringAsync(token));
 #pragma warning disable MCPSDK001 // Real final-byte boundary, synthetic network transport.
             var handler = (CopilotFinalRequestHandler)sdk.Options!.Models.RequestHandler!;
 #pragma warning restore MCPSDK001
@@ -102,13 +92,13 @@ public sealed class CopilotCustomizationWorkflowTests
         var receipt = await workflow.ConfirmAsync(review.Id, () => true, storage.Token);
         receipt.Message.Request.SessionId.Should().Be(target.Authority.SessionId);
         receipt.Message.Body.Should().Be(original);
-        receipt.Message.Outcome.Should().Be(sendApproved ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        (receipt.Message.AssistantResponse?.Body).Should().Be(sendApproved ? "genuine-sdk-boundary-answer" : null);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        (receipt.Message.AssistantResponse?.Body).Should().Be("genuine-sdk-boundary-answer");
         storage.Count("conversation_messages").Should().Be(1);
         (await storage.Store.ReadConversationMessageAsync(target.Authority.SessionId, receipt.Message.Request.RequestId, storage.Token))
             .Should().Be(receipt.Message);
-        finalReviews.Should().Be(1);
-        sdk.Network.Sends.Should().Be(sendApproved ? 1 : 0);
+        finalBodies.Should().ContainSingle().Which.Should().Contain("Use brief paragraphs.").And.Contain("unchanged original");
+        sdk.Network.Sends.Should().Be(1);
         await Assert.ThrowsAsync<InvalidOperationException>(() => workflow.ConfirmAsync(review.Id, () => true, storage.Token));
         storage.Count("conversation_messages").Should().Be(1);
         composed.Turns.IsQuiescent.Should().BeTrue();

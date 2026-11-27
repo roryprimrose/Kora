@@ -35,11 +35,6 @@ public sealed partial class ModelTurnHostTests
             runtime.Calls.Should().Be(0);
             rejected = true;
         };
-        f.HandoffReviews.Offered += exact =>
-        {
-            using var presentation = exact.Presentation();
-            f.HandoffReviews.Confirm(exact, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
         await using var review = source.Open(offer, RequestOrigin.LocalUi, static () => true)!;
         await review.Refresh(Token);
         f.Time.ExpectedDeadline = HostedTurnAuthorization.MaximumDuration;

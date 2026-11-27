@@ -27,14 +27,12 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class HostedSessionRequestTests
 {
     [Theory]
-    [InlineData(RequestOrigin.LocalUi, RequestOrigin.LocalUi, true)]
-    [InlineData(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice, true)]
-    [InlineData(RequestOrigin.ActivatedVoice, RequestOrigin.LocalUi, true)]
-    [InlineData(RequestOrigin.ActivatedVoice, RequestOrigin.ActivatedVoice, true)]
-    [InlineData(RequestOrigin.LocalUi, RequestOrigin.LocalUi, false)]
-    [InlineData(RequestOrigin.ActivatedVoice, RequestOrigin.LocalUi, false)]
-    public async Task Reviewed_copilot_request_requires_separate_final_send_and_retains_only_genuine_original_answer(
-        RequestOrigin origin, RequestOrigin confirmation, bool approve)
+    [InlineData(RequestOrigin.LocalUi, RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice)]
+    [InlineData(RequestOrigin.ActivatedVoice, RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice, RequestOrigin.ActivatedVoice)]
+    public async Task Reviewed_copilot_request_sends_automatically_after_confirmation_and_retains_only_genuine_original_answer(
+        RequestOrigin origin, RequestOrigin confirmation)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -50,65 +48,31 @@ public sealed class HostedSessionRequestTests
         review.Body.Should().Be(body);
         runtime.Request.Should().BeNull();
         f.Count("conversation_messages").Should().Be(0);
-        var offers = 0;
-        composed.Reviews.Offered += disclosure =>
-        {
-            offers++;
-            disclosure.Transmission.Provenance.Request.Origin.Should().Be(origin);
-            disclosure.Transmission.Provenance.Request.SessionId.Should().Be(target.Authority.SessionId);
-            disclosure.Transmission.Profile.Should().Be(CopilotCatalogue.Profile);
-            Encoding.UTF8.GetString(disclosure.Transmission.Body.AsSpan()).Should().Contain("original hosted request");
-            runtime.Sends.Should().Be(0, "request confirmation is not final physical-send approval");
-            using var presentation = disclosure.Presentation();
-            composed.Reviews.Confirm(disclosure, approve, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
         var confirm = HostedConfirm(review);
         var receipt = (await commands.ExecuteAsync(confirm, confirmation, () => true, f.Token)).RequestSubmission!;
         receipt.Message.Request.Origin.Should().Be(origin);
         receipt.Message.Request.Should().Be(runtime.Request);
         receipt.Message.Body.Should().Be(body);
-        receipt.Message.Outcome.Should().Be(approve ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        if (approve)
-        {
-            receipt.Message.AssistantResponse!.Body.Should().Be("genuine hosted boundary answer");
-            receipt.Task.State.Should().Be(HostTaskState.Succeeded);
-        }
-        else { receipt.Message.AssistantResponse.Should().BeNull(); }
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        receipt.Message.AssistantResponse!.Body.Should().Be("genuine hosted boundary answer");
+        receipt.Task.State.Should().Be(HostTaskState.Succeeded);
         var saved = await f.Store.ReadConversationMessageAsync(target.Authority.SessionId, receipt.Message.Request.RequestId, f.Token);
         saved.Should().Be(receipt.Message);
-        offers.Should().Be(1);
-        runtime.Sends.Should().Be(approve ? 1 : 0);
+        runtime.Profile.Should().Be(CopilotCatalogue.Profile);
+        Encoding.UTF8.GetString(runtime.Body.Span).Should().Contain("original hosted request");
+        runtime.Sends.Should().Be(1);
         composed.Turns.IsQuiescent.Should().BeTrue();
         await commands.Invoking(value => value.ExecuteAsync(confirm, confirmation, () => true, f.Token))
             .Should().ThrowAsync<InvalidOperationException>();
-        runtime.Sends.Should().Be(approve ? 1 : 0);
+        runtime.Sends.Should().Be(1);
         WindowsSqliteConversationTests.AuditText(f).Should().NotContain(body).And.NotContain("genuine hosted boundary answer");
     }
 
-    [Fact]
-    public async Task Reviewed_copilot_without_native_disclosure_presenter_denies_without_send_or_answer()
-    {
-        using var f = new InteractionStorageFixture();
-        await f.InitializeAsync();
-        await WindowsSqliteConversationTests.FinishInitial(f);
-        var runtime = new CopilotConversationRuntime();
-        await using var composed = new Composition(f, copilot: runtime);
-        var commands = new SessionRequestCommandService(composed.Workspace, composed.Conversation, composed.Access, f.Time);
-        var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
-        var review = (await commands.ExecuteAsync(HostedReview(target, "original hosted request"),
-            RequestOrigin.ActivatedVoice, () => true, f.Token)).RequestReview!;
-        var receipt = (await commands.ExecuteAsync(HostedConfirm(review), RequestOrigin.LocalUi, () => true, f.Token)).RequestSubmission!;
-        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
-        receipt.Message.AssistantResponse.Should().BeNull();
-        runtime.Sends.Should().Be(0);
-        composed.Turns.IsQuiescent.Should().BeTrue();
-    }
 
     [Theory]
     [InlineData("account")]
     [InlineData("model")]
-    public async Task Hosted_final_send_rechecks_current_account_and_model_after_disclosure(string change)
+    public async Task Hosted_final_send_rechecks_current_account_and_model_at_physical_send(string change)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -119,13 +83,11 @@ public sealed class HostedSessionRequestTests
         var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
         var review = (await commands.ExecuteAsync(HostedReview(target, "original hosted request"),
             RequestOrigin.ActivatedVoice, () => true, f.Token)).RequestReview!;
-        composed.Reviews.Offered += disclosure =>
+        runtime.BeforeTransmission = _ =>
         {
             composed.Catalogue.ChangedAccount = change is "account";
             composed.Catalogue.ChangedModel = change is "model";
-            using var presentation = disclosure.Presentation();
-            composed.Reviews.Confirm(disclosure, true, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
+            return Task.CompletedTask;
         };
         var receipt = (await commands.ExecuteAsync(HostedConfirm(review), RequestOrigin.LocalUi, () => true, f.Token)).RequestSubmission!;
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
@@ -138,7 +100,7 @@ public sealed class HostedSessionRequestTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Hosted_each_physical_send_requires_fresh_disclosure_and_second_denial_cannot_become_answer(bool requestProfile)
+    public async Task Hosted_each_physical_send_is_revalidated_and_second_denial_cannot_become_answer(bool requestProfile)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -152,19 +114,14 @@ public sealed class HostedSessionRequestTests
         { command = command with { RequestProvider = SessionRequestReview.ProviderChoice.Default, RequestLocalProfile = CopilotCatalogue.Profile }; }
         var review = (await commands.ExecuteAsync(command,
             RequestOrigin.ActivatedVoice, () => true, f.Token)).RequestReview!;
-        var offers = 0;
-        composed.Reviews.Offered += disclosure =>
+        runtime.BeforeTransmission = index =>
         {
-            offers++;
-            runtime.Sends.Should().Be(offers - 1);
-            using var presentation = disclosure.Presentation();
-            composed.Reviews.Confirm(disclosure, offers == 1, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
+            composed.Catalogue.ChangedAccount = index == 1;
+            return Task.CompletedTask;
         };
         var receipt = (await commands.ExecuteAsync(HostedConfirm(review), RequestOrigin.LocalUi, () => true, f.Token)).RequestSubmission!;
-        offers.Should().Be(2);
         runtime.Sends.Should().Be(1);
-        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
+        receipt.Message.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
         receipt.Message.AssistantResponse.Should().BeNull();
         composed.Turns.IsQuiescent.Should().BeTrue();
     }
@@ -186,12 +143,6 @@ public sealed class HostedSessionRequestTests
         { command = command with { RequestProvider = SessionRequestReview.ProviderChoice.Default, RequestLocalProfile = CopilotCatalogue.Profile }; }
         var review = (await commands.ExecuteAsync(command,
             RequestOrigin.ActivatedVoice, () => true, f.Token)).RequestReview!;
-        composed.Reviews.Offered += disclosure =>
-        {
-            using var presentation = disclosure.Presentation();
-            composed.Reviews.Confirm(disclosure, true, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
         var submission = commands.ExecuteAsync(HostedConfirm(review), RequestOrigin.LocalUi, () => true, f.Token);
         try
         {
@@ -266,7 +217,7 @@ public sealed class HostedSessionRequestTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Hosted_request_cancel_discards_review_or_joins_pending_disclosure_without_send(bool running)
+    public async Task Hosted_request_cancel_discards_review_or_joins_pending_send_without_transmission(bool running)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -285,20 +236,23 @@ public sealed class HostedSessionRequestTests
         }
         else
         {
-            var offered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var retired = false;
-            composed.Reviews.Offered += _ => offered.SetResult();
-            composed.Reviews.Retired += _ => retired = true;
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            runtime.BeforeTransmission = _ => { entered.TrySetResult(); return release.Task; };
             var submission = commands.ExecuteAsync(HostedConfirm(review), RequestOrigin.LocalUi, () => true, f.Token);
-            await offered.Task.WaitAsync(f.Token);
-            submission.IsCompleted.Should().BeFalse();
-            var status = await composed.Conversation.ReadRunningConversationAsync(target, () => true, f.Token);
-            await composed.Conversation.CancelRunningConversationAsync(status!.Target, () => true, f.Token);
+            try
+            {
+                await entered.Task.WaitAsync(f.Token);
+                submission.IsCompleted.Should().BeFalse();
+                var status = await composed.Conversation.ReadRunningConversationAsync(target, () => true, f.Token);
+                await composed.Conversation.CancelRunningConversationAsync(status!.Target, () => true, f.Token);
+                submission.IsCompleted.Should().BeFalse("the runtime still owns its pending send until it joins");
+            }
+            finally { release.TrySetResult(); }
             var receipt = (await submission).RequestSubmission!;
             receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
             receipt.Message.AssistantResponse.Should().BeNull();
             receipt.Message.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
-            retired.Should().BeTrue();
         }
         await commands.Invoking(value => value.ExecuteAsync(HostedConfirm(review), RequestOrigin.LocalUi, () => true, f.Token))
             .Should().ThrowAsync<InvalidOperationException>();
@@ -363,6 +317,9 @@ public sealed class HostedSessionRequestTests
     {
         public bool IsQuiescent { get; private set; } = true;
         internal HostRequest? Request { get; private set; }
+        internal ProviderProfileTuple? Profile { get; private set; }
+        internal ReadOnlyMemory<byte> Body { get; private set; }
+        internal Func<int, Task>? BeforeTransmission { get; set; }
         internal int Sends { get; private set; }
         internal int RequestedSends { get; init; } = 1;
         internal bool HoldCompletion { get; init; }
@@ -376,8 +333,11 @@ public sealed class HostedSessionRequestTests
             try
             {
                 Request = provenance.Request;
+                Profile = profile;
+                Body = context;
                 for (var i = 0; i < RequestedSends; i++)
                 {
+                    if (BeforeTransmission is { } before) { await before(i); }
                     if (!await admitTransmission(new(provenance, profile, new Uri("https://api.githubcopilot.com/chat/completions"),
                         context), token)) { return new(ModelTurnOutcome.DeniedEgress); }
                     Sends++;

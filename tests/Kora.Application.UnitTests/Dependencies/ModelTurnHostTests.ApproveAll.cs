@@ -59,9 +59,6 @@ public sealed partial class ModelTurnHostTests
         HostedTurnAuthorization authorization = service == ProviderService.Claude
             ? reviews.PrepareClaudeTurn(f.Context(toolMode: ModelToolMode.None), Profile(service))
             : reviews.PrepareTurn(f.Context(toolMode: ModelToolMode.None), Profile(service));
-        var prompts = 0;
-        reviews.Offered += review => { prompts++; reviews.Confirm(review, true, RequestOrigin.LocalUi); };
-        reviews.ClaudeOffered += review => { prompts++; reviews.Confirm(review, true, RequestOrigin.LocalUi); };
         for (var index = 1; index <= 2; index++)
         {
             var transmission = new CopilotTransmission(new(new(Guid.NewGuid()), f.Request,
@@ -71,7 +68,8 @@ public sealed partial class ModelTurnHostTests
             (await reviews.ReviewAsync(authorization, transmission, _ => ValueTask.FromResult(true), Token))
                 .Should().BeTrue();
         }
-        prompts.Should().Be(level == SessionPermissionLevel.ApproveAll ? 0 : 2);
+        f.Audits.Where(item => item.Outcome != SecurityAuditOutcome.Requested).Select(item => item.ReasonCode)
+            .Should().Equal(HostedTransmissionReviewService.AutomaticReason, HostedTransmissionReviewService.AutomaticReason);
         permissions.Audits.Count.Should().Be(level == SessionPermissionLevel.ApproveAll ? 2 : 0);
         if (level == SessionPermissionLevel.ApproveAll)
         {

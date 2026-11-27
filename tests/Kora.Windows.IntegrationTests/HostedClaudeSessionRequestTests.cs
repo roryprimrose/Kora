@@ -24,11 +24,9 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class HostedClaudeSessionRequestTests
 {
     [Theory]
-    [InlineData(RequestOrigin.LocalUi, 2)]
-    [InlineData(RequestOrigin.ActivatedVoice, 2)]
-    [InlineData(RequestOrigin.LocalUi, 0)]
-    [InlineData(RequestOrigin.ActivatedVoice, 1)]
-    public async Task Complete_real_host_account_runtime_review_and_retention_preserves_original_source(RequestOrigin origin, int approvals)
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task Complete_real_host_account_runtime_review_and_retention_preserves_original_source(RequestOrigin origin)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -43,25 +41,19 @@ public sealed partial class HostedClaudeSessionRequestTests
         review.Origin.Should().Be(origin);
         review.Body.Should().Be(body);
         c.Http.Requests.Should().OnlyContain(request => string.Equals(request.Method, "GET", StringComparison.Ordinal));
-        var offers = 0;
-        c.Reviews.ClaudeOffered += offered =>
-        {
-            c.Http.Requests.Count(request => request.Method is "POST").Should().Be(offers);
-            Encoding.UTF8.GetString(offered.Body.AsSpan()).Should().Contain("Claude input");
-            using var presentation = offered.Presentation();
-            c.Reviews.Confirm(offered, ++offers <= approvals, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
         var confirmation = SessionCommand.Parse("session request confirm", "Kora")!;
         var result = (await commands.ExecuteAsync(confirmation, RequestOrigin.LocalUi, () => true, f.Token)).RequestSubmission!;
         result.Message.Body.Should().Be(body);
         result.Message.Request.Origin.Should().Be(origin);
         result.Message.Request.SessionId.Should().Be(f.Request.SessionId);
-        result.Message.Outcome.Should().Be(approvals == 2 ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        result.Message.AssistantResponse?.Body.Should().Be(approvals == 2 ? "genuine exact answer" : null);
+        result.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        result.Message.AssistantResponse?.Body.Should().Be("genuine exact answer");
         (await f.Store.ReadConversationMessageAsync(f.Request.SessionId, result.Message.Request.RequestId, f.Token))
             .Should().Be(result.Message);
-        c.Http.Requests.Count(request => request.Method is "POST").Should().Be(approvals);
+        c.Http.Requests.Where(request => request.Method is "POST")
+            .Should().HaveCount(2).And.OnlyContain(request => Encoding.UTF8.GetString(request.Body).Contains("Claude input"));
+        c.Http.Audits.Where(item => item.ActionId is "model.claude.transmission").Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested,
+            SecurityAuditOutcome.Succeeded, SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
         await Assert.ThrowsAsync<InvalidOperationException>(() => commands.ExecuteAsync(confirmation, RequestOrigin.LocalUi, () => true, f.Token));
         c.Turns.IsQuiescent.Should().BeTrue();
         WindowsSqliteConversationTests.AuditText(f).Should().NotContain(body).And.NotContain("genuine exact answer")
@@ -69,23 +61,30 @@ public sealed partial class HostedClaudeSessionRequestTests
     }
 
     [Theory]
-    [InlineData("ordinary")]
+    [InlineData("hosted-preferred")]
     [InlineData("local-only")]
-    [InlineData("missing-presenter")]
     [InlineData("wrong-service")]
-    public async Task Selection_and_ordinary_submit_never_grant_Claude_egress(string fault)
+    public async Task Ordinary_submit_reaches_Claude_only_when_settings_select_it(string mode)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteConversationTests.FinishInitial(f);
         await using var c = new Composition(f);
         await c.InitializeAsync();
-        if (fault is "local-only") { new LocalModelProviderModePreferences(f.Paths).Save(ModelProviderMode.LocalOnly); }
-        if (fault is "wrong-service") { new LocalProviderProfilePreferences(f.Paths).Save(new(ProviderService.Copilot, [])); }
+        if (mode is "local-only") { new LocalModelProviderModePreferences(f.Paths).Save(ModelProviderMode.LocalOnly); }
+        if (mode is "wrong-service") { new LocalProviderProfilePreferences(f.Paths).Save(new(ProviderService.Copilot, [])); }
         var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
-        var receipt = fault is "ordinary"
-            ? await c.Conversation.SubmitAsync(target, "must not leave host", () => true, f.Token)
-            : await c.Conversation.SubmitClaudeAsync(target, "must not leave host", () => true, f.Token);
+        var receipt = await c.Conversation.SubmitAsync(target, "settings-routed body", () => true, f.Token);
+        receipt.Message.Body.Should().Be("settings-routed body");
+        if (mode is "hosted-preferred")
+        {
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            receipt.Message.AssistantResponse?.Body.Should().Be("genuine exact answer");
+            receipt.Message.Execution!.Selection.Provider.Should().Be(ModelProviderIdentity.Claude);
+            c.Http.Requests.Where(request => request.Method is "POST").Select(request => request.Uri)
+                .Should().Equal("https://api.anthropic.com/v1/messages/count_tokens", "https://api.anthropic.com/v1/messages");
+            return;
+        }
         receipt.Message.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
         receipt.Message.AssistantResponse.Should().BeNull();
         c.Http.Requests.Should().OnlyContain(request => string.Equals(request.Method, "GET", StringComparison.Ordinal));

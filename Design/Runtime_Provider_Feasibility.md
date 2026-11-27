@@ -255,14 +255,15 @@ unknown/foreign sessions, subagent requests and WebSockets. Redirects are
 disabled. Request bodies are limited to 131072 bytes and buffered HTTP
 responses to 262144 bytes; the final serialized answer still has the existing
 4096-byte response limit. Every intercepted request, including a later
-tool-result request or SDK retry, needs a fresh
+tool-result request or SDK retry, passes a fresh automatic
 [`HostedTransmissionReviewService`](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)
-review of final destination, account/profile, noncredential headers and exact
-body. Earlier envelope review, desired provider settings and turn preparation
-never approve transmission. Missing presentation or changed authority denies
-egress. The outgoing body and headers are captured before review; changing
-the SDK's original request during review cannot change the approved send.
-An answer cannot succeed without at least one approved, successful physical
+admission against the current destination, account/profile, session and host
+authority, with a Requested and terminal security audit; there is no
+byte-review window ([single-Submit decision](Decision_Register.md#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27)).
+Changed authority denies egress. The outgoing body and headers are captured
+before admission; changing the SDK's original request afterwards cannot change
+the admitted send.
+An answer cannot succeed without at least one admitted, successful physical
 HTTP transmission in that exact SDK turn.
 
 Tool-free conversation turns consume the pinned SDK's answer-delta events through
@@ -316,23 +317,22 @@ logs or review content. Revocation, expiry and privacy closure remove the
 account/catalogue; managed memory is not a secure-zeroing guarantee.
 
 Refresh services/models, choose the current account-bound model and save its
-exact tuple, with a policy that admits hosted use. In Sessions, the separate
-**Submit explicitly with Copilot** action invokes
-[`SessionConversationService`](../src/Kora.Application/Hosting/SessionConversationService.cs)
-under the original retained request. A private native window displays every
-final body byte and noncredential header as inert text. No affirmative default
-is selected; closing, privacy loss, cancellation, stale authority or missing
-presentation denies transmission. The entire explicitly prepared Copilot turn,
-including human review and subsequent tool-result reviews, has a two-minute
+exact tuple, with the Hosted preferred provider mode. In Sessions, the single
+**Submit** routes through
+[`SessionConversationService`](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs)
+to the resolved Copilot profile under the original retained request, tool-free
+with volatile provisional text. Each physical send is admitted automatically;
+privacy loss, cancellation or stale authority denies transmission. The entire
+prepared Copilot turn, including subsequent tool-result sends, has a two-minute
 deadline; local turns keep their existing deadline. Successful bounded answers
 are committed to that same request as distinct ASSISTANT data in the existing
 private conversation store. Failed/denied turns retain no assistant answer.
 The host cancellation token also owns the SDK completion wait: its independent
-60-second default is disabled so that a still-current transmission review can
-finish within the original two-minute deadline. This does not extend that
-deadline or remove cancellation, stop/join or late-answer suppression.
-Ordinary submission and all local-only reviewed-source flows remain separate
-and cannot select hosted execution implicitly. Composition preserves the
+60-second default is disabled so the turn uses the original two-minute
+deadline. This does not extend that deadline or remove cancellation, stop/join
+or late-answer suppression.
+Local only sessions and all local-only reviewed-source flows cannot select
+hosted execution implicitly. Composition preserves the
 existing local resolver/factory and uses the same shared host admission gate.
 Deterministic tests cover account setup, final transport, host authorization,
 and original-request answer/refusal retention without live inference.
@@ -437,7 +437,7 @@ In ordinary builds, the explicit native text-only stream requires exact deployme
 
 It preserves `anthropic-version: 2023-06-01`, independently reviewed Count Tokens and `stream:true` Messages POSTs, and the canonical typed provisional conversation presentation. The strict SSE state machine admits only ordered text blocks, cumulative bounded usage and a unique normal terminal followed by EOF; buffered and observation paths remain separate ([decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [official sequence](https://platform.claude.com/docs/en/build-with-claude/streaming), [version policy](https://platform.claude.com/docs/en/api/versioning)).
 
-The [complete user contract](../docs/claude-requests.md#separately-qualified-native-text-streaming) owns inclusive cumulative byte/event/depth/token/deadline limits and native-only consent. Controlled progressive HTTP tests observe provisional output before terminal bytes, no early retention, revocation/cancellation and failed-disposal quarantine; they do not qualify a live provider or advertise stream availability ([transport tests](../tests/Kora.Windows.IntegrationTests/Dependencies/ClaudeMessagesRuntimeTests.Streaming.cs), [composed retention tests](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
+The [complete user contract](../docs/claude-requests.md#native-text-streaming-runtime) owns inclusive cumulative byte/event/depth/token/deadline limits. Controlled progressive HTTP tests observe provisional output before terminal bytes, no early retention, revocation/cancellation and failed-disposal quarantine; they do not qualify a live provider or advertise stream availability ([transport tests](../tests/Kora.Windows.IntegrationTests/Dependencies/ClaudeMessagesRuntimeTests.Streaming.cs), [composed retention tests](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
 
 ### Native Codex stateless text investigation - 2026-10-28
 

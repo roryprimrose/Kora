@@ -19,10 +19,8 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task VerifiedLocalUnavailableUsesActualProducerSqliteNativeReviewAndIndependentPhysicalEgress(bool approveEgress)
+    [Fact]
+    public async Task SingleSubmitInLocalFirstUsesVerifiedLocalUnavailableNativeReviewAndIndependentPhysicalEgress()
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -35,16 +33,7 @@ public sealed partial class SessionsConversationTests
             await using var composed = new Composition(f, adapter: local, copilot: hosted, localFirst: true);
             var presented = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             composed.LocalHandoff!.ReviewRequested += () => presented.TrySetResult();
-            composed.Reviews.Offered += exact =>
-            {
-                hosted.Sends.Should().Be(0);
-                exact.Transmission.Profile.Should().Be(CopilotCatalogue.Profile);
-                exact.Transmission.Provenance.Request.SessionId.Should().Be(f.Request.SessionId);
-                Encoding.UTF8.GetString(exact.Transmission.Body.AsSpan()).Should().Contain("private original local-first input");
-                using var presentation = exact.Presentation();
-                composed.Reviews.Confirm(exact, approveEgress, RequestOrigin.LocalUi).Should().BeTrue();
-                presentation.Complete(HostOperationOutcome.Completed);
-            };
+
             var model = composed.Model;
             var window = new SessionsWindow(model);
             window.Show();
@@ -54,7 +43,8 @@ public sealed partial class SessionsConversationTests
                 await model.SelectAsync(model.Sessions.Single());
                 await model.ReadConversationAsync();
                 window.FindControl<TextBox>("ConversationComposer")!.Text = "private original local-first input";
-                window.FindControl<Button>("SubmitLocalFirst")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.FindControl<Button>("SubmitLocalFirst").Should().BeNull("Local first is selected in Settings, not by a separate button");
+                window.FindControl<Button>("SubmitConversation")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await presented.Task.WaitAsync(f.Token);
                 var offers = await composed.HandoffPresentation!.ReadPending(RequestOrigin.LocalUi, static () => true, f.Token);
                 var offer = offers.Should().ContainSingle().Subject;
@@ -80,9 +70,12 @@ public sealed partial class SessionsConversationTests
                 messages[1].Handoff!.Source.Should().Be(messages[0].Execution);
                 messages[1].Handoff!.ExpiresAt.Should().Be(offer.Context.ExpiresAt);
                 messages[1].Handoff!.Profile.Should().Be(CopilotCatalogue.Profile);
-                messages[1].Outcome.Should().Be(approveEgress ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-                messages[1].AssistantResponse?.Body.Should().Be(approveEgress ? "genuine hosted boundary answer" : null);
-                hosted.Sends.Should().Be(approveEgress ? 1 : 0);
+                messages[1].Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+                messages[1].AssistantResponse?.Body.Should().Be("genuine hosted boundary answer");
+                hosted.Sends.Should().Be(1);
+                hosted.Profile.Should().Be(CopilotCatalogue.Profile);
+                hosted.Request!.SessionId.Should().Be(f.Request.SessionId);
+                hosted.Context!.UserRequest.Should().Be("private original local-first input");
                 composed.Turns.IsQuiescent.Should().BeTrue();
                 (await f.Store.ReadGrantsAsync(f.Token)).Should().BeEmpty();
                 var replayRequest = new HostRequest(new(Guid.NewGuid()), offer.Context.Request.SessionId,
@@ -97,7 +90,7 @@ public sealed partial class SessionsConversationTests
                             offer.Target.Session, static () => true, f.Token));
                 }
                 f.Count("conversation_messages").Should().Be(2, "retained lineage or repeated approval cannot create another intent");
-                hosted.Sends.Should().Be(approveEgress ? 1 : 0);
+                hosted.Sends.Should().Be(1);
                 using var connection = f.OpenRaw();
                 using var command = connection.CreateCommand();
                 command.CommandText = "SELECT group_concat(envelope) FROM security_audit_events;";

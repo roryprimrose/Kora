@@ -73,7 +73,7 @@ the row says so. Planned behavior is not a promise of availability.
 | Cloud AI answers | Not available in this build | Explicit Copilot and Claude workflows exist, but their required account-use approvals are unavailable. There is no automatic cloud fallback. See [Copilot](docs/hosted-requests.md) and [Claude](docs/claude-requests.md). |
 | Review a switch to another AI provider | Partly delivered | A local review window exists, but production has no qualified pending offers. Reviewing context alone sends nothing and enables no provider. See [handoff review](docs/commands.md#native-exact-handoff-review). |
 | AI with reviewed tools | Partly delivered, runtime unavailable | Limited local workflows can use reviewed read-only tools or one approved public-page retrieval. They are not general automation, and this build's unavailable model cannot run them. See [tools and skills](docs/tools-and-built-in-skills.md). |
-| Answers appearing as they are generated | Partly delivered, runtime unavailable | Provisional-answer presentation and a separately reviewed Claude streaming path exist. They do not enable a model or save incomplete text as an answer. See [Claude streaming](docs/claude-requests.md#separately-qualified-native-text-streaming). |
+| Answers appearing as they are generated | Partly delivered, runtime unavailable | Provisional-answer presentation is used by Settings-routed Copilot answers, and a Claude streaming runtime exists. They do not enable a model or save incomplete text as an answer. See [Claude streaming](docs/claude-requests.md#native-text-streaming-runtime). |
 
 ## Sessions, history, work, and memory
 

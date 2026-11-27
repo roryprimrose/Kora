@@ -196,8 +196,11 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
         current.Target.Source.PropertyChanged -= BufferChanged;
         var inserted = current.Target.Insert(literal,
             () => HostEligible(current));
-        Retire(inserted ? "Literal text inserted into private draft memory only. No Create, Save, Submit, answer or execution."
+        var submit = inserted && current.Target.SubmitsAfterInsert;
+        Retire(submit ? "Literal text inserted and submitted through the session's single Submit."
+            : inserted ? "Literal text inserted into private draft memory only. No Create, Save, Submit, answer or execution."
             : "Dictation insertion revoked. Original or newer independent memory preserved.");
+        if (submit) { current.Target.Submit(); }
     }
 
     private bool HostEligible(Turn current) =>

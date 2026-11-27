@@ -30,7 +30,7 @@ public sealed partial class ModelTurnHostTests
         var host = f.ClaudeProfiles(runtime, new(f, f.Time));
         f.Time.ExpectedDeadline = TimeSpan.FromMinutes(1);
         await using var service = DeadlineConversation(f, host, settings);
-        var submitted = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "original", () => true, Token);
+        var submitted = service.SubmitAsync(new(f.Session, null), "original", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         var request = f.Retained!.Request;
         // The fake does not fire timers: terminal validation itself must reject equal/late success.
@@ -51,8 +51,8 @@ public sealed partial class ModelTurnHostTests
         using var f = new Fixture();
         await using var settings = new OrdinaryDeadlineConfigurationFixture();
         settings.Preferences.Save(new(1));
-        var runtime = new HostClaudeStream();
-        var host = f.ClaudeProfiles(runtime, new(f, f.Time));
+        var runtime = new ConversationCopilotStream();
+        var host = f.CopilotProfiles(runtime, new(f, f.Time));
         f.Time.Timestamp = 0;
         f.Time.ExpectedDeadline = TimeSpan.FromMinutes(1);
         await using var service = DeadlineConversation(f, host, settings);
@@ -64,7 +64,7 @@ public sealed partial class ModelTurnHostTests
             publications++;
             return ValueTask.CompletedTask;
         };
-        var submitted = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "original", () => true, Token);
+        var submitted = service.SubmitAsync(new(f.Session, null), "original", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         var request = f.Retained!.Request;
         try
@@ -96,8 +96,6 @@ public sealed partial class ModelTurnHostTests
         receipt.Message.AssistantResponse.Should().BeNull();
         receipt.Task.State.Should().Be(HostTaskState.Unknown);
         f.ExecutionCompletions.Should().Be(1);
-        runtime.Streams.Should().Be(1);
-        runtime.Buffered.Should().Be(0);
         host.IsQuiescent.Should().BeTrue();
     }
 
@@ -107,8 +105,8 @@ public sealed partial class ModelTurnHostTests
         using var f = new Fixture();
         await using var settings = new OrdinaryDeadlineConfigurationFixture();
         settings.Preferences.Save(new(1));
-        var runtime = new HostClaudeStream();
-        var host = f.ClaudeProfiles(runtime, new(f, f.Time));
+        var runtime = new ConversationCopilotStream();
+        var host = f.CopilotProfiles(runtime, new(f, f.Time));
         f.Time.ExpectedDeadline = TimeSpan.FromMinutes(1);
         await using var service = DeadlineConversation(f, host, settings);
         var completing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -118,7 +116,7 @@ public sealed partial class ModelTurnHostTests
         };
         ConversationAnswerPresentation? preview = null;
         service.ProvisionalAnswerChanged += (value, _) => { preview = value; return ValueTask.CompletedTask; };
-        var submitted = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "deadline request", () => true, Token);
+        var submitted = service.SubmitAsync(new(f.Session, null), "deadline request", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         try
         {
@@ -130,8 +128,11 @@ public sealed partial class ModelTurnHostTests
             preview!.IsCurrent().Should().BeFalse();
             f.ExecutionCompletions.Should().Be(0);
             f.Retained!.AssistantResponse.Should().BeNull();
-            await service.Invoking(value => value.SubmitClaudeAnswerStreamAsync(new(f.Session, null),
-                "cannot steal lease", () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+            var retained = f.RetainCalls;
+            await service.Invoking(value => value.SubmitClaudeObservationsAsync(new(f.Session, null),
+                "cannot steal lease", [Kora.Core.Tools.ReadOnlyCapabilityCatalog.Version], () => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+            f.RetainCalls.Should().Be(retained);
         }
         finally { runtime.Release.TrySetResult(); }
         var receipt = await submitted;
@@ -155,7 +156,7 @@ public sealed partial class ModelTurnHostTests
         var host = f.ClaudeProfiles(runtime, new(f, f.Time));
         f.Time.ExpectedDeadline = TimeSpan.FromSeconds(seconds);
         await using var service = DeadlineConversation(f, host, settings);
-        var submitted = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "original", () => true, Token);
+        var submitted = service.SubmitAsync(new(f.Session, null), "original", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         var snapshot = await settings.Refresh();
         (await settings.Save(snapshot, new(minutes == 1 ? 60 : 1))).Should().BeTrue();
@@ -308,7 +309,7 @@ public sealed partial class ModelTurnHostTests
         {
             if (status.Phase == ConversationExecutionPhase.Completing) { f.Time.Now += TimeSpan.FromMinutes(1); }
         };
-        var submitted = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "original", () => true, Token);
+        var submitted = service.SubmitAsync(new(f.Session, null), "original", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         runtime.Release.TrySetResult();
         var receipt = await submitted;
@@ -367,7 +368,7 @@ public sealed partial class ModelTurnHostTests
         var runtime = new HostClaudeStream();
         var host = f.ClaudeProfiles(runtime, new(f, f.Time));
         await using var service = DeadlineConversation(f, host, settings);
-        var submitted = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "original", () => true, Token);
+        var submitted = service.SubmitAsync(new(f.Session, null), "original", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         var observation = await settings.Refresh();
         (await settings.Save(observation, new(1))).Should().BeTrue();

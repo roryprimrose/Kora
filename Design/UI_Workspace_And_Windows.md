@@ -382,8 +382,7 @@ also uses a supporting tab; draft category/item edits still require complete rev
 and separate Save and confer no connection, content or execution authority
 ([preference regressions](../tests/Kora.Windows.IntegrationTests/McpCapabilityManagerTests.cs)).
 
-Private Copilot/Claude credential editors and final-send disclosures also use supporting tabs, preserving masked memory-only entry, independent account-use approval and fresh one-send consent. No credential enters chat content; presentation retirement clears fields while actual authentication work stays owned ([account regressions](../tests/Kora.Windows.IntegrationTests/AccountWorkbenchTests.cs),
-[send regressions](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)).
+Private Copilot/Claude credential editors also use supporting tabs, preserving masked memory-only entry and independent account-use approval. Hosted final sends have no disclosure tab; they are admitted automatically against current authority ([decision](Decision_Register.md#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27)). No credential enters chat content; presentation retirement clears fields while actual authentication work stays owned ([account regressions](../tests/Kora.Windows.IntegrationTests/AccountWorkbenchTests.cs)).
 The [handoff view](../src/Kora/ModelHandoffView.axaml) shares that owner, with exact envelope/evidence review, separate context approval and joined dismissal. Context approval grants no hosted send ([SQLite regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteNativeHandoffReviewTests.Workbench.cs)).
 
 Standalone adapters remain for direct compatibility tests. Microphone recovery,

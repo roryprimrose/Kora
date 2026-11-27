@@ -16,11 +16,10 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class HostedClaudeSessionRequestTests
 {
     [Theory]
-    [InlineData(RequestOrigin.LocalUi, 2)]
-    [InlineData(RequestOrigin.ActivatedVoice, 2)]
-    [InlineData(RequestOrigin.ActivatedVoice, 1)]
-    public async Task RequestOnlyClaudeModelUsesActualConfiguredAccountAndFreshPhysicalReviewsWithoutSaving(
-        RequestOrigin origin, int approvals)
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task RequestOnlyClaudeModelUsesActualConfiguredAccountAndAutomaticPhysicalSendsWithoutSaving(
+        RequestOrigin origin)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -46,30 +45,21 @@ public sealed partial class HostedClaudeSessionRequestTests
         var review = (await commands.ExecuteAsync(new(SessionCommandOperation.RequestReview,
             f.Request.SessionId.Value, target.Authority.Generation.Value, target.Metadata?.Revision.Value ?? 0)
         { RequestBody = body, RequestLocalProfile = chosen }, origin, () => true, f.Token)).RequestReview!;
-        var offers = 0;
-        var expected = chosen;
-        c.Reviews.ClaudeOffered += offered =>
-        {
-            offered.Profile.Should().Be(expected);
-            Encoding.UTF8.GetString(offered.Body.AsSpan()).Should().Contain("\"" + expected.Model.Value + "\"");
-            c.Http.Requests.Count(request => request.Method is "POST").Should().Be(Math.Min(offers, approvals));
-            using var presentation = offered.Presentation();
-            c.Reviews.Confirm(offered, ++offers <= approvals, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
+
         var receipt = (await commands.ExecuteAsync(SessionCommand.Parse("session request confirm", "Kora")!,
             RequestOrigin.LocalUi, () => true, f.Token)).RequestSubmission!;
-        receipt.Message.Outcome.Should().Be(approvals == 2 ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        receipt.Message.AssistantResponse?.Body.Should().Be(approvals == 2 ? "genuine exact answer" : null);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        receipt.Message.AssistantResponse?.Body.Should().Be("genuine exact answer");
         receipt.Message.Request.Origin.Should().Be(origin);
         receipt.Message.Body.Should().Be(body);
-        offers.Should().Be(2);
-        if (approvals == 2)
-        {
-            expected = saved;
-            await c.Conversation.SubmitClaudeAsync(target, "next inherited request", () => true, f.Token);
-            offers.Should().Be(3, "the next inherited count request is independently disclosed and denied");
-        }
+        IEnumerable<string> PostBodies() => c.Http.Requests.Where(request => request.Method is "POST")
+            .Select(request => Encoding.UTF8.GetString(request.Body));
+        PostBodies().Should().HaveCount(2).And.OnlyContain(text => text.Contains("\"" + chosen.Model.Value + "\""));
+        var next = await c.Conversation.SubmitAsync(await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token),
+            "next inherited request", () => true, f.Token);
+        next.Message.Request.Origin.Should().Be(RequestOrigin.LocalUi);
+        PostBodies().Skip(2).Should().HaveCount(2, "the next ordinary request inherits the saved profile")
+            .And.OnlyContain(text => text.Contains("\"" + saved.Model.Value + "\""));
         preferences.Load()!.Serialize().Should().Be(before);
         var after = await f.Store.ReadProviderProfile(f.Request.SessionId, f.Token);
         after.Revision.Should().Be(policy.Revision);

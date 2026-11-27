@@ -74,19 +74,6 @@ public sealed partial class SessionConversationService(
         RequestOrigin origin, CancellationToken token) =>
         SubmitCoreAsync(target, body, admitted, validateSource, links, origin, null, ModelTurnChoice.Local, token);
 
-    /// <summary>Explicit hosted request; selection and preparation never replace final-byte disclosure approval.</summary>
-    public Task<ConversationSubmissionReceipt> SubmitCopilotAsync(SessionWorkspaceEntry target, string body,
-        Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null) =>
-        SubmitCoreAsync(target, body, admitted, beforeRetain, null, RequestOrigin.LocalUi, null,
-            ModelTurnChoice.Hosted, token, copilot: true, ordinaryActiveDeadline: true);
-
-    public Task<ConversationSubmissionReceipt> SubmitCopilotAnswerStreamAsync(SessionWorkspaceEntry target, string body,
-        Func<bool> admitted, CancellationToken token) =>
-        SubmitCoreAsync(target, body, admitted, null, null, RequestOrigin.LocalUi,
-            (request, now) => new(request, Policy, body, [], now,
-                now.Add(HostedTurnAuthorization.MaximumDuration), ModelToolMode.None),
-            ModelTurnChoice.Hosted, token, copilot: true, ordinaryActiveDeadline: true);
-
     /// <summary>Host-only reviewed-source lifecycle; callbacks cannot confer authority or replace host validation.</summary>
     internal Task<ConversationSubmissionReceipt> SubmitReviewedContextAsync(SessionWorkspaceEntry target, string body,
         Func<HostRequest, DateTimeOffset, ModelContextEnvelope> createContext, Func<bool> admitted,
@@ -122,7 +109,7 @@ public sealed partial class SessionConversationService(
         Action<ModelTurn, Func<bool>>? bindWebPage = null,
         Action? terminalCommitted = null, bool copilot = false,
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
-        bool claude = false, bool claudeStreamAnswer = false, PendingConversation? pending = null,
+        bool claude = false, PendingConversation? pending = null,
         LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false,
         bool ordinaryActiveDeadline = false, LocalRequestProfileReview? localRequestProfile = null,
         bool retainAgentObservations = false,
@@ -163,18 +150,19 @@ public sealed partial class SessionConversationService(
         pending?.Output?.Bind(request);
         localRequestProfile?.Bind(request);
         var now = time.GetUtcNow();
-        var originalLocalTools = createContext is null && prepareContext is null && !copilot && !claude
+        var originalLocalTools = createContext is null && prepareContext is null && !copilot
             && localRequestProfile is null && !retainAgentObservations;
         var providerSettings = originalLocalTools && Kora.Core.Tools.ProviderSettingsTools.IsExplicitRequest(body);
         var maintenance = originalLocalTools && Kora.Core.Tools.MaintenanceTools.IsExplicitRequest(body);
         if (providerSettings || maintenance) { choice = ModelTurnChoice.Local; }
+        // Every Claude route supplies its own context; a missing one fails closed at Claude admission.
         var context = createContext is null ? new ModelContextEnvelope(request,
             maintenance ? Policy + " " + Kora.Core.Tools.MaintenanceTools.ModelPolicy
                 : providerSettings ? Policy + " " + Kora.Core.Tools.ProviderSettingsTools.ModelPolicy : Policy, body, [], now,
             maintenance ? now.Add(Kora.Core.Tools.MaintenanceTools.Deadline)
-                : copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
+                : copilot ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
             maintenance ? ModelToolMode.ApplicationMaintenance
-                : providerSettings ? ModelToolMode.ProviderSettings : claude ? ModelToolMode.None
+                : providerSettings ? ModelToolMode.ProviderSettings
                 : prepareContext is null && localRequestProfile is null && !retainAgentObservations
                     ? ModelToolMode.InteractiveConversation : ModelToolMode.ReadOnly)
             : createContext(request, now);
@@ -234,7 +222,7 @@ public sealed partial class SessionConversationService(
                             : claude
                             ? turns is ModelTurnHost claudeHost
                                 ? claudeCustomization is null
-                                    ? await claudeHost.AdmitClaudeAsync(context, token, claudeStreamAnswer).ConfigureAwait(false)
+                                    ? await claudeHost.AdmitClaudeAsync(context, token).ConfigureAwait(false)
                                     : await claudeHost.AdmitClaudeAsync(context, claudeCustomization.Selection,
                                         claudeCustomization.SourceCurrent, token).ConfigureAwait(false)
                                 : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))

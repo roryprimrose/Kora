@@ -18,8 +18,6 @@ public sealed partial class HostedClaudeSessionRequestTests
     [Theory]
     [InlineData(CustomizationKind.Agent, "complete")]
     [InlineData(CustomizationKind.Skill, "complete")]
-    [InlineData(CustomizationKind.Agent, "count-denied")]
-    [InlineData(CustomizationKind.Skill, "messages-denied")]
     [InlineData(CustomizationKind.Agent, "changed-source")]
     public async Task SelectedSourceUsesCanonicalRetentionActualSdkPostsAndExactReceipt(CustomizationKind kind, string fault)
     {
@@ -43,21 +41,7 @@ public sealed partial class HostedClaudeSessionRequestTests
             c.Turns, c.Http, f.Time, ProviderService.Claude);
         var target = await c.Workspace.CreateAsync(new("Selected Claude target"), RequestOrigin.LocalUi, f.Token);
         const string original = "  unchanged original\r\ntask  ";
-        var offers = 0;
-        c.Reviews.ClaudeOffered += review =>
-        {
-            using var physical = JsonDocument.Parse(review.Body.ToArray());
-            var messages = physical.RootElement.GetProperty("messages");
-            messages[0].GetProperty("role").GetString().Should().Be("user");
-            messages[0].GetProperty("content")[0].GetProperty("text").GetString().Should().Be(text);
-            messages[1].GetProperty("content")[0].GetProperty("text").GetString().Should().Be(original);
-            using var presentation = review.Presentation();
-            offers++;
-            if (fault is "changed-source") { File.WriteAllBytes(source.Location, System.Text.Encoding.UTF8.GetBytes(text + "\nChanged guidance.")); }
-            c.Reviews.Confirm(review, fault is not "count-denied" && !(fault is "messages-denied" && offers == 2),
-                RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
+
         using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
         var selected = await workflow.ReviewAsync(source, target.Metadata!.Name.Value, original, RequestOrigin.LocalUi,
             (_, _) => Task.FromResult(true), () => true, f.Token);
@@ -67,6 +51,7 @@ public sealed partial class HostedClaudeSessionRequestTests
         f.Count("conversation_messages").Should().Be(0);
         if (fault is "changed-source")
         {
+            File.WriteAllBytes(source.Location, System.Text.Encoding.UTF8.GetBytes(text + "\nChanged guidance."));
             await Assert.ThrowsAnyAsync<Exception>(() => workflow.ConfirmAsync(selected.Id, () => true, f.Token));
             c.Http.Requests.Count(request => request.Method is "POST").Should().Be(0);
         }
@@ -75,18 +60,21 @@ public sealed partial class HostedClaudeSessionRequestTests
             var receipt = await workflow.ConfirmAsync(selected.Id, () => true, f.Token);
             receipt.Message.Body.Should().Be(original);
             receipt.Message.Request.SessionId.Should().Be(target.Authority.SessionId);
-            receipt.Message.Outcome.Should().Be(fault is "complete" ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-            if (fault is "complete")
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            receipt.Message.AssistantResponse.Should().NotBeNull();
+            receipt.Message.AssistantResponse!.Body.Should().Be("genuine exact answer");
+            foreach (var post in c.Http.Requests.Where(request => request.Method is "POST"))
             {
-                receipt.Message.AssistantResponse.Should().NotBeNull();
-                receipt.Message.AssistantResponse!.Body.Should().Be("genuine exact answer");
+                using var physical = JsonDocument.Parse(post.Body);
+                var messages = physical.RootElement.GetProperty("messages");
+                messages[0].GetProperty("role").GetString().Should().Be("user");
+                messages[0].GetProperty("content")[0].GetProperty("text").GetString().Should().Be(text);
+                messages[1].GetProperty("content")[0].GetProperty("text").GetString().Should().Be(original);
             }
-            else { receipt.Message.AssistantResponse.Should().BeNull(); }
             f.Count("conversation_messages").Should().Be(1);
             (await f.Store.ReadConversationMessageAsync(target.Authority.SessionId, receipt.Message.Request.RequestId, f.Token))
                 .Should().Be(receipt.Message);
-            c.Http.Requests.Count(request => request.Method is "POST").Should().Be(fault is "complete" ? 2
-                : fault is "messages-denied" ? 1 : 0);
+            c.Http.Requests.Count(request => request.Method is "POST").Should().Be(2);
             await Assert.ThrowsAsync<InvalidOperationException>(() => workflow.ConfirmAsync(selected.Id, () => true, f.Token));
         }
         c.Turns.IsQuiescent.Should().BeTrue();

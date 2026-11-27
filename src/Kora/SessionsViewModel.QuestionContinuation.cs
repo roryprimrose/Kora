@@ -75,7 +75,6 @@ internal sealed partial class SessionsViewModel
             var receipt = mode switch
             {
                 ModelToolMode.ReadOnly => await conversation!.SubmitReadOnlyWithClarificationAsync(target, body, SourceLive, Present, token),
-                ModelToolMode.HostedClarification => await conversation!.SubmitClaudeWithClarificationAsync(target, body, SourceLive, Present, token),
                 _ => await conversation!.SubmitAsync(target, body, SourceLive, token, questionPresenter: Present)
             };
             if (PresentLive())

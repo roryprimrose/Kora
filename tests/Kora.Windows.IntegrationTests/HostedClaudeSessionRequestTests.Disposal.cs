@@ -46,18 +46,7 @@ public sealed partial class HostedClaudeSessionRequestTests
             var commands = new SessionRequestCommandService(c.Workspace, c.Conversation, c.Access, f.Time);
             var review = (await commands.ExecuteAsync(SessionCommand.Parse(
                 "session request review active claude -- " + body, "Kora")!, origin, () => true, f.Token)).RequestReview!;
-            var offers = 0;
-            c.Reviews.ClaudeOffered += offered =>
-            {
-                c.Http.Requests.Count(item => item.Method is "POST").Should().Be(offers++);
-                offered.Review.Transmission.Provenance.Request.SessionId.Should().Be(f.Request.SessionId);
-                offered.Review.Transmission.Provenance.Request.Origin.Should().Be(origin);
-                Encoding.UTF8.GetString(offered.Body.AsSpan()).Should().Contain("original disposal request\\r\\nunchanged");
-                using var presentation = offered.Presentation();
-                c.Reviews.Confirm(offered, true, RequestOrigin.ActivatedVoice).Should().BeFalse();
-                c.Reviews.Confirm(offered, true, RequestOrigin.LocalUi).Should().BeTrue();
-                presentation.Complete(HostOperationOutcome.Completed);
-            };
+
             var phases = new List<ConversationExecutionPhase>();
             c.Conversation.RunningConversationChanged += status => phases.Add(status.Phase);
             var exception = await Assert.ThrowsAsync<ConversationSubmissionUnconfirmedException>(() => commands.ExecuteAsync(
@@ -75,8 +64,8 @@ public sealed partial class HostedClaudeSessionRequestTests
             phases.Should().Contain(ConversationExecutionPhase.Unconfirmed);
             c.Runtime.IsQuiescent.Should().BeFalse();
             var sends = failCount ? 1 : 2;
-            offers.Should().Be(sends);
-            c.Http.Requests.Count(item => item.Method is "POST").Should().Be(sends);
+            c.Http.Requests.Where(item => item.Method is "POST").Should().HaveCount(sends)
+                .And.OnlyContain(item => Encoding.UTF8.GetString(item.Body).Contains("original disposal request\\r\\nunchanged"));
             responses.Should().HaveCount(sends).And.OnlyContain(response => response.DisposeAttempts == 1
                 && response.Reader.AsyncDisposeAttempts == 1 && response.Reader.SyncDisposeAttempts >= 1);
             c.Http.Audits.Should().Contain(item => string.Equals(item.ActionId, "runtime.resource.quarantine", StringComparison.Ordinal)
@@ -93,11 +82,10 @@ public sealed partial class HostedClaudeSessionRequestTests
             terminal.Body.Should().Be(body);
             var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
             var requests = c.Http.Requests.Count;
-            var blocked = await Assert.ThrowsAsync<ConversationSubmissionUnconfirmedException>(() => c.Conversation.SubmitClaudeAsync(
+            var blocked = await Assert.ThrowsAsync<ConversationSubmissionUnconfirmedException>(() => c.Conversation.SubmitAsync(
                 target, "must not send another turn", () => true, f.Token));
             blocked.InnerException.Should().BeOfType<InvalidOperationException>();
             c.Runtime.IsQuiescent.Should().BeFalse();
-            offers.Should().Be(sends);
             c.Http.Requests.Should().HaveCount(requests);
             (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages
                 .Should().ContainSingle().Which.Should().Be(terminal);

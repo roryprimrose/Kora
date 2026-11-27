@@ -524,6 +524,7 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         envelope["RequestedAudit"] = null;
         envelope["RequestedGrantRevision"] = null;
         envelope["RequestedGrants"] = null;
+        envelope["ApprovalAnswerChannel"] = null;
         envelope["Audit"]!["ActionId"] = "authority.snapshot";
         envelope["Audit"]!["ApprovalId"] = null;
         for (var index = 0; index < count; index++)

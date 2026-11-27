@@ -83,6 +83,18 @@ generations or unconfirmed capture release refuse interruption without
 retargeting. Dictation, question replies and ambient audio never become stop
 commands. This does not enable hands-free or full-duplex listening.
 
+## Optional global hold-to-talk shortcut
+
+In **Settings > Speech & audio > Global hold-to-talk shortcut**, choose **Control Shift Space**, **Control Shift F9** or **Unassigned**, then **Save global shortcut**. **Cancel global shortcut edit** restores the saved selection. Unassigned is the default and registers nothing ([native controls](../src/Kora/SettingsView.axaml), [choices](../src/Kora.Core/Voice/GlobalPttShortcut.cs)).
+
+Hold the registered chord while any application has focus to start the existing push-to-talk capture; release any chord key to finish. Existing microphone, consent, ownership, privacy and call checks still apply. The key itself never answers an approval ([binding](../src/Kora/GlobalPushToTalkBinding.cs), [admission](../src/Kora.Application/ViewModels/MainViewModel.GlobalPtt.cs)).
+
+Typed input and already activated voice share `get global push-to-talk shortcut`, `set global push-to-talk to Control Shift Space`, `set global push-to-talk to Control Shift F9`, `set global push-to-talk to Unassigned` and `reset global push-to-talk shortcut`. Saving does not enable listening or change consent ([commands](../src/Kora.Application/Configuration/ForegroundPttCommand.cs)).
+
+If another application owns the chord, registration is explicitly unavailable; no substitute chord is registered. The saved preference remains visible separately from registration status. Lock, privacy closure and disposal release an owned hold; teardown joins capture. Windows uses `RegisterHotKey` with repeat suppression and checks key state only while held, never a global keyboard hook ([Windows owner](../src/Kora.Windows/Input/GlobalPushToTalkHotkey.cs)).
+
+The global and foreground shortcuts are independent. Their saved writes use separate device-local preferences and audited original-channel admission; unconfirmed state remains unavailable ([global preference service](../src/Kora.Application/Configuration/GlobalPttConfigurationService.cs), [product decision](../Design/Decision_Register.md#voice-to-action-interaction---2026-11-27)).
+
 ## Optional foreground push-to-talk shortcut
 
 In **Settings > Speech & audio > Foreground push-to-talk shortcut**, choose **Control Shift Space**, **Control Shift F9**, or **Unassigned**, then **Save shortcut**. **Cancel shortcut edit** restores the saved selection without changing it. The default is unassigned ([native controls](../src/Kora/SettingsWindow.axaml), [supported choices](../src/Kora.Core/Voice/ForegroundPttShortcut.cs)).

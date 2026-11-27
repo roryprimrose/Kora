@@ -51,6 +51,7 @@ public sealed partial class App : Avalonia.Application
     private AttachmentCatalogueWindowController? attachmentCatalogue;
     private MaintenanceWindowController? maintenanceWindow;
     private MainViewModel? viewModel;
+    private GlobalPushToTalkBinding? globalPushToTalk;
     private ILogger<App>? logger;
     private PresenceWindowController? presenceWindows;
     private readonly DispatcherTimer presenceRendererTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
@@ -59,6 +60,7 @@ public sealed partial class App : Avalonia.Application
     private AssistantWindowTitles? assistantWindowTitles;
     internal static ServiceProvider Services { get; set; } = null!;
     internal static Task DetailPreferenceQuiescence { get; private set; } = Task.CompletedTask;
+    internal static Task GlobalPttQuiescence { get; private set; } = Task.CompletedTask;
     internal static bool IsManualStartup { get; set; }
     private ManualStartupPresentationController? manualStartupPresentation;
     internal DetailWindowController? Details => detailWindow;
@@ -77,6 +79,9 @@ public sealed partial class App : Avalonia.Application
             Services.GetRequiredService<AppearanceConfigurationService>().ConfigureNativePresenceStartupDefault(
                 PresenceRendererSelection.UseNative(Environment.GetEnvironmentVariable(PresenceRendererSelection.EnvironmentVariable)));
             viewModel = Services.GetRequiredService<MainViewModel>();
+            globalPushToTalk = new(viewModel, Services.GetRequiredService<GlobalPttConfigurationService>(),
+                new Kora.Windows.Input.GlobalPushToTalkHotkey());
+            GlobalPttQuiescence = globalPushToTalk.InitializeAsync();
             Services.GetRequiredService<DesktopSessionWorkspaceAccess>().Bind(viewModel);
             viewModel.BindWebSummaryWorkflow(Services.GetRequiredService<Kora.Application.Network.WebSummaryWorkflow>());
             viewModel.BindExternalBrowserWorkflow(Services.GetRequiredService<Kora.Application.Network.ExternalBrowser.ExternalBrowserWorkflow>());
@@ -519,6 +524,9 @@ public sealed partial class App : Avalonia.Application
 
     internal void DisposeDesktopControllers()
     {
+        globalPushToTalk?.Dispose();
+        GlobalPttQuiescence = globalPushToTalk?.Quiescence ?? GlobalPttQuiescence;
+        globalPushToTalk = null;
         assistantWindowTitles?.Dispose();
         assistantWindowTitles = null;
         desktopLifetime?.Dispose();

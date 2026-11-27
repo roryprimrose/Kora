@@ -18,6 +18,28 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BareNameRouteWithoutTrustedWakeDoesNotCreateAddressedReview(bool voice)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var store = BindRequestCommands(fixture);
+        var routes = 0;
+        fixture.ViewModel.BindSessionRouting((body, origin, _) =>
+        {
+            body.Should().Be("in Build plan, original");
+            origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            routes++;
+            return Task.FromResult<Kora.Application.Hosting.SessionRouting.SessionRoutingReceipt?>(null);
+        });
+        if (voice) { await fixture.RaiseActivatedTranscriptAsync("in Build plan, original", 1); }
+        else { await fixture.RunAsync("in Build plan, original"); }
+        fixture.ViewModel.ResponseTitle.Should().NotBe("Review conversation request.");
+        store.RequestRetentions.Should().Be(0);
+        routes.Should().Be(voice ? 0 : 1);
+    }
+
+    [Theory]
     [InlineData(false, ", ")]
     [InlineData(true, ", ")]
     [InlineData(true, " ")]

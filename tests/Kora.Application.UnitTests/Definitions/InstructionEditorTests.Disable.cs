@@ -1,10 +1,13 @@
 ﻿using AwesomeAssertions;
 
 using Kora.Application.Definitions;
+using Kora.Application.Hosting;
+using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Storage;
 
 namespace Kora.Application.UnitTests.Definitions;
 
@@ -23,6 +26,8 @@ public sealed partial class InstructionEditorTests
         f.Catalogue.Publish([.. f.Catalogue.Candidates, bundled]);
         await f.Actions.Activate(saved, _ => Task.FromResult(true), f.Eligible, CancellationToken.None);
         var captured = Candidate(saved);
+        var epoch = f.Revisions.CaptureReviewEpoch(saved);
+        var source = kind == ArtifactKind.Instruction ? await ReviewInstructionSource(f) : null;
         var router = new ArtifactCommandRouter(f.Catalogue);
         var command = "/" + kind.ToString().ToLowerInvariant() + " example";
         router.Match(command, "Kora").Invocation.Should().NotBeNull();
@@ -50,13 +55,22 @@ public sealed partial class InstructionEditorTests
         f.Actions.IsReviewedUseEnabled(saved).Should().BeFalse();
         f.Catalogue.Artifacts.Should().Equal(bundled);
         f.Catalogue.Candidates.Should().Contain(item => item.OwnedInstructionName == "example" && !item.IsUseEnabled);
-        f.Catalogue.IsCapturedRevisionCurrent(captured.Id, captured.Digest).Should().BeTrue();
+        f.Catalogue.IsCurrent(captured.Id, captured.Digest).Should().BeFalse();
+        f.Catalogue.Candidates.Single(item => string.Equals(item.Id, captured.Id, StringComparison.Ordinal)).PreservesCapturedUse.Should().BeTrue();
+        f.Revisions.IsCapturedUseAllowed(saved, epoch).Should().BeTrue();
+        if (source is not null)
+        {
+            source.IsCurrent().Should().BeFalse();
+            source.IsCurrent(captured: true).Should().BeTrue();
+        }
         router.Match(command, "Kora").Invocation.Should().BeNull();
         router.Match("/example", "Kora").Invocation.Should().BeNull();
         router.Match("use example", "Kora").Invocation.Should().BeNull();
         router.Match("Kora, use example", "Kora").Invocation.Should().BeNull();
         (await f.Actions.IsCurrent(captured, f.Eligible, CancellationToken.None)).Should().BeFalse();
-        f.Catalogue.IsCapturedRevisionCurrent(captured.Id, captured.Digest).Should().BeTrue();
+        f.Catalogue.Candidates.Single(item => string.Equals(item.Id, captured.Id, StringComparison.Ordinal)).PreservesCapturedUse.Should().BeTrue();
+        f.Revisions.IsCapturedUseAllowed(saved, epoch).Should().BeTrue();
+        if (source is not null) { source.IsCurrent(captured: true).Should().BeTrue(); }
         (await f.Actions.Inspect("example", f.Eligible, CancellationToken.None)).Should().BeSameAs(saved);
         (await f.Actions.List(f.Eligible, CancellationToken.None)).Should().Equal("example");
         f.Files.Writes.Should().Be(0);
@@ -283,10 +297,30 @@ public sealed partial class InstructionEditorTests
         await using var f = new Fixture();
         var saved = f.Files.Current!;
         await f.Actions.Activate(saved, _ => Task.FromResult(true), f.Eligible, CancellationToken.None);
+        var source = await ReviewInstructionSource(f);
         await f.Actions.Disable(saved, _ => Task.FromResult(true), f.Eligible, CancellationToken.None);
-        f.Catalogue.IsCapturedRevisionCurrent(saved.Document.Definition.Id, saved.Document.Definition.Digest).Should().BeTrue();
+        source.IsCurrent().Should().BeFalse();
+        source.IsCurrent(captured: true).Should().BeTrue();
         f.Files.FailRead = true;
         (await f.Actions.IsCurrent(Candidate(saved), f.Eligible, CancellationToken.None)).Should().BeFalse();
-        f.Catalogue.IsCapturedRevisionCurrent(saved.Document.Definition.Id, saved.Document.Definition.Digest).Should().BeFalse();
+        source.IsCurrent(captured: true).Should().BeFalse();
+        f.Catalogue.Candidates.Single().PreservesCapturedUse.Should().BeFalse();
+    }
+
+    private static Task<ScopedInstructionUseBroker.InstructionSourceReview> ReviewInstructionSource(Fixture f)
+    {
+        var target = new SessionWorkspaceEntry(f.Control.Authority!, null);
+        var sessions = new CapturedInstructionSession(target);
+        var broker = new ScopedInstructionUseBroker(f.Catalogue, f.Revisions, f.Files, sessions, sessions, TimeProvider.System);
+        return broker.ReviewSourceAsync(target, broker.Choices.Single(), f.Eligible, CancellationToken.None);
+    }
+
+    private sealed class CapturedInstructionSession(SessionWorkspaceEntry target) : AudioControlTestStore, ISessionWorkspaceAccess
+    {
+        public bool CanInspect => true;
+        public bool CanControl => true;
+        public long ControlRevision => 0;
+        public override ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
+            session == target.Authority.SessionId ? ValueTask.FromResult(target) : throw new InvalidOperationException("Unknown test session.");
     }
 }

@@ -34,19 +34,22 @@ public sealed partial class InstructionEditorTests
         use.SetDisabled(files.Source.Id, false, selected.Digest);
         use.SetDisabled("file.unrelated", false, unrelated.Digest);
         var service = new CustomizationManagementService(files, f.Admission, use, catalogue, f.Audit);
-        catalogue.IsCapturedRevisionCurrent(selected.Id, selected.Digest).Should().BeTrue();
+        catalogue.IsCurrent(selected.Id, selected.Digest).Should().BeTrue();
         files.AfterWrite = () => use.IsDisabled(files.Source.Id).Should().BeTrue("the hold must precede the irreversible effect");
         var result = await service.Delete(files.Current, _ => Task.FromResult(true), f.Eligible, TestContext.Current.CancellationToken);
         result.Should().Be(CustomizationDeletionOutcome.Deleted);
         files.Writes.Should().Be(1);
-        catalogue.IsCapturedRevisionCurrent(selected.Id, selected.Digest).Should().BeFalse();
-        catalogue.IsCapturedRevisionCurrent(unrelated.Id, unrelated.Digest).Should().BeTrue();
+        catalogue.IsCurrent(selected.Id, selected.Digest).Should().BeFalse();
+        catalogue.Candidates.Single(item => string.Equals(item.Id, selected.Id, StringComparison.Ordinal)).PreservesCapturedUse.Should().BeFalse();
+        catalogue.IsCurrent(unrelated.Id, unrelated.Digest).Should().BeTrue();
+        catalogue.Candidates.Single(item => string.Equals(item.Id, unrelated.Id, StringComparison.Ordinal)).PreservesCapturedUse.Should().BeTrue();
         new ArtifactUsePreferences(state).IsDisabled(files.Source.Id).Should().BeTrue();
         use.IsRevisionAllowed(files.Source.Id, selected.Digest).Should().BeFalse();
         catalogue.Publish([unrelated]);
         catalogue.Artifacts.Should().ContainSingle().Which.Id.Should().Be("unrelated");
         catalogue.Publish([selected, unrelated]);
-        catalogue.IsCapturedRevisionCurrent(selected.Id, selected.Digest).Should().BeFalse("restoring bytes is not renewed authority");
+        catalogue.IsCurrent(selected.Id, selected.Digest).Should().BeFalse("restoring bytes is not renewed authority");
+        catalogue.Candidates.Single(item => string.Equals(item.Id, selected.Id, StringComparison.Ordinal)).PreservesCapturedUse.Should().BeFalse();
         f.Audit.Events.Select(entry => entry.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
         f.Audit.Events[0].Initiator.Should().Be(origin == RequestOrigin.ActivatedVoice
             ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser);

@@ -5,6 +5,7 @@ using Kora.Application.Hosting.SessionRouting;
 using Kora.Application.Diagnostics;
 using Kora.Core;
 using Kora.Core.Auditing;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
 
@@ -63,7 +64,8 @@ public sealed partial class MainViewModel
     internal async Task ExecuteSessionCommandAsync(SessionCommand command, SecurityAuditInitiator initiator,
         Func<bool>? originalScopeEligibility = null, bool scopeActivationPrefixed = false,
         long? originalScopeNameRevision = null, ForegroundConversationTarget? foregroundTarget = null,
-        Func<bool>? permissionReviewSource = null, Func<string, SessionRoutingVoiceRequest>? createVoiceRequest = null)
+        Func<bool>? permissionReviewSource = null, Func<string, SessionRoutingVoiceRequest>? createVoiceRequest = null,
+        SessionPermissionPolicy? readbackPermission = null, Func<bool>? readbackVoiceAdmission = null)
     {
         if (disposed) { return; }
         if (command.Operation == SessionCommandOperation.Metrics
@@ -104,10 +106,15 @@ public sealed partial class MainViewModel
         var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand || command.IsConversationDispatch
             || command.IsPermissionCommand;
         SessionRoutingVoiceRequest? automaticVoiceSource = null;
+        long? joinedReadbackGeneration = null;
+        var automaticReadback = false;
         bool StableEligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
             && (!requestCommand || ReferenceEquals(originalRequests, sessionRequests))
             && automaticVoiceSource?.IsLive != false
-            && (!command.RequestForegroundTarget || (automaticVoiceSource?.IsLive ?? originalScopeEligibility?.Invoke()) == true
+            && (!command.RequestForegroundTarget || (automaticVoiceSource?.IsLive
+                ?? (joinedReadbackGeneration is { } joined
+                    ? voiceRecognition.Generation == joined && readbackVoiceAdmission?.Invoke() == true
+                    : originalScopeEligibility?.Invoke())) == true
                 && (origin == RequestOrigin.ActivatedVoice
                     ? foregroundTarget?.IsResourceCurrent : foregroundTarget?.IsCurrent) == true
                 && originalScopeNameRevision == assistantNameConfiguration.Get().Revision
@@ -201,21 +208,36 @@ public sealed partial class MainViewModel
                 ? await ExecuteSessionRetentionCommandAsync(command, origin, Eligible, CancellationToken.None)
                 : requestCommand || command.IsConversationDispatch
                 ? await (originalRequests ?? throw new InvalidOperationException("The canonical retained-request command service is unavailable."))
-                    .ExecuteAsync(command, origin, inputEligible, CancellationToken.None, foregroundTarget)
+                    .ExecuteAsync(command, origin, inputEligible, CancellationToken.None, foregroundTarget,
+                        readbackPermission: readbackPermission)
                 : await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { return; }
             if (result.RequestReview is { Origin: RequestOrigin.ActivatedVoice, TaskResponseMode: null } spokenReview
-                && AreSpokenSendRepliesEnabled && createVoiceRequest is not null)
+                && createVoiceRequest is not null)
             {
-                if (sessionRoutingVoiceRequest is not null)
-                { throw new InvalidOperationException("Another original request still owns voice capture."); }
-                automaticVoiceSource = createVoiceRequest(spokenReview.Body);
-                sessionRequestNativeDecision = Task.CompletedTask;
-                sessionRoutingVoiceRequest = automaticVoiceSource;
-                PropertyChanged += RevalidateSessionRoutingVoice;
-                PrivacyClosureRequested += RoutingVoicePrivacyClosed;
+                var permission = await originalRequests!.ReadReadbackPermissionAsync(spokenReview, CancellationToken.None);
+                if (AreSpokenSendRepliesEnabled || permission is not null)
+                {
+                    if (sessionRoutingVoiceRequest is not null)
+                    { throw new InvalidOperationException("Another original request still owns voice capture."); }
+                    SetApproveAllReadback(permission is not null);
+                    automaticReadback = permission is not null;
+                    automaticVoiceSource = createVoiceRequest(spokenReview.Body);
+                    sessionRequestNativeDecision = Task.CompletedTask;
+                    sessionRoutingVoiceRequest = automaticVoiceSource;
+                    PropertyChanged += RevalidateSessionRoutingVoice;
+                    PrivacyClosureRequested += RoutingVoicePrivacyClosed;
+                }
             }
             if (result.PendingClearReview is { } pendingReview) { SetPendingClearReview(pendingReview); }
+            if (readbackPermission is not null && result.RequestReview is { } changedPermissionReview)
+            {
+                SetForegroundRequestReview(changedPermissionReview);
+                Transcript = result.Message;
+                forceVisualResponse = true;
+                NotifyOutputPolicyChanged();
+                return;
+            }
             if (result.RequestSubmission is { } submitted)
             {
                 if (foregroundConfirmation) { ForegroundRequestSubmitted?.Invoke(submitted); }
@@ -298,8 +320,12 @@ public sealed partial class MainViewModel
 #pragma warning disable VSTHRD003 // A native choice joins this same original capture before confirmation and retirement.
                 await sessionRequestNativeDecision;
 #pragma warning restore VSTHRD003
+                if (automaticReadback && automaticVoiceSource.IsCurrent && foregroundRequestReview is not null)
+                { joinedReadbackGeneration = voiceRecognition.Generation; }
                 await JoinSessionRoutingVoice();
+                SetApproveAllReadback(false);
                 automaticVoiceSource.ReleaseOwner();
+                automaticVoiceSource = null;
                 sessionRoutingVoiceRequest = null;
                 PropertyChanged -= RevalidateSessionRoutingVoice;
                 PrivacyClosureRequested -= RoutingVoicePrivacyClosed;

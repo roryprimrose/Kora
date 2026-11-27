@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 
 using Kora.Core.Conversation;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Conversation.SessionRouting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -185,7 +186,52 @@ public sealed class SessionRoutingService(
         catch { activity.Complete(HostOperationOutcome.Failed); throw; }
     }
 
-    public async Task<SessionRoutingReceipt> SubmitAsync(SessionRoutingSelection selection, CancellationToken token)
+    public Task<SessionRoutingReceipt> SubmitAsync(SessionRoutingSelection selection, CancellationToken token) =>
+        SubmitCoreAsync(selection, null, token);
+
+    public async Task<SessionPermissionPolicy?> ReadReadbackPermissionAsync(SessionRoutingReview review, CancellationToken token)
+    {
+        if (review.Origin != RequestOrigin.ActivatedVoice
+            || review.Preselection is not { Basis: SessionRoutingReview.PreselectionBasis.Foreground } destination
+            || !workspace.SupportsSessionPermission) { return null; }
+        using var activity = review.Continue();
+        await ValidateReview(review, token).ConfigureAwait(false);
+        await ValidateTarget(destination.Destination.Entry, review, token).ConfigureAwait(false);
+        var policy = await workspace.ReadSessionPermissionAsync(destination.Destination.Entry.Authority.SessionId, token).ConfigureAwait(false);
+        if (!IsCurrent(review)) { throw new InvalidOperationException("Original routing admission changed before readback."); }
+        policy.Validate(destination.Destination.Entry.Authority);
+        activity.Complete(HostOperationOutcome.Completed);
+        return policy.Level == SessionPermissionLevel.ApproveAll ? policy : null;
+    }
+
+    public async Task<SessionRoutingReceipt?> SubmitReadbackAsync(SessionRoutingReview review,
+        SessionPermissionPolicy expected, CancellationToken token)
+    {
+        if (review.Origin != RequestOrigin.ActivatedVoice
+            || review.Preselection is not { Basis: SessionRoutingReview.PreselectionBasis.Foreground } destination)
+        { throw new InvalidOperationException("Only the original foreground voice destination admits automatic readback submission."); }
+        using var activity = review.Continue();
+        await ValidateReview(review, token).ConfigureAwait(false);
+        await ValidateTarget(destination.Destination.Entry, review, token).ConfigureAwait(false);
+        SessionRoutingSelection selection;
+        lock (gate) { selected = selection = new(review, destination.Destination.Entry); }
+        try
+        {
+            var receipt = await SubmitCoreAsync(selection, expected, token).ConfigureAwait(false);
+            activity.Complete(HostOperationOutcome.Completed);
+            return receipt;
+        }
+        catch (ISessionConversationStore.PermissionChangedException exception)
+        {
+            lock (gate) { consumed = false; selected = null; }
+            if (!IsCurrent(review)) { throw new InvalidOperationException("Original request changed while returning to destination review.", exception); }
+            activity.Complete(HostOperationOutcome.Failed);
+            return null;
+        }
+    }
+
+    private async Task<SessionRoutingReceipt> SubmitCoreAsync(SessionRoutingSelection selection,
+        SessionPermissionPolicy? readbackPermission, CancellationToken token)
     {
         var review = selection.Review;
         long attempt;
@@ -221,8 +267,11 @@ public sealed class SessionRoutingService(
                 { throw new InvalidOperationException("The acknowledged destination or original permission changed; inspect any committed creation. No rerouting."); }
             }
             await Revalidate(token).ConfigureAwait(false);
-            var receipt = await conversation.SubmitAsync(target, review.Body, OriginalLive, token,
-                Revalidate, links: [new ActivityLink(activity.Activity!.Context)], origin: review.Origin).ConfigureAwait(false);
+            var receipt = readbackPermission is not null
+                ? await conversation.SubmitPermissionBoundAsync(target, review.Body, readbackPermission, OriginalLive, token,
+                    Revalidate, [new ActivityLink(activity.Activity!.Context)]).ConfigureAwait(false)
+                : await conversation.SubmitAsync(target, review.Body, OriginalLive, token,
+                    Revalidate, links: [new ActivityLink(activity.Activity!.Context)], origin: review.Origin).ConfigureAwait(false);
             activity.Complete(HostOperationOutcome.Completed);
             return new(target, receipt);
         }

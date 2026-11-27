@@ -15,7 +15,8 @@ public sealed partial class MainViewModel
     public bool HasForegroundRequestReview => foregroundRequestReview is not null;
     public string ForegroundRequestReviewText => foregroundRequestReview is { } review
         ? "Conversation: " + (review.Target.Metadata?.Name.Value ?? "Unnamed conversation")
-            + "\nProvider: Default / local only\nOriginal channel: " + review.Origin
+            + "\nProvider: " + (IsApproveAllReadback ? "Settings-selected provider" : "Default / local only")
+            + "\nOriginal channel: " + review.Origin
             + "\nExpires: " + review.ExpiresAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture)
             + (review.TaskResponseMode is { } mode ? "\nThis task only - declared output: " + mode
                 + "\nConfigured output: " + review.ConfiguredTaskResponseMode
@@ -58,6 +59,7 @@ public sealed partial class MainViewModel
 
     public Func<Task> CaptureForegroundRequestDecision(bool confirm)
     {
+        if (confirm && IsApproveAllReadback) { return static () => Task.CompletedTask; }
         var review = foregroundRequestReview;
         var command = new SessionCommand(confirm ? SessionCommandOperation.RequestConfirm : SessionCommandOperation.RequestCancel,
             review?.Target.Authority.SessionId.Value)
@@ -66,6 +68,7 @@ public sealed partial class MainViewModel
 
         async Task DecideAsync()
         {
+            if (confirm && IsApproveAllReadback) { return; }
             if (sessionRoutingVoiceReply is { } reply)
             {
                 await reply.DisposeAsync();
@@ -82,6 +85,7 @@ public sealed partial class MainViewModel
         uiDispatcher.Post(() =>
         {
             OnPropertyChanged(nameof(HasForegroundRequestReview));
+            OnPropertyChanged(nameof(CanConfirmForegroundRequest));
             OnPropertyChanged(nameof(HasSessionOperationReview));
             OnPropertyChanged(nameof(ForegroundRequestReviewText));
             OnPropertyChanged(nameof(OfferDetailsOnce));

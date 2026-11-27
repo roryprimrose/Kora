@@ -22,6 +22,34 @@ Auxiliary session views without an original-request review panel retain their ex
 
 Sessions and compact presenters also retain the separate [exact-answer reply review](reviewed-context.md). Choosing Reply on the retained answer does not submit the foreground request again or consume unsent input. Hiding and reopening that reply presenter invalidates its review rather than sending the follow-up as plain input.
 
+## Approve all voice readback
+
+An activated-voice request to the original foreground chat, including
+`Kora, ask this conversation <body>`, or to an exact named chat with
+`Kora, in <chat name>, <body>`, skips request confirmation when that
+destination's current permission is **Approve all**.
+
+Kora shows the complete unchanged request and named destination without taking
+focus, then speaks **Sending to &lt;chat&gt;: &lt;exact text&gt;. Say cancel to stop.**
+One bounded **cancel** capture is open during playback. Native Cancel, Escape,
+spoken cancel, failed playback/capture or lost original admission stops the
+operation. Capture must physically close before submission. This does not depend
+on the optional spoken send preference; microphone and speech consent/readiness
+are still required.
+
+The exact destination permission generation and revision are checked again in
+the same storage transaction that audits automatic approval and retains the
+original request. Any policy change returns to normal review without retaining
+or submitting the request. Audit failure blocks submission. The existing
+Settings-selected provider route and original ActivatedVoice channel remain
+unchanged; there is no provider fallback or automatic retry.
+
+Inferred, last-selected, missing and New destinations never skip destination
+review or send. Typed/native requests and request-only provider, retry and
+task-output reviews are unchanged
+([readback host](../src/Kora.Application/ViewModels/MainViewModel.ApproveAllReadback.cs),
+[atomic retention](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs)).
+
 ## Optional spoken send or cancel
 
 In **Settings > Speech and audio**, **Spoken send or cancel** is **Off** by
@@ -90,7 +118,8 @@ with the main conversation collapsed or expanded.
 For an activated-voice untargeted request while Kora's chat window is foreground,
 the exact Active foreground chat is instead preselected in **Review request destination**.
 No advice consent or inference runs for that proposal. **Review this destination**
-and **Submit original request to acknowledged destination** are still required;
+and **Submit original request to acknowledged destination** are required unless
+the exact original foreground chat qualifies for Approve all readback above;
 correction to another presented Active chat or New remains available. A changed or
 retired target resource invalidates the original review without substitution.
 This preserves the foreground-as-proposal decision ([D2a](../Design/Decision_Register.md#voice-to-action-interaction---2026-11-27)).
@@ -113,7 +142,8 @@ retire it. Typed requests retain per-request LOCAL advice consent.
 
 Neither inferred nor last-selected proposals skip acknowledgment or send,
 including in Approve all sessions. Correcting to another Active chat or New is
-still possible. Foreground and explicitly named routes are unchanged.
+still possible. Only the original foreground or explicitly named destination
+can qualify for Approve all readback.
 
 Advice and destination acknowledgment use supporting tabs in the same expanded workbench, not additional application windows ([advice view](../src/Kora/SessionRouting/SessionRoutingAdviceView.cs), [destination view](../src/Kora/SessionRouting/SessionRoutingView.cs)).
 Voice-originated reviews are shown without activating their window or moving keyboard focus.

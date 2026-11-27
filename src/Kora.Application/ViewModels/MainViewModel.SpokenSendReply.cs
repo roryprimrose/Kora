@@ -99,8 +99,8 @@ public sealed partial class MainViewModel
 
     private Func<string, SessionRoutingVoiceRequest>? CaptureSessionRequestVoiceInput(ManualCallInput? input)
     {
-        if (input?.Origin != RequestOrigin.ActivatedVoice || !AreSpokenSendRepliesEnabled) { return null; }
-        var request = HostActivity.RequireCurrent().Request;
+        if (input?.Origin != RequestOrigin.ActivatedVoice || HostActivity.Current is not { } current) { return null; }
+        var request = current.Request;
         var eligible = CaptureSkillReviewEligibility(input with { Eligible = input.RoutingStableEligible });
         return body => new SessionRoutingVoiceRequest(body, request,
             () => eligible() && input.AssistantNameRevision == assistantNameConfiguration.Get().Revision
@@ -112,16 +112,21 @@ public sealed partial class MainViewModel
     private async Task AnswerSessionRequestByVoiceAsync(SessionRequestReview review, SessionRoutingVoiceRequest source, Func<bool> admitted)
     {
         if (presentSpokenSendReview is not { } present || !ReferenceEquals(foregroundRequestReview, review)) { return; }
-        var preference = spokenSendReplies!.Get();
-        bool SourceCurrent() => source.IsLive && admitted() && spokenSendReplies.Get() == preference && preference?.Enabled == true
+        var automaticPermission = await sessionRequests!.ReadReadbackPermissionAsync(review, CancellationToken.None);
+        if (automaticPermission is null && !AreSpokenSendRepliesEnabled) { return; }
+        var preference = spokenSendReplies?.Get();
+        bool SourceCurrent() => source.IsLive && admitted()
+            && (automaticPermission is not null || spokenSendReplies?.Get() == preference && preference?.Enabled == true)
             && !disposed && IsHostInputEligible && !IsProtectedCall;
         bool ReviewCurrent() => SourceCurrent() && ReferenceEquals(foregroundRequestReview, review);
+        SetApproveAllReadback(automaticPermission is not null);
         var presentation = present(ReviewCurrent);
         bool Exact() => ReviewCurrent() && presentation.Current();
         try
         {
             var reply = SessionRequestVoiceReply.Create(source, review.Target.Metadata?.Name.Value ?? "Unnamed conversation",
-                Exact, () => ObserveSessionRoutingVoiceAdmission(source), SpeakSendReviewAsync, logger);
+                Exact, () => ObserveSessionRoutingVoiceAdmission(source), SpeakSendReviewAsync, logger,
+                submitAfterReadback: automaticPermission is not null);
             sessionRoutingVoiceReply = reply;
             reply.Changed += OnSessionRequestVoiceReplyChanged;
             SessionRoutingVoiceReply.SessionRoutingVoiceAnswer? answer;
@@ -136,13 +141,16 @@ public sealed partial class MainViewModel
                 reply.Changed -= OnSessionRequestVoiceReplyChanged;
                 OnSessionRequestVoiceReplyChanged(this, EventArgs.Empty);
             }
-            if (!Exact() || answer is null) { return; }
-            var command = new SessionCommand(answer.Choice == SessionRoutingVoiceReply.SessionRoutingVoiceChoice.Submit
+            if (!Exact()) { return; }
+            if (answer is null && automaticPermission is null) { return; }
+            var command = new SessionCommand(answer is { Choice: SessionRoutingVoiceReply.SessionRoutingVoiceChoice.Submit }
                 ? SessionCommandOperation.RequestConfirm : SessionCommandOperation.RequestCancel,
                 review.Target.Authority.SessionId.Value) { RequestReviewId = review.Id };
-            await ExecuteSessionCommandAsync(command, SecurityAuditInitiator.VoiceCommand, SourceCurrent);
+            SetApproveAllReadback(false);
+            await ExecuteSessionCommandAsync(command, SecurityAuditInitiator.VoiceCommand, SourceCurrent,
+                readbackPermission: command.Operation == SessionCommandOperation.RequestConfirm ? automaticPermission : null);
         }
-        finally { presentation.Close(); }
+        finally { SetApproveAllReadback(false); presentation.Close(); }
     }
 
     private void OnSessionRequestVoiceReplyChanged(object? sender, EventArgs args) =>

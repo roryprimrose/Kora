@@ -1,4 +1,6 @@
 using Kora.Core.Conversation;
+using Kora.Core.Auditing;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -9,6 +11,9 @@ namespace Kora.Core.Storage;
 /// <summary>One private consolidated authority; no caller-supplied append, replay or provider choice.</summary>
 public interface ISessionConversationStore
 {
+    /// <summary>The readback-bound policy changed; no automatic original-text retention committed.</summary>
+    sealed class PermissionChangedException()
+        : InvalidOperationException("The destination permission changed. Review the original request before submitting.");
     /// <summary>Observes the complete ordered historical source metadata, without source-body access.</summary>
     ValueTask<System.Collections.Immutable.ImmutableArray<SubmittedHistoryAvailability>> ReadSubmittedContextAvailabilityAsync(
         ConversationMessage answer, CancellationToken token) =>
@@ -35,6 +40,11 @@ public interface ISessionConversationStore
         ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token);
     ValueTask<ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request,
         HostRevision generation, long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token);
+    /// <summary>Atomically checks the readback-bound policy and audits automatic approval with original-text retention.</summary>
+    ValueTask<ConversationSubmissionReceipt> RetainPermissionBoundConversationAsync(HostRequest request,
+        HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
+        SessionPermissionPolicy expected, AutomaticApprovalAudit approval, Func<bool> admitted, CancellationToken token) =>
+        throw new InvalidOperationException("The conversation store cannot atomically admit a permission-bound original request.");
     ValueTask<ConversationSubmissionReceipt> RetainPendingConversationMessageAsync(HostRequest request,
         HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
         Func<bool> admitted, CancellationToken token) =>

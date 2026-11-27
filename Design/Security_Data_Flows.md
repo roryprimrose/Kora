@@ -734,6 +734,12 @@ These implementation checks do not qualify local answering quality, physical/nat
 
 ### Reviewed LocalOnly source-use risk admission
 
+Settings-routed hosted Submit uses a separate [hosted-history contract](../src/Kora.Core/Conversation/HostedConversationHistoryContext.cs). The [owner's explicit decision](Decision_Register.md#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27) permits bounded whole original USER messages and eligible retained ASSISTANT answers from successful turns in that exact session, not reclassification of reviewed LocalOnly sources.
+
+Local-source-derived or unknown-source ASSISTANT answers are excluded; existing records establish eligibility through hosted execution admission, not local execution. HOST statuses, failed/denied/cancelled turns without answers, questions, approvals, drafts, attachments, memory and other sessions are excluded. Each source remains inert data and is revalidated before disclosure and answer commit ([source owner](../src/Kora.Application/Hosting/SessionConversationService.HostedHistory.cs)).
+
+The existing complete 16-item / 32768-UTF-8-byte envelope bound applies, newest whole messages are preferred and emitted chronologically, and older non-fitting messages are omitted rather than truncated. This does not renew source retention, grant authority or alter local/reviewed-context routes. Independent physical provider request limits remain enforced. Claude also [prepares the exact SDK-generated Count Tokens and Messages bodies locally](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.HistoryInput.cs) before admitting history and omits additional whole messages exceeding their combined input limit; this preparation performs no network transmission.
+
 The [2026-10-29 explicit product decision](Decision_Register.md#automatic-reviewed-local-source-use-admission---2026-10-29)
 authorizes one shared [host policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs)
 for the existing file/folder/retained-attachment, explicitly selected retained named-source, web-result, diagnostic-page

@@ -1,8 +1,11 @@
 # Review history, an instruction and session memories for one answer
 
 **Context** means extra material supplied with a question. Use these reviews to
-choose that material yourself. Reading a conversation never includes all of it
-automatically, and **AI answers are unavailable in this build**.
+choose that material yourself. Reading a conversation never submits it.
+Settings-routed hosted Submit separately includes bounded eligible earlier
+messages; it never promotes this operation's LocalOnly evidence
+([hosted contract](../src/Kora.Core/Conversation/HostedConversationHistoryContext.cs)).
+**AI answers are unavailable in this build** outside explicitly admitted evaluation.
 
 Choose [reply to one answer](#reply-deliberately-to-one-exact-assistant-answer),
 [review after a history suggestion](#answer-the-original-question-after-a-model-history-advisory),

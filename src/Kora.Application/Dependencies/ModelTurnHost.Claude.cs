@@ -6,6 +6,10 @@ namespace Kora.Application.Dependencies;
 
 public sealed partial class ModelTurnHost
 {
+    internal Task<ModelTurnAdmission> AdmitClaudeHistoryAsync(ModelContextEnvelope context,
+        Func<CancellationToken, ValueTask<bool>> sourceCurrent, CancellationToken token) =>
+        AdmitClaudeCoreAsync(context, false, null, sourceCurrent, token);
+
     public Task<ModelTurnAdmission> AdmitClaudeAsync(ModelContextEnvelope context, CancellationToken token,
         bool streamAnswer = false) => AdmitClaudeCoreAsync(context, streamAnswer, null, null, token);
 

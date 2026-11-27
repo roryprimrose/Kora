@@ -16,6 +16,12 @@ internal sealed class ClaudeModelTurnAdapter(IClaudeTurnRuntime runtime, HostedT
         new(runtime, reviews, time, logger) { authorization = issued, current = remainsCurrent };
     internal bool StreamsAnswer => authorization?.StreamAnswer == true;
 
+    internal Task<int> MeasureHistoryInputAsync(ModelProviderSelection selection, ProviderProfileTuple profile,
+        ModelContextEnvelope context, CancellationToken token) =>
+        runtime is IClaudeHistoryInputPreparation preparation
+            ? preparation.MeasureHistoryInputAsync(selection, profile, context, token)
+            : throw new InvalidOperationException("The Claude runtime cannot prepare exact hosted-history input locally.");
+
     public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
         ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
         CancellationToken cancellationToken) =>

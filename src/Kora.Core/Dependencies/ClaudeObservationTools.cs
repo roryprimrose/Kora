@@ -12,7 +12,7 @@ public static class ClaudeObservationTools
             (int)ModelToolProtocol.Deadline.TotalMilliseconds);
 
     public static bool Supports(ModelContextEnvelope context) =>
-        context.Evidence.IsEmpty && context.McpTool is null
+        (context.Evidence.IsEmpty || Conversation.HostedConversationHistoryContext.Supports(context)) && context.McpTool is null
         && (context.ToolMode is ModelToolMode.None or ModelToolMode.HostedClarification
             || context.ToolMode == ModelToolMode.ReadOnly && context.Constraints is not null);
 }

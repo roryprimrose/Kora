@@ -371,7 +371,8 @@ public sealed partial class ModelTurnHostTests
             return ValueTask.FromResult(Retained!);
         }
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor,
-            int limit, CancellationToken token) => ValueTask.FromResult(new ConversationPage(Session, 2, Retained is null ? 0 : 1,
+            int limit, CancellationToken token) => ValueTask.FromResult(HostedHistoryPage is not null
+                ? HostedHistoryPage(session, cursor, limit) : new ConversationPage(Session, 2, Retained is null ? 0 : 1,
                 Retained is null ? [] : [Retained], null));
         public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken token)
         { Task = Task! with { Task = record }; return ValueTask.CompletedTask; }

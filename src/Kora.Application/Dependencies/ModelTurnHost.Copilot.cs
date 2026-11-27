@@ -7,6 +7,10 @@ namespace Kora.Application.Dependencies;
 
 public sealed partial class ModelTurnHost : ICopilotTurnAdmission
 {
+    internal Task<ModelTurnAdmission> AdmitCopilotHistoryAsync(ModelContextEnvelope context,
+        Func<CancellationToken, ValueTask<bool>> sourceCurrent, CancellationToken token) =>
+        AdmitCopilotCoreAsync(context, null, sourceCurrent, token);
+
     public Task<ModelTurnAdmission> AdmitCopilotAsync(ModelContextEnvelope context, CancellationToken token) =>
         AdmitCopilotCoreAsync(context, null, null, token);
 

@@ -62,6 +62,14 @@ An ordinary untargeted local request, typed globally or activated with the curre
 assistant name, first opens **Review local destination advice**. The same operation applies
 with the main conversation collapsed or expanded.
 
+For an activated-voice untargeted request while Kora's chat window is foreground,
+the exact Active foreground chat is instead preselected in **Review request destination**.
+No advice consent or inference runs for that proposal. **Review this destination**
+and **Submit original request to acknowledged destination** are still required;
+correction to another presented Active chat or New remains available. A changed or
+retired foreground target invalidates the original review without substitution.
+This preserves the foreground-as-proposal decision ([D2a](../Design/Decision_Register.md#voice-to-action-interaction---2026-11-27)).
+
 Advice and destination acknowledgment use supporting tabs in the same expanded workbench, not additional application windows ([advice view](../src/Kora/SessionRouting/SessionRoutingAdviceView.cs), [destination view](../src/Kora/SessionRouting/SessionRoutingView.cs)).
 Changing or hiding that review retires its consent/acknowledgment; returning cannot submit an old choice. Original typed/voice channel and unchanged input stay bound through separate acknowledgment and submission ([hosted operations and withdrawal](../tests/Kora.Windows.IntegrationTests/SessionRoutingTests.Workbench.cs)).
 
@@ -80,7 +88,7 @@ A denied or ambiguous editor route is never retried as a general request.
   or several exact candidates. The choice always includes **New conversation (fresh session)**.
 - No clear match, or unqualified/unavailable inference, offers fresh **New**.
   Unqualified production providers remain unavailable; composing matching does not
-  qualify them. The host never substitutes a guess from current selection, focus,
+  qualify them. Apart from the explicit foreground voice proposal above, the host never substitutes a guess from current selection, focus,
   recent activity or window size.
 - Choose **Review this destination** to acknowledge the exact name. Nothing has
   been submitted or created yet.

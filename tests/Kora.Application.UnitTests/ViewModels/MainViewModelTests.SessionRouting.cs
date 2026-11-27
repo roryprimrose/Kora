@@ -10,6 +10,7 @@ using Kora.Core.Storage;
 using Kora.Core.Voice;
 using Kora.Core.Platform;
 using Kora.Application.Hosting.SessionRouting;
+using Kora.Application.Hosting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Conversation.SessionRouting;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,6 +20,32 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RoutingCarriesOnlyOriginalVoiceForegroundAndRetiresOnReplacement(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var store = BindRequestCommands(f);
+        var target = new ForegroundConversationTarget(store.Session, static () => true);
+        f.ViewModel.PublishForegroundConversationTarget(target);
+        var calls = 0;
+        f.ViewModel.BindForegroundSessionRouting((body, origin, admitted, foreground) =>
+        {
+            calls++;
+            body.Should().Be("explain foreground routing");
+            origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            foreground.Should().BeSameAs(voice ? target : null);
+            admitted().Should().BeTrue();
+            f.ViewModel.PublishForegroundConversationTarget(new(store.Session, static () => true));
+            admitted().Should().Be(!voice);
+            return Task.FromResult<SessionRoutingReceipt?>(null);
+        });
+        if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, explain foreground routing", 1); }
+        else { await f.RunAsync("explain foreground routing"); }
+        calls.Should().Be(1);
+    }
+
     [Fact]
     public async Task PendingQuestionOwnsInputBeforeGeneralRouting()
     {

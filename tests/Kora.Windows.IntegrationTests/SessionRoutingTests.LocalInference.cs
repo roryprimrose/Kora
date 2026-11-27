@@ -333,6 +333,7 @@ public sealed partial class SessionRoutingTests
     private sealed class LocalRoutingAdapter : IModelTurnAdapter
     {
         internal string TargetName { get; set; } = string.Empty;
+        internal bool AdviceExpected { get; set; } = true;
         internal int Calls { get; private set; }
         internal string? Fault { get; set; }
         internal List<HostRequest> Requests { get; } = [];
@@ -348,7 +349,7 @@ public sealed partial class SessionRoutingTests
             using var document = JsonDocument.Parse(context);
             var root = document.RootElement;
             Originals.Add(root.GetProperty("UserRequest").GetString()!);
-            if (Calls == 1)
+            if (Calls == 1 && AdviceExpected)
             {
                 root.GetProperty("Tools").GetArrayLength().Should().Be(0);
                 root.GetProperty("Evidence").GetArrayLength().Should().Be(1);

@@ -31,9 +31,11 @@ does not enable hands-free activation.
 
 In that source-only path, typing before a wake does not cancel idle readiness.
 The original utterance remains bound to the input observed at activation:
-later edits or source/session replacement cancel it. Only the routing-owned
-advice and destination windows can temporarily take focus without replacing
-that original source. Deterministic implementation tests do not qualify a
+later edits or source/session replacement cancel it. Voice-originated advice
+and destination reviews appear without taking focus; unrelated app or focus
+switches do not cancel them or their wake evidence. Clicking a review activates
+its window normally. Privacy, lock, ownership, call/name/profile changes,
+expiry and cancellation still retire the operation. Deterministic implementation tests do not qualify a
 production profile or change current hands-free availability.
 
 ## Prepare hands-free assets

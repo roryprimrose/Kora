@@ -71,7 +71,8 @@ public sealed partial class SessionRequestCommandService(
         lock (gate) { previous = pending; pending = null; completedDetailsOffer = null; attempt = ++epoch; }
         var control = access.ControlRevision;
         bool Live() => !token.IsCancellationRequested && access.CanInspect && access.CanControl && access.ControlRevision == control && admitted()
-            && (!command.RequestForegroundTarget || foregroundTarget?.IsCurrent == true);
+            && (!command.RequestForegroundTarget || (origin == RequestOrigin.ActivatedVoice
+                ? foregroundTarget?.IsResourceCurrent : foregroundTarget?.IsCurrent) == true);
         if (command.RequestForegroundTarget)
         {
             if (command.Operation != SessionCommandOperation.RequestReview || command.SessionId is not null

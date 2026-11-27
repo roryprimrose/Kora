@@ -97,7 +97,7 @@ public sealed partial class MainViewModel
         var privacy = privacyObservation.Current;
         var profile = speechInputConfiguration?.Get().Effective;
         return handsFreeVoice is not null && profile is not null && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
-            && (foregroundConversationTarget is null || foregroundConversationTarget.IsCurrent)
+            && (voiceConversationTarget is null || voiceConversationTarget.IsResourceCurrent)
             && microphoneCatalogCurrent && catalogPrivacyRevision == privacy.TopologyRevision
             && IsVoiceReadinessEligible(privacy)
             && communicationPolicy.Current.EffectiveState is CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected

@@ -19,6 +19,7 @@ internal sealed class SessionRoutingWindow : Window
         Action<SessionRoutingVoiceReply>? releaseVoiceReply = null)
     {
         Title = "Review request destination";
+        ShowActivated = review.Origin != Kora.Core.Hosting.RequestOrigin.ActivatedVoice;
         Width = 700; Height = 540; MinWidth = 500; MinHeight = 400;
         View = new(this, routing, review, admitted, reportFailure, createVoiceReply, releaseVoiceReply);
         Content = View;

@@ -17,6 +17,7 @@ internal sealed partial class SessionsPresentationOwner
     private ForegroundConversationTarget? foregroundTarget;
     private Window? foregroundSurface;
     private long foregroundSourceRevision;
+    private long conversationPresentationRevision;
     private int uniqueForegroundWindow;
     private SessionRoutingPresentationLease? routingPresentation;
 
@@ -73,6 +74,7 @@ internal sealed partial class SessionsPresentationOwner
     {
         Volatile.Write(ref uniqueForegroundWindow, 0);
         Interlocked.Increment(ref foregroundSourceRevision);
+        Interlocked.Increment(ref conversationPresentationRevision);
         surface.PropertyChanged -= OnForegroundSurfaceChanged;
         surface.RemoveHandler(InputElement.PointerPressedEvent, OnDetailsSourceInteraction);
         surface.RemoveHandler(InputElement.KeyDownEvent, OnDetailsSourceInteraction);
@@ -97,7 +99,13 @@ internal sealed partial class SessionsPresentationOwner
     {
         if (args.Property == Window.IsActiveProperty || args.Property == Visual.IsVisibleProperty
             || args.Property == Window.WindowStateProperty)
-        { Interlocked.Increment(ref foregroundSourceRevision); UpdateForegroundTarget(); requestCommands?.RevalidateDetailsOffer(); }
+        {
+            Interlocked.Increment(ref foregroundSourceRevision);
+            if (args.Property != Window.IsActiveProperty)
+            { Interlocked.Increment(ref conversationPresentationRevision); }
+            UpdateForegroundTarget();
+            requestCommands?.RevalidateDetailsOffer();
+        }
     }
 
     private void OnForegroundModelChanged(object? sender, PropertyChangedEventArgs args)
@@ -106,6 +114,9 @@ internal sealed partial class SessionsPresentationOwner
     private void OnSessionContentPresentationChanged(object? sender, EventArgs args)
     {
         foreach (var surface in surfaces) { RequestPanel(surface)?.Bind(requestCommands); }
+        if (surfaces.OfType<ResponseWindow>().Any(surface => !surface.IsSessionWorkspacePresented
+            || !surface.SessionView.IsConversationPresented))
+        { Interlocked.Increment(ref conversationPresentationRevision); }
         Interlocked.Increment(ref foregroundSourceRevision);
         UpdateForegroundTarget();
         requestCommands?.RevalidateDetailsOffer();
@@ -113,7 +124,7 @@ internal sealed partial class SessionsPresentationOwner
 
     private void RetireForegroundTarget()
     {
-        Interlocked.Exchange(ref foregroundTarget, null)?.Retire();
+        Interlocked.Exchange(ref foregroundTarget, null)?.ReleaseForeground();
         foregroundSurface = null;
         requestCommands?.PublishForegroundConversationTarget(null);
     }
@@ -131,7 +142,9 @@ internal sealed partial class SessionsPresentationOwner
         if (ReferenceEquals(surface, foregroundSurface) && foregroundTarget is { IsCurrent: true }) { return; }
         RetireForegroundTarget();
         var source = model.CaptureDraftPresentationEligibility();
-        var target = new ForegroundConversationTarget(entry, () => source() && model.CanCompose);
+        var presentationRevision = Interlocked.Read(ref conversationPresentationRevision);
+        var target = new ForegroundConversationTarget(entry, () => !revoked && source() && model.CanCompose
+            && presentationRevision == Interlocked.Read(ref conversationPresentationRevision));
         foregroundSurface = surface;
         Volatile.Write(ref foregroundTarget, target);
         requestCommands?.PublishForegroundConversationTarget(target);

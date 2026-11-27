@@ -62,15 +62,6 @@ public sealed partial class ClaudeModelTurnAdapterTests : IDisposable
         var runtime = new Runtime();
         var adapter = new ClaudeModelTurnAdapter(runtime, f.Reviews, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance)
             .Bind(f.Reviews.PrepareClaudeTurn(f.Context, f.Profile), _ => ValueTask.FromResult(live));
-        var offered = 0;
-        f.Reviews.ClaudeOffered += review =>
-        {
-            offered++;
-            using var presentation = review.Presentation();
-            f.Reviews.Confirm(review, true, RequestOrigin.ActivatedVoice).Should().BeFalse();
-            f.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
         runtime.Run = async (provenance, profile, admit) =>
         {
             var transmission = new ClaudeTransmission(fault is "wrong-transmission" ? provenance with { Turn = new(Guid.NewGuid()) } : provenance,
@@ -86,7 +77,13 @@ public sealed partial class ClaudeModelTurnAdapterTests : IDisposable
         result.Outcome.Should().Be(fault is "success" ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
         result.Response?.Answer.Should().Be(fault is "success" ? "genuine" : null);
         result.TokenUsage.Should().Be(new ModelTokenUsage(25, 5, 25));
-        offered.Should().Be(fault is "wrong-transmission" or "wrong-profile" ? 0 : 1);
+        if (fault is "wrong-transmission" or "wrong-profile")
+        { f.Audits.Should().NotContain(item => item.ActionId == "model.claude.transmission", "a foreign transmission never reaches final admission"); }
+        else
+        {
+            f.Audits.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+            f.Audits.Last().ReasonCode.Should().Be(HostedTransmissionReviewService.AutomaticReason);
+        }
         runtime.Calls.Should().Be(1);
     }
 

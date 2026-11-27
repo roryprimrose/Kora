@@ -124,10 +124,6 @@ internal sealed partial class SessionsManagementView : UserControl, IDisposable
         ReviewFailedLocalProfile.Click += async (_, _) => await (ConversationOperation = model.ReviewFailedLocalProfileAsync());
         BindLocalRequestProfileDecision(ConfirmLocalRequestProfile, true, model);
         BindLocalRequestProfileDecision(CancelLocalRequestProfile, false, model);
-        SubmitCopilotConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotConversationAsync());
-        SubmitCopilotAnswerStream.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotAnswerStreamAsync());
-        SubmitLocalFirst.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalFirstAsync());
-        BindClaudeConversation(model);
         SubmitConversationWithClarification.Click += async (_, _) =>
             await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
         SubmitReadOnlyWithClarification.Click += async (_, _) =>

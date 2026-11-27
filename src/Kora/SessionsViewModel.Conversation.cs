@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 
+using Kora.Application.Dependencies;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -193,21 +194,37 @@ internal sealed partial class SessionsViewModel
             + (conversationHeld ? " Submission uncertainty remains held; inspect task receipts/restart recovery, never retry automatically." : string.Empty);
     }, sourceRead: true, origin: origin);
 
-    public Task SubmitConversationAsync() => assistantReply ? ReviewAssistantReplyAsync() : SubmitOrdinaryConversationAsync(localAnswer: false);
+    public async Task SubmitConversationAsync()
+    {
+        if (assistantReply) { await ReviewAssistantReplyAsync(); return; }
+        if (localHandoff is not null && CanSubmitConversation && selected is { } target)
+        {
+            ConversationProviderRoute route;
+            try { route = await conversation!.ResolveRouteAsync(target.Authority.SessionId, lifetime.Token); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                Failure(logger, exception.GetType().Name);
+                conversationStatus = "The Settings-selected provider could not be resolved. Nothing was submitted; inspect Settings > Providers.";
+                NotifyConversation();
+                return;
+            }
+            if (route == ConversationProviderRoute.LocalFirst)
+            {
+                await SubmitConversationCoreAsync(allowQuestion: false, localFirst: true);
+                return;
+            }
+        }
+        await SubmitOrdinaryConversationAsync(localAnswer: false);
+    }
     public Task SubmitLocalAnswerAsync() => assistantReply
         ? SubmitConversationCoreAsync(allowQuestion: false, localAnswer: true)
         : SubmitOrdinaryConversationAsync(localAnswer: true);
-    public Task SubmitCopilotConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, copilot: true);
-    public Task SubmitCopilotAnswerStreamAsync() =>
-        SubmitConversationCoreAsync(allowQuestion: false, copilot: true, copilotStreamAnswer: true);
-    public bool CanSubmitLocalFirst => CanSubmitConversation && localHandoff is not null && !assistantReply;
-    public Task SubmitLocalFirstAsync() => SubmitConversationCoreAsync(allowQuestion: false, localFirst: true);
 
-    private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
+    private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null,
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
-        Func<bool>? mcpCallerAdmission = null, bool claude = false, bool claudeObservations = false,
-        ModelToolMode clarificationTools = ModelToolMode.None, bool localAnswer = false, bool claudeStreamAnswer = false,
-        bool localFirst = false, bool copilotStreamAnswer = false, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
+        Func<bool>? mcpCallerAdmission = null,
+        ModelToolMode clarificationTools = ModelToolMode.None, bool localAnswer = false,
+        bool localFirst = false, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = mcpBody ?? composerBody;
@@ -216,8 +233,6 @@ internal sealed partial class SessionsViewModel
         if (useMcp && !HasCurrentMcpOptions)
         { throw new InvalidOperationException("Refresh explicit MCP options for this exact session before submission."); }
         var mcpRevision = Interlocked.Read(ref mcpSelectionRevision);
-        var observationIds = ClaudeObservationIds;
-        var observationRevision = Interlocked.Read(ref claudeObservationRevision);
         var receipt = localFirst
             ? await (localHandoff ?? throw new InvalidOperationException("The verified local-first operation is not composed."))
                 .RunAsync(target, body, live, lifetime.Token)
@@ -239,19 +254,6 @@ internal sealed partial class SessionsViewModel
                 })
             : localAnswer
             ? await conversation!.SubmitLocalAnswerAsync(target, body, live, lifetime.Token)
-            : claude
-            ? claudeObservations
-                ? await conversation!.SubmitClaudeObservationsAsync(target, body, observationIds.Split(','),
-                    () => live() && Interlocked.Read(ref claudeObservationRevision) == observationRevision, lifetime.Token)
-                : claudeStreamAnswer
-                    ? await conversation!.SubmitClaudeAnswerStreamAsync(target, body, live, lifetime.Token)
-                    : allowQuestion
-                    ? await conversation!.SubmitClaudeWithClarificationAsync(target, body, live, presenter!, lifetime.Token)
-                    : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
-            : copilot
-            ? copilotStreamAnswer
-                ? await conversation!.SubmitCopilotAnswerStreamAsync(target, body, live, lifetime.Token)
-                : await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
             : clarificationTools == ModelToolMode.ReadOnly
             ? await conversation!.SubmitReadOnlyWithClarificationAsync(target, body, live, presenter!, lifetime.Token)
             : pageAddress is null
@@ -456,7 +458,7 @@ internal sealed partial class SessionsViewModel
         NotifyConversationReading();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(CanReadConversation), nameof(CanNextConversation),
-            nameof(CanOpenConversationDetails), nameof(CanExportExactAnswer), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation), nameof(CanSubmitLocalFirst),
+            nameof(CanOpenConversationDetails), nameof(CanExportExactAnswer), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation),
             nameof(CanShowDetails), nameof(DetailsAvailability),
             nameof(HasEvidenceDetails), nameof(EvidenceDetails), nameof(ObservationChoices),
             nameof(DetailsOfferMessage), nameof(HasDetailsOffer),

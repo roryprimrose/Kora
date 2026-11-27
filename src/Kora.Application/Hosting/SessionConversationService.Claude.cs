@@ -17,16 +17,6 @@ public sealed partial class SessionConversationService
         + "No files, web, MCP, settings mutations, history, memory, agents or provider-native tools are admitted. "
         + Kora.Core.Presentation.AnswerPresentation.ModelPolicy;
 
-    public Task<ConversationSubmissionReceipt> SubmitClaudeAsync(SessionWorkspaceEntry target, string body,
-        Func<bool> admitted, CancellationToken token) =>
-        SubmitCoreAsync(target, body, admitted, null, null, RequestOrigin.LocalUi, null,
-            ModelTurnChoice.Hosted, token, claude: true, ordinaryActiveDeadline: true);
-
-    public Task<ConversationSubmissionReceipt> SubmitClaudeAnswerStreamAsync(SessionWorkspaceEntry target, string body,
-        Func<bool> admitted, CancellationToken token) =>
-        SubmitCoreAsync(target, body, admitted, null, null, RequestOrigin.LocalUi, null,
-            ModelTurnChoice.Hosted, token, claude: true, claudeStreamAnswer: true, ordinaryActiveDeadline: true);
-
     /// <summary>One explicit Claude clarification; answering never approves a physical transmission.</summary>
     public Task<ConversationSubmissionReceipt> SubmitClaudeWithClarificationAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, ConversationQuestionPresenter presenter, CancellationToken token)

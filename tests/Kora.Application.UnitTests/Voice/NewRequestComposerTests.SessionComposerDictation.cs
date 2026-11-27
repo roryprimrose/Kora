@@ -58,6 +58,47 @@ public sealed partial class NewRequestComposerTests
         f.Capture.Phrases.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task SessionComposerSubmitRunsOnceOnlyAfterConfirmedInsertion(bool submits, bool inserted)
+    {
+        await using var f = new DictationFixture();
+        var source = new SessionBuffer("original");
+        var submissions = 0;
+        var bodyAtSubmit = string.Empty;
+        var target = new ComposerDictationTarget(source, source.Body, HostRequest.Create(RequestOrigin.LocalUi),
+            () => source.Current,
+            (literal, admitted) =>
+            {
+                if (!inserted || !admitted()) { return false; }
+                source.Body = literal;
+                return true;
+            },
+            ComposerDictationDestination.SessionComposer,
+            submits ? () => { submissions++; bodyAtSubmit = source.Body; } : null);
+        await f.Service.BeginAsync(target, () => true, TestContext.Current.CancellationToken);
+        f.Capture.Transcript("dictated");
+        await f.Service.EndAsync();
+        submissions.Should().Be(0, "review is not submission");
+        f.Service.Append();
+        await f.Service.Quiescence;
+        submissions.Should().Be(submits && inserted ? 1 : 0);
+        bodyAtSubmit.Should().Be(submits && inserted ? "originaldictated" : string.Empty);
+        source.Body.Should().Be(inserted ? "originaldictated" : "original");
+        f.Service.Status.Should().Be(!inserted ? "Dictation insertion revoked. Original or newer independent memory preserved."
+            : submits ? "Literal text inserted and submitted through the session's single Submit."
+            : "Literal text inserted into private draft memory only. No Create, Save, Submit, answer or execution.");
+        f.Service.Append();
+        submissions.Should().Be(submits && inserted ? 1 : 0, "a consumed review cannot submit again");
+        if (!submits)
+        {
+            target.Submit();
+            source.Body.Should().Be(inserted ? "originaldictated" : "original", "a target without a submit callback never submits");
+        }
+    }
+
     [Fact]
     public async Task ExactTargetSourceEventRevokesReviewAndNeverPublishesLateText()
     {

@@ -39,14 +39,7 @@ public sealed partial class HostedClaudeSessionRequestTests
             - Encoding.UTF8.GetByteCount(count) + (fault is "output-overflow" ? 1 : 0));
         c.Http.Respond = message => ClaudeAccountBrokerTests.Fixture.Json(
             message.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal) ? count : answer);
-        var reviews = 0;
-        c.Reviews.ClaudeOffered += offered =>
-        {
-            c.Http.Requests.Count(request => request.Method is "POST").Should().Be(reviews++);
-            using var presentation = offered.Presentation();
-            c.Reviews.Confirm(offered, true, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Completed);
-        };
+
         var result = (await commands.ExecuteAsync(SessionCommand.Parse("session request confirm", "Kora")!,
             RequestOrigin.LocalUi, () => true, f.Token)).RequestSubmission!;
         result.Message.Body.Should().Be(body);
@@ -57,7 +50,9 @@ public sealed partial class HostedClaudeSessionRequestTests
         (await f.Store.ReadConversationMessageAsync(f.Request.SessionId, result.Message.Request.RequestId, f.Token))
             .Should().Be(result.Message);
         c.Http.Requests.Count(request => request.Method is "POST").Should().Be(posts);
-        reviews.Should().Be(posts);
+        c.Http.Audits.Where(item => item.ActionId is "model.claude.transmission"
+                && item.Outcome != Kora.Core.Auditing.SecurityAuditOutcome.Requested)
+            .Should().HaveCount(posts).And.OnlyContain(item => item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
         c.Runtime.IsQuiescent.Should().BeTrue();
         c.Turns.IsQuiescent.Should().BeTrue();
         WindowsSqliteConversationTests.AuditText(f).Should().NotContain(body).And.NotContain("genuine exact answer")

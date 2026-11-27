@@ -639,7 +639,7 @@ This is independent of the unchanged **LocalOnly** `providers.default-mode` safe
 
 Durable session inheritance/overrides use the separate Sessions controls below. Generic unscoped “Use Claude” and one-turn directives remain deferred; existing [app-scoped commands](commands.md#inspect-or-change-app-provider-profiles) never alias session changes. Larger context choices cannot override Kora's limits. Failed/unconfirmed writes require inspecting saved state and audit/control receipts before explicit repair and refresh, not automatic retry.
 
-Saving a Claude profile is not streaming approval. **Stream explicitly with Claude (text only, separately qualified)** in Sessions requires separate exact-profile stream evidence; an existing buffered approval never supplies it. The shipped Claude source remains unavailable. See [Claude streaming availability, native consent and bounds](claude-requests.md#separately-qualified-native-text-streaming).
+Saving a Claude profile is not streaming approval. Settings-routed Claude answers are buffered; the implemented stream runtime requires separate exact-profile stream evidence, and an existing buffered approval never supplies it. The shipped Claude source remains unavailable. See [Claude streaming runtime](claude-requests.md#native-text-streaming-runtime).
 
 ### Review local runtime admission
 

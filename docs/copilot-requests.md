@@ -1,8 +1,9 @@
 # GitHub Copilot live evaluation
 
-Kora supports explicit hosted-model evaluation through the pinned Copilot SDK.
-This is opt-in evaluation, **not production runtime qualification**. Ordinary
-chat submission, local-only source workflows and Claude/Codex are unchanged.
+Kora supports hosted-model evaluation through the pinned Copilot SDK.
+This is opt-in evaluation, **not production runtime qualification**. When
+Settings select Copilot, the ordinary chat **Submit** sends the message to it.
+Local-only source workflows and the Local only provider mode are unchanged.
 There is no automatic hosted fallback.
 
 ## Setup and model selection
@@ -34,31 +35,32 @@ There is no automatic hosted fallback.
 6. Back in Providers, choose **GitHub Copilot** and use **Refresh** in the
    **Default service and model** actions menu. Select an advertised model and
    its provider-default thinking/conversation-size choices. Choose **Save model
-   settings**. Enable **Allow hosted models** separately and choose a provider
-   policy that permits hosted use; local-only policy continues to deny it.
-7. In **Sessions**, select a conversation, enter a message, and choose
-   **Submit explicitly with Copilot (separate disclosure review)**. A session
-   override can supersede the app default; select Copilot for that session or
-   clear the conflicting override.
-   For a tool-free answer with volatile previews, choose **Stream explicitly
-   with Copilot (text only, separate disclosure review)** instead. It uses the
-   same account, policy and separate per-send disclosure decisions.
+   settings**. Enable **Allow hosted models** separately and choose the
+   **Hosted preferred** provider mode; Local only never sends to a hosted
+   service, and Local first uses Copilot only through a handoff after the local
+   model is unavailable.
+7. In **Sessions**, select a conversation, enter or dictate a message, and
+   choose **Submit**. A session override can supersede the app default; select
+   Copilot for that session or clear the conflicting override. Copilot answers
+   tool-free and shows volatile provisional text while the request runs.
 
-## Every send remains a separate decision
+## Hosted sends are automatic
 
-Review each exact destination, account/model, noncredential header and complete
-request body in the native disclosure window. Approve only the content you
-intend to transmit. Declining, closing the review, cancellation or stale
-authority denies the send. A subsequent tool-result request or SDK retry needs
-new consent; account setup and model selection never approve content egress.
+Choosing Copilot in Settings is the decision to send. Kora transmits each final
+request automatically, without a byte-review window, at every session permission
+level. The host still captures and bounds the final bytes and checks the exact
+destination, account/model and session for each send, including a subsequent
+tool-result request or SDK retry. Each send writes a security audit record; the
+Approve all session level also writes its typed session audit. Stale authority,
+privacy loss or cancellation stops the send. Account setup and model selection
+alone never send content.
 
-The whole turn, including reviews, has a two-minute deadline. Successful bounded
+The whole turn has a two-minute deadline. Successful bounded
 answers are retained as ASSISTANT data in the same conversation; failed or
-denied turns retain no assistant answer. Tool-free requests can show provisional
-answer prefixes from the SDK while the same request is running. These previews
-are volatile: cancellation or changed authority invalidates them, and only the
-validated final answer is retained. Tool-bearing requests remain buffered.
-The reviewed HTTP response is still buffered, so this does not promise
+denied turns retain no assistant answer. Provisional answer prefixes from the
+SDK are volatile: cancellation or changed authority invalidates them, and only
+the validated final answer is retained.
+The HTTP response is still buffered, so this does not promise
 network-level token latency. Inherited history, attachments, native Copilot
 tools, MCP, skills and agents are not enabled by this operation.
 
@@ -71,7 +73,7 @@ The separate [Customizations operation](../src/Kora/CustomizationWindowControlle
 3. Choose **Run selected with Copilot**. Review the source location, primary file and bounded-read disclosure before choosing **Read this exact source**.
 4. Inspect the complete source, native selection, unchanged task and exact target. Choose **Authorize this exact hosted copy** only if you intend to disclose this source for this one request.
 5. Separately review retention and choose **Retain and submit this one request** once. This retains the original USER task and, later, the genuine ASSISTANT answer or truthful HOST outcome in the reviewed conversation.
-6. Review and approve each complete physical transmission in the existing native disclosure window. Source consent and retention confirmation do not approve egress.
+6. Kora then sends each physical request automatically under the current account and profile. Source consent and retention confirmation remain separate decisions.
 
 The [compatibility reader](../src/Kora.Application/Definitions/CopilotCustomizationSelection.cs) currently accepts one bounded UTF-8 file without a BOM: an instruction-only `SKILL.md` with only name/version/description metadata, or a reference-free, tool-free native v1 agent. Companions, scripts, references, tools, MCP, hooks, imports, model/reasoning overrides and unsupported metadata are refused rather than omitted.
 
@@ -104,7 +106,7 @@ This operation retains the existing [evaluation and qualification limits](#lifet
   charges. Kora does not enforce a monetary cap. The runtime's all-path network,
   storage and lifecycle qualification remains incomplete; an executable hash
   and fake-backed tests do not close that evidence.
-- Missing authentication, catalogue, current admission, compatible runtime,
-  hosted policy or native review fails explicitly without substitution or
+- Missing authentication, catalogue, current admission, compatible runtime or
+  hosted policy fails explicitly without substitution or
   automatic installation. Failed process stop remains non-quiescent and blocks
   further use.

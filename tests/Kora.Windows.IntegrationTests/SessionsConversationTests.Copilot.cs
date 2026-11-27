@@ -30,8 +30,7 @@ public sealed partial class SessionsConversationTests
     [Theory]
     [InlineData("complete")]
     [InlineData("cancel")]
-    [InlineData("deny")]
-    public async Task Native_copilot_text_stream_action_preserves_review_previews_and_final_only_retention(string terminal)
+    public async Task Native_single_Submit_streams_settings_selected_copilot_previews_with_final_only_retention(string terminal)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -50,12 +49,6 @@ public sealed partial class SessionsConversationTests
             };
             await using var runtime = sdk.Runtime;
             await using var composed = new Composition(f, copilot: runtime);
-            composed.Reviews.Offered += review =>
-            {
-                using var presentation = review.Presentation();
-                composed.Reviews.Confirm(review, terminal is not "deny", RequestOrigin.LocalUi).Should().BeTrue();
-                presentation.Complete(HostOperationOutcome.Completed);
-            };
             var model = composed.Model;
             var owner = new SessionsPresentationOwner(model);
             var window = new SessionsWindow(model, owner);
@@ -67,31 +60,29 @@ public sealed partial class SessionsConversationTests
                 await model.SelectAsync(model.Sessions.Single());
                 await model.ReadConversationAsync();
                 model.ComposerBody = "original native Copilot stream";
-                window.FindControl<Button>("SubmitCopilotAnswerStream")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.FindControl<Button>("SubmitCopilotAnswerStream").Should().BeNull();
+                window.FindControl<Button>("SubmitCopilotConversation").Should().BeNull();
+                window.FindControl<Button>("SubmitConversation")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 operation = window.ConversationOperation;
-                if (terminal is not "deny")
+                (await Task.WhenAny(entered.Task, operation).WaitAsync(f.Token)).Should().BeSameAs(entered.Task,
+                    model.ConversationStatus);
+                model.ProvisionalAnswer.Should().Be("safe preview");
+                operation.IsCompleted.Should().BeFalse();
+                if (terminal is "cancel")
                 {
-                    (await Task.WhenAny(entered.Task, operation).WaitAsync(f.Token)).Should().BeSameAs(entered.Task,
-                        model.ConversationStatus);
-                    model.ProvisionalAnswer.Should().Be("safe preview");
+                    await model.CancelRunningConversationAsync();
+                    model.ProvisionalAnswer.Should().BeEmpty();
                     operation.IsCompleted.Should().BeFalse();
-                    if (terminal is "cancel")
-                    {
-                        await model.CancelRunningConversationAsync();
-                        model.ProvisionalAnswer.Should().BeEmpty();
-                        operation.IsCompleted.Should().BeFalse();
-                        runtime.IsQuiescent.Should().BeFalse();
-                    }
-                    release.TrySetResult();
+                    runtime.IsQuiescent.Should().BeFalse();
                 }
+                release.TrySetResult();
                 await operation;
                 model.ProvisionalAnswer.Should().BeEmpty();
                 var stored = (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Single();
                 stored.Body.Should().Be("original native Copilot stream");
                 stored.AssistantResponse?.Body.Should().Be(terminal is "complete" ? "safe preview complete" : null);
-                stored.Outcome.Should().Be(terminal is "complete" ? ModelTurnOutcome.Succeeded
-                    : terminal is "cancel" ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.DeniedEgress);
-                sdk.Network.Sends.Should().Be(terminal is "deny" ? 0 : 1);
+                stored.Outcome.Should().Be(terminal is "complete" ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.Cancelled);
+                sdk.Network.Sends.Should().Be(1);
                 sdk.Client.Configuration!.Events.Streaming.Should().BeTrue();
                 composed.Turns.IsQuiescent.Should().BeTrue();
                 runtime.IsQuiescent.Should().BeTrue();
@@ -107,12 +98,11 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData(61, true, ModelTurnOutcome.Succeeded)]
-    [InlineData(119, true, ModelTurnOutcome.Succeeded)]
-    [InlineData(61, false, ModelTurnOutcome.DeniedEgress)]
-    [InlineData(120, true, ModelTurnOutcome.Denied)]
-    public async Task Native_copilot_review_beyond_sdk_default_wait_preserves_exact_request_and_durable_answer(
-        int seconds, bool approve, ModelTurnOutcome expected)
+    [InlineData(61, ModelTurnOutcome.Succeeded)]
+    [InlineData(119, ModelTurnOutcome.Succeeded)]
+    [InlineData(120, ModelTurnOutcome.Denied)]
+    public async Task Native_copilot_send_beyond_sdk_default_wait_preserves_exact_request_and_durable_answer(
+        int seconds, ModelTurnOutcome expected)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -122,24 +112,20 @@ public sealed partial class SessionsConversationTests
         sdk.Client.WaitClock = clock;
         await using var runtime = sdk.Runtime;
         await using var composed = new Composition(f, copilot: runtime);
-        var offered = new TaskCompletionSource<CopilotTransmissionReview>(TaskCreationOptions.RunContinuationsAsynchronously);
-        composed.Reviews.Offered += review => offered.TrySetResult(review);
-        var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
-        var submitted = composed.Conversation.SubmitCopilotAsync(target, "original hosted request", () => true, f.Token);
-        var review = await offered.Task.WaitAsync(f.Token);
-        sdk.Network.Sends.Should().Be(0);
-        clock.Advance(TimeSpan.FromSeconds(seconds));
-        f.Time.Now += TimeSpan.FromSeconds(seconds);
-        f.Time.MonotonicTicks += TimeSpan.FromSeconds(seconds).Ticks;
-        using (var presentation = review.Presentation())
+        var send = sdk.Client.BeforeSend;
+        sdk.Client.BeforeSend = token =>
         {
-            composed.Reviews.Confirm(review, approve, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
-        }
-        var receipt = await submitted;
+            sdk.Network.Sends.Should().Be(0);
+            clock.Advance(TimeSpan.FromSeconds(seconds));
+            f.Time.Now += TimeSpan.FromSeconds(seconds);
+            f.Time.MonotonicTicks += TimeSpan.FromSeconds(seconds).Ticks;
+            return send(token);
+        };
+        var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
+        var receipt = await composed.Conversation.SubmitAsync(target, "original hosted request", () => true, f.Token);
         var message = receipt.Message;
         message.Body.Should().Be("original hosted request");
-        message.Request.Should().Be(review.Transmission.Provenance.Request);
+        message.Request.SessionId.Should().Be(f.Request.SessionId);
         var succeeds = expected == ModelTurnOutcome.Succeeded;
         message.Outcome.Should().Be(expected);
         if (succeeds) { message.AssistantResponse!.Body.Should().Be("genuine-sdk-boundary-answer"); }
@@ -153,35 +139,27 @@ public sealed partial class SessionsConversationTests
         runtime.IsQuiescent.Should().BeTrue();
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task Explicit_copilot_retains_original_request_and_only_a_separately_approved_answer(bool approve)
+    [Fact]
+    public async Task Ordinary_submit_retains_original_request_and_settings_selected_copilot_answer_tool_free()
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteConversationTests.FinishInitial(f);
         var runtime = new CopilotConversationRuntime();
         await using var composed = new Composition(f, copilot: runtime);
-        composed.Reviews.Offered += review =>
-        {
-            Encoding.UTF8.GetString(review.Transmission.Body.AsSpan()).Should().Contain("original hosted request");
-            review.Transmission.Profile.Should().Be(CopilotCatalogue.Profile);
-            using var presentation = review.Presentation();
-            composed.Reviews.Confirm(review, approve, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
         var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
-        var receipt = await composed.Conversation.SubmitCopilotAsync(target, "original hosted request", () => true, f.Token);
+        var receipt = await composed.Conversation.SubmitAsync(target, "original hosted request", () => true, f.Token);
         var message = receipt.Message;
         message.Body.Should().Be("original hosted request");
-        message.Outcome.Should().Be(approve ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        if (approve) { message.AssistantResponse!.Body.Should().Be("genuine hosted boundary answer"); }
-        else { message.AssistantResponse.Should().BeNull(); }
+        message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        message.AssistantResponse!.Body.Should().Be("genuine hosted boundary answer");
         var stored = await f.Store.ReadConversationMessageAsync(message.Request.SessionId, message.Request.RequestId, f.Token);
         stored.Should().Be(message);
         runtime.Request.Should().Be(message.Request);
-        runtime.Sends.Should().Be(approve ? 1 : 0);
+        runtime.Profile.Should().Be(CopilotCatalogue.Profile);
+        runtime.Context!.UserRequest.Should().Be("original hosted request");
+        runtime.Context.ToolMode.Should().Be(ModelToolMode.None);
+        runtime.Sends.Should().Be(1);
         composed.Turns.IsQuiescent.Should().BeTrue();
     }
 
@@ -189,12 +167,16 @@ public sealed partial class SessionsConversationTests
     {
         public bool IsQuiescent => true;
         internal HostRequest? Request { get; private set; }
+        internal ProviderProfileTuple? Profile { get; private set; }
+        internal ModelToolContext? Context { get; private set; }
         internal int Sends { get; private set; }
         public async Task<CopilotTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
             ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
             Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission, CancellationToken token)
         {
             Request = provenance.Request;
+            Profile = profile;
+            Context = ModelToolProtocol.ReadContext(context.Span, provenance);
             if (!await admitTransmission(new(provenance, profile, new Uri("https://api.githubcopilot.com/chat/completions"),
                 context), token)) { return new(ModelTurnOutcome.DeniedEgress); }
             Sends++;

@@ -45,49 +45,16 @@ public sealed partial class ClaudeUiContractTests
         });
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task Native_exact_disclosure_has_no_affirmative_default_and_close_denies(bool approve)
-    {
-        await HeadlessSession.RunAsync(async () =>
-        {
-            using var native = NativeUxTestFixture.Create(Path.GetTempPath());
-            await native.InitializeAsync();
-            var f = new ClaudeAccountBrokerTests.Fixture();
-            var reviews = new HostedTransmissionReviewService(f, f.Time);
-            using var controller = new ClaudeTransmissionWindowController(native.Main, reviews,
-                NullLogger<ClaudeTransmissionWindowController>.Instance);
-            var request = HostRequest.Create(RequestOrigin.ActivatedVoice);
-            using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
-            var now = f.Time.GetUtcNow();
-            var context = new ModelContextEnvelope(request, "policy", "complete body", [], now, now.AddMinutes(1), ModelToolMode.None);
-            var profile = new Kora.Core.Providers.ProviderProfileTuple(Kora.Core.Providers.ProviderService.Claude,
-                f.Lease.Account, new(1), new("exact-model"), new("disabled"), new("8192"));
-            var authorization = reviews.PrepareClaudeTurn(context, profile);
-            var transmission = new ClaudeTransmission(new(new(Guid.NewGuid()), request,
-                new(ModelProviderIdentity.Claude, new(Guid.NewGuid()), new(1))), profile,
-                new("https://api.anthropic.com/v1/messages"), new byte[] { 123, 125 }, []);
-            var decision = reviews.ReviewAsync(authorization, transmission, _ => ValueTask.FromResult(true),
-                TestContext.Current.CancellationToken).AsTask();
-            Dispatcher.UIThread.RunJobs();
-            var window = controller.PresentedWindow!;
-            var deny = window.GetLogicalDescendants().OfType<Button>().Single(control => control.Name is "ClaudeDeny");
-            var consent = window.GetLogicalDescendants().OfType<Button>().Single(control => control.Name is "ClaudeApprove");
-            deny.IsDefault.Should().BeTrue();
-            consent.IsDefault.Should().BeFalse();
-            decision.IsCompleted.Should().BeFalse();
-            if (approve) { consent.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
-            else { window.Close(); }
-            (await decision).Should().Be(approve);
-            controller.PresentedWindow.Should().BeNull();
-        });
-    }
+    private static readonly string[] RemovedExplicitHostedControls =
+    [
+        "SubmitCopilotConversation", "SubmitCopilotAnswerStream", "SubmitLocalFirst", "SubmitClaudeConversation",
+        "SubmitClaudeWithClarification", "SubmitClaudeObservations", "SubmitClaudeAnswerStream", "ClaudeObservationIds",
+    ];
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Actual_native_Claude_submit_action_uses_same_retained_operation_without_ordinary_fallback(bool observations)
+    public async Task Single_native_Submit_uses_Settings_selected_Claude_without_explicit_hosted_controls(bool compact)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -102,75 +69,33 @@ public sealed partial class ClaudeUiContractTests
                 new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), composition.Access, f.Time,
                     NullLogger<DurableEvidenceQuery>.Instance), composition.Access, NullLogger<SessionsViewModel>.Instance,
                 conversation: composition.Conversation);
-            var window = new SessionsWindow(model);
+            var owner = new SessionsPresentationOwner(model);
+            var workspace = compact ? null : new SessionsWindow(model, owner);
+            var small = compact ? new CompactSessionWindow(model, owner) : null;
+            Window window = workspace ?? (Window)small!;
             window.Show();
             try
             {
+                foreach (var name in RemovedExplicitHostedControls)
+                { window.FindControl<Control>(name).Should().BeNull(name + " was retired in favour of the single Submit"); }
                 await model.RefreshAsync();
                 await model.SelectAsync(model.Sessions.Single());
                 await model.ReadConversationAsync();
-                const string original = "  native explicit Claude body  ";
+                const string original = "  native settings-routed Claude body  ";
                 window.FindControl<TextBox>("ConversationComposer")!.Text = original;
-                if (observations) { window.FindControl<TextBox>("ClaudeObservationIds")!.Text = "application.get_version"; }
-                window.FindControl<Button>(observations ? "SubmitClaudeObservations" : "SubmitClaudeConversation")!
-                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await window.ConversationOperation;
-                model.ConversationStatus.Should().Contain("DeniedEgress");
-                (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Single().Body.Should().Be(original);
-                composition.Http.Requests.Should().OnlyContain(request => string.Equals(request.Method, "GET", StringComparison.Ordinal));
+                var submit = window.FindControl<Button>("SubmitConversation")!;
+                submit.Content.Should().Be("_Submit");
+                submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await (workspace?.ConversationOperation ?? small!.ConversationOperation);
+                model.ConversationStatus.Should().Contain("Succeeded");
+                var stored = (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Single();
+                stored.Body.Should().Be(original);
+                stored.AssistantResponse?.Body.Should().Be("genuine exact answer");
+                composition.Http.Requests.Where(request => request.Method is "POST").Select(request => request.Uri)
+                    .Should().Equal("https://api.anthropic.com/v1/messages/count_tokens", "https://api.anthropic.com/v1/messages");
+                composition.Turns.IsQuiescent.Should().BeTrue();
             }
-            finally { window.ClosePrivate(); }
-        });
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ActualNativeObservationActionReturnsGenuineAnswerOrFencesChangedAndRestoredScope(bool changeScope)
-    {
-        await HeadlessSession.RunAsync(async () =>
-        {
-            using var f = new InteractionStorageFixture();
-            await f.InitializeAsync(); await WindowsSqliteConversationTests.FinishInitial(f);
-            await using var composition = new HostedClaudeSessionRequestTests.Composition(f);
-            await composition.InitializeAsync();
-            var sink = new WindowsSqliteEvidenceSink(f.Paths); sink.Initialize();
-            var model = new SessionsViewModel(composition.Workspace,
-                new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), composition.Access, f.Time,
-                    NullLogger<DurableEvidenceQuery>.Instance), composition.Access, NullLogger<SessionsViewModel>.Instance,
-                conversation: composition.Conversation);
-            var window = new SessionsWindow(model); window.Show();
-            var messages = 0;
-            composition.Http.Respond = request => ClaudeAccountBrokerTests.Fixture.Json(request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
-                ? """{"input_tokens":25}""" : ++messages == 1
-                    ? HostedClaudeSessionRequestTests.Proposal(HostedClaudeSessionRequestTests.VersionProposal) : ClaudeMessagesRuntimeTests.Answer);
-            var offers = 0;
-            composition.Reviews.ClaudeOffered += review =>
-            {
-                using var presentation = review.Presentation();
-                if (++offers == 3 && changeScope)
-                {
-                    var original = model.ClaudeObservationIds;
-                    model.ClaudeObservationIds = "runtime.list";
-                    model.ClaudeObservationIds = original;
-                }
-                composition.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-            };
-            try
-            {
-                await model.RefreshAsync(); await model.SelectAsync(model.Sessions.Single()); await model.ReadConversationAsync();
-                window.FindControl<TextBox>("ClaudeObservationIds")!.Text = "application.get_version";
-                window.FindControl<TextBox>("ConversationComposer")!.Text = "native original";
-                window.FindControl<Button>("SubmitClaudeObservations")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await window.ConversationOperation;
-                var retained = (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Single();
-                retained.Body.Should().Be("native original");
-                (retained.AssistantResponse?.Body).Should().Be(changeScope ? null : "genuine exact answer");
-                if (!changeScope) { retained.Outcome.Should().Be(ModelTurnOutcome.Succeeded); }
-                composition.Http.Requests.Count(item => item.Method is "POST").Should().Be(changeScope ? 2 : 4);
-                composition.Turns.IsQuiescent.Should().BeTrue(); composition.Runtime.IsQuiescent.Should().BeTrue();
-            }
-            finally { window.ClosePrivate(); }
+            finally { owner.Revoke(); window.Close(); }
         });
     }
 }

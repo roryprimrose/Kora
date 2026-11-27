@@ -95,14 +95,12 @@ public sealed partial class SessionsConversationTests
                 late();
                 Dispatcher.UIThread.RunJobs();
                 preview.Text.Should().BeEmpty();
-                model.ComposerBody.Should().Be("accepted final original");
                 capture.IsCaptureQuiescent.Should().BeTrue();
                 native.Disposed.Task.IsCompletedSuccessfully.Should().BeTrue();
-                adapter.Calls.Should().Be(0);
+                await model.DictationSubmission;
                 window.Close();
                 await window.CloseOperation;
-                host.FindControl<Button>("SubmitConversation")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await host.ConversationOperation;
+                model.ComposerBody.Should().BeEmpty("the confirmed literal was submitted through the single Submit");
                 adapter.Calls.Should().Be(1);
                 adapter.Context.Should().Contain("accepted final original").And.NotContain("PRIVATE");
                 var message = model.ConversationMessages.Single();

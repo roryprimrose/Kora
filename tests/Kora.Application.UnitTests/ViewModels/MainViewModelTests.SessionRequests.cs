@@ -69,7 +69,8 @@ public sealed partial class MainViewModelTests
             .Single(page => string.Equals(page.Id, "hosted-requests", StringComparison.Ordinal)).Markdown;
         guide.Should().Contain("session request review <session-id> <generation> <metadata-revision> copilot -- <original body>")
             .And.Contain("60 seconds").And.Contain("original channel")
-            .And.Contain("Transmit this exact request once").And.Contain("no automatic retry")
+            .And.Contain("without a byte-review window").And.Contain("no automatic retry")
+            .And.Contain("Ordinary **Submit** already uses Copilot")
             .And.Contain("Local-only").And.Contain("unavailable");
     }
 

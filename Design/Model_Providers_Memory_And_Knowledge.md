@@ -139,24 +139,23 @@ review and separate confirmation retains the unchanged original USER body and
 channel. Ordinary/default/local-only reviewed-source routes do not acquire
 Claude authority. The default stateless text-only profile includes no tools,
 files, history, attachments, memory or other source instructions.
-Every content-bearing physical POST, including Count Tokens, requires a new
-private native complete-final-byte disclosure and affirmative one-send consent.
-The [Claude](../src/Kora/ClaudeTransmissionWindowController.cs) and [Copilot](../src/Kora/CopilotTransmissionWindowController.cs) disclosure readers are read-only keyboard tab stops: Ctrl+End reaches the complete body and Tab leaves reading for the separate one-send or Deny action.
-Reading or typing into the reader cannot edit the immutable transmission or grant consent. Deny remains the default; close, cancellation and privacy retirement clear the reader ([native regressions](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)).
+Every content-bearing physical POST, including Count Tokens, is admitted
+automatically against current exact authority and audited, without a byte-review
+window ([single-Submit decision](Decision_Register.md#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27)).
 A genuine bounded final answer is retained as ASSISTANT data; denial/failure
 retains a truthful terminal, never a substitute answer. Cancellation joins
 actual outstanding work and cannot retract transmitted bytes.
 See [Claude requests](../docs/claude-requests.md) for the complete interaction.
 
-The separate [native text-stream operation](../docs/claude-requests.md#separately-qualified-native-text-streaming) requires positive exact-profile streaming evidence, not buffered approval or a desired profile setting. Only the original USER body enters this native-only, tool-free request. Actual incremental SSE text uses canonical volatile presentation; final-only retention, independent physical-send consent and actual reader/disposal join remain mandatory. The default deployment source stays unavailable ([stream runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs), [host route](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
+The [native text-stream runtime](../docs/claude-requests.md#native-text-streaming-runtime) requires positive exact-profile streaming evidence, not buffered approval or a desired profile setting, and is not selected by the single Submit in this increment. Actual incremental SSE text uses canonical volatile presentation; final-only retention and actual reader/disposal join remain mandatory. The default deployment source stays unavailable ([stream runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs)).
 
 An [explicit observation subset](../docs/claude-requests.md#explicit-read-only-observations) additionally admits only the six original host read-only capabilities through the [canonical bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs).
-Exact native aliases/schemas and call IDs translate to portable proposals, never provider-owned execution. Each Count Tokens and Messages continuation requires independent complete-final-byte native consent; results remain inert data.
+Exact native aliases/schemas and call IDs translate to portable proposals, never provider-owned execution. Each Count Tokens and Messages continuation is admitted automatically against current authority; results remain inert data.
 Cumulative physical byte/call/round/deadline limits, live authority and joined cancellation apply. The default remains tool-free and the production approval source remains unavailable ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
 
-The separate [explicit Claude clarification operation](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29) admits one host-owned bounded question/answer, with no observation tools or sources ([submission](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
-Only its dedicated mode supports clarification; canonical original-user answers are lower-trust data and every continuation Count Tokens/Messages POST requires fresh native final-byte consent ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs)).
-Default text and streaming requests are unchanged; Copilot/Codex clarification and shipped deployment approval remain unavailable ([availability](Runtime_Provider_Feasibility.md#native-claude-messages-profile---2026-10-24)).
+The [explicit Claude clarification operation](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29) admits one host-owned bounded question/answer, with no observation tools or sources ([submission](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)); its chat button was removed pending its fold into the single Submit as a tool.
+Only its dedicated mode supports clarification; canonical original-user answers are lower-trust data and every continuation Count Tokens/Messages POST is admitted automatically against current authority ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs)).
+Copilot/Codex clarification and shipped deployment approval remain unavailable ([availability](Runtime_Provider_Feasibility.md#native-claude-messages-profile---2026-10-24)).
 
 Kora treats **Copilot**, **Claude**, and **Codex** as distinct hosted services,
 not as interchangeable names for a model. Each requires its own adapter,

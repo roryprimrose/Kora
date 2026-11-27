@@ -18,8 +18,9 @@ public sealed class SessionDictationGuideTests
             .And.Contain("actual microphone release")
             .And.Contain("**Append**, **Replace** or **Cancel dictation**")
             .And.Contain("without adding a space or newline")
-            .And.Contain("**Submit** action separately")
-            .And.Contain("inert text, not commands or approval")
+            .And.Contain("same single **Submit** used for typed messages")
+            .And.Contain("a failed or revoked insertion submits")
+            .And.Contain("inert message text, not commands or approval")
             .And.Contain("independent unsent input")
             .And.Contain("does not introduce disk autosave");
         guide.Should().Contain("Provisional—may change").And.Contain("512 UTF-16")

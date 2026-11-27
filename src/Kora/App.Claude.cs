@@ -10,25 +10,19 @@ namespace Kora;
 public sealed partial class App
 {
     private ClaudeAccountWindowController? claudeAccountWindow;
-    private ClaudeTransmissionWindowController? claudeTransmissionWindow;
 
     private void BindClaudePresentation(MainViewModel main)
     {
         claudeAccountWindow = new(main, Services.GetRequiredService<ClaudeAccountBroker>(),
             Services.GetRequiredService<AudioControlAdmission>(),
             Services.GetRequiredService<ILogger<ClaudeAccountWindowController>>());
-        claudeTransmissionWindow = new(main, Services.GetRequiredService<HostedTransmissionReviewService>(),
-            Services.GetRequiredService<ILogger<ClaudeTransmissionWindowController>>());
         Avalonia.Controls.Window Owner() => (responseWindow
             ?? throw new InvalidOperationException("Private Claude presentation requires the owning workbench.")).PrepareWorkbenchOwner();
         claudeAccountWindow.BindWorkbench(Owner);
-        claudeTransmissionWindow.BindWorkbench(Owner);
     }
 
     private void DisposeClaudePresentation()
     {
-        claudeTransmissionWindow?.Dispose();
-        claudeTransmissionWindow = null;
         claudeAccountWindow?.Dispose();
         claudeAccountWindow = null;
     }

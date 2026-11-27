@@ -126,7 +126,6 @@ public sealed partial class SessionsConversationTests
     [InlineData("cancel")]
     [InlineData("selection")]
     [InlineData("privacy")]
-    [InlineData("hosted")]
     [InlineData("stale-local")]
     [InlineData("wrong-row")]
     [InlineData("presenter")]
@@ -167,7 +166,6 @@ public sealed partial class SessionsConversationTests
             await model.DiscardComposerBufferAsync();
         }
         if (change is "privacy") { composition.Access.CanInspect = false; composition.Access.ControlRevision++; }
-        if (change is "hosted") { await model.SubmitCopilotConversationAsync(); }
         if (change is "stale-local")
         {
             presenter = false;
@@ -197,16 +195,11 @@ public sealed partial class SessionsConversationTests
             model.HasAssistantReply.Should().BeTrue("returning must not silently make a stale reply ordinary input");
             await model.SubmitConversationAsync();
         }
-        if (change is not ("hosted" or "origin")) { await model.ConfirmAssistantReplyAsync(); }
+        if (change is not "origin") { await model.ConfirmAssistantReplyAsync(); }
         adapter.Calls.Should().Be(1);
         f.Count("conversation_messages").Should().Be(1);
         model.ComposerBody.Should().Be(change is "privacy" or "discard" ? string.Empty
             : change is "body" ? "expand the second point unchanged source, edited request" : "expand the second point");
-        if (change is "hosted")
-        {
-            model.ConversationStatus.Should().Contain("Reply mode requires");
-            model.CancelAssistantReply();
-        }
         if (change is "page")
         {
             model.ReplyReviewText.Should().BeEmpty();

@@ -20,11 +20,6 @@ public sealed partial class ModelTurnHostTests
         using var f = new Fixture();
         var (host, workflow, operation, runtime, presented) = f.VerifiedOperation();
         runtime.Reply = new(outcome);
-        f.HandoffReviews.Offered += exact =>
-        {
-            using var presentation = exact.Presentation();
-            f.HandoffReviews.Confirm(exact, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
         var running = operation.RunAsync(new(f.Session, null), "original", static () => true, Token);
         await presented.Task.WaitAsync(Token);
         var source = new ModelHandoffPresentation(workflow);
@@ -93,11 +88,6 @@ public sealed partial class ModelTurnHostTests
             && item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
         await using var review = source.Open(offer, RequestOrigin.LocalUi, static () => true)!;
         await review.Refresh(Token);
-        f.HandoffReviews.Offered += exact =>
-        {
-            using var presentation = exact.Presentation();
-            f.HandoffReviews.Confirm(exact, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
         f.Time.ExpectedDeadline = HostedTurnAuthorization.MaximumDuration;
         await review.Decide(offer, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
         (await running).Message.AssistantResponse!.Body.Should().Be("actual-boundary-answer");

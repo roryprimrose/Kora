@@ -153,7 +153,7 @@ Provider-neutral admission captures the immutable effective tuple and session-po
 ## Explicit hosted question continuation boundary
 
 The [separate explicit hosted clarification operation](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29) is host-selected Claude-only question authority, not a tool-free or observation request.
-Answer submission, stored answers and previous transmission reviews never supply fresh egress consent. Each Count Tokens/Messages POST requires its own complete native disclosure and affirmative one-send decision ([physical review](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)).
+Answer submission and stored answers are lower-trust data, never authority. Each Count Tokens/Messages POST is admitted automatically against current exact authority and audited, per the [single-Submit decision](Decision_Register.md#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27) ([physical admission](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)).
 
 Exact question/session/task/source generations and live privacy/account/policy authority remain authoritative across reply, review, send and final retention.
 Stale/foreign answers and cancellation/expiry/revocation suppress further disclosure and final answer publication ([canonical answer owner](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs)).
@@ -869,7 +869,7 @@ Re-detect and re-approve after a transformation changes the outgoing content.
 ### Runtime Egress Enforcement
 
 The [explicit Claude observation route](../docs/claude-requests.md#explicit-read-only-observations) freezes an original-six-ID subset and delegates proposals to the existing host loop.
-Account/catalogue lease and host request/profile/session authority are rechecked across each await, physical POST and final publication. Every Count Tokens and Messages body, including inert host results, receives independent one-send native approval; previous consent and provider metadata confer none.
+Account/catalogue lease and host request/profile/session authority are rechecked across each await, physical POST and final publication. Every Count Tokens and Messages body, including inert host results, is admitted automatically only against that current authority and audited; provider metadata confers none.
 Cumulative physical byte accounting and joined transport disposal retain ownership after cancellation ([transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs), [shared review](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)).
 
 The [exact provider handoff workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)

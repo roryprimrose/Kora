@@ -50,7 +50,7 @@ internal sealed partial class SessionsViewModel
             composerBody = literal;
             RememberUnsent();
             unsent.TryGetValue(target.Authority.SessionId, out var publishedBuffer);
-            conversationStatus = "Literal dictation inserted into this session's private memory only. Submit remains a separate action.";
+            conversationStatus = "Literal dictation inserted into this session's private memory; submitting it now.";
             var completed = false;
             try
             {
@@ -83,6 +83,9 @@ internal sealed partial class SessionsViewModel
                     NotifyConversation();
                 }
             }
-        }, ComposerDictationDestination.SessionComposer);
+        }, ComposerDictationDestination.SessionComposer, () => DictationSubmission = SubmitConversationAsync());
     }
+
+    /// <summary>The single-Submit operation started by the last confirmed dictation insertion.</summary>
+    internal Task DictationSubmission { get; private set; } = Task.CompletedTask;
 }

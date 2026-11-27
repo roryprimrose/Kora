@@ -93,7 +93,7 @@ Names match exactly, including case. Kora resolves the longest unique Active cha
 
 Review the exact destination, complete message, original channel and 60-second expiry, then separately use `session request confirm` or `session request cancel`. Native confirmation preserves a voice request's original channel; it does not bypass privacy, call, ownership or hosted final-send checks ([review owner](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
 
-This route requires the literal assistant-name prefix. It does **not yet apply after the wake word** when recognition supplies only `in Build plan, check the next step`; that bare wake body and ordinary unaddressed text keep their existing routing. The quoted `session request review "<exact readable name>" -- <original body>` form remains available ([activation boundary](../src/Kora.Core/Commands/SessionCommand.cs)).
+After the wake word, you can say `in Build plan, check the next step` without repeating the assistant name. Only the current trusted wake capture admits this bare form; typed and push-to-talk input still require the literal assistant-name prefix. Wake bodies not starting with `in ` keep their existing routing. The same exact-name review, separate confirmation, original voice channel and expiry apply. The quoted `session request review "<exact readable name>" -- <original body>` form remains available ([activation boundary](../src/Kora.Application/ViewModels/MainViewModel.SpokenNameWake.cs)).
 
 ## Ask once about this request's Details
 

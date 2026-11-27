@@ -3689,7 +3689,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportHostInteractionFailure("Conversation opening unavailable while a question, approval, review, editor or dictation owns input. Nothing was answered or submitted.");
             return;
         }
-        var addressedWorkCommand = SessionCommand.Parse(spokenText, AssistantName);
+        var addressedWorkCommand = ParseAddressedSessionCommand(spokenText, initiator);
         if ((addressedWorkCommand?.Operation == SessionCommandOperation.Metrics
                 || string.Equals(addressedWorkCommand?.Error, SessionCommand.MetricsSyntax, StringComparison.Ordinal))
             && (!CanAnswerRemainingWork || editorTarget is not null))

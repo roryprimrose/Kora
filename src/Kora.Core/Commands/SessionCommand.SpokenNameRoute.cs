@@ -9,9 +9,13 @@ public sealed partial record SessionCommand
         "<current assistant name>, in <exact Active chat name>, <original body>. "
         + "The longest unique exact name wins; ambiguous or absent names refuse without a fallback. "
         + "The comma after the chat name is optional. Review and confirm separately. "
-        + "Requires the literal assistant-name prefix for typed or push-to-talk input; bare wake bodies are unchanged.";
+        + "Requires the literal assistant-name prefix for typed or push-to-talk input, or trusted current wake activation.";
 
     public string? RequestSpokenNameRoute { get; init; }
+
+    internal static SessionCommand? ParseWakeSpokenNameRoute(string text) =>
+        ParseSpokenNameRoute(text.TrimStart(), activationPrefixed: true) is { } command
+            ? command with { RequestActivationPrefixed = true } : null;
 
     private static SessionCommand? ParseSpokenNameRoute(string text, bool activationPrefixed)
     {

@@ -10,6 +10,35 @@ public sealed class SessionRequestCommandTests
     private const string Id = "12345678-1234-1234-1234-123456789012";
 
     [Theory]
+    [InlineData("in Build plan,  Original\r\nbody  ", "Build plan,  Original\r\nbody  ")]
+    [InlineData("  IN Build plan Original  ", "Build plan Original  ")]
+    public void HostWakeNameEntryPreservesPayloadAndMarksExistingActivatedReview(string input, string route)
+    {
+        var command = SessionCommand.ParseWakeSpokenNameRoute(input)!;
+        command.Operation.Should().Be(SessionCommandOperation.RequestReview);
+        command.RequestSpokenNameRoute.Should().Be(route);
+        command.RequestActivationPrefixed.Should().BeTrue();
+        command.SessionId.Should().BeNull();
+        SessionCommand.Parse(input, "Nova").Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("compare these plans")]
+    [InlineData("inside Build plan")]
+    [InlineData("Nova, in Build plan, body")]
+    public void HostWakeNameEntryDoesNotReinterpretOtherWakeBodies(string input) =>
+        SessionCommand.ParseWakeSpokenNameRoute(input).Should().BeNull();
+
+    [Theory]
+    [InlineData("in")]
+    [InlineData("in ")]
+    [InlineData("in   ")]
+    [InlineData("in topic, \0")]
+    [InlineData("in topic, api_key=synthetic-only-value")]
+    public void InvalidHostWakeNameEntryRefusesWithoutFallback(string input) =>
+        SessionCommand.ParseWakeSpokenNameRoute(input)!.Operation.Should().Be(SessionCommandOperation.Invalid);
+
+    [Theory]
     [InlineData("Nova, in Build plan,  Original\r\nbody  ")]
     [InlineData("Nova in Build plan  Original\r\nbody  ")]
     public void SpokenNameRoutePreservesPayloadAndRequiresActivation(string input)

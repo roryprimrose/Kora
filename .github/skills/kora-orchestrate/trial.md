@@ -56,7 +56,14 @@ frontiers when two eligible or genuinely uncertain frontiers exist, plus the
 current bounded PR repair inventory. Do not deepen explicitly delivered routes
 or fabricate a second frontier to satisfy a numerical target. Two delivered operations
 are not evidence that all feature scope is exhausted. Carry forward the
-unexamined frontier and promptly assign the next finite pass; do not rediscover
+unexamined frontier using the reducer's
+[structured inventory](./README.md#structured-planner-inventory):
+each PASS_ENDED reports boolean `inventoryComplete`, unique nonempty trimmed
+string array `remainingFrontier` and consistent
+`remaining = (!inventoryComplete || remainingFrontier.length > 0)`.
+Forward optional action `frontier` unchanged into the next discover/steer
+assignment; record absent legacy metadata as unknown, not exhausted.
+Promptly assign the next finite pass; do not rediscover
 the same delivered operation unless source/eligibility changes.
 On a validated terminal PASS_ENDED, queue the next assignment to the same planner
 as a separate turn even if the previous host turn still appears active. Do not

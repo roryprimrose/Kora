@@ -50,7 +50,10 @@ fail-closed implementation.
   no admitted work exists. Never invent features or revive retired work.
 - Prefer actual complete approved interactions over navigation/field preparation.
   Maintenance uses delivery slots only when explicitly labelled maintenance.
-- Continue from the prior scan frontier. Investigate unchanged shipped scope
+- Continue from the assigned action's optional `frontier.inventoryComplete`
+  and `frontier.remainingFrontier`. Absence means legacy inventory is unknown,
+  not exhausted. Follow [structured inventory](./README.md#structured-planner-inventory).
+  Investigate unchanged shipped scope
   again only when source, ownership, or eligibility changes.
 - When bounded admitted inventory has no concrete unexamined eligible scope,
   report exact examined/unexamined scope and stop that pass. Do not manufacture
@@ -118,8 +121,11 @@ Before the first candidate at a new head, report SOURCE_CHANGED so the coordinat
 can refresh the registry. Candidates cannot silently change source freshness.
 Product/authority blockers are parked, not converted into imagined contracts.
 
-PASS_ENDED contains both examined-pool flags, remaining unexamined frontier,
-actionable backlog or shortage receipts, source head, and stopped-writing state.
+PASS_ENDED contains both examined-pool flags, boolean `inventoryComplete`,
+`remainingFrontier` (an array of unique nonempty trimmed strings), boolean
+`remaining = (!inventoryComplete || remainingFrontier.length > 0)`, actionable
+backlog or shortage receipts, source head, and stopped-writing state.
+Report the complete latest remaining inventory, not a delta or only prose.
 Finish receipt writes before sending that terminal report, then end the turn.
 For interim receipts use `productionWrites=false` with `stopped_writing=false`;
 do not claim the pass has stopped while still investigating.

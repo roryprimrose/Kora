@@ -191,7 +191,7 @@ a second child.
 | `renew-recovery-continuation` | Explicit same-owner unchanged-grant/source/scopes/fence renewal for compatible main advancement; fresh current item/revision/held guards, complete independent compatibility readback and whole-proof owner acknowledgment. No actions or new authority. See [renewal input and sequencing](./README.md#same-owner-continuation-renewal). |
 | `supersede-write-reservations` | Versioned whole `proof` and explicit human `authorization`, bound to the current durable revision/source/coordinator, complete candidate and every exact prior holder. Local-ledger activation only; external preparation never launches. See [exact input and limitations](./README.md#exact-path-write-reservation-supersession). |
 | `completed` | Published worker `owner/key`; verified cleanup `proof`: matching `remoteHead`, `stoppedWriting`, `worktreeAbsent`, `branchAbsent`, `pendingInstructions=0`. |
-| `pass-ended` | Planner `owner`, assigned `pass`, `readyExamined=true`, `repairExamined=true`, boolean `remaining`; optional shortage receipt. |
+| `pass-ended` | Planner `owner`, assigned `pass`, `readyExamined=true`, `repairExamined=true`, boolean `inventoryComplete`, unique nonempty trimmed string array `remainingFrontier`, boolean `remaining = (!inventoryComplete || remainingFrontier.length > 0)`; optional shortage receipt. |
 | `refresh` | Verified current `head`; invalidate stale undispatched candidates and coalesce discovery. |
 | `pause` | Disable dispatch, notify owned children; retain unfinished ownership. |
 | `handoff` | Paused workflow, exact `fromCoordinator/toCoordinator`, verified stopped old-owner addresses and `pendingInstructions=0`; retain reservations and stay paused. |
@@ -298,7 +298,10 @@ standalone session isolation remains a distinct host capability.
 
 `discover` starts one bounded pass; `steer-planner` coalesces changed state into
 an active pass. Send its numbered `pass`, current reservations, free capacities,
-and changed keys. Reject delayed reports from earlier passes without ending the
+and changed keys. When the action has `frontier`, forward its `inventoryComplete`
+and `remainingFrontier` unchanged; absence means legacy inventory is unknown,
+not complete. See [structured inventory](./README.md#structured-planner-inventory).
+Reject delayed reports from earlier passes without ending the
 current pass or changing its frontier.
 Ready-feature candidates precede maintenance within the delivery backlog.
 Maintenance waits for the finite discovery pass to finish so early maintenance
@@ -309,7 +312,10 @@ Every pass examines both pools, even when repair capacity is full.
 ### Terminal planner report and serialized next turn
 
 A matching final PASS_ENDED with both examined flags, final receipt, numbered
-pass, and remaining frontier is the event for the planner transition. Do not
+pass, `inventoryComplete`, `remainingFrontier` and consistent `remaining` is the
+event for the planner transition. The reducer validates and retains the latest
+metadata as optional `planner.frontier`; do not infer it from prose or shortage.
+Do not
 wait for a later host `complete` status before queuing the next pass: that later
 status may not produce another coordinator event.
 

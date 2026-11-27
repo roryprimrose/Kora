@@ -204,6 +204,42 @@ function candidateCheckpoint(released = true) {
   return f;
 }
 
+test('checkpoint persists terminal frontier and queued actions; invalid or duplicate reports preserve bytes', () => {
+  const f = fixture();
+  const attached = f.run({ operation: 'apply', expectedRevision: 1,
+    event: { id: 'planner', type: 'planner', owner: 'fixture-planner' } });
+  const event = { id: 'end', type: 'pass-ended', owner: 'fixture-planner', pass: 1,
+    readyExamined: true, repairExamined: true, remaining: true,
+    inventoryComplete: true, remainingFrontier: ['session conversation'] };
+  const bytes = f.files.get(f.file);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: attached.revision,
+    event: { ...event, remaining: false } }), /Remaining/);
+  assert.equal(f.files.get(f.file), bytes);
+  const ended = f.run({ operation: 'apply', expectedRevision: attached.revision, event });
+  assert.equal(ended.version, 1);
+  assert.equal(ended.state.version, 1);
+  assert.deepEqual(ended.state.planner.frontier,
+    { inventoryComplete: true, remainingFrontier: ['session conversation'] });
+  assert.deepEqual(ended.actions.at(-1).command.frontier, ended.state.planner.frontier);
+  assert.deepEqual(f.run({ operation: 'read' }), ended);
+  const persisted = f.files.get(f.file);
+  assert.deepEqual(f.run({ operation: 'apply', expectedRevision: ended.revision, event }), ended);
+  assert.equal(f.files.get(f.file), persisted);
+  assert.equal([...f.files.keys()].some(file => file.endsWith('.lock') || file.endsWith('.tmp')), false);
+});
+
+test('saved candidate-readmission checkpoint reads and replays seen terminal events without rewriting', () => {
+  const f = candidateCheckpoint();
+  const bytes = f.files.get(f.file), original = f.run({ operation: 'read' });
+  assert.equal(Object.hasOwn(original.state.planner, 'frontier'), false);
+  for (const id of original.state.seen.filter(id => id.startsWith('planner-pass-ended-'))) {
+    assert.deepEqual(f.run({ operation: 'apply', expectedRevision: original.revision,
+      event: { id, type: 'pass-ended', owner: original.state.planner.owner, pass: 1,
+        readyExamined: true, repairExamined: true, remaining: false } }), original);
+    assert.equal(f.files.get(f.file), bytes);
+  }
+});
+
 function supersessionCheckpoint() {
   const f = fixture();
   f.files.set(f.file, JSON.stringify({ version: 1, revision: 41,

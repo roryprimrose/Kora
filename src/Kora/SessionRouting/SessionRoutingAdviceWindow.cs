@@ -10,6 +10,7 @@ internal sealed class SessionRoutingAdviceWindow : Window
     internal SessionRoutingAdviceWindow(SessionRoutingAdvice advice, Func<bool> admitted)
     {
         Title = "Review local destination advice";
+        ShowActivated = advice.Origin != Kora.Core.Hosting.RequestOrigin.ActivatedVoice;
         Width = 700; Height = 540; MinWidth = 500; MinHeight = 400;
         View = new(this, advice, admitted);
         Content = View;

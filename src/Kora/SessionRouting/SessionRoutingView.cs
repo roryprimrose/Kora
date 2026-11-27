@@ -115,9 +115,10 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
     internal void Show()
     {
         if (Owner is not ResponseWindow primary) { Owner.Show(); return; }
-        primary.ShowSessions(expanded: true, preservePresentation: true);
+        var activate = review.Origin != Kora.Core.Hosting.RequestOrigin.ActivatedVoice;
+        primary.ShowSessions(expanded: true, activate: activate, preservePresentation: true);
         primary.ShowNativeReview(this, "Review request destination", this, admitted,
-            shown => { if (!shown && !closed) { Withdraw(); } });
+            shown => { if (!shown && !closed) { Withdraw(); } }, activate: activate);
         OnOwnerOpened(this, EventArgs.Empty);
     }
 

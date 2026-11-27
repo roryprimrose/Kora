@@ -54,7 +54,7 @@ public sealed class SessionRoutingService(
         bool OriginalAdmitted() => access.CanInspect && access.CanControl
             && access.ControlRevision == originalControl && admitted();
         var target = origin == RequestOrigin.ActivatedVoice ? foreground : null;
-        bool SourceAdmitted() => admitted() && (target is null || target.IsCurrent);
+        bool SourceAdmitted() => admitted() && (target is null || target.IsResourceCurrent);
         return admission is null ? PrepareCoreAsync(body, origin, SourceAdmitted, null, target, token)
             : admission.RunAsync(origin, OriginalAdmitted, (request, session, current, cancellation) =>
                 PrepareCoreAsync(body, request.Origin, () => current() && SourceAdmitted(),

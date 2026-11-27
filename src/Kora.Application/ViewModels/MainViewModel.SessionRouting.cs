@@ -36,7 +36,6 @@ public sealed partial class MainViewModel
         var origin = OriginalOrigin(initiator);
         var foreground = origin == RequestOrigin.ActivatedVoice
             ? Volatile.Read(ref foregroundConversationTarget) : null;
-        var foregroundRevision = Interlocked.Read(ref foregroundConversationRevision);
         var wakeCurrent = original?.WakeActivationCurrent;
         if (wakeCurrent is not null && (origin != RequestOrigin.ActivatedVoice || !wakeCurrent()))
         {
@@ -75,8 +74,7 @@ public sealed partial class MainViewModel
         var eligible = CaptureNewRequestOpeningEligibility(input with { Eligible = () => voiceRequest.IsLive });
         var inputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision);
         var composerRevision = Interlocked.Read(ref attachmentCatalogueComposerRevision);
-        bool Live() => eligible() && (foreground is null || foreground.IsCurrent
-            && Interlocked.Read(ref foregroundConversationRevision) == foregroundRevision)
+        bool Live() => eligible() && (foreground is null || foreground.IsResourceCurrent)
             && Interlocked.Read(ref workspaceSurfaceInputRevision) == inputRevision
             && (origin != RequestOrigin.LocalUi || Interlocked.Read(ref attachmentCatalogueComposerRevision) == composerRevision)
             && (input.RoutingWakeContinuation is not null || wakeCurrent?.Invoke() != false);
@@ -94,7 +92,8 @@ public sealed partial class MainViewModel
             PrivacyClosureRequested += RoutingVoicePrivacyClosed;
             var wasBusy = IsBusy;
             IsBusy = true;
-            using var routingPresentationLease = retainRoutingPresentation?.Invoke();
+            using var routingPresentationLease = origin == RequestOrigin.ActivatedVoice
+                ? null : retainRoutingPresentation?.Invoke();
             SessionRoutingReceipt? result;
             try { result = await route(body, origin, Live, foreground); }
             finally

@@ -10,6 +10,58 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task OnlyVoiceOriginalRequestReviewSurvivesUnrelatedFocusLoss(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var store = BindRequestCommands(f);
+        var target = new ForegroundConversationTarget(store.Session, static () => true);
+        f.ViewModel.PublishForegroundConversationTarget(target);
+        if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, ask this conversation original body", 1); }
+        else { await f.RunAsync("ask this conversation original body"); }
+        f.ViewModel.HasForegroundRequestReview.Should().BeTrue();
+        f.ViewModel.PublishForegroundConversationTarget(null);
+        target.IsCurrent.Should().BeFalse();
+        target.IsResourceCurrent.Should().BeTrue();
+        f.ViewModel.HasForegroundRequestReview.Should().Be(voice);
+        await f.ViewModel.ConfirmForegroundRequestAsync();
+        store.RequestRetentions.Should().Be(voice ? 1 : 0);
+        if (voice)
+        {
+            store.RequestMessage!.Body.Should().Be("original body");
+            store.RequestMessage.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        }
+    }
+
+    [Theory]
+    [InlineData("target")]
+    [InlineData("resource")]
+    public async Task VoiceOriginalRequestReviewCannotUseRetiredResourceAfterFocusLoss(string change)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var store = BindRequestCommands(f);
+        var target = new ForegroundConversationTarget(store.Session, static () => true);
+        f.ViewModel.PublishForegroundConversationTarget(target);
+        await f.RaiseActivatedTranscriptAsync("Kora, ask this conversation original body", 1);
+        f.ViewModel.PublishForegroundConversationTarget(null);
+        if (change is "resource")
+        {
+            target.Retire();
+            f.ViewModel.PublishForegroundConversationTarget(null);
+        }
+        else
+        {
+            var changed = store.Session with
+            { Metadata = new(store.Session.Authority.SessionId, new(1), new("Changed target")) };
+            f.ViewModel.PublishForegroundConversationTarget(new(changed, static () => true));
+        }
+        await f.ViewModel.ConfirmForegroundRequestAsync();
+        store.RequestRetentions.Should().Be(0);
+        f.ViewModel.HasForegroundRequestReview.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task TypedAndCurrentNameVoiceReviewUseOriginalTargetBodyAndNativeConfirmation(bool voice)
     {
         var f = await Fixture.CreateInitializedAsync();

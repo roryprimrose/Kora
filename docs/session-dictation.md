@@ -1,8 +1,9 @@
-# Dictate an unsent session message
+# Dictate a session message
 
-Unsent messages are separate, **memory-only** buffers for each session. Dictation
-does not save a draft, create a conversation, answer a question, approve work or
-send a message.
+Unsent messages are separate, **memory-only** buffers for each session. Once the
+dictated text is confirmed in a session's message, Kora submits it through the
+same single **Submit** used for typed messages. Dictation does not save a draft,
+create a conversation, answer a question or approve work.
 
 ## Availability
 
@@ -34,12 +35,13 @@ readiness are available:
    transcription, then choose **Append**, **Replace** or **Cancel dictation**.
    Append concatenates exactly, without adding a space or newline. An empty
    buffer receives the literal text after microphone release.
-6. Return to the ordinary conversation composer, inspect/edit the resulting
-   unsent message, and use the ordinary **Submit** action separately if desired.
-   Submission retains its own validation and permission rules.
+6. Kora submits the resulting message immediately through the ordinary
+   **Submit**, using the provider selected in Settings. Submission retains its
+   own validation and permission rules; a failed or revoked insertion submits
+   nothing.
 
 Words such as "approve", "submit" or "stop listening" in the transcription are
-inert text, not commands or approval. **Cancel dictation** or Escape discards the
+inert message text, not commands or approval. **Cancel dictation** or Escape discards the
 pending transcription without changing the original input. Losing the native
 arm, changing the session/source, editing even to identical text, closing the
 surface, locking, privacy changes or withdrawing control retire stale work.

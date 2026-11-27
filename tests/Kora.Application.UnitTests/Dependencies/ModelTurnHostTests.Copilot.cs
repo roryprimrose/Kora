@@ -11,24 +11,10 @@ namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
-    [Fact]
-    public async Task Explicit_copilot_context_route_resolves_current_profile_but_never_inherits_transmission_consent()
-    {
-        using var f = new Fixture();
-        using var root = f.Root();
-        var runtime = new HostedRuntime();
-        var reviews = new HostedTransmissionReviewService(f, f.Time);
-        var host = f.CopilotProfiles(runtime, reviews);
-        var admission = await ((ICopilotTurnAdmission)host).AdmitCopilotAsync(f.Context(), Token);
-        admission.Turn.Should().NotBeNull();
-        (await host.RunAsync(admission.Turn!, Token)).Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
-        runtime.Transmissions.Should().Be(0);
-    }
-
     [Theory]
     [InlineData(null)]
     [InlineData(250)]
-    public async Task Copilot_requires_host_issued_turn_intent_and_separate_exact_final_transmission_confirmation(int? deadlineMilliseconds)
+    public async Task Copilot_requires_host_issued_turn_intent_and_audits_automatic_exact_final_transmission(int? deadlineMilliseconds)
     {
         using var f = new Fixture();
         using var root = f.Root();
@@ -49,15 +35,6 @@ public sealed partial class ModelTurnHostTests
         var turn = (await host.AdmitCopilotAsync(authorization, Token)).Turn!;
         turn.Should().NotBeNull();
         runtime.Transmissions.Should().Be(0);
-        reviews.Offered += review =>
-        {
-            Encoding.UTF8.GetString(review.Transmission.Body.AsSpan()).Should().Contain("runtime-added-final-content");
-            review.Transmission.Profile.Should().Be(Profile(ProviderService.Copilot));
-            review.Transmission.Provenance.Should().BeSameAs(turn.Provenance);
-            using var presentation = review.Presentation();
-            reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
         var result = await host.RunAsync(turn, Token);
         result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         result.Response!.Answer.Should().Be("actual-boundary-answer");
@@ -66,21 +43,11 @@ public sealed partial class ModelTurnHostTests
         f.Audits.Where(item => string.Equals(item.ActionId, "model.copilot.transmission", StringComparison.Ordinal))
             .Select(item => item.Outcome).Should().Equal(Kora.Core.Auditing.SecurityAuditOutcome.Requested,
                 Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
+        f.Audits.Last(item => string.Equals(item.ActionId, "model.copilot.transmission", StringComparison.Ordinal))
+            .ReasonCode.Should().Be(HostedTransmissionReviewService.AutomaticReason);
         f.Messages.Should().NotContain(item => item.Contains("runtime-added-final-content", StringComparison.Ordinal));
     }
 
-    [Fact]
-    public async Task A_missing_exact_review_presenter_is_denied_not_profile_consent()
-    {
-        using var f = new Fixture();
-        using var root = f.Root();
-        var runtime = new HostedRuntime();
-        var reviews = new HostedTransmissionReviewService(f, f.Time);
-        var host = f.CopilotProfiles(runtime, reviews);
-        var turn = (await host.AdmitCopilotAsync(reviews.PrepareTurn(f.Context(), Profile(ProviderService.Copilot)), Token)).Turn!;
-        (await host.RunAsync(turn, Token)).Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
-        runtime.Transmissions.Should().Be(0);
-    }
 
     [Theory]
     [InlineData("account")]
@@ -88,7 +55,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("privacy")]
     [InlineData("session")]
     [InlineData("expired")]
-    public async Task Exact_final_review_does_not_survive_account_catalogue_privacy_session_or_expiry_changes(string change)
+    public async Task Automatic_final_admission_does_not_survive_account_catalogue_privacy_session_or_expiry_changes(string change)
     {
         using var f = new Fixture();
         using var root = f.Root();
@@ -96,7 +63,7 @@ public sealed partial class ModelTurnHostTests
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var host = f.CopilotProfiles(runtime, reviews);
         var turn = (await host.AdmitCopilotAsync(reviews.PrepareTurn(f.Context(), Profile(ProviderService.Copilot)), Token)).Turn!;
-        reviews.Offered += review =>
+        runtime.BeforeTransmission = () =>
         {
             switch (change)
             {
@@ -106,14 +73,16 @@ public sealed partial class ModelTurnHostTests
                 case "session": f.SessionProfileRevision++; break;
                 default: f.Time.Now = DateTimeOffset.UnixEpoch.AddMinutes(2); break;
             }
-            reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
         };
         (await host.RunAsync(turn, Token)).Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
+        runtime.Calls.Should().Be(1);
         runtime.Transmissions.Should().Be(0);
+        f.Audits.Where(item => string.Equals(item.ActionId, "model.copilot.transmission", StringComparison.Ordinal))
+            .Select(item => item.Outcome).Should().NotContain(Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
     }
 
     [Fact]
-    public async Task Foreign_confirmation_and_provider_claimed_permission_cannot_authorize_transmission_or_tools()
+    public async Task Provider_claimed_permission_cannot_authorize_tools_after_automatic_transmission()
     {
         using var f = new Fixture();
         using var root = f.Root();
@@ -121,17 +90,6 @@ public sealed partial class ModelTurnHostTests
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var host = f.CopilotProfiles(runtime, reviews);
         var turn = (await host.AdmitCopilotAsync(reviews.PrepareTurn(f.Context(), Profile(ProviderService.Copilot)), Token)).Turn!;
-        reviews.Offered += review =>
-        {
-            using (var foreign = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
-                HostActivityLayer.Application, HostOperation.Request))
-            {
-                reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeFalse();
-                foreign.Complete(HostOperationOutcome.Failed);
-            }
-            reviews.Confirm(review, true, RequestOrigin.HostSystem).Should().BeFalse();
-            reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
         var result = await host.RunAsync(turn, Token);
         result.Outcome.Should().Be(ModelTurnOutcome.Denied);
         result.Reason.Should().Be(ModelTurnReason.ToolUseNotPermitted);
@@ -196,9 +154,12 @@ public sealed partial class ModelTurnHostTests
         internal bool JoinConfirmed { get; set; } = true;
         internal TaskCompletionSource<CopilotTurnReply>? Pending { get; set; }
         internal Action? OnTransmission { get; set; }
+        internal Action? BeforeTransmission { get; set; }
         internal CopilotTurnReply Reply { get; set; } = new(ModelTurnOutcome.Succeeded, "actual-boundary-answer");
         internal int Calls { get; private set; }
         internal int Transmissions { get; private set; }
+        internal ModelToolMode? ToolMode { get; private set; }
+        internal List<(ProviderProfileTuple Profile, RequestOrigin Origin)> Sends { get; } = [];
         internal bool UseTools { get; set; }
         internal CapabilityReply? Version { get; private set; }
         internal CapabilityReply? Malicious { get; private set; }
@@ -207,12 +168,15 @@ public sealed partial class ModelTurnHostTests
             Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission, CancellationToken cancellationToken)
         {
             Calls++;
+            ToolMode = ModelToolProtocol.ReadContext(context.Span, provenance).ToolMode;
             running = true;
             try
             {
                 var final = new CopilotTransmission(provenance, profile, new("https://api.githubcopilot.com/chat/completions"),
                     Encoding.UTF8.GetBytes("{\"model\":\"exact-model\",\"messages\":[\"runtime-added-final-content\"]}"));
+                BeforeTransmission?.Invoke();
                 if (!await admitTransmission(final, cancellationToken)) { return new(ModelTurnOutcome.DeniedEgress); }
+                Sends.Add((profile, provenance.Request.Origin));
                 Transmissions++;
                 OnTransmission?.Invoke();
                 if (UseTools)

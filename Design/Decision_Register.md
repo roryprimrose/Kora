@@ -16,6 +16,18 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Settings-routed single Submit and automatic hosted disclosure - 2026-11-27
+
+The product owner directed: "There should be no ordinary submit vs copilot submit buttons. The settings would define which platform is used", "We don't need the user to confirm bytes. Just send the session. The only reason the message should be blocked (before sending) would be related to permissions/grants/allow-all", "The chat UI should only have one submit button" and "A voice command is implicitly submitted when the text is obtained". For sessions below Approve all, the owner chose automatic sending, with the hosted platform choice in Settings acting as the permission.
+
+- Ordinary Submit resolves the [provider mode and service/model tuple](Model_Providers_Memory_And_Knowledge.md#hosted-service-model-and-compute-profile) from Settings or the session override. Hosted preferred sends to the resolved Copilot or Claude profile, Local only stays local, and Local first runs locally before offering the existing verified hosted handoff. Admission still re-resolves the exact profile and fails closed on drift ([route preview](../src/Kora.Application/Dependencies/ModelTurnHost.ConversationRoute.cs), [ordinary route](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs)).
+- Each hosted final request is admitted automatically at every session permission level, with no byte-review window. Host validation, captured final bytes, size bounds, exact destination/account/profile/session admission, cancellation, physical joins and egress enforcement remain unchanged. Every send writes the Requested and terminal transmission audit with reason `hosted-provider-settings`; Approve all additionally keeps its typed session audit ([admission owner](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)). This supersedes the per-send review in the [Copilot live evaluation](#explicit-copilot-live-evaluation---2026-11-14) and Claude decisions.
+- The per-provider Copilot, Claude and local-first Submit variants are removed from the chat surfaces. Hosted Settings-routed answers are tool-free in this increment; Copilot streams provisional text, Claude is buffered.
+- Dictated text in a session composer is submitted through the same single Submit once insertion is confirmed ([dictation owner](../src/Kora.Application/Voice/ComposerDictationService.cs)).
+- Follow-on increments, under the same direction: bounded earlier conversation messages sent with hosted turns, and folding the remaining clarification, web page, MCP, local-answer and metadata variants into the single Submit as permission-governed model tools.
+
+Runtime/account evaluation admission, entitlement, possible charges and production qualification remain separate; this decision enables no unavailable provider.
+
 ## Voice-to-action interaction - 2026-11-27
 
 The product owner recorded the following decisions for the approved

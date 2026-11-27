@@ -54,7 +54,7 @@ applies to one invocation only, never another action, retry, session or changed
 proposal. Unknown ownership, identity, privacy, containment, authentication,
 prohibited effects and unavailable execution remain blocking conditions.
 
-External-page, MCP and hosted Copilot/Claude sends still validate exact destinations/accounts, source/proposal identities and byte bounds. In Approve all, their Kora-owned disclosure cards are skipped, with actual final-request digests audited before every physical send, including follow-ups/retries. Non-sensitive help and deterministic
+External-page, MCP and hosted Copilot/Claude sends still validate exact destinations/accounts, source/proposal identities and byte bounds. In Approve all, external-page and MCP disclosure cards are skipped, with actual final-request digests audited before every physical send, including follow-ups/retries. Hosted Copilot/Claude sends never show a disclosure card at any level: choosing the hosted platform in Settings is the decision to send, and each send is audited (with the same Approve all digests when that level is active). Non-sensitive help and deterministic
 stop/mute/cancel controls do not acquire an ordinary action-approval step.
 Selecting a level enables no scripts, generic MCP transport or model provider.
 

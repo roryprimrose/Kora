@@ -64,27 +64,34 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Claude_canonical_retained_route_requires_exact_native_final_consent(bool approve)
+    [InlineData(ModelProviderMode.HostedPreferred)]
+    [InlineData(ModelProviderMode.LocalOnly)]
+    public async Task Claude_settings_route_answers_ordinary_submit_tool_free_only_when_hosted_is_selected(ModelProviderMode mode)
     {
-        using var f = new Fixture(RequestOrigin.ActivatedVoice);
+        using var f = new Fixture();
         var runtime = new ClaudeRuntime();
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var host = f.ClaudeProfiles(runtime, reviews);
-        reviews.ClaudeOffered += review =>
-        {
-            using var presentation = review.Presentation();
-            reviews.Confirm(review, approve, RequestOrigin.LocalUi).Should().BeTrue();
-        };
-        var receipt = await f.ConversationService(host, execution: host)
-            .SubmitClaudeAsync(new(f.Session, null), "original Claude body", () => true, Token);
+        f.ProviderPreferences.Mode = mode;
+        await using var service = f.ConversationService(host, execution: host);
+        var hosted = mode == ModelProviderMode.HostedPreferred;
+        (await service.ResolveRouteAsync(f.Session.SessionId, Token)).Should()
+            .Be(hosted ? ConversationProviderRoute.Claude : ConversationProviderRoute.Local);
+        var receipt = await service.SubmitAsync(new(f.Session, null), "original Claude body", () => true, Token);
         receipt.Message.Body.Should().Be("original Claude body");
-        receipt.Message.Outcome.Should().Be(approve ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        receipt.Message.AssistantResponse?.Body.Should().Be(approve ? "genuine Claude answer" : null);
-        runtime.Context!.ToolMode.Should().Be(ModelToolMode.None);
-        runtime.Context.Evidence.Should().BeEmpty();
-        runtime.Calls.Should().Be(1);
+        receipt.Message.AssistantResponse?.Body.Should().Be(hosted ? "genuine Claude answer" : null);
+        if (hosted)
+        {
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            receipt.Message.Execution!.Selection.Provider.Should().Be(ModelProviderIdentity.Claude);
+            runtime.Context!.ToolMode.Should().Be(ModelToolMode.None);
+            runtime.Context.Evidence.Should().BeEmpty();
+            runtime.Sends.Should().Equal((Profile(ProviderService.Claude), RequestOrigin.LocalUi));
+            f.Audits.Last(item => string.Equals(item.ActionId, "model.claude.transmission", StringComparison.Ordinal))
+                .ReasonCode.Should().Be(HostedTransmissionReviewService.AutomaticReason);
+        }
+        else { receipt.Message.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded); }
+        runtime.Calls.Should().Be(hosted ? 1 : 0);
     }
 
     [Fact]
@@ -92,7 +99,7 @@ public sealed partial class ModelTurnHostTests
     {
         using var f = new Fixture();
         var receipt = await f.ConversationService(new TestAdmission(ModelTurnOutcome.Unavailable))
-            .SubmitClaudeAsync(new(f.Session, null), "original", () => true, Token);
+            .SubmitAsync(new(f.Session, null), "original", () => true, Token);
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
         using var ordinary = new Fixture();
         using var root = ordinary.Root();
@@ -103,31 +110,25 @@ public sealed partial class ModelTurnHostTests
         runtime.Calls.Should().Be(0);
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(2)]
-    [InlineData(4)]
-    public async Task ExplicitClaudeObservationRouteReusesRealHostCallbackAndFreshContinuationReview(int approvals)
+    [Fact]
+    public async Task ExplicitClaudeObservationRouteReusesRealHostCallbackAndFreshContinuationAdmission()
     {
         using var f = new Fixture();
         var runtime = new ClaudeRuntime(observations: true);
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var host = f.ClaudeProfiles(runtime, reviews);
         f.Time.ExpectedDeadline = ModelToolProtocol.Deadline;
-        var offered = 0;
         var versions = 0;
         f.OnVersion = () => versions++;
-        reviews.ClaudeOffered += review =>
-        {
-            using var presentation = review.Presentation();
-            reviews.Confirm(review, ++offered <= approvals, RequestOrigin.LocalUi).Should().BeTrue();
-        };
         var receipt = await f.ConversationService(host, execution: host).SubmitClaudeObservationsAsync(
             new(f.Session, null), "original observation body", [ReadOnlyCapabilityCatalog.Version], () => true, Token);
         receipt.Message.Body.Should().Be("original observation body");
-        receipt.Message.Outcome.Should().Be(approvals == 4 ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        (receipt.Message.AssistantResponse?.Body).Should().Be(approvals == 4 ? "The observed version is 1.0." : null);
-        versions.Should().Be(approvals >= 2 ? 1 : 0);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        (receipt.Message.AssistantResponse?.Body).Should().Be("The observed version is 1.0.");
+        versions.Should().Be(1);
+        f.Audits.Where(item => string.Equals(item.ActionId, "model.claude.transmission", StringComparison.Ordinal)
+                && item.Outcome != Kora.Core.Auditing.SecurityAuditOutcome.Requested)
+            .Should().HaveCount(4).And.OnlyContain(item => item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
         runtime.Context!.Tools.Select(tool => tool.Id).Should().Equal(ReadOnlyCapabilityCatalog.Version);
         runtime.Context.Evidence.Should().BeEmpty();
         host.IsQuiescent.Should().BeTrue();
@@ -158,13 +159,18 @@ public sealed partial class ModelTurnHostTests
         public bool IsQuiescent => true;
         internal int Calls { get; private set; }
         internal ModelContextEnvelope? Context { get; private set; }
+        internal Action? BeforeAdmit { get; set; }
+        internal List<(ProviderProfileTuple Profile, RequestOrigin Origin)> Sends { get; } = [];
         public async Task<ClaudeTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
             ModelContextEnvelope context, Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
             Func<CancellationToken, ValueTask<bool>> current, CancellationToken token)
         {
             Calls++; Context = context;
-            return await admit(new(provenance, profile, new("https://api.anthropic.com/v1/messages"), new byte[] { 123, 125 }, []), token)
-                ? new(ModelTurnOutcome.Succeeded, "genuine Claude answer") : new(ModelTurnOutcome.DeniedEgress);
+            BeforeAdmit?.Invoke();
+            if (!await admit(new(provenance, profile, new("https://api.anthropic.com/v1/messages"), new byte[] { 123, 125 }, []), token))
+            { return new(ModelTurnOutcome.DeniedEgress); }
+            Sends.Add((profile, provenance.Request.Origin));
+            return new(ModelTurnOutcome.Succeeded, "genuine Claude answer");
         }
 
         public Task<IModelToolTransport?> OpenToolTurnAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,

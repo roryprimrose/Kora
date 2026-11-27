@@ -95,7 +95,7 @@ Grant management and permission-level/call-approval-setting changes are protecte
 
 Every automatic approval records the [typed audit](../src/Kora.Core/Auditing/AutomaticApprovalAudit.cs): exact request/session/task, proposal/action/effect, binding/content digests, current policy revision, skipped-prompt category, approve-all basis and grants-not-evaluated. Disclosures bind destination/account/profile and actual request-body digests, never raw content.
 
-Hosted [final-request review](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs) audits each captured physical request, including follow-ups/retries and selected definitions. Remote [MCP disclosure](../src/Kora.Windows/Mcp/McpHttpConnection.cs) hashes immutable SDK-produced bytes immediately before SendAsync, including protocol notifications. Audit failure or stale policy prevents egress.
+Hosted [final-request admission](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs) is automatic at every level per the [single-Submit decision](Decision_Register.md#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27); in Approve all it also writes the typed digest audit for each captured physical request, including follow-ups/retries and selected definitions. Remote [MCP disclosure](../src/Kora.Windows/Mcp/McpHttpConnection.cs) hashes immutable SDK-produced bytes immediately before SendAsync, including protocol notifications. Audit failure or stale policy prevents egress.
 
 ## Model Reviewer
 

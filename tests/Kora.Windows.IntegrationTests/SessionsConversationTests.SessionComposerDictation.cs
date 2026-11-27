@@ -27,7 +27,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("replace")]
     [InlineData("cancel")]
     [InlineData("empty")]
-    public async Task SessionDictationNativeHoldReleasesBeforeReviewAndLeavesIndependentMemoryForSeparateSubmit(string decision)
+    public async Task SessionDictationNativeHoldReleasesBeforeReviewThenSubmitsOnceAndLeavesOtherSessionsIndependent(string decision)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -106,14 +106,26 @@ public sealed partial class SessionsConversationTests
                         .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 }
                 await dictation.Quiescence;
-                model.ComposerBody.Should().Be(decision is "append" ? original + text :
-                    decision is "replace" or "empty" ? text : original);
+                await model.DictationSubmission;
                 late();
+                var submitted = decision is not "cancel";
+                var expected = decision is "append" ? original + text : decision is "replace" or "empty" ? text : null;
+                model.ComposerBody.Should().Be(submitted ? string.Empty : original);
+                var messages = (await f.Store.ReadConversationPageAsync(first, null, 25, f.Token)).Messages;
+                if (submitted)
+                {
+                    messages.Should().ContainSingle().Which.Body.Should().Be(expected, "the confirmed literal is submitted exactly once");
+                    messages[0].Request.Origin.Should().Be(RequestOrigin.LocalUi);
+                    WindowsSqliteConversationTests.AuditText(f).Should().NotContain(text);
+                }
+                else
+                {
+                    messages.Should().BeEmpty();
+                    WindowsSqliteConversationTests.AuditText(f).Should().Be(audits);
+                    (await f.Store.ReadRetentionAsync(first, f.Token)).Should().Be(retention);
+                }
                 f.Count("conversation_drafts").Should().Be(0);
-                f.Count("conversation_messages").Should().Be(0);
                 f.Count("host_questions").Should().Be(0);
-                WindowsSqliteConversationTests.AuditText(f).Should().Be(audits);
-                (await f.Store.ReadRetentionAsync(first, f.Token)).Should().Be(retention);
                 window.Close();
                 await window.CloseOperation;
                 await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId != first));

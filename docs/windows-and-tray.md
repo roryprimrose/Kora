@@ -259,8 +259,8 @@ new-request admission; it never resets or replays the original task.
 
 A held queue still requires its existing separate explicit **Resume** control.
 FIFO, queue bounds, original expiry, cancellation and physical resource joins
-are unchanged. Hosted requests still require native approval of each final
-physical send. Changing source, provider/profile/account, session, privacy or
+are unchanged. Hosted requests are sent automatically against the current
+provider authority. Changing source, provider/profile/account, session, privacy or
 authority requires fresh review or refusal, never a provider fallback.
 
 Legacy/pre-dispatch failures without a recorded original provider are explicitly
@@ -645,8 +645,8 @@ Typing writes nothing. Switching topics preserves a separate memory-only unsent 
 
 #### Continue another conversation while answering an original question
 
-Submit using **Submit with one clarification**, **Ask locally with observations
-and one question**, or the explicit Claude clarification action. When the original
+Submit using **Submit with one clarification** or **Ask locally with observations
+and one question**. When the original
 dispatched task asks its question, its retained request leaves the input box and
 you may select another conversation and write independent unsent text.
 
@@ -654,7 +654,7 @@ Use the still-open original question window to **Review exact record**, edit or
 **Save draft**, and separately **Submit** or **Cancel question**. Selecting another
 conversation changes neither the question's target nor its original expiry.
 Submitting an answer does not submit the active conversation's composer or grant
-approval; Claude still requires each separate native transmission consent.
+approval.
 
 Return to the original conversation and choose **Read conversation** to inspect
 its genuine retained ASSISTANT answer or truthful HOST outcome. The other
@@ -717,7 +717,7 @@ context lifetime is unchanged (ordinary local requests currently expire after
 fifteen seconds), even though the pending domain's default upper bound is
 thirty minutes. Expired/changed authority is denied or held for fresh review;
 it is never silently extended. Unqualified providers still report unavailable,
-not queued success. Questions, approvals and separate hosted disclosure reviews
+not queued success. Questions and approvals
 keep their existing fences. Switching sessions after acceptance does not move
 the submitted request or its eventual result. Restart never replays it.
 

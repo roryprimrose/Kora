@@ -118,7 +118,6 @@ public sealed partial class ModelTurnHostTests
     [InlineData("initial-source")]
     [InlineData("review-source")]
     [InlineData("answer-source")]
-    [InlineData("no-presenter")]
     public async Task SelectedAdapterBindsExactNativeCopyAndRevalidatesSourceAtReviewAndAnswer(string fault)
     {
         using var f = new Fixture();
@@ -133,20 +132,11 @@ public sealed partial class ModelTurnHostTests
         var authorization = reviews.PrepareTurn(context, profile, selection, _ => ValueTask.FromResult(sourceCurrent));
         var adapter = new CopilotModelTurnAdapter(runtime, reviews).Bind(authorization, _ => ValueTask.FromResult(true));
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), context.Request, ModelProviderSelection.CopilotCandidate);
-        if (fault is not "no-presenter")
-        {
-            reviews.Offered += review =>
-            {
-                if (fault is "review-source") { sourceCurrent = false; }
-                using var presentation = review.Presentation();
-                reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-                presentation.Complete(HostOperationOutcome.Completed);
-            };
-        }
         runtime.Run = async (copy, current, review) =>
         {
             copy.Should().BeSameAs(selection);
             (await current(Token)).Should().BeTrue();
+            if (fault is "review-source") { sourceCurrent = false; }
             if (!await review(new(provenance, profile, new("https://api.githubcopilot.com/chat/completions"), context.Serialize()), Token))
             { return new(ModelTurnOutcome.DeniedEgress); }
             if (fault is "answer-source") { sourceCurrent = false; }

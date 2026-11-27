@@ -14,7 +14,7 @@ public sealed partial class ModelTurnHostTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Losing_the_captured_hosted_profile_during_review_cannot_authorize_egress(bool missing)
+    public async Task Losing_the_captured_hosted_profile_before_final_admission_cannot_authorize_egress(bool missing)
     {
         using var f = new Fixture();
         using var root = f.Root();
@@ -22,11 +22,7 @@ public sealed partial class ModelTurnHostTests
         var runtime = new HostedRuntime();
         var host = f.CopilotProfiles(runtime, reviews);
         var turn = (await host.AdmitCopilotAsync(f.Context(), Token)).Turn!;
-        reviews.Offered += review =>
-        {
-            turn.Profile = missing ? null : Profile(ProviderService.Local);
-            reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
+        runtime.BeforeTransmission = () => turn.Profile = missing ? null : Profile(ProviderService.Local);
         (await host.RunAsync(turn, Token)).Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
         runtime.Transmissions.Should().Be(0);
     }
@@ -67,16 +63,12 @@ public sealed partial class ModelTurnHostTests
         var runtime = new HostedRuntime();
         var host = f.CopilotProfiles(runtime, reviews);
         var turn = (await host.AdmitCopilotAsync(f.Context(), Token)).Turn!;
-        reviews.Offered += review =>
+        runtime.BeforeTransmission = () => f.ProfileRead = () => new(f.Session with
         {
-            f.ProfileRead = () => new(f.Session with
-            {
-                IsActive = fault is not "inactive",
-                SessionId = fault is "session" ? new(Guid.NewGuid()) : f.Session.SessionId,
-                Generation = fault is "generation" ? new(2) : f.Session.Generation,
-            }, f.SessionProfileRevision, f.SessionOverrides, fault is "held");
-            reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
+            IsActive = fault is not "inactive",
+            SessionId = fault is "session" ? new(Guid.NewGuid()) : f.Session.SessionId,
+            Generation = fault is "generation" ? new(2) : f.Session.Generation,
+        }, f.SessionProfileRevision, f.SessionOverrides, fault is "held");
         var result = await host.RunAsync(turn, Token);
         result.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
         result.Response.Should().BeNull();
@@ -98,7 +90,7 @@ public sealed partial class ModelTurnHostTests
         var host = f.CopilotProfiles(runtime, reviews);
         var turn = (await host.AdmitCopilotAsync(f.Context(), Token)).Turn!;
         var reads = 0;
-        reviews.Offered += review =>
+        runtime.BeforeTransmission = () =>
         {
             f.ProfileRead = () =>
             {
@@ -117,7 +109,6 @@ public sealed partial class ModelTurnHostTests
                     },
                 };
             };
-            reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
         };
 
         var result = await host.RunAsync(turn, Token);
@@ -132,21 +123,75 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Explicit_conversation_route_preserves_original_request_and_denies_uncomposed_or_unreviewed_egress(bool composed)
+    [InlineData("hosted")]
+    [InlineData("uncomposed")]
+    [InlineData("local-only")]
+    [InlineData("local-first")]
+    public async Task Ordinary_submit_uses_settings_selected_copilot_tool_free_and_never_substitutes_otherwise(string route)
     {
         using var f = new Fixture();
         var runtime = new HostedRuntime();
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var host = f.CopilotProfiles(runtime, reviews);
-        var service = f.ConversationService(composed ? host : new TestAdmission(ModelTurnOutcome.Unavailable), execution: host);
-        var receipt = await service.SubmitCopilotAsync(new(f.Session, null), "original explicit request", static () => true, Token);
+        if (route is "local-only") { f.ProviderPreferences.Mode = ModelProviderMode.LocalOnly; }
+        if (route is "local-first") { f.ProviderPreferences.Mode = ModelProviderMode.LocalFirst; }
+        await using var service = f.ConversationService(route is "uncomposed" ? new TestAdmission(ModelTurnOutcome.Unavailable) : host,
+            execution: host);
+        (await service.ResolveRouteAsync(f.Session.SessionId, Token)).Should().Be(route switch
+        {
+            "hosted" => ConversationProviderRoute.Copilot,
+            "local-first" => ConversationProviderRoute.LocalFirst,
+            _ => ConversationProviderRoute.Local,
+        });
+        var receipt = await service.SubmitAsync(new(f.Session, null), "original explicit request", static () => true, Token);
         receipt.Message.Body.Should().Be("original explicit request");
-        receipt.Message.Outcome.Should().Be(composed ? ModelTurnOutcome.DeniedEgress : ModelTurnOutcome.Unavailable);
-        receipt.Message.AssistantResponse.Should().BeNull();
-        runtime.Calls.Should().Be(composed ? 1 : 0);
-        runtime.Transmissions.Should().Be(0);
+        receipt.Message.AssistantResponse?.Body.Should().Be(route is "hosted" ? "actual-boundary-answer" : null);
+        if (route is "hosted")
+        {
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            runtime.ToolMode.Should().Be(ModelToolMode.None);
+            f.Audits.Last(item => string.Equals(item.ActionId, "model.copilot.transmission", StringComparison.Ordinal))
+                .ReasonCode.Should().Be(HostedTransmissionReviewService.AutomaticReason);
+        }
+        else { receipt.Message.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded); }
+        runtime.Calls.Should().Be(route is "hosted" ? 1 : 0);
+        runtime.Transmissions.Should().Be(route is "hosted" ? 1 : 0);
+    }
+
+    [Theory]
+    [InlineData("held")]
+    [InlineData("inactive")]
+    [InlineData("foreign-session")]
+    [InlineData("unset")]
+    [InlineData("local")]
+    [InlineData("catalogue")]
+    [InlineData("session-policy")]
+    public async Task Settings_route_preview_falls_back_to_local_shape_without_a_current_hosted_profile(string fault)
+    {
+        using var f = new Fixture();
+        var runtime = new HostedRuntime();
+        var host = f.CopilotProfiles(runtime, new(f, f.Time));
+        switch (fault)
+        {
+            case "held": f.SessionProfileHeld = true; break;
+            case "inactive": f.Session = f.Session with { IsActive = false }; break;
+            case "foreign-session":
+                f.ProfileRead = () => new(f.Session with { SessionId = new(Guid.NewGuid()) }, f.SessionProfileRevision, f.SessionOverrides, false);
+                break;
+            case "unset": f.ProfilePreferences.Value = new(ProviderService.Unset, []); break;
+            case "local": f.ProfilePreferences.Value = new(ProviderService.Local, [Profile(ProviderService.Local)]); break;
+            case "catalogue": f.ProfileCatalogue.Status = ProviderCatalogueStatus.Unavailable; break;
+            default:
+                using (var root = f.Root())
+                { (await host.InitializePolicyAsync(Token)).Policy!.Mode.Should().Be(ModelProviderMode.HostedPreferred); }
+                f.ProviderPreferences.Mode = ModelProviderMode.LocalOnly;
+                break;
+        }
+        (await host.ResolveConversationRouteAsync(f.Session.SessionId, Token)).Should().Be(fault is "session-policy"
+            ? ConversationProviderRoute.Copilot : ConversationProviderRoute.Local,
+            "only the captured session policy, not a later preference change, selects the request shape");
+        runtime.Calls.Should().Be(0);
+        f.ProfilePreferences.Writes.Should().Be(0);
     }
 
     [Theory]
@@ -158,7 +203,6 @@ public sealed partial class ModelTurnHostTests
         var runtime = new ConversationCopilotStream();
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var host = f.CopilotProfiles(runtime, reviews);
-        reviews.Offered += review => reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
         await using var service = f.ConversationService(host, execution: host);
         var updates = new List<Kora.Application.Hosting.ConversationAnswerPresentation>();
         service.ProvisionalAnswerChanged += (update, _) =>
@@ -169,7 +213,7 @@ public sealed partial class ModelTurnHostTests
             return ValueTask.CompletedTask;
         };
         var target = new Kora.Core.Storage.SessionWorkspaceEntry(f.Session, null);
-        var pending = service.SubmitCopilotAnswerStreamAsync(target, "original streamed request", () => true, Token);
+        var pending = service.SubmitAsync(target, "original streamed request", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         try
         {
@@ -203,14 +247,34 @@ public sealed partial class ModelTurnHostTests
         var runtime = new HostedRuntime();
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var host = f.CopilotProfiles(runtime, reviews);
-        reviews.Offered += review => reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
         await using var service = f.ConversationService(host, execution: host);
         var updates = 0;
         service.ProvisionalAnswerChanged += (_, _) => { updates++; return ValueTask.CompletedTask; };
-        var receipt = await service.SubmitCopilotAnswerStreamAsync(new(f.Session, null), "original", () => true, Token);
+        var receipt = await service.SubmitAsync(new(f.Session, null), "original", () => true, Token);
         receipt.Message.AssistantResponse!.Body.Should().Be("actual-boundary-answer");
         runtime.Calls.Should().Be(1);
         updates.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task OrdinaryCopilotRechecksCurrentAccountProfileAfterProviderCompletionBeforeFinalCommit()
+    {
+        using var f = new Fixture();
+        var runtime = new ConversationCopilotStream();
+        var host = f.CopilotProfiles(runtime, new(f, f.Time));
+        await using var service = f.ConversationService(host, execution: host);
+        service.RunningConversationChanged += status =>
+        {
+            if (status.Phase == Kora.Core.Conversation.ConversationExecutionPhase.Completing)
+            { f.ProfileCatalogue.Status = ProviderCatalogueStatus.Unavailable; }
+        };
+        var pending = service.SubmitAsync(new(f.Session, null), "original", () => true, Token);
+        await runtime.Entered.Task.WaitAsync(Token);
+        runtime.Release.TrySetResult();
+        var receipt = await pending;
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
+        receipt.Message.AssistantResponse.Should().BeNull();
+        f.ExecutionCompletions.Should().Be(1);
     }
 
     private sealed class ConversationCopilotStream : ICopilotAnswerTurnRuntime

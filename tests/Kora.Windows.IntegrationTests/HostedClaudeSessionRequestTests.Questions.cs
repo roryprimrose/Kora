@@ -34,8 +34,6 @@ public sealed partial class HostedClaudeSessionRequestTests
             if (++messages == 1) { return Task.FromResult(ClaudeAccountBrokerTests.Fixture.Json(QuestionProposal())); }
             entered.TrySetResult(); return release.Task;
         };
-        c.Reviews.ClaudeOffered += review =>
-        { using var presentation = review.Presentation(); c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
         var operation = c.Conversation.SubmitClaudeWithClarificationAsync(target, "original question", () => true,
             async (request, _, spec, expiry, _, token) =>
             {
@@ -73,14 +71,10 @@ public sealed partial class HostedClaudeSessionRequestTests
         + ""","minimum":1,"maximum":""" + Math.Max(1, selections).ToString(System.Globalization.CultureInfo.InvariantCulture) + "}}");
 
     [Theory]
-    [InlineData(0, RequestOrigin.LocalUi, 4)]
-    [InlineData(1, RequestOrigin.ActivatedVoice, 4)]
-    [InlineData(2, RequestOrigin.LocalUi, 4)]
-    [InlineData(1, RequestOrigin.LocalUi, 0)]
-    [InlineData(1, RequestOrigin.LocalUi, 1)]
-    [InlineData(1, RequestOrigin.ActivatedVoice, 2)]
-    [InlineData(1, RequestOrigin.LocalUi, 3)]
-    public async Task HostedQuestionUsesCanonicalStoredAnswerAndFourSeparatePhysicalSendConsents(int selections, RequestOrigin channel, int approvals)
+    [InlineData(0, RequestOrigin.LocalUi)]
+    [InlineData(1, RequestOrigin.ActivatedVoice)]
+    [InlineData(2, RequestOrigin.LocalUi)]
+    public async Task HostedQuestionUsesCanonicalStoredAnswerAndFourSeparatelyAdmittedPhysicalSends(int selections, RequestOrigin channel)
     {
         using var f = new InteractionStorageFixture();
         f.Time.UseFrozenTimers = true;
@@ -91,21 +85,7 @@ public sealed partial class HostedClaudeSessionRequestTests
         var messages = 0;
         c.Http.Respond = request => ClaudeAccountBrokerTests.Fixture.Json(request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
             ? """{"input_tokens":25}""" : ++messages == 1 ? QuestionProposal(selections) : ClaudeMessagesRuntimeTests.Answer);
-        var offered = 0;
-        HostedTransmissionReview? previous = null;
-        c.Reviews.ClaudeOffered += review =>
-        {
-            c.Http.Requests.Count(item => item.Method is "POST").Should().Be(offered);
-            using var json = JsonDocument.Parse(review.Body.ToArray());
-            json.RootElement.GetProperty("tools").GetArrayLength().Should().Be(1);
-            json.RootElement.GetProperty("tools")[0].GetProperty("name").GetString().Should().Be("ask_user");
-            using var presentation = review.Presentation();
-            if (previous is not null) { c.Reviews.Confirm(previous, true, RequestOrigin.LocalUi).Should().BeFalse(); }
-            c.Reviews.Confirm(review, true, RequestOrigin.ActivatedVoice).Should().BeFalse();
-            c.Reviews.Confirm(review, ++offered <= approvals, RequestOrigin.LocalUi).Should().BeTrue();
-            previous = review;
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
+
         var asked = 0;
         var receipt = await c.Conversation.SubmitClaudeWithClarificationAsync(target, original, () => true,
             async (request, generation, spec, expiry, _, token) =>
@@ -123,14 +103,19 @@ public sealed partial class HostedClaudeSessionRequestTests
                 f.Time.Now += TimeSpan.FromSeconds(20);
                 return new(initial, completed);
             }, f.Token);
-        asked.Should().Be(approvals >= 2 ? 1 : 0);
+        asked.Should().Be(1);
         receipt.Message.Body.Should().Be(original);
-        receipt.Message.Outcome.Should().Be(approvals == 4 ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        receipt.Message.AssistantResponse?.Body.Should().Be(approvals == 4 ? "genuine exact answer" : null);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        receipt.Message.AssistantResponse?.Body.Should().Be("genuine exact answer");
         receipt.Task.IsTerminal.Should().BeTrue();
         var posts = c.Http.Requests.Where(item => item.Method is "POST").ToArray();
-        posts.Should().HaveCount(approvals);
-        if (approvals >= 3)
+        posts.Should().HaveCount(4);
+        foreach (var post in posts)
+        {
+            using var tools = JsonDocument.Parse(post.Body);
+            tools.RootElement.GetProperty("tools").GetArrayLength().Should().Be(1);
+            tools.RootElement.GetProperty("tools")[0].GetProperty("name").GetString().Should().Be("ask_user");
+        }
         {
             using var json = JsonDocument.Parse(posts[2].Body);
             var history = json.RootElement.GetProperty("messages");
@@ -155,44 +140,6 @@ public sealed partial class HostedClaudeSessionRequestTests
             .And.NotContain("Which format?").And.NotContain("genuine exact answer");
     }
 
-    [Fact]
-    public async Task AnswerSubmissionAloneCannotTransmitWithoutNewPhysicalConsent()
-    {
-        using var f = new InteractionStorageFixture();
-        f.Time.UseFrozenTimers = true;
-        await f.InitializeAsync(); await WindowsSqliteConversationTests.FinishInitial(f);
-        await using var c = new Composition(f); await c.InitializeAsync();
-        var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
-        c.Http.Respond = request => ClaudeAccountBrokerTests.Fixture.Json(request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
-            ? """{"input_tokens":25}""" : QuestionProposal());
-        var waiting = new TaskCompletionSource<HostedTransmissionReview>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var offered = 0;
-        c.Reviews.ClaudeOffered += review =>
-        {
-            if (++offered == 3) { waiting.TrySetResult(review); return; }
-            using var presentation = review.Presentation();
-            c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
-        var operation = c.Conversation.SubmitClaudeWithClarificationAsync(target, "original question", () => true,
-            async (request, _, spec, expiry, _, token) =>
-            {
-                await f.Store.PublishTrustedSnapshotAsync(request, f.Policy, null, 0, token);
-                var initial = (await f.Questions.CreateAsync(request, spec, expiry, token)).Question!;
-                return new(initial, await f.Questions.SubmitAsync(initial.Key, new(["option-1"]), RequestOrigin.LocalUi, token));
-            }, f.Token);
-        var next = await Task.WhenAny(waiting.Task, operation).WaitAsync(f.Token);
-        next.Should().BeSameAs(waiting.Task);
-        operation.IsCompleted.Should().BeFalse();
-        c.Http.Requests.Count(item => item.Method is "POST").Should().Be(2);
-        var pending = await waiting.Task;
-        using (var presentation = pending.Presentation())
-        { c.Reviews.Confirm(pending, false, RequestOrigin.LocalUi).Should().BeTrue(); }
-        var receipt = await operation;
-        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
-        receipt.Message.AssistantResponse.Should().BeNull();
-        c.Http.Requests.Count(item => item.Method is "POST").Should().Be(2);
-    }
-
     [Theory]
     [InlineData("cancel")]
     [InlineData("draft")]
@@ -211,13 +158,7 @@ public sealed partial class HostedClaudeSessionRequestTests
         var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
         c.Http.Respond = request => ClaudeAccountBrokerTests.Fixture.Json(request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
             ? """{"input_tokens":25}""" : QuestionProposal());
-        var offers = 0;
-        c.Reviews.ClaudeOffered += review =>
-        {
-            offers++;
-            using var presentation = review.Presentation();
-            c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
+
         var receipt = await c.Conversation.SubmitClaudeWithClarificationAsync(target, "original question", () => true,
             async (request, _, spec, expiry, _, token) =>
             {
@@ -245,7 +186,8 @@ public sealed partial class HostedClaudeSessionRequestTests
         receipt.Message.AssistantResponse.Should().BeNull();
         receipt.Task.IsTerminal.Should().BeTrue();
         c.Http.Requests.Count(item => item.Method is "POST").Should().Be(2);
-        offers.Should().Be(2);
+        c.Http.Audits.Count(item => item.ActionId is "model.claude.transmission"
+            && item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded).Should().Be(2);
         c.Boundary.VersionReads.Should().Be(0);
         c.Runtime.IsQuiescent.Should().BeTrue();
     }
@@ -275,8 +217,6 @@ public sealed partial class HostedClaudeSessionRequestTests
         };
         c.Http.Respond = request => ClaudeAccountBrokerTests.Fixture.Json(request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
             ? """{"input_tokens":25}""" : wire);
-        c.Reviews.ClaudeOffered += review =>
-        { using var presentation = review.Presentation(); c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
         var asks = 0;
         var receipt = await c.Conversation.SubmitClaudeWithClarificationAsync(target, "original question", () => true,
             async (request, _, spec, expiry, _, token) =>

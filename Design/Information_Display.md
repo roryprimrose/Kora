@@ -77,7 +77,7 @@ The original USER remains retained under existing rules. Only a fully validated 
 
 ### Separately admitted native Claude text streams
 
-The explicit native-only Claude text stream reuses this canonical typed progress and inert provisional pane, not a renderer variant. Positive exact model/compute/token-ceiling stream evidence, independent native final-byte consent for Count Tokens and Messages, strict SSE terminal/EOF validation and actual disposal join are additional boundaries. Unknown evidence leaves it unavailable ([complete interaction and bounds](../docs/claude-requests.md#separately-qualified-native-text-streaming), [native decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [progressive host/retention tests](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
+The Claude text stream runtime reuses this canonical typed progress and inert provisional pane, not a renderer variant. Positive exact model/compute/token-ceiling stream evidence, automatic current-authority admission for Count Tokens and Messages, strict SSE terminal/EOF validation and actual disposal join are additional boundaries. Unknown evidence leaves it unavailable ([complete interaction and bounds](../docs/claude-requests.md#native-text-streaming-runtime), [native decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [progressive host/retention tests](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
 
 ## Delivered bounded response-window preference commands
 

@@ -16,12 +16,11 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
-    [InlineData(ModelHandoffDecision.Approve, true)]
-    [InlineData(ModelHandoffDecision.Approve, false)]
-    [InlineData(ModelHandoffDecision.Decline, false)]
-    [InlineData(ModelHandoffDecision.Cancel, false)]
+    [InlineData(ModelHandoffDecision.Approve)]
+    [InlineData(ModelHandoffDecision.Decline)]
+    [InlineData(ModelHandoffDecision.Cancel)]
     public async Task VerifiedLocalOperationUsesActualRuntimeJoinAndNativeReviewBeforeOneIndependentHostedSend(
-        ModelHandoffDecision decision, bool approveEgress)
+        ModelHandoffDecision decision)
     {
         using var f = new Fixture();
         var (host, workflow, operation, runtime, presented) = f.VerifiedOperation();
@@ -41,12 +40,6 @@ public sealed partial class ModelTurnHostTests
         await using var review = source.Open(offer, RequestOrigin.LocalUi, static () => true)!;
         await review.Refresh(Token);
         review.Preview.Should().Contain("exact local original");
-        f.HandoffReviews.Offered += exact =>
-        {
-            runtime.Transmissions.Should().Be(0);
-            using var presentation = exact.Presentation();
-            f.HandoffReviews.Confirm(exact, approveEgress, RequestOrigin.LocalUi).Should().BeTrue();
-        };
         await review.Decide(offer, decision, RequestOrigin.LocalUi, Token);
         var completed = await running;
         completed.Message.Request.SessionId.Should().Be(originalSession.SessionId);
@@ -55,8 +48,8 @@ public sealed partial class ModelTurnHostTests
         {
             f.HandoffCommits.Should().Be(1);
             completed.Message.Handoff!.ExpiresAt.Should().Be(offer.Context.ExpiresAt);
-            completed.Message.Outcome.Should().Be(approveEgress ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-            completed.Message.AssistantResponse?.Body.Should().Be(approveEgress ? "actual-boundary-answer" : null);
+            completed.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            completed.Message.AssistantResponse?.Body.Should().Be("actual-boundary-answer");
             completed.Message.Request.Should().NotBe(offer.Context.Request);
         }
         else
@@ -66,7 +59,7 @@ public sealed partial class ModelTurnHostTests
             completed.Message.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
             completed.Message.AssistantResponse.Should().BeNull();
         }
-        runtime.Transmissions.Should().Be(decision == ModelHandoffDecision.Approve && approveEgress ? 1 : 0);
+        runtime.Transmissions.Should().Be(decision == ModelHandoffDecision.Approve ? 1 : 0);
         review.Completion.Should().Be(new ModelHandoffCompletion(completed.Message.Outcome!.Value,
             completed.Message.Reason!.Value, completed.Message.HasAssistantResponse));
         f.Messages.Should().NotContain(item => item.Contains("exact local original", StringComparison.Ordinal)

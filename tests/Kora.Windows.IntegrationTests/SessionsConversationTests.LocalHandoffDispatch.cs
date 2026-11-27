@@ -69,8 +69,9 @@ public sealed partial class SessionsConversationTests
         var result = await running;
         await deciding;
         await review.DisposeAsync();
-        result.Message.AssistantResponse.Should().BeNull();
-        hosted.Sends.Should().Be(0);
+        result.Message.AssistantResponse?.Body.Should().Be(expire ? null : "genuine hosted boundary answer",
+            "only the canonical successor provider and context can dispatch, and its send is automatic");
+        hosted.Sends.Should().Be(expire ? 0 : 1);
         f.Count("conversation_messages").Should().Be(2);
         composed.Turns.IsQuiescent.Should().BeTrue();
     }

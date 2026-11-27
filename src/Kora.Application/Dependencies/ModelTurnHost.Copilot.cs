@@ -39,8 +39,8 @@ public sealed partial class ModelTurnHost : ICopilotTurnAdmission
         return await AdmitCopilotAsync(hostedReviews.PrepareTurn(context, profile, selection, sourceCurrent), token).ConfigureAwait(false);
     }
 
-    /// <summary>Prepares an explicitly requested Copilot turn. Each final physical transmission still needs its own exact review.</summary>
-    public Task<ModelTurnAdmission> AdmitCopilotAsync(CopilotTurnAuthorization authorization, CancellationToken token)
+    /// <summary>Prepares an explicitly requested Copilot turn. Each final physical transmission is admitted against current authority.</summary>
+    public async Task<ModelTurnAdmission> AdmitCopilotAsync(CopilotTurnAuthorization authorization, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(authorization);
         var current = HostActivity.Current;
@@ -48,8 +48,11 @@ public sealed partial class ModelTurnHost : ICopilotTurnAdmission
             || !ReferenceEquals(current.Request, authorization.Context.Request)
             || !authorization.Owner.Current(authorization)
             || Interlocked.Exchange(ref authorization.Used, 1) != 0)
-        { return Task.FromResult(new ModelTurnAdmission(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted))); }
-        return AdmitConfiguredProfileAsync(ModelTurnChoice.Hosted, authorization.Context, null, token, authorization);
+        { return new ModelTurnAdmission(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
+        var admission = await AdmitConfiguredProfileAsync(ModelTurnChoice.Hosted, authorization.Context, null, token, authorization)
+            .ConfigureAwait(false);
+        if (admission.Turn is { } turn) { BindHostedAnswerCommit(turn, authorization.SourceCurrent); }
+        return admission;
     }
 
     private async ValueTask<bool> HostedCurrentAsync(ModelTurn turn, CancellationToken token)

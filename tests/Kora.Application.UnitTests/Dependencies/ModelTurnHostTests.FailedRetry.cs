@@ -289,11 +289,9 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(ModelProviderIdentity.Copilot, false)]
-    [InlineData(ModelProviderIdentity.Copilot, true)]
-    [InlineData(ModelProviderIdentity.Claude, false)]
-    [InlineData(ModelProviderIdentity.Claude, true)]
-    public async Task FailedRetryHostedProviderIsExactAndEveryNewPhysicalSendStillNeedsSeparateConsent(ModelProviderIdentity provider, bool approve)
+    [InlineData(ModelProviderIdentity.Copilot)]
+    [InlineData(ModelProviderIdentity.Claude)]
+    public async Task FailedRetryHostedProviderIsExactAndEveryNewPhysicalSendIsAutomaticallyAudited(ModelProviderIdentity provider)
     {
         using var f = new Fixture { TrackPendingRecords = true };
         var source = SeedFailedRetry(f);
@@ -303,24 +301,22 @@ public sealed partial class ModelTurnHostTests
         var copilot = new HostedRuntime();
         var claude = new ClaudeRuntime();
         var host = provider == ModelProviderIdentity.Copilot ? f.CopilotProfiles(copilot, reviews) : f.ClaudeProfiles(claude, reviews);
-        reviews.Offered += review => reviews.Confirm(review, approve, RequestOrigin.LocalUi).Should().BeTrue();
-        reviews.ClaudeOffered += review =>
-        {
-            using var presentation = review.Presentation();
-            reviews.Confirm(review, approve, RequestOrigin.LocalUi).Should().BeTrue();
-        };
         await using var conversation = f.ConversationService(host, execution: host);
         var commands = conversation.CreateRequestCommands();
         var review = (await commands.ExecuteAsync(FailedReview(source), RequestOrigin.LocalUi, () => true, Token)).RequestReview!;
         copilot.Calls.Should().Be(0);
         claude.Calls.Should().Be(0);
         var receipt = (await commands.ExecuteAsync(FailedConfirm(review), RequestOrigin.LocalUi, () => true, Token)).RequestSubmission!;
-        receipt.Message.Outcome.Should().Be(approve ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        receipt.Message.AssistantResponse?.Body.Should().Be(approve
-            ? provider == ModelProviderIdentity.Copilot ? "actual-boundary-answer" : "genuine Claude answer" : null);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        receipt.Message.AssistantResponse?.Body.Should().Be(
+            provider == ModelProviderIdentity.Copilot ? "actual-boundary-answer" : "genuine Claude answer");
+        f.Audits.Where(item => item.ActionId.EndsWith(".transmission", StringComparison.Ordinal)
+                && item.Outcome != Kora.Core.Auditing.SecurityAuditOutcome.Requested)
+            .Should().NotBeEmpty().And.OnlyContain(item => item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded
+                && item.ReasonCode == HostedTransmissionReviewService.AutomaticReason);
         receipt.Message.Execution!.Selection.Should().Be(source.Execution.Selection);
         f.PendingRecords[source.Request.RequestId].Message.Should().Be(source);
-        copilot.Transmissions.Should().Be(provider == ModelProviderIdentity.Copilot && approve ? 1 : 0);
+        copilot.Transmissions.Should().Be(provider == ModelProviderIdentity.Copilot ? 1 : 0);
         f.Adapter.Calls.Should().Be(0, "no local/default adapter may substitute for either original hosted provider");
     }
 

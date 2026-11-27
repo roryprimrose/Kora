@@ -99,13 +99,15 @@ public sealed partial class ModelTurnHostTests
         if (change is "stopped") { activity!.Activity!.Stop(); System.Diagnostics.Activity.Current = activity.Activity; }
         if (change is "completed") { activity!.Complete(HostOperationOutcome.Completed); }
         var calls = runtime.Calls;
+        var transmissions = runtime.Transmissions;
+        transmissions.Should().Be(1, "only the genuine successor is sent, automatically and once");
         var admission = await (change is "foreign-host" ? f.PolicyHost : host)
             .AdmitVerifiedHandoffAsync(offer, commit, context, Token);
         admission.Result.Outcome.Should().Be(ModelTurnOutcome.Denied);
         admission.Result.Reason.Should().Be(ModelTurnReason.HandoffReviewStale);
         admission.Turn.Should().BeNull();
         runtime.Calls.Should().Be(calls);
-        runtime.Transmissions.Should().Be(0);
+        runtime.Transmissions.Should().Be(transmissions);
         f.HandoffCommits.Should().Be(1);
     }
 

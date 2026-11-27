@@ -50,6 +50,31 @@ function validateCheckpoint(value) {
     return;
   }
   const refinements = value.events.filter(event => event.type === 'refine-scopes');
+  const plannerRecords = (value.state.planner.replacements ?? [])
+    .flatMap(record => [record.reservation, record.replacement]);
+  if (value.state.planner.replacement) plannerRecords.push(value.state.planner.replacement);
+  const plannerJournal = value.events.filter(event =>
+    ['reserve-planner-replacement', 'replace-planner'].includes(event.type));
+  requireValue(plannerJournal.length === plannerRecords.length &&
+    new Set(plannerJournal.map(event => event.id)).size === plannerJournal.length &&
+    plannerRecords.every(record => {
+      const journal = plannerJournal.find(event => event.id === record.event.id);
+      const actions = value.actions.filter(action =>
+        action.id.slice(0, action.id.lastIndexOf(':')) === record.event.id);
+      return journal?.digest === digest(record) &&
+        record.event.checkpointRevision < value.revision &&
+        equalCommands(journal.commands, record.commands) &&
+        journal.commands?.length === 1 && actions.length === 1 &&
+        actions[0].id === `${record.event.id}:0` &&
+        equalCommands(actions[0].command, journal.commands[0]) &&
+        (record.event.type === 'reserve-planner-replacement'
+          ? equalCommands(journal.commands[0], { type: 'initialize-planner-replacement',
+            reservationId: record.event.id, oldOwner: record.event.oldOwner,
+            pass: record.event.pass, standby: true })
+          : journal.commands[0].type === 'discover' &&
+            journal.commands[0].owner === record.event.owner &&
+            journal.commands[0].pass === record.event.pass + 1);
+    }), 'Checkpoint planner replacement history/action binding is inconsistent.');
   const index = value.state.refinements ?? [];
   requireValue(refinements.length === index.length &&
     refinements.every(event => index.some(record => record.eventId === event.id)) &&
@@ -146,10 +171,22 @@ function checkpoint(file, input, io = fs) {
           input.coordinator, input.head, input.mode), actions: [], events: [] };
     } else if (input.operation === 'apply' || input.operation === 'adopt-lifecycle') {
       requireValue(value, 'Checkpoint is not initialized.');
+      const plannerReplacement = ['reserve-planner-replacement', 'replace-planner'].includes(input.event?.type);
+      if (plannerReplacement && !value.state.seen?.includes(input.event.id)) {
+        requireValue(!value.actions.some(action => action.status === 'pending' &&
+          action.command.owner === value.state.planner?.owner),
+        'Reconcile pending old-planner actions before replacement.');
+        if (input.event.type === 'replace-planner') {
+          requireValue(value.actions.some(action =>
+            action.id === `${input.event.reservationId}:0` && action.status === 'done'),
+          'Verified standby initialization action acknowledgment required before attachment.');
+        }
+      }
       const result = (input.operation === 'adopt-lifecycle' ? adoptLifecycle : applyEvent)(value.state, input.event, {
         revision: value.revision, recoveryEvidence: input.recoveryEvidence, renewalEvidence: input.renewalEvidence,
         extensionEvidence: input.extensionEvidence, supersessionEvidence: input.supersessionEvidence,
-        lifecycleEvidence: input.lifecycleEvidence
+        lifecycleEvidence: input.lifecycleEvidence,
+        plannerReplacementEvidence: input.plannerReplacementEvidence
       });
       if (result.duplicate) return value;
       value.state = result.state;
@@ -157,6 +194,9 @@ function checkpoint(file, input, io = fs) {
       const fencedAmendment = input.event.type === 'extend-scopes' && input.event.proof.version === 2
         ? value.state.items.find(item => item.key === input.event.key).scopeAmendments.at(-1) : null;
       value.events.push({ id: input.event.id, type: input.event.type, at,
+        ...(plannerReplacement ? { digest: digest(input.event.type === 'reserve-planner-replacement'
+          ? value.state.planner.replacement : value.state.planner.replacements.at(-1).replacement),
+          commands: structuredClone(result.actions) } : {}),
         ...(value.state.version === 10 ? { digest: value.state.history.at(-1).digest,
           commands: structuredClone(result.actions) } : {}),
         ...(fencedAmendment ? { digest: digest(fencedAmendment), commands: [] } : {}),

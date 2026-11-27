@@ -34,6 +34,12 @@ Use its [authority-based quiescence](../skills/kora-orchestrate/SKILL.md#scopeso
   **queued separate turn in the same planner chat**. Do not wait for a later
   completed-turn notification that might never arrive. Never steer a new pass
   into the old turn or release/archive a worker using this planning-only rule.
+- An archived/error/admission-rejected planner may be replaced only through
+  [explicit user-authorized recovery](../skills/kora-orchestrate/README.md#explicit-user-authorized-planner-recovery).
+  Reserve standby before creation, reconcile old pending actions/authority,
+  freshly verify old terminal and new standby evidence, attach once and queue
+  the sole pass+1 discovery with retained frontier. Never infer recovery
+  permission from inactivity or handoff; retain retired-owner history.
 - Publication is not release. Legacy versions1-9 require their original proven
   cleanup. Version10 close-and-preserve requires actual terminated/joined grants,
   durable bytes/refs/history, delivery and explicit remaining holds; physical

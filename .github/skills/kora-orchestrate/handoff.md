@@ -46,8 +46,9 @@ In the new session select **Kora Coordinator** and use this starter request:
 
 ```text
 Adopt the paused Kora delivery workflow from its retained checkpoint.
-Do not initialize another registry, create a replacement planner, or dispatch
-until old-writer and pending-instruction proof has been verified.
+Do not initialize another registry or dispatch until old-writer and
+pending-instruction proof has been verified. Planner replacement requires the
+separate explicit user-authorized recovery protocol, never automatic adoption.
 Discover this exact new coordinator address and verify the control checkout.
 Autopilot was selected manually in this new session; record user confirmation
 separately from any effective settings the host exposes.
@@ -86,3 +87,14 @@ blocked work. Preserve the observer return address supplied by the caller.
 
 Run the focused registry/checkpoint/worker-launch regressions before deployment;
 their handoff fixtures establish transition rules, not actual host mode selection.
+
+## Terminal planner during handoff
+
+Preserve the existing planner identity and replacement history in the same
+checkpoint. Reconcile a pending replacement before coordinator handoff; do not
+silently move its user decision or initialization action to another writer.
+After verified handoff/resume, an archived/error/admission-rejected planner may
+use only [explicit user-authorized recovery](./README.md#explicit-user-authorized-planner-recovery):
+fresh current-owner/pass/revision authorization, terminal authority-zero proof,
+standby reservation, independently verified attachment and one pass+1 discovery.
+Neither handoff approval nor ordinary posts substitute for that recovery decision.

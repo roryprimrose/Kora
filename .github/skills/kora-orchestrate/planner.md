@@ -4,6 +4,15 @@ Investigate one bounded assignment. Do not implement, publish, dispatch, create
 workers, or start another pass independently. Keep this session available after
 PASS_ENDED; a finished pass is not permission to archive the reusable planner.
 
+For [explicit user-authorized replacement](./README.md#explicit-user-authorized-planner-recovery),
+consume the initialization reservation in standby only: report exact chat,
+reservation ID, `scanning=false`, `productionWrites=false` and reconciled
+`pendingInstructions=0` with consumed/rejected authority IDs/revisions.
+Do not investigate until the coordinator attaches you through `replace-planner`
+and separately queues its pass+1 discovery with the persisted frontier.
+An old retired planner must reject stale instructions and send no new candidate,
+source-refresh or terminal-pass reports. Never create your own replacement.
+
 Apply [scope/source authority and quiescence](./SKILL.md#scopesource-authority-and-quiescence):
 ordinary user/coordinator posts and blocking `ask_user` answers never confer
 scope/source authority or invalidate quiescence. Never request user silence.

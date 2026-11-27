@@ -16,6 +16,34 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class NewRequestComposerTests
 {
     [Theory]
+    [InlineData("unaddressed")]
+    [InlineData("active")]
+    [InlineData("name")]
+    [InlineData("body")]
+    [InlineData("provider")]
+    public async Task SpokenNameRouteRejectsConflictingOrUnaddressedSelectorBeforeInventoryAndRetention(string fault)
+    {
+        using var f = new Fixture();
+        await f.Composer.Create();
+        var service = new SessionRequestCommandService(f.Workspace, f.Conversation, f.Access, new RequestTime());
+        var command = SessionCommand.Parse("Kora, in topic, original", "Kora")!;
+        command = fault switch
+        {
+            "unaddressed" => command with { RequestActivationPrefixed = false },
+            "active" => command with { RequestActiveTarget = true },
+            "name" => command with { RequestTargetName = new("topic") },
+            "body" => command with { RequestBody = "replacement" },
+            _ => command with { RequestProvider = SessionRequestReview.ProviderChoice.Copilot }
+        };
+        await service.Invoking(value => value.ExecuteAsync(command, RequestOrigin.ActivatedVoice, () => true,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*spoken name route requires*");
+        f.Retentions.Should().Be(0);
+        f.ModelAdmissions.Should().Be(0);
+        f.Creates.Should().Be(1);
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi, RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice, RequestOrigin.ActivatedVoice)]
     [InlineData(RequestOrigin.ActivatedVoice, RequestOrigin.LocalUi)]

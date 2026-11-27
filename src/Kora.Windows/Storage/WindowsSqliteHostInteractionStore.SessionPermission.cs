@@ -40,6 +40,25 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionPermissi
         }, token, admitted, requireIdle: false).ConfigureAwait(false);
     }
 
+    public ValueTask<Kora.Core.Conversation.ConversationSubmissionReceipt> RetainPermissionBoundConversationAsync(
+        HostRequest request, HostRevision generation, long expectedMetadataRevision, string body,
+        IReadOnlyList<HostRequest> predecessors, SessionPermissionPolicy expected, AutomaticApprovalAudit approval,
+        Func<bool> admitted, CancellationToken token)
+    {
+        approval.Validate();
+        if (request.Origin != RequestOrigin.ActivatedVoice || request.InvocationId is not null
+            || expected.SessionId != request.SessionId || expected.Generation != generation
+            || expected.Level != SessionPermissionLevel.ApproveAll || approval.Request != request || approval.Policy != expected
+            || !string.Equals(approval.ActionId, "conversation.voice-readback", StringComparison.Ordinal)
+            || !string.Equals(approval.PromptCategory, "request-readback", StringComparison.Ordinal)
+            || approval.Effect != HostOperationEffect.BoundedWrite
+            || !string.Equals(approval.ContentDigest, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(body))), StringComparison.Ordinal))
+        { throw new InvalidOperationException("Automatic original-request retention requires exact voice readback approval."); }
+        return RetainConversationMessageCoreAsync(request, generation, expectedMetadataRevision, body,
+            predecessors, admitted, token, ordinaryText: true, readbackPermission: expected, automaticApproval: approval);
+    }
+
     private void MigrateSessionPermission(SqliteConnection connection, SqliteTransaction transaction, CancellationToken token)
     {
         ValidateConsolidatedAuthority(connection);

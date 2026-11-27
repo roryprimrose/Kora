@@ -60,6 +60,15 @@ Selecting a level enables no scripts, generic MCP transport or model provider.
 
 ## Persistence, Done and recovery
 
+For an activated-voice request to the original foreground or exact named chat,
+**Approve all** also skips request confirmation after a shown and spoken
+readback. Say **cancel** during playback or use native Cancel to stop.
+Inferred/last-selected destinations and typed requests still require normal
+review. The destination's exact policy is rechecked atomically with automatic
+approval audit and original-text retention; any change returns to review with
+nothing submitted, and audit failure blocks admission
+([voice readback](session-routing.md#approve-all-voice-readback)).
+
 In **Settings > Sessions**, choose **Default permission level for new sessions**. The device-local preference initially selects Review all and affects only genuinely new sessions, not existing ones. Chat shows the current session's applied level ([settings](../src/Kora/SettingsView.axaml), [chat controls](../src/Kora/SessionPermission/SessionsViewModel.SessionPermission.cs)).
 
 An explicitly selected policy persists only

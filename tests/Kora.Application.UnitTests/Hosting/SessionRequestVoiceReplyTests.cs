@@ -15,6 +15,49 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed class SessionRequestVoiceReplyTests
 {
     [Theory]
+    [InlineData("complete")]
+    [InlineData("cancel")]
+    [InlineData("native")]
+    [InlineData("mismatch")]
+    [InlineData("speech-failure")]
+    [InlineData("after-playback")]
+    public async Task ApproveAllReadbackHasOnlyCancelDuringPlaybackAndJoinsBeforeAutomaticSend(string outcome)
+    {
+        await using var f = new QuestionReplyFixture();
+        var playback = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var speaking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var exact = true;
+        var request = new SessionRoutingVoiceRequest("  exact\r\noriginal  ", HostRequest.Create(RequestOrigin.ActivatedVoice),
+            static () => true, f.Capture, release: HandsFreeVoiceContinuation.CaptureRelease.Preserved);
+        await using var reply = SessionRequestVoiceReply.Create(request, "Build", () => exact, () => f.Admission,
+            async (text, eligible, token) =>
+            {
+                text.Should().Be("Sending to Build:   exact\r\noriginal  . Say cancel to stop.");
+                eligible().Should().BeTrue();
+                f.Capture.IsListening.Should().BeTrue();
+                speaking.SetResult();
+                if (outcome is "speech-failure") { throw new IOException("Synthetic"); }
+                await playback.Task.WaitAsync(token);
+                if (outcome is "after-playback") { exact = false; }
+            }, NullLogger.Instance, submitAfterReadback: true);
+        reply.Spec.Options.Select(option => option.Label).Should().Equal("cancel");
+        var operation = reply.StartAsync();
+        await speaking.Task;
+        f.Capture.Closing = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (outcome is "complete" or "after-playback") { playback.SetResult(); }
+        if (outcome is "cancel") { f.Capture.Transcript("cancel"); }
+        if (outcome is "mismatch") { f.Capture.Transcript("send"); }
+        if (outcome is "native") { reply.Cancel(); }
+        await f.Capture.StopStarted.Task;
+        if (outcome is not "speech-failure") { operation.IsCompleted.Should().BeFalse(); }
+        f.Capture.Closing.SetResult();
+        var answer = await operation;
+        if (outcome is "complete") { answer!.Choice.Should().Be(SessionRoutingVoiceReply.SessionRoutingVoiceChoice.Submit); }
+        else { answer.Should().BeNull(); }
+        f.Capture.IsCaptureQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData("send", SessionRoutingVoiceReply.SessionRoutingVoiceChoice.Submit)]
     [InlineData("cancel", SessionRoutingVoiceReply.SessionRoutingVoiceChoice.Cancel)]
     public async Task ExactReadbackFinishesBeforeOneReplyAndPhysicalReleasePrecedesItsAnswer(

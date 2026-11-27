@@ -16,7 +16,7 @@ Confirmation retains the original USER message in that exact session and consume
 
 The body starts after the single space following `ask this conversation`. Subsequent case, spaces, Unicode and line breaks are unchanged within existing text/credential bounds. Words such as `shutdown` in this body are user content, not another static command. No earlier history, memory or instruction source is authorized, and neither this session's unsent buffer nor another session's input is submitted or overwritten ([request regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs)).
 
-Missing, competing, hidden, Done, read-only or stale presenters refuse without choosing another target or creating a session. Changing focus, selection, target metadata, session generation, control, privacy or original voice/call/name admission requires a fresh review; returning to the old view cannot revive it. Keyboard activation and readable automation values use the same native confirmation path ([presenter owner](../src/Kora/SessionsPresentationOwner.Foreground.cs), [headless evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs)).
+Missing, competing, hidden, Done, read-only or stale presenters refuse without choosing another target or creating a session. A captured voice-originated review survives unrelated focus and app switches; typed reviews remain focus-bound. Changed selection, target metadata, session generation, control, privacy, lock or original voice/call/name admission requires a fresh review; returning to the old view cannot revive it. Keyboard activation and readable automation values use the same native confirmation path ([presenter owner](../src/Kora/SessionsPresentationOwner.Foreground.cs), [headless evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs)).
 
 Auxiliary session views without an original-request review panel retain their existing conversation controls. Opening, hiding or closing such a view does not confirm a request or create a conversation message.
 
@@ -67,10 +67,15 @@ the exact Active foreground chat is instead preselected in **Review request dest
 No advice consent or inference runs for that proposal. **Review this destination**
 and **Submit original request to acknowledged destination** are still required;
 correction to another presented Active chat or New remains available. A changed or
-retired foreground target invalidates the original review without substitution.
+retired target resource invalidates the original review without substitution.
 This preserves the foreground-as-proposal decision ([D2a](../Design/Decision_Register.md#voice-to-action-interaction---2026-11-27)).
 
 Advice and destination acknowledgment use supporting tabs in the same expanded workbench, not additional application windows ([advice view](../src/Kora/SessionRouting/SessionRoutingAdviceView.cs), [destination view](../src/Kora/SessionRouting/SessionRoutingView.cs)).
+Voice-originated reviews are shown without activating their window or moving keyboard focus.
+Unrelated focus/app switches do not cancel a review or its wake evidence; clicking
+the review activates its window normally. Target/session/metadata changes, privacy,
+lock, ownership, call/owner binding, name/profile changes, expiry and cancellation
+still retire it. Typed/LocalUi activation remains unchanged.
 Changing or hiding that review retires its consent/acknowledgment; returning cannot submit an old choice. Original typed/voice channel and unchanged input stay bound through separate acknowledgment and submission ([hosted operations and withdrawal](../tests/Kora.Windows.IntegrationTests/SessionRoutingTests.Workbench.cs)).
 
 Exact conversation composers and `session request review "<name>" -- <body>`

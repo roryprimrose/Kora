@@ -217,7 +217,7 @@ public sealed partial class SessionRoutingTests
     [InlineData(true, "compare these plans")]
     [InlineData(false, "Nova explains these plans")]
     [InlineData(true, "Nova explains these plans")]
-    public async Task IdleTypingThenNativeWakeSurvivesOwnedForegroundDestinationFocusTransfer(bool expanded, string body)
+    public async Task IdleTypingThenNativeWakeShowsDestinationWithoutTakingFocus(bool expanded, string body)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -252,10 +252,10 @@ public sealed partial class SessionRoutingTests
             session.ReleaseClose.SetResult();
             var route = await AwaitWakeOpening(f.Voice, routeOpening.Task,
                 () => native.Main.ResponseTitle + " | " + native.Main.ResponseBody + " | " + f.Diagnostics.Failure);
-            await ActivateRoutingWindow(route, original);
             Dispatcher.UIThread.RunJobs();
-            original.IsActive.Should().BeFalse("the native destination window actually takes foreground focus");
-            route.IsActive.Should().BeTrue();
+            original.IsActive.Should().BeTrue("showing a voice review must not take foreground focus");
+            route.ShowActivated.Should().BeFalse();
+            route.IsActive.Should().BeFalse();
             route.IsVisible.Should().BeTrue();
             adviceOpening.Task.IsCompleted.Should().BeFalse("foreground preselection never requests advice consent");
             Find<ComboBox>(route, "RoutingDestinations").SelectedItem!.ToString().Should().EndWith(": Alpha");
@@ -356,8 +356,6 @@ public sealed partial class SessionRoutingTests
     [InlineData("session")]
     [InlineData("replacement")]
     [InlineData("hide")]
-    [InlineData("unrelated-focus")]
-    [InlineData("response-window-focus")]
     public async Task NativeForegroundDestinationFocusLeaseDoesNotRenewChangedSourceOrAcceptLateSubmission(string change)
     {
         await HeadlessSession.RunAsync(async () =>

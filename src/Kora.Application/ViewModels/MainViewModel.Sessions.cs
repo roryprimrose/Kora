@@ -105,7 +105,8 @@ public sealed partial class MainViewModel
         bool StableEligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
             && (!requestCommand || ReferenceEquals(originalRequests, sessionRequests))
             && (!command.RequestForegroundTarget || originalScopeEligibility?.Invoke() == true
-                && foregroundTarget?.IsCurrent == true
+                && (origin == RequestOrigin.ActivatedVoice
+                    ? foregroundTarget?.IsResourceCurrent : foregroundTarget?.IsCurrent) == true
                 && originalScopeNameRevision == assistantNameConfiguration.Get().Revision
                 && privacyObservation.Current.TopologyRevision == topologyRevision
                 && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision

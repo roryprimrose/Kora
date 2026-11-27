@@ -20,6 +20,32 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task CapturedVoiceRoutingTargetSurvivesFocusLossAndReturnWithoutAcquiringAReplacement()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var store = BindRequestCommands(f);
+        var target = new ForegroundConversationTarget(store.Session, static () => true);
+        f.ViewModel.PublishForegroundConversationTarget(target);
+        var calls = 0;
+        f.ViewModel.BindForegroundSessionRouting((_, origin, admitted, foreground) =>
+        {
+            calls++;
+            origin.Should().Be(RequestOrigin.ActivatedVoice);
+            foreground.Should().BeSameAs(target);
+            f.ViewModel.PublishForegroundConversationTarget(null);
+            admitted().Should().BeTrue();
+            foreground!.IsCurrent.Should().BeFalse();
+            f.ViewModel.PublishForegroundConversationTarget(new(store.Session, static () => true));
+            admitted().Should().BeTrue();
+            target.Retire();
+            admitted().Should().BeFalse();
+            return Task.FromResult<SessionRoutingReceipt?>(null);
+        });
+        await f.RaiseActivatedTranscriptAsync("Kora, explain original routing", 1);
+        calls.Should().Be(1);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

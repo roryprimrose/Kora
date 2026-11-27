@@ -15,6 +15,7 @@ internal sealed class SessionRoutingAdviceView : UserControl, IDisposable
     private bool closed;
     internal event EventHandler? Closed;
     private readonly Func<bool> admitted;
+    private readonly bool activate;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private bool retired;
 
@@ -24,6 +25,7 @@ internal sealed class SessionRoutingAdviceView : UserControl, IDisposable
     {
         Owner = owner;
         this.admitted = admitted;
+        activate = advice.Origin != Kora.Core.Hosting.RequestOrigin.ActivatedVoice;
         presentation = new(this, owner, () => !retired && admitted());
         presentation.PresentationChanged += (_, _) =>
         { if (Owner is ResponseWindow && !presentation.IsPresented && !closed) { Withdraw(); } };
@@ -73,9 +75,9 @@ internal sealed class SessionRoutingAdviceView : UserControl, IDisposable
     internal void Show()
     {
         if (Owner is not ResponseWindow primary) { Owner.Show(); return; }
-        primary.ShowSessions(expanded: true, preservePresentation: true);
+        primary.ShowSessions(expanded: true, activate: activate, preservePresentation: true);
         primary.ShowNativeReview(this, "Review local destination advice", this, admitted,
-            shown => { if (!shown && !closed) { Withdraw(); } });
+            shown => { if (!shown && !closed) { Withdraw(); } }, activate: activate);
         OnOwnerOpened(this, EventArgs.Empty);
     }
     private void OnOwnerOpened(object? sender, EventArgs args)

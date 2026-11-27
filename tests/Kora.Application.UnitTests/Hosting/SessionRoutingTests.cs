@@ -31,6 +31,38 @@ public sealed class SessionRoutingTests : IDisposable
     public void Dispose() => listener.Dispose();
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task VoiceReviewSurvivesForegroundReleaseButNotResourceRetirement(bool acknowledged)
+    {
+        var f = new Fixture();
+        var eligible = true;
+        var foreground = new ForegroundConversationTarget(f.Entries[0], () => eligible);
+        var review = await f.Service.PrepareAsync("original held voice", RequestOrigin.ActivatedVoice,
+            static () => true, Token, foreground);
+        foreground.ReleaseForeground();
+        foreground.IsCurrent.Should().BeFalse();
+        foreground.IsResourceCurrent.Should().BeTrue();
+        f.Service.IsCurrent(review).Should().BeTrue();
+        var selection = await f.Service.SelectAsync(review, f.Entries[0].Authority.SessionId, Token);
+        if (acknowledged)
+        {
+            eligible = false;
+            foreground.IsResourceCurrent.Should().BeFalse();
+            f.Service.IsCurrent(review).Should().BeFalse();
+            await f.Service.Invoking(service => service.SubmitAsync(selection, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+            f.Messages.Should().BeEmpty();
+        }
+        else
+        {
+            var receipt = await f.Service.SubmitAsync(selection, Token);
+            receipt.Submission.Message.Body.Should().Be("original held voice");
+            f.Messages.Should().ContainSingle();
+        }
+    }
+
+    [Theory]
     [InlineData("foreground")]
     [InlineData("other")]
     [InlineData("new")]

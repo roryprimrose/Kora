@@ -43,7 +43,8 @@ internal sealed class NativeReviewTabsView : UserControl, IDisposable
         Avalonia.Automation.AutomationProperties.SetName(tabs, "Original native review tabs; not generated action or approval controls");
     }
 
-    internal void ShowReview(Control owner, string title, Control body, Func<bool> admitted, Action<bool> presented)
+    internal void ShowReview(Control owner, string title, Control body, Func<bool> admitted, Action<bool> presented,
+        bool requireActivation = true)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         if (!admitted()) { throw new InvalidOperationException("The original native review source is no longer presented."); }
@@ -53,7 +54,7 @@ internal sealed class NativeReviewTabsView : UserControl, IDisposable
             if (body.Parent is Panel parent) { parent.Children.Remove(body); }
             else if (body.Parent is ContentControl content && ReferenceEquals(content.Content, body)) { content.Content = null; }
             else if (body.Parent is not null) { throw new InvalidOperationException("The exact review control has an unsupported owner."); }
-            entry = new(body, admitted, presented);
+            entry = new(body, admitted, presented, requireActivation);
             var open = new Button { Content = title };
             entry.OpenButton = open;
             Avalonia.Automation.AutomationProperties.SetName(open, "Show original review " + title);
@@ -85,6 +86,7 @@ internal sealed class NativeReviewTabsView : UserControl, IDisposable
             if (entry.Presented) { entry.Presented = false; entry.Publish(false); }
             entry.Admitted = admitted;
             entry.Publish = presented;
+            entry.RequiresActivation = requireActivation;
             entry.OpenButton.Content = title;
             Avalonia.Automation.AutomationProperties.SetName(entry.OpenButton, "Show original review " + title);
         }
@@ -116,7 +118,8 @@ internal sealed class NativeReviewTabsView : UserControl, IDisposable
     {
         foreach (var entry in entries.Values.ToArray())
         {
-            var current = lifetime.IsActive && ReferenceEquals(tabs.SelectedItem, entry.Tab)
+            var current = (entry.RequiresActivation ? lifetime.IsActive : lifetime.IsPresented)
+                && ReferenceEquals(tabs.SelectedItem, entry.Tab)
                 && !entry.NeedsReveal && entry.Admitted();
             if (entry.Presented == current) { continue; }
             entry.Presented = current;
@@ -134,11 +137,12 @@ internal sealed class NativeReviewTabsView : UserControl, IDisposable
         Content = null;
     }
 
-    private sealed class Entry(Control body, Func<bool> admitted, Action<bool> publish)
+    private sealed class Entry(Control body, Func<bool> admitted, Action<bool> publish, bool requiresActivation)
     {
         internal Control Body { get; } = body;
         internal Func<bool> Admitted { get; set; } = admitted;
         internal Action<bool> Publish { get; set; } = publish;
+        internal bool RequiresActivation { get; set; } = requiresActivation;
         internal Button OpenButton { get; set; } = new();
         internal TabItem Tab { get; set; } = new();
         internal bool Presented { get; set; }

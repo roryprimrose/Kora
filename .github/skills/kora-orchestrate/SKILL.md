@@ -178,6 +178,8 @@ a second child.
 | Event | Required inputs / action |
 | --- | --- |
 | `planner` | Attach its exact `owner`; at most one reusable planner. |
+| `reserve-planner-replacement` | Explicit current-revision user authorization and verified terminal old owner/pass; emits standby initialization only. See [authorized recovery](./README.md#explicit-user-authorized-planner-recovery). |
+| `replace-planner` | Exact reservation, unused distinct owner, freshly reverified old proof and verified new standby; emits exactly one pass+1 discovery with retained frontier. |
 | `candidate` | Planner `owner`, assigned `pass`, `key`, unique `outcome`, `pool`, `kind`, `head`, `scopes`, admission `evidence`; repair also requires `pr`. |
 | `revalidate-candidate` | Active planner `owner/pass`, existing unowned candidate `key`, complete `expectedItemDigest`, current `head`, canonical complete `scopes`, fresh `evidence`, `manifestComplete=true`. Atomic current-checkpoint apply; held conflict rejects without mutation. See [same-key input and migration](./README.md#same-key-unowned-candidate-revalidation). |
 | `adopt` | Existing worker `owner` and the candidate fields, with concrete exclusive-ownership evidence; no new launch. |
@@ -325,9 +327,21 @@ resulting discover action. Send the next pass with `delivery=queue` to the
 This is an intended separate turn, never steering permission to begin a new
 pass inside the old turn. Host queue serialization prevents overlapping
 execution. Retain the returned message ID/status and accept STARTED only for
-the assigned pass; do not create another planner or replay an uncertain send.
+the assigned pass; do not create another planner or replay an uncertain send
+outside the [explicit user-authorized recovery protocol](./README.md#explicit-user-authorized-planner-recovery).
 If the host cannot serialize queued turns, report `UnsupportedQueuedTurns`
-instead of replacing the planner or assuming safe overlap.
+instead of automatically replacing the planner or assuming safe overlap.
+
+Recovery is never a liveness response. Only an explicit user decision bound to
+the exact old owner/current pass/revision permits `reserve-planner-replacement`,
+after independently verified archived/error/admission-rejected terminal state,
+actual stopped writing and reconciled authority zero. Persist the standby-only
+action before creating one replacement; an ambiguous launch retains that
+reservation. Do not scan in standby. Reconcile all old-planner pending actions
+and verify the standby initialization result before `replace-planner`.
+Freshly reverify both owners; attach once, forward the persisted frontier and
+queue the one pass+1 discovery. Keep the coordinator as sole checkpoint writer,
+retain retired-owner history and reject old-owner reports or reuse.
 
 This rule only schedules the next read-only pass. It does not release file
 ownership, archive a child, or weaken worker publication/cleanup proof.

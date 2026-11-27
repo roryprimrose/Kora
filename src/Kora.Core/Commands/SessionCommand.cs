@@ -76,7 +76,7 @@ public sealed partial record SessionCommand(
         if (ParsePermission(text, input) is { } permission) { return permission; }
         if (ParsePendingClear(text) is { } pendingClear) { return pendingClear; }
         if (ParseConversationSearch(text) is { } search) { return search; }
-        if (ParseRequest(text) is { } request) { return request with { RequestActivationPrefixed = activationPrefixed }; }
+        if (ParseRequest(text, activationPrefixed) is { } request) { return request with { RequestActivationPrefixed = activationPrefixed }; }
         if (ParseInstructionScopes(text, input) is { } scope) { return scope; }
         text = text.TrimEnd();
         if (text.Equals("queue", StringComparison.OrdinalIgnoreCase)

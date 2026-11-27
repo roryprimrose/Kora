@@ -17,6 +17,121 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(false, ", ")]
+    [InlineData(true, ", ")]
+    [InlineData(true, " ")]
+    [InlineData(false, ",")]
+    public async Task SpokenNameRouteReviewsAndConfirmsLongestUniqueActiveNameWithOriginalChannel(bool voice, string separator)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var store = BindRequestCommands(fixture);
+        await store.RenameSessionAsync(new(new(Guid.NewGuid()), store.Session.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi), store.Session.Authority.Generation, 0,
+            new("Build plan"), () => true, TestContext.Current.CancellationToken);
+        var shorter = store.Session with
+        {
+            Authority = store.Session.Authority with { SessionId = new(Guid.NewGuid()) },
+            Metadata = new(store.Session.Authority.SessionId, new(1), new("Build"))
+        };
+        var cursor = Guid.NewGuid();
+        store.ClaudePageRead = (after, _) => after is null
+            ? new([shorter, shorter with { Authority = shorter.Authority with { SessionId = new(Guid.NewGuid()) } }], cursor)
+            : new([store.Session], null);
+        var body = string.Equals(separator, ",", StringComparison.Ordinal)
+            ? "OrIgInAl e\u0301\r\nbody -- data  " : "  OrIgInAl e\u0301\r\nbody -- data  ";
+        var input = "Kora, in Build plan" + separator + body;
+        if (voice) { await fixture.RaiseActivatedTranscriptAsync(input, 1); }
+        else { await fixture.RunAsync(input); }
+        fixture.ViewModel.ResponseTitle.Should().Be("Review conversation request.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Conversation: Build plan").And.Contain(body.Trim())
+            .And.Contain(voice ? "ActivatedVoice" : "LocalUi");
+        store.RequestRetentions.Should().Be(0);
+        await fixture.RunAsync("session request confirm");
+        store.RequestMessage!.Body.Should().Be(body);
+        store.RequestMessage.Request.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+        store.RequestMessage.Request.SessionId.Should().Be(store.Session.Authority.SessionId);
+        store.RequestRetentions.Should().Be(1);
+        await fixture.RunAsync("session request confirm");
+        store.RequestRetentions.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("ambiguous")]
+    [InlineData("missing")]
+    [InlineData("inactive")]
+    [InlineData("null-name")]
+    [InlineData("prefix-only")]
+    [InlineData("case")]
+    [InlineData("empty-body")]
+    [InlineData("name-only")]
+    [InlineData("overflow")]
+    [InlineData("late")]
+    public async Task SpokenNameRouteRefusesWithoutFallbackOrRetention(string fault)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var admission = new RequestAdmission();
+        var store = BindRequestCommands(fixture, admission);
+        await store.RenameSessionAsync(new(new(Guid.NewGuid()), store.Session.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi), store.Session.Authority.Generation, 0,
+            new("Build"), () => true, TestContext.Current.CancellationToken);
+        store.ClaudePageRead = (_, _) =>
+        {
+            if (fault is "late") { fixture.ViewModel.BindSessionCommands(new(store, new(fixture.HostStore), store, NullLogger<SessionWorkspaceService>.Instance)); }
+            return fault switch
+            {
+                "ambiguous" => new([store.Session, store.Session with { Authority = store.Session.Authority with { SessionId = new(Guid.NewGuid()) } }], null),
+                "missing" => new([], null),
+                "inactive" => new([store.Session with { Authority = store.Session.Authority with { IsActive = false } }], null),
+                "null-name" => new([store.Session with { Metadata = null }], null),
+                "overflow" => new([], Guid.NewGuid()),
+                _ => new([store.Session], null)
+            };
+        };
+        var input = fault switch
+        {
+            "prefix-only" => "Kora, in Building, body",
+            "case" => "Kora, in build, body",
+            "empty-body" => "Kora, in Build, ",
+            "name-only" => "Kora, in Build",
+            _ => "Kora, in Build, body"
+        };
+        await fixture.RaiseActivatedTranscriptAsync(input, 1);
+        fixture.ViewModel.ResponseTitle.Should().NotBe("Review conversation request.");
+        store.RequestRetentions.Should().Be(0);
+        admission.DefaultCalls.Should().Be(0);
+        admission.CopilotCalls.Should().Be(0);
+        await fixture.RunAsync("session request confirm");
+        store.RequestRetentions.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("metadata")]
+    [InlineData("name")]
+    [InlineData("consent")]
+    [InlineData("cancel")]
+    public async Task NamedVoiceReviewDoesNotRenewAuthorityAtConfirmation(string change)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var store = BindRequestCommands(fixture);
+        await store.RenameSessionAsync(new(new(Guid.NewGuid()), store.Session.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi), store.Session.Authority.Generation, 0,
+            new("Build"), () => true, TestContext.Current.CancellationToken);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, in Build, original", 1);
+        fixture.ViewModel.ResponseTitle.Should().Be("Review conversation request.");
+        if (change is "metadata")
+        {
+            await store.RenameSessionAsync(new(new(Guid.NewGuid()), store.Session.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi), store.Session.Authority.Generation, 1,
+                new("Changed"), () => true, TestContext.Current.CancellationToken);
+        }
+        if (change is "name")
+        {
+            fixture.ViewModel.AssistantNameInput = "Nova";
+            await fixture.ViewModel.ApplyAssistantNameCommand.ExecuteAsync();
+        }
+        if (change is "consent") { await fixture.ViewModel.SetVoiceConsentAsync(false); }
+        if (change is "cancel") { await fixture.RunAsync("session request cancel"); }
+        await fixture.RunAsync("session request confirm");
+        store.RequestRetentions.Should().Be(0);
+    }
+
     [Fact]
     public async Task PendingQuestionBlocksExplicitRequestWithoutStealingAnswerOrAuthority()
     {

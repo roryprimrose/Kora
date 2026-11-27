@@ -98,7 +98,7 @@ public sealed partial class SessionRequestCommandService(
             { SessionId = previous.Review.Target.Authority.SessionId.Value, RequestReviewId = previous.Review.Id };
         }
         if (command.SessionId is null && command.Operation == SessionCommandOperation.RequestReview
-            && (command.RequestActiveTarget || command.RequestTargetName is not null))
+            && (command.RequestActiveTarget || command.RequestTargetName is not null || command.RequestSpokenNameRoute is not null))
         {
             using var resolution = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Request);
             try
@@ -108,7 +108,10 @@ public sealed partial class SessionRequestCommandService(
                 {
                     SessionId = resolved.Authority.SessionId.Value,
                     Generation = resolved.Authority.Generation.Value,
-                    MetadataRevision = resolved.Metadata?.Revision.Value ?? 0
+                    MetadataRevision = resolved.Metadata?.Revision.Value ?? 0,
+                    RequestTargetName = command.RequestSpokenNameRoute is not null ? resolved.Metadata!.Name : command.RequestTargetName,
+                    RequestBody = command.RequestSpokenNameRoute is { } route
+                        ? SpokenNameBody(route, resolved.Metadata!.Name.Value.Length) : command.RequestBody
                 };
                 resolution.Complete(HostOperationOutcome.Completed);
             }
@@ -389,10 +392,16 @@ public sealed partial class SessionRequestCommandService(
     {
         if (!live() || command.RequestActiveTarget && command.RequestTargetName is not null)
         { throw new InvalidOperationException("One explicit original conversation selector is required."); }
+        if (command.RequestSpokenNameRoute is not null
+            && (!command.RequestActivationPrefixed || command.RequestActiveTarget || command.RequestTargetName is not null
+                || command.RequestBody is not null
+                || command.RequestProvider != SessionRequestReview.ProviderChoice.Default))
+        { throw new InvalidOperationException("A spoken name route requires only the current assistant-name prefix and original named request."); }
         Guid? after = null;
         var cursors = new HashSet<Guid>();
         var subjects = new HashSet<Guid>();
         SessionWorkspaceEntry? match = null;
+        var ambiguous = false;
         for (var pageNumber = 0; pageNumber < 16; pageNumber++)
         {
             var page = await workspace.ReadMetadataAsync(after, SessionPage<SessionWorkspaceEntry>.MaximumRecords, token).ConfigureAwait(false);
@@ -403,19 +412,40 @@ public sealed partial class SessionRequestCommandService(
             {
                 if (!subjects.Add(entry.Authority.SessionId.Value))
                 { throw new InvalidDataException("Conversation inventory repeated a subject."); }
-                if (entry.Authority.IsActive && (command.RequestActiveTarget
-                    || string.Equals(entry.Metadata?.Name.Value, command.RequestTargetName!.Value, StringComparison.Ordinal)))
+                var name = entry.Metadata?.Name.Value;
+                var matches = command.RequestSpokenNameRoute is { } route
+                    ? name is not null && route.StartsWith(name, StringComparison.Ordinal)
+                        && (route.Length == name.Length || route[name.Length] == ',' || char.IsWhiteSpace(route[name.Length]))
+                    : command.RequestActiveTarget || string.Equals(name, command.RequestTargetName!.Value, StringComparison.Ordinal);
+                if (entry.Authority.IsActive && matches)
                 {
-                    if (match is not null) { throw new InvalidOperationException("Conversation selection is ambiguous. Choose an exact unique readable name in Sessions."); }
-                    match = entry;
+                    if (command.RequestSpokenNameRoute is null)
+                    {
+                        if (match is not null) { throw new InvalidOperationException("Conversation selection is ambiguous. Choose an exact unique readable name in Sessions."); }
+                        match = entry;
+                    }
+                    else if (match is null || name!.Length > match.Metadata!.Name.Value.Length)
+                    { match = entry; ambiguous = false; }
+                    else if (name!.Length == match.Metadata!.Name.Value.Length) { ambiguous = true; }
                 }
             }
             if (page.Next is null)
-            { return match ?? throw new InvalidOperationException("No matching current Active conversation is available. Refresh Sessions."); }
+            {
+                if (ambiguous) { throw new InvalidOperationException("Conversation selection is ambiguous. Choose an exact unique readable name in Sessions."); }
+                return match ?? throw new InvalidOperationException("No matching current Active conversation is available. Refresh Sessions.");
+            }
             if (!cursors.Add(page.Next.Value)) { throw new InvalidDataException("Conversation inventory cursor repeated."); }
             after = page.Next;
         }
         throw new InvalidOperationException("Conversation inventory exceeds the bounded complete resolution limit. Use native Sessions to choose the exact conversation.");
+    }
+
+    private static string SpokenNameBody(string route, int nameLength)
+    {
+        var start = nameLength;
+        if (start < route.Length && route[start] == ',') { start++; }
+        if (start < route.Length && char.IsWhiteSpace(route[start])) { start++; }
+        return route[start..];
     }
 
     private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause,

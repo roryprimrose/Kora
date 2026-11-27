@@ -63,7 +63,9 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
         var root = new StackPanel { Margin = new(16), Spacing = 12 };
         root.Children.Add(new TextBlock
         {
-            Text = review.Match switch
+            Text = review.Preselection is { Basis: SessionRoutingReview.PreselectionBasis.Foreground }
+                ? "The original foreground conversation is preselected. Review its name, correct the destination or choose New. Nothing has been submitted."
+                : review.Match switch
             {
                 SessionRouteMatch.Clear => "One related Active conversation proposed. Review its name, correct the destination or choose New before submitting.",
                 SessionRouteMatch.Ambiguous => "Several related Active conversations proposed. Choose one exact candidate or New. Nothing has been submitted.",
@@ -134,7 +136,9 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
         presented = descriptors.Select((item, index) => new Destination(
             (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + ": " + item.Name, item)).Append(new("New conversation (fresh session)", null)).ToArray();
         destinations.ItemsSource = presented;
-        destinations.SelectedIndex = 0;
+        var preselected = Array.FindIndex(presented,
+            item => item.Descriptor is not null && ReferenceEquals(item.Descriptor, review.Preselection?.Destination));
+        destinations.SelectedIndex = preselected < 0 ? 0 : preselected;
     }
 
     private bool Current() => !retired && (Owner is not ResponseWindow || presentation.IsPresented)

@@ -44,6 +44,13 @@ focus has a distinct accent outline. The larger click target, setting-specific
 tooltip and menu behavior are unchanged. When inspection is allowed but changes
 are unavailable, Refresh remains accessible while Reset stays disabled.
 
+**Spoken send or cancel**, under **Speech and audio**, is a device-local opt-in,
+default **Off**. It reads back an exact voice-originated request review before
+one bounded **send** or **cancel** reply. It never listens during playback or
+automatically opens for typed reviews. Native controls remain available; this
+setting grants neither microphone consent nor hosted disclosure approval.
+See [the complete review interaction](session-routing.md#optional-spoken-send-or-cancel).
+
 ## Compact controls
 
 Settings uses flat sections, compact inputs and quiet secondary actions. Numeric

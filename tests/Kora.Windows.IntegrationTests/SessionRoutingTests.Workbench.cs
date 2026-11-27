@@ -139,8 +139,12 @@ public sealed partial class SessionRoutingTests
                 f.Admission.Calls.Should().Be(1);
                 f.Model.SelectedSessionRecord.Should().Be(prior);
                 f.Model.ComposerBody.Should().Be("independent original session input");
-                seenAdvice.Should().ContainSingle();
-                seenAdvice.Single().Content.Should().BeNull();
+                if (origin == RequestOrigin.LocalUi)
+                {
+                    seenAdvice.Should().ContainSingle();
+                    seenAdvice.Single().Content.Should().BeNull();
+                }
+                else { seenAdvice.Should().BeEmpty("standing voice consent replaces the per-request disclosure"); }
                 view.Content.Should().BeNull();
                 windows.Should().BeEmpty("the already-open compact/expanded owner is the only interaction window");
             }

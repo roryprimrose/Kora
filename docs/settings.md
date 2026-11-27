@@ -51,6 +51,21 @@ automatically opens for typed reviews. Native controls remain available; this
 setting grants neither microphone consent nor hosted disclosure approval.
 See [the complete review interaction](session-routing.md#optional-spoken-send-or-cancel).
 
+**Local voice destination advice**, under **Speech and audio**, is a separate
+device-local opt-in, default **Off**. When Kora has no foreground chat, On permits
+the unchanged voice request and one bounded permitted Active-chat metadata page
+to reach a qualified LOCAL model without tools, history or memory. The last
+selected chat is preferred when related; a more related Active chat may be
+proposed. Off, unavailable, ambiguous or failed advice offers the last selected
+Active chat alone when eligible. Failures are shown, not reported as inference.
+The destination review identifies inferred versus last-selected proposals;
+acknowledgment and send are still required even for Approve all. Typed advice
+keeps its per-request consent. Changes use the owning unlocked Settings view,
+original-channel audit and atomic device preference storage; corrupt or
+unconfirmed saved values leave advice unavailable. This preference grants no
+microphone, hosted-provider, conversation-history or submission authority.
+See [destination review](session-routing.md#choose-acknowledge-correct-submit).
+
 ## Compact controls
 
 Settings uses flat sections, compact inputs and quiet secondary actions. Numeric

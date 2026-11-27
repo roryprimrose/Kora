@@ -26,7 +26,7 @@ public sealed partial class ModelTurnHostTests
             new(RoutingAnswer(snapshot), null));
         var matcher = new LocalSessionRelatednessMatcher(f.PolicyHost, f.PolicyHost, f.Time);
         const string body = "  original\r\nunchanged  ";
-        var result = await matcher.MatchAsync(body, snapshot, static () => true, Token);
+        var result = await matcher.MatchAsync(body, snapshot, static () => true, Token, snapshot.Descriptors[1]);
         result.Candidates.Should().Equal(snapshot.Descriptors[0].Candidate);
         result.ExpectedRevision.Should().Be(snapshot.Revision);
         f.Adapter.Calls.Should().Be(1);
@@ -34,6 +34,8 @@ public sealed partial class ModelTurnHostTests
         wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(body);
         wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
         wire.RootElement.GetProperty("Evidence").GetArrayLength().Should().Be(1);
+        using var metadata = JsonDocument.Parse(wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString()!);
+        metadata.RootElement.GetProperty("preferredEvidence").GetGuid().Should().Be(snapshot.Descriptors[1].EvidenceId);
         f.Adapter.Provenance!.Request.Origin.Should().Be(origin);
         f.PolicyHost.IsQuiescent.Should().BeTrue();
     }
@@ -55,6 +57,17 @@ public sealed partial class ModelTurnHostTests
         else { await operation.Should().ThrowAsync<InvalidOperationException>(); }
         f.Adapter.Calls.Should().Be(1);
         f.PolicyHost.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PreferredCandidateOutsideTheDisclosedMetadataCannotReachTheProvider()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var matcher = new LocalSessionRelatednessMatcher(f.PolicyHost, f.PolicyHost, f.Time);
+        await matcher.Invoking(subject => subject.MatchAsync("original", RoutingSnapshot(), static () => true,
+            Token, RoutingSnapshot().Descriptors[0])).Should().ThrowAsync<InvalidDataException>();
+        f.Adapter.Calls.Should().Be(0);
     }
 
     [Theory]

@@ -40,7 +40,7 @@ internal sealed class SessionRoutingController : IDisposable
 
     internal void Bind()
     {
-        main.BindForegroundSessionRouting(RouteAsync, () => presentation = retainPresentation?.Invoke());
+        main.BindDestinationSessionRouting(RouteAsync, () => presentation = retainPresentation?.Invoke());
         main.PrivacyClosureRequested += PrivacyClosed;
         workspace.SessionMetadataChanging += SourceChanged;
         workspace.SessionLifecycleChanged += SourceChanged;
@@ -48,11 +48,11 @@ internal sealed class SessionRoutingController : IDisposable
     }
 
     internal Task<SessionRoutingReceipt?> RouteAsync(string body, RequestOrigin origin, Func<bool> admitted,
-        ForegroundConversationTarget? foreground = null)
+        ForegroundConversationTarget? foreground = null, ForegroundConversationTarget? lastSelected = null)
     {
         if (disposed || busy) { throw new InvalidOperationException("An exact destination review already owns routing input, or routing is closed."); }
         busy = true;
-        active = RouteCoreAsync(body, origin, admitted, foreground);
+        active = RouteCoreAsync(body, origin, admitted, foreground, lastSelected);
         return active;
     }
 
@@ -77,14 +77,15 @@ internal sealed class SessionRoutingController : IDisposable
     }
 
     private async Task<SessionRoutingReceipt?> RouteCoreAsync(string body, RequestOrigin origin, Func<bool> admitted,
-        ForegroundConversationTarget? foreground)
+        ForegroundConversationTarget? foreground, ForegroundConversationTarget? lastSelected)
     {
         using var cancellation = new CancellationTokenSource();
         lock (inferenceGate) { inference = cancellation; }
         adviceCancelled = false;
         try
         {
-            var review = await routing.PrepareAsync(body, origin, () => !disposed && admitted(), cancellation.Token, foreground);
+            var review = await routing.PrepareAsync(body, origin, () => !disposed && admitted(), cancellation.Token, foreground,
+                lastSelected, main.CaptureRoutingAdviceConsent());
             if (!routing.IsCurrent(review)) { throw new OperationCanceledException("Original routing admission changed."); }
             var result = new TaskCompletionSource<SessionRoutingSelection?>(TaskCreationOptions.RunContinuationsAsynchronously);
             void Failure(Exception exception) => main.ReportHostInteractionFailure(

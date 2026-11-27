@@ -496,6 +496,9 @@ internal static class Program
         services.AddSingleton<LocalSpokenSendReplyPreferences>(provider =>
             new LocalSpokenSendReplyPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SpokenSendReplyConfigurationService>();
+        services.AddSingleton<LocalRoutingAdvicePreferences>(provider =>
+            new LocalRoutingAdvicePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<RoutingAdviceConfigurationService>();
         services.AddSingleton<IConversationExecutionPreferences>(provider =>
             new LocalConversationExecutionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton(provider =>

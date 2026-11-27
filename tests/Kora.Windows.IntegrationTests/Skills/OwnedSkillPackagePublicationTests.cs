@@ -31,6 +31,36 @@ public sealed class OwnedSkillPackagePublicationTests
         OwnedSkillPackagePublication.Commit(staged, parent, "1.0.0");
         Directory.Exists(Path.Combine(id, "1.0.0")).Should().BeTrue();
     }
+
+    [Fact]
+    public void FailedDirectoryCommitReportsTheTranslatedWindowsError()
+    {
+        using var paths = new OwnedStorageFixture();
+        var directory = RestrictedStorageDirectory.ForOwnedSkills(paths);
+        using var identity = WindowsIdentity.GetCurrent();
+        RestrictedStorageDirectory.CreateRestrictedDirectory(paths.RoamingRoot,
+            identity.User ?? throw new InvalidOperationException("The test needs a loaded Windows profile."));
+        directory.CreateNew();
+        var id = Path.Combine(directory.Root, "example");
+        directory.CreateOwnedSkillDirectory(id);
+        var stage = Path.Combine(id, ".owned-skill-" + Guid.NewGuid().ToString("N"));
+        directory.CreateOwnedSkillDirectory(stage);
+        var manifest = Path.Combine(stage, "manifest.yaml");
+        using (var stream = directory.CreateNewFile(manifest))
+        { stream.Write("complete"u8); stream.Flush(true); }
+        using var pins = new OwnedSkillPackagePublication();
+        var parent = pins.PinDirectory(id);
+        var staged = pins.PinDirectory(stage, forRename: true);
+        // An open child handle makes the directory rename fail with STATUS_ACCESS_DENIED.
+        using (new FileStream(manifest, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+        {
+            var commit = () => OwnedSkillPackagePublication.Commit(staged, parent, "1.0.0");
+            commit.Should().Throw<IOException>().WithMessage("Atomic no-replace skill directory publication failed.")
+                .WithInnerException<System.ComponentModel.Win32Exception>()
+                .Which.NativeErrorCode.Should().Be(5, "the NTSTATUS must be translated to ERROR_ACCESS_DENIED");
+        }
+        Directory.Exists(Path.Combine(id, "1.0.0")).Should().BeFalse();
+    }
     private static CancellationToken Token => TestContext.Current.CancellationToken;
     private static OwnedDeclarativeSkillDocument Document(string version = "1.0.0") =>
         OwnedDeclarativeSkillDocument.Create("example", version, "Example", "Description", "literal\nowned skill save");

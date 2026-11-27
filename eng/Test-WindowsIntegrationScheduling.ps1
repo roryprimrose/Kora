@@ -634,6 +634,13 @@ try {
         Assert ((Get-Content -Raw -LiteralPath (Join-Path $receipt[0].Directory.FullName 'console.log')).Contains('Fixture started-test diagnostic',
             [StringComparison]::Ordinal)) 'Process-finalization diagnostics must remain visible in predecessor-compatible console artifacts.'
     }
+    Assert (@($partitions | Where-Object { $_.MeasuredMinutes -isnot [double] -or $_.MeasuredMinutes -le 0 }).Count -eq 0) 'Every execution partition must carry a positive measured duration for local ordering.'
+    $throttledRoot = Join-Path $fixtureRoot 'throttled'
+    & $runner -ThrottleLimit 1 -ResultsDirectory $throttledRoot
+    $started = @(Get-ChildItem -LiteralPath $throttledRoot -Filter 'command.json' -Recurse -File |
+        Sort-Object LastWriteTimeUtc | ForEach-Object { $_.Directory.Name })
+    $longestFirst = @($partitions | Sort-Object -Stable -Descending -Property MeasuredMinutes | ForEach-Object Name)
+    Assert (($started -join ',') -ceq ($longestFirst -join ',')) 'A throttled run must start every partition exactly once, longest measured partition first.'
     foreach ($mode in @('exit', 'missing', 'empty', 'incomplete', 'failed', 'skipped', 'malformed', 'duplicate')) {
         $env:KORA_WINDOWS_SCHEDULING_FIXTURE = $mode
         $modeRoot = Join-Path $fixtureRoot $mode

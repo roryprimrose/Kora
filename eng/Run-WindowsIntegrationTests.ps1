@@ -27,6 +27,10 @@ param(
     [int] $MaxThreads = 2,
 
     [Parameter()]
+    [ValidateRange(1, 64)]
+    [int] $ThrottleLimit,
+
+    [Parameter()]
     [ValidateNotNullOrEmpty()]
     [string] $ResultsDirectory = '.net-test-artifacts\windows'
 )
@@ -187,12 +191,22 @@ $hostedAssignments = @{
     'ui-workflows' = 'ui-platform'
     'ui-presentation' = 'ui-platform'
 }
+# Summed passing test durations in minutes from complete CI run 45801316727; they order local execution.
+$measuredMinutes = @{
+    'ui-platform' = 20.8; 'ui-conversations' = 14.7; 'ui-conversation-actions' = 14.3; 'ui-editors' = 12.2
+    'ui-presentation' = 10.7; 'ui-workflows' = 10.6; 'ui-definitions' = 9.7; 'ui-definition-dialogs' = 9.5
+    'ui-conversation-core' = 6.8; 'storage-other' = 6.5; 'native-ux' = 6.3; 'storage-heavy' = 4.9
+}
 foreach ($executionPartition in $partitions) {
     if (-not $hostedAssignments.ContainsKey($executionPartition.Name) -or
         $hostedAssignments[$executionPartition.Name] -cnotin $shards.Name) {
         throw "Windows partition $($executionPartition.Name) has no valid hosted assignment."
     }
     $executionPartition | Add-Member -NotePropertyName HostedShard -NotePropertyValue $hostedAssignments[$executionPartition.Name]
+    if (-not $measuredMinutes.ContainsKey($executionPartition.Name)) {
+        throw "Windows partition $($executionPartition.Name) has no measured duration."
+    }
+    $executionPartition | Add-Member -NotePropertyName MeasuredMinutes -NotePropertyValue $measuredMinutes[$executionPartition.Name]
 }
 if ($Shard -cne 'All') {
     $partitions = @($partitions | Where-Object HostedShard -CEQ $Shard)
@@ -237,13 +251,28 @@ if ($TestModuleDirectory) {
 }
 else {
     $localModules = Join-Path $repositoryRoot 'tests\Kora.Windows.IntegrationTests\bin\Release\net11.0-windows10.0.19041.0\win-x64'
-    $catalog = Get-WindowsTestCatalog $dotnetPath $localModules
+    try { $catalog = Get-WindowsTestCatalog $dotnetPath $localModules }
+    catch {
+        if (-not (Test-Path -LiteralPath (Join-Path $localModules 'Kora.Windows.IntegrationTests.dll') -PathType Leaf)) {
+            throw "Local Windows test modules are missing from '$localModules'. Build them first: dotnet build .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --runtime win-x64 --no-restore"
+        }
+        throw
+    }
 }
 $resultsRoot = Join-Path $resultsRoot ([guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $resultsRoot -Force | Out-Null
 
+# Start the longest partitions first so a throttled local run is not left waiting on one long partition.
+$executionOrder = @($partitions | Sort-Object -Stable -Descending -Property MeasuredMinutes)
+if (-not $PSBoundParameters.ContainsKey('ThrottleLimit')) {
+    # Each partition is a mostly serial UI process; about one per physical core avoids oversubscription.
+    $ThrottleLimit = [Math]::Max(1, [Math]::Floor([Environment]::ProcessorCount / 2))
+}
+$ThrottleLimit = [Math]::Min($ThrottleLimit, $partitions.Count)
+Write-Host "Running $($partitions.Count) Windows test partition(s), at most $ThrottleLimit at a time."
+
 $runs = @(
-    $partitions | ForEach-Object -Parallel {
+    $executionOrder | ForEach-Object -Parallel {
         $shardDirectory = Join-Path $using:resultsRoot $_.Name
         $logPath = Join-Path $shardDirectory 'console.log'
         New-Item -ItemType Directory -Path $shardDirectory -Force | Out-Null
@@ -286,7 +315,7 @@ $runs = @(
             ExitCode = $exitCode
             LogPath = $logPath
         }
-    } -ThrottleLimit $partitions.Count
+    } -ThrottleLimit $ThrottleLimit
 )
 
 $failedShards = @()

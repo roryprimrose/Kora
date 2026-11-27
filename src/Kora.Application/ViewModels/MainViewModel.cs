@@ -5208,6 +5208,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));
         OnPropertyChanged(nameof(CanChangeConversationalReplies));
+        OnPropertyChanged(nameof(CanChangeRoutingAdvice));
         OnPropertyChanged(nameof(CanChangeForegroundPtt));
         OnPropertyChanged(nameof(CanControlLogonStartup));
         OnPropertyChanged(nameof(CanControlLogonStartupNative));

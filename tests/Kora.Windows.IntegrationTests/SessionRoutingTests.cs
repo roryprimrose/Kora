@@ -216,6 +216,8 @@ public sealed partial class SessionRoutingTests
         private ResponseWindowController? responses;
         private IDisposable? adviceGestures;
         internal bool AutoAllowAdvice { get; set; } = true;
+        internal bool StandingAdvice { get; set; } = true;
+        private Kora.Application.Voice.AudioControlAdmission? routingPreferenceAdmission;
         internal int Matches { get; set; }
 
         internal async Task Initialize(bool expanded, IQuestionVoiceRecognitionService? voiceRecognition = null,
@@ -226,6 +228,10 @@ public sealed partial class SessionRoutingTests
                 if (AutoAllowAdvice) { Dispatcher.UIThread.Post(() => ClickAdvice(window, "RoutingAdviceAllow")); }
             });
             await Native.InitializeAsync(null, voiceRecognition: voiceRecognition, speechInputConfiguration: speechInputConfiguration);
+            routingPreferenceAdmission = new(Native.Interactions, Native.Interactions, new(Native.Tasks));
+            var preference = new Kora.Application.Configuration.LocalRoutingAdvicePreferences(Native);
+            preference.Save(StandingAdvice);
+            Native.Main.BindRoutingAdviceConfiguration(new(preference, routingPreferenceAdmission, Native.Audit));
             First = await Native.Sessions.CreateAsync(new("Alpha"), RequestOrigin.LocalUi, Native.Token);
             Second = await Native.Sessions.CreateAsync(new("Beta"), RequestOrigin.LocalUi, Native.Token);
             var conversation = new SessionConversationService(Native.Interactions, Native.Interactions, Native.Sessions,
@@ -248,6 +254,11 @@ public sealed partial class SessionRoutingTests
             sessions?.Dispose();
             responses?.Dispose();
             adviceGestures?.Dispose();
+            if (routingPreferenceAdmission is { } preferenceAdmission)
+            {
+                preferenceAdmission.DisposeAsync().AsTask().IsCompletedSuccessfully.Should().BeTrue(
+                    "this fixture only observes the seeded preference; no preference operation can be outstanding");
+            }
             Native.Dispose();
         }
 
@@ -259,7 +270,8 @@ public sealed partial class SessionRoutingTests
 
     private sealed class Matcher(Fixture fixture) : ISessionRelatednessMatcher
     {
-        public Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot, Func<bool> admitted, CancellationToken token)
+        public Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot, Func<bool> admitted, CancellationToken token,
+            SessionRouteDescriptor? preferred = null)
         {
             fixture.Matches++;
             return Task.FromResult(new SessionRouteProposal(snapshot.Revision, fixture.Match, fixture.Match switch

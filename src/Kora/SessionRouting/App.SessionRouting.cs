@@ -15,6 +15,7 @@ public partial class App
     private void BindSessionRouting(Kora.Application.ViewModels.MainViewModel main)
     {
         main.BindSpokenSendReplyConfiguration(Services.GetRequiredService<SpokenSendReplyConfigurationService>());
+        main.BindRoutingAdviceConfiguration(Services.GetRequiredService<RoutingAdviceConfigurationService>());
         main.BindSpokenSendReview(admitted =>
         {
             var workbench = (responseWindow

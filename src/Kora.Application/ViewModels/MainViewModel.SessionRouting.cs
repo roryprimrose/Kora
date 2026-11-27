@@ -12,13 +12,14 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private Func<string, RequestOrigin, Func<bool>, ForegroundConversationTarget?, Task<SessionRoutingReceipt?>>? routeSessionRequest;
+    private Func<string, RequestOrigin, Func<bool>, ForegroundConversationTarget?, ForegroundConversationTarget?, Task<SessionRoutingReceipt?>>? routeSessionRequest;
+    private ForegroundConversationTarget? lastSelectedConversationTarget;
     private Func<IDisposable?>? retainRoutingPresentation;
 
     public void BindSessionRouting(Func<string, RequestOrigin, Func<bool>, Task<SessionRoutingReceipt?>>? route,
         Func<IDisposable?>? retainPresentation = null)
     {
-        routeSessionRequest = route is null ? null : (body, origin, admitted, _) => route(body, origin, admitted);
+        routeSessionRequest = route is null ? null : (body, origin, admitted, _, _) => route(body, origin, admitted);
         retainRoutingPresentation = retainPresentation;
     }
 
@@ -26,9 +27,20 @@ public sealed partial class MainViewModel
         Func<string, RequestOrigin, Func<bool>, ForegroundConversationTarget?, Task<SessionRoutingReceipt?>> route,
         Func<IDisposable?>? retainPresentation = null)
     {
+        routeSessionRequest = (body, origin, admitted, foreground, _) => route(body, origin, admitted, foreground);
+        retainRoutingPresentation = retainPresentation;
+    }
+
+    public void BindDestinationSessionRouting(
+        Func<string, RequestOrigin, Func<bool>, ForegroundConversationTarget?, ForegroundConversationTarget?, Task<SessionRoutingReceipt?>> route,
+        Func<IDisposable?>? retainPresentation = null)
+    {
         routeSessionRequest = route;
         retainRoutingPresentation = retainPresentation;
     }
+
+    public void PublishLastSelectedConversationTarget(ForegroundConversationTarget? target) =>
+        Interlocked.Exchange(ref lastSelectedConversationTarget, target)?.Retire();
 
     private async Task<bool> TryRouteSessionRequestAsync(string text, SecurityAuditInitiator initiator, ManualCallInput? original)
     {
@@ -36,6 +48,8 @@ public sealed partial class MainViewModel
         var origin = OriginalOrigin(initiator);
         var foreground = origin == RequestOrigin.ActivatedVoice
             ? Volatile.Read(ref foregroundConversationTarget) : null;
+        var lastSelected = origin == RequestOrigin.ActivatedVoice && foreground is null
+            && Volatile.Read(ref lastSelectedConversationTarget) is { IsResourceCurrent: true } last ? last : null;
         var wakeCurrent = original?.WakeActivationCurrent;
         if (wakeCurrent is not null && (origin != RequestOrigin.ActivatedVoice || !wakeCurrent()))
         {
@@ -75,6 +89,7 @@ public sealed partial class MainViewModel
         var inputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision);
         var composerRevision = Interlocked.Read(ref attachmentCatalogueComposerRevision);
         bool Live() => eligible() && (foreground is null || foreground.IsResourceCurrent)
+            && (lastSelected is null || lastSelected.IsResourceCurrent)
             && Interlocked.Read(ref workspaceSurfaceInputRevision) == inputRevision
             && (origin != RequestOrigin.LocalUi || Interlocked.Read(ref attachmentCatalogueComposerRevision) == composerRevision)
             && (input.RoutingWakeContinuation is not null || wakeCurrent?.Invoke() != false);
@@ -95,7 +110,7 @@ public sealed partial class MainViewModel
             using var routingPresentationLease = origin == RequestOrigin.ActivatedVoice
                 ? null : retainRoutingPresentation?.Invoke();
             SessionRoutingReceipt? result;
-            try { result = await route(body, origin, Live, foreground); }
+            try { result = await route(body, origin, Live, foreground, lastSelected); }
             finally
             {
                 await JoinSessionRoutingVoice();

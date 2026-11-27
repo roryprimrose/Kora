@@ -616,6 +616,22 @@
               </StackPanel>
             </Border>
 
+            <Border Classes="settings-card" controls:SettingsSearch.Id="speech.global-ptt" controls:SettingsSearch.Group="Input" controls:SettingsSearch.Value="{Binding SelectedGlobalPttShortcut.Label}">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Global hold-to-talk shortcut" Classes="settings-title" />
+                <TextBlock Text="{Binding GlobalPttStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="Unassigned by default. Hold the registered chord while another application has focus; release any chord key to finish. Registration conflicts are reported without a fallback. This does not start background listening, grant microphone permission or answer an approval. No global keyboard hook."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox x:Name="GlobalPttShortcutChoice" ItemsSource="{Binding GlobalPttChoices}"
+                          SelectedItem="{Binding SelectedGlobalPttShortcut}" DisplayMemberBinding="{Binding Label}"
+                          IsEnabled="{Binding CanChangeGlobalPtt}" AutomationProperties.Name="Global hold-to-talk shortcut" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Save global shortcut" Command="{Binding SaveGlobalPttCommand}" IsEnabled="{Binding CanChangeGlobalPtt}" />
+                  <Button Content="Cancel global shortcut edit" Command="{Binding CancelGlobalPttCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
             <Border Classes="settings-card" controls:SettingsSearch.Id="speech.conversational-replies" controls:SettingsSearch.Group="Input" controls:SettingsSearch.Value="{Binding ConversationalReplyStatus}">
               <StackPanel Spacing="8">
                 <TextBlock Text="Conversational voice replies (off by default)" Classes="settings-title" />

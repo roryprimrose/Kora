@@ -274,6 +274,7 @@ internal static class Program
         {
 #pragma warning disable VSTHRD003 // Join the desktop owner's thread-pool preference reads after its synchronous privacy revocation.
             await App.DetailPreferenceQuiescence.ConfigureAwait(false);
+            await App.GlobalPttQuiescence.ConfigureAwait(false);
 #pragma warning restore VSTHRD003
             await provider.DisposeAsync();
             shutdown.Complete(HostOperationOutcome.Completed);
@@ -773,6 +774,9 @@ internal static class Program
         services.AddSingleton<LocalForegroundPttPreferences>(provider =>
             new LocalForegroundPttPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<ForegroundPttConfigurationService>();
+        services.AddSingleton<LocalGlobalPttPreferences>(provider =>
+            new LocalGlobalPttPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<GlobalPttConfigurationService>();
         services.AddSingleton(new HttpClient
         {
             Timeout = TimeSpan.FromMinutes(15),

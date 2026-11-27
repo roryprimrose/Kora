@@ -317,6 +317,8 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindForegroundPttNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindGlobalPttNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindConversationalReplyNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindDetailPresentationNativeLifetime(() =>

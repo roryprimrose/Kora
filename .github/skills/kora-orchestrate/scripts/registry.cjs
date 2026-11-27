@@ -1160,6 +1160,14 @@ function validateReadmissions(state) {
   'Candidate revalidation index/history/event binding missing or inconsistent.');
 }
 
+function validatePlannerFrontier(frontier) {
+  requireValue(frontier && typeof frontier.inventoryComplete === 'boolean' &&
+    Array.isArray(frontier.remainingFrontier) &&
+    Array.from(frontier.remainingFrontier).every(value => text(value) && value.trim() === value) &&
+    new Set(frontier.remainingFrontier).size === frontier.remainingFrontier.length,
+  'Planner frontier requires boolean inventoryComplete and unique nonempty trimmed remainingFrontier strings.');
+}
+
 function validate(state) {
   if (state?.version === 10) { lifecycleProjection(state); return; }
   requireValue([1, 2, 3, 4, 5, 6, 7, 8, 9].includes(state?.version) && typeof state.enabled === 'boolean' &&
@@ -1169,6 +1177,7 @@ function validate(state) {
   requireValue(state.planner && ['active', 'requested', 'notified']
     .every(key => typeof state.planner[key] === 'boolean') &&
     Number.isSafeInteger(state.planner.pass) && state.planner.pass >= 0, 'Malformed planner state.');
+  if (Object.hasOwn(state.planner, 'frontier')) validatePlannerFrontier(state.planner.frontier);
   requireValue(state.seen.every(text) && new Set(state.seen).size === state.seen.length,
     'Malformed event history.');
   const active = [];
@@ -1287,10 +1296,12 @@ function dispatch(state, actions) {
   if (!state.planner.owner || !state.planner.requested) return;
   const capacity = Object.fromEntries(Object.entries(LIMITS).map(([pool, limit]) =>
     [pool, limit - state.items.filter(item => item.pool === pool && holdsSlot(item)).length]));
+  const frontier = Object.hasOwn(state.planner, 'frontier')
+    ? { frontier: structuredClone(state.planner.frontier) } : {};
   if (state.planner.active) {
     if (!state.planner.notified) {
       state.planner.notified = true;
-      actions.push({ type: 'steer-planner', owner: state.planner.owner, capacity });
+      actions.push({ type: 'steer-planner', owner: state.planner.owner, capacity, ...frontier });
     }
   } else {
     state.planner.active = true;
@@ -1298,7 +1309,7 @@ function dispatch(state, actions) {
     state.planner.requested = false;
     state.planner.notified = false;
     actions.push({ type: 'discover', owner: state.planner.owner, capacity,
-      examine: ['ready', 'repair'], head: state.head, pass: state.planner.pass });
+      examine: ['ready', 'repair'], head: state.head, pass: state.planner.pass, ...frontier });
   }
 }
 
@@ -1673,15 +1684,22 @@ function applyEvent(current, event, context = {}) {
       state.planner.requested = true;
       break;
     }
-    case 'pass-ended':
+    case 'pass-ended': {
       requireValue(state.planner.active && event.owner === state.planner.owner &&
         event.pass === state.planner.pass &&
         event.readyExamined === true && event.repairExamined === true &&
         typeof event.remaining === 'boolean', 'The active assigned pass must examine both pools.');
+      const frontier = { inventoryComplete: event.inventoryComplete,
+        remainingFrontier: event.remainingFrontier };
+      validatePlannerFrontier(frontier);
+      requireValue(event.remaining === (!frontier.inventoryComplete || frontier.remainingFrontier.length > 0),
+        'Remaining must agree with planner inventory and frontier.');
+      state.planner.frontier = structuredClone(frontier);
       state.planner.active = false;
       state.planner.notified = false;
       state.planner.requested ||= event.remaining;
       break;
+    }
     case 'refresh': {
       requireValue(head(event.head), 'Verified source head required.');
       if (event.rescan !== undefined) {

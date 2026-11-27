@@ -3677,6 +3677,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteCallSpeechAsync(operation, initiator);
             return;
         }
+        if (SpokenApprovalReply.Parse(spokenText, AssistantName) is { } approvalReply)
+        {
+            await ExecuteSpokenToolApprovalAsync(approvalReply, spokenText, initiator);
+            return;
+        }
         if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target is
                 (WorkspaceSurfaceTarget.OpenNamedConversation or WorkspaceSurfaceTarget.ObservedResult)
             && (!CanEnterRetainedAnswerRead || editorTarget is not null))
@@ -5264,6 +5269,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(QuietHoursCommand.FixedPhrases)
             .Concat(ForegroundPttCommand.FixedPhrases)
+            .Concat(SpokenApprovalReply.FixedPhrases)
             .Concat(VoiceCaptureTimingCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)

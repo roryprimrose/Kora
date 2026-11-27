@@ -697,7 +697,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             queueMoveReceipt, queueCancelReceipt, queueRequeueReceipt, decision?.Admission,
             permissionPolicy ?? (changes?.Any(change => Same(change.Kind, "session")) == true
                 ? SessionPermissionPolicy.Default(session) : null), decision?.Question?.DetailsOffer,
-            decision?.Question?.DetailsOffer is null ? null : decision.Question.AnswerChannel);
+            decision?.Question?.DetailsOffer is null ? null : decision.Question.AnswerChannel,
+            (Same(audit.ActionId, "approval.confirm") || Same(audit.ActionId, "approval.cancel-reply"))
+                && decision?.Question is { Proposal: not null, Status: QuestionStatus.Answered or QuestionStatus.Cancelled } approval
+                ? approval.AnswerChannel : null);
         var json = HostInteractionCodec.Encode(envelope);
         var hash = Hash(sequence, previousHash, json);
         checkpoint?.BeforeAudit(connection, transaction);
@@ -807,6 +810,14 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         }
         else if (audit.DetailsAnswerChannel is not null)
         { throw new InvalidDataException("An answer channel cannot fabricate Details audit lineage."); }
+        if (audit.ApprovalAnswerChannel is { } approvalChannel
+            && (approvalChannel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+                || audit.DetailsOffer is not null || audit.QuestionId is null || audit.QuestionRevision is null
+                || !(Same(audit.Audit.ActionId, "approval.confirm") && audit.Outcome == HostInteractionOutcome.Approved
+                    && audit.ApprovalId is not null
+                    || Same(audit.Audit.ActionId, "approval.cancel-reply") && audit.Outcome == HostInteractionOutcome.Cancelled
+                    && audit.ApprovalId is null)))
+        { throw new InvalidDataException("The actual approval answer channel has no matching exact approval receipt."); }
         if (Same(audit.Audit.ActionId, ProviderProfileAction)
             && (audit.Request.InvocationId is not null || audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
                 || audit.Audit.Initiator != (audit.Request.Origin == RequestOrigin.LocalUi ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.VoiceCommand)
@@ -1251,7 +1262,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionPermissionAdmission? PermissionAdmission = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionPermissionPolicy? PermissionPolicy = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Kora.Core.Presentation.DetailsOfferBinding? DetailsOffer = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RequestOrigin? DetailsAnswerChannel = null);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RequestOrigin? DetailsAnswerChannel = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RequestOrigin? ApprovalAnswerChannel = null);
 
     private sealed record AuthorityChange(string Kind, string Id, long Revision, string Digest);
 

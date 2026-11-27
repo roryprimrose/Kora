@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 
 using Kora.Core.Auditing;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -172,7 +173,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
 
     private async ValueTask<ConversationSubmissionReceipt> RetainConversationMessageCoreAsync(HostRequest request,
         HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest>? predecessors,
-        Func<bool> admitted, CancellationToken token, bool ordinaryText = false, ExpiredOrdinaryRequestSource? original = null)
+        Func<bool> admitted, CancellationToken token, bool ordinaryText = false, ExpiredOrdinaryRequestSource? original = null,
+        SessionPermissionPolicy? readbackPermission = null, AutomaticApprovalAudit? automaticApproval = null)
     {
         try { ConversationText.Validate(body, submission: true); }
         catch (ConversationCredentialException)
@@ -203,6 +205,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             var duplicate = ReadConversationMessage(connection, request.RequestId);
             if (duplicate is not null)
             {
+                if (readbackPermission is not null)
+                { throw new InvalidOperationException("Automatic readback cannot replay an already retained request."); }
                 if (duplicate.Request != request || duplicate.Generation != generation || !Same(duplicate.Body, body)
                     || duplicate.OrdinaryText != ordinaryText || duplicate.OriginalTextSource != original?.Message.Request)
                 { throw new InvalidOperationException("This submission identity already belongs to different immutable content."); }
@@ -223,6 +227,14 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
                 Id(request.TaskId));
             using var activity = HostActivity.BeginAudit(request, audit);
             using var transaction = connection.BeginTransaction();
+            bool CommitAdmitted()
+            {
+                if (readbackPermission is not null
+                    && ReadSessionPermission(connection, RequireSession(connection, request.SessionId).Authority) != readbackPermission)
+                { throw new ISessionConversationStore.PermissionChangedException(); }
+                return admitted();
+            }
+            if (!CommitAdmitted()) { throw new InvalidOperationException("Original submission admission changed."); }
             if (original is not null
                 && (ReadConversationMessage(connection, original.Message.Request.RequestId) != original.Message
                     || ReadTask(connection, original.Task.Request.TaskId) != original.Task))
@@ -230,14 +242,26 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, intent);
             Execute(connection, transaction, "INSERT INTO host_task_runs VALUES($task,$run);",
                 ("$task", Id(request.TaskId)), ("$run", runId.ToString("D")));
+            var automatic = automaticApproval is null ? null : new SecurityAuditEvent(Guid.NewGuid(),
+                SecurityAuditCategory.SecurityApproval, "approval.automatic", SecurityAuditOutcome.Succeeded,
+                SecurityAuditInitiator.VoiceCommand, Id(request.TaskId), reasonCode: "approve-all", automaticApproval: automaticApproval);
+            using var automaticActivity = automatic is null ? null : HostActivity.BeginAudit(request, automatic);
+            if (automatic is not null)
+            {
+                AppendAudit(connection, transaction, intent, session.Authority, automatic,
+                    requestedAudit: automatic.WithOutcome(SecurityAuditOutcome.Requested), permissionPolicy: readbackPermission);
+            }
+            using var submissionActivity = automatic is null ? null : HostActivity.BeginAudit(request, audit);
             var sequence = AppendAudit(connection, transaction, intent, session.Authority, audit,
                 changes: [MessageChange(message), TaskChange(intent)], requestedAudit: ConversationRequestedAudit(audit));
             WriteConversationMessage(connection, transaction, message, sequence);
             TouchActivity(connection, transaction, request.SessionId);
-            Commit(transaction, request, token, admitted);
+            Commit(transaction, request, token, CommitAdmitted);
             database.VerifyFiles();
             if (ReadConversationMessage(connection, request.RequestId) != message)
             { throw new IOException("Original submission readback is unconfirmed; inspect the exact request without replay."); }
+            submissionActivity?.Complete(HostOperationOutcome.Completed);
+            automaticActivity?.Complete(HostOperationOutcome.Completed);
             activity.Complete(HostOperationOutcome.Completed);
             return new ConversationSubmissionReceipt(message, intent);
         }, token).ConfigureAwait(false);

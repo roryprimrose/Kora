@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 
 using Kora.Application.Dependencies;
+using Kora.Core.Authorization;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -58,6 +60,22 @@ public sealed partial class SessionConversationService(
     public Task<ConversationMessage> ReadSettingSuggestionAsync(SessionWorkspaceEntry target,
         ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>
         workspace.ReadSettingSuggestionAsync(target, expected, admitted, token);
+
+    public async Task<ConversationSubmissionReceipt> SubmitPermissionBoundAsync(SessionWorkspaceEntry target, string body,
+        SessionPermissionPolicy expected, Func<bool> admitted, CancellationToken token,
+        Func<CancellationToken, Task>? beforeRetain = null, IEnumerable<ActivityLink>? links = null)
+    {
+        RequireOriginalSource(RequestOrigin.ActivatedVoice);
+        expected.Validate(target.Authority);
+        if (expected.Level != SessionPermissionLevel.ApproveAll)
+        { throw new InvalidOperationException("Automatic readback submission requires the exact Approve all destination."); }
+        var submitted = await SubmitQueuedCoreAsync(target, body, admitted, beforeRetain, links,
+            RequestOrigin.ActivatedVoice, false, null, null, token, readbackPermission: expected).ConfigureAwait(false);
+        if (submitted.Position > 0) { return submitted.Receipt; }
+        try { return (await submitted.Completion.WaitAsync(token).ConfigureAwait(false)).RequireReceipt(); }
+        catch (OperationCanceledException exception) when (token.IsCancellationRequested)
+        { throw new ConversationSubmissionUnconfirmedException(submitted.Receipt.Message.Request, exception); }
+    }
 
     public Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null,
@@ -180,7 +198,13 @@ public sealed partial class SessionConversationService(
         try
         {
             // Body + original task intent + requested audit have one physical commit. Saved drafts stay independent data.
-            var retained = pending is null
+            var retained = pending?.ReadbackPermission is { } readbackPermission
+                ? await conversations.RetainPermissionBoundConversationAsync(request, actual.Authority.Generation,
+                    actual.Metadata?.Revision.Value ?? 0, body, pending.Predecessors, readbackPermission,
+                    new(request, readbackPermission, "conversation.voice-readback", HostOperationEffect.BoundedWrite,
+                        "request-readback", Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+                            System.Text.Encoding.UTF8.GetBytes(body)))), Live, token).ConfigureAwait(false)
+                : pending is null
                 ? await conversations.RetainConversationMessageAsync(request, actual.Authority.Generation,
                     actual.Metadata?.Revision.Value ?? 0, body, Live, token).ConfigureAwait(false)
                 : pending.BareOrdinaryText
@@ -352,7 +376,7 @@ public sealed partial class SessionConversationService(
         {
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
-            if (exception is ConversationCapacityException) { throw; }
+            if (exception is ConversationCapacityException or ISessionConversationStore.PermissionChangedException) { throw; }
             throw new ConversationSubmissionUnconfirmedException(request, exception);
         }
     }

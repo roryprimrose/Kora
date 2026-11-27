@@ -16,6 +16,7 @@ internal sealed class SessionRoutingController : IDisposable
     private readonly SessionRoutingService routing;
     private SessionRoutingView? window;
     private SessionRoutingAdviceView? adviceWindow;
+    private SessionRoutingReadbackView? readbackView;
     private Func<Avalonia.Controls.Window>? getWorkbench;
     internal void BindWorkbench(Func<Avalonia.Controls.Window> owner) => getWorkbench = owner;
     private bool adviceCancelled;
@@ -40,7 +41,7 @@ internal sealed class SessionRoutingController : IDisposable
 
     internal void Bind()
     {
-        main.BindForegroundSessionRouting(RouteAsync, () => presentation = retainPresentation?.Invoke());
+        main.BindDestinationSessionRouting(RouteAsync, () => presentation = retainPresentation?.Invoke());
         main.PrivacyClosureRequested += PrivacyClosed;
         workspace.SessionMetadataChanging += SourceChanged;
         workspace.SessionLifecycleChanged += SourceChanged;
@@ -48,11 +49,11 @@ internal sealed class SessionRoutingController : IDisposable
     }
 
     internal Task<SessionRoutingReceipt?> RouteAsync(string body, RequestOrigin origin, Func<bool> admitted,
-        ForegroundConversationTarget? foreground = null)
+        ForegroundConversationTarget? foreground = null, ForegroundConversationTarget? lastSelected = null)
     {
         if (disposed || busy) { throw new InvalidOperationException("An exact destination review already owns routing input, or routing is closed."); }
         busy = true;
-        active = RouteCoreAsync(body, origin, admitted, foreground);
+        active = RouteCoreAsync(body, origin, admitted, foreground, lastSelected);
         return active;
     }
 
@@ -77,15 +78,45 @@ internal sealed class SessionRoutingController : IDisposable
     }
 
     private async Task<SessionRoutingReceipt?> RouteCoreAsync(string body, RequestOrigin origin, Func<bool> admitted,
-        ForegroundConversationTarget? foreground)
+        ForegroundConversationTarget? foreground, ForegroundConversationTarget? lastSelected)
     {
         using var cancellation = new CancellationTokenSource();
         lock (inferenceGate) { inference = cancellation; }
         adviceCancelled = false;
         try
         {
-            var review = await routing.PrepareAsync(body, origin, () => !disposed && admitted(), cancellation.Token, foreground);
+            var review = await routing.PrepareAsync(body, origin, () => !disposed && admitted(), cancellation.Token, foreground,
+                lastSelected, main.CaptureRoutingAdviceConsent());
             if (!routing.IsCurrent(review)) { throw new OperationCanceledException("Original routing admission changed."); }
+            var permission = await routing.ReadReadbackPermissionAsync(review, cancellation.Token);
+            if (permission is not null)
+            {
+                var readback = new SessionRoutingReadbackView(getWorkbench?.Invoke()
+                    ?? new Avalonia.Controls.Window { Title = "Approve all request readback" }, review,
+                    () => !disposed && admitted() && routing.IsCurrent(review));
+                readbackView = readback;
+                readback.Show();
+                var reply = main.CreateApproveAllReadbackReply(review, () => readback.IsCurrent);
+                if (reply is not null)
+                {
+                    void Cancel(object? sender, EventArgs args) => reply.Cancel();
+                    readback.Closed += Cancel;
+                    SessionRoutingVoiceReply.SessionRoutingVoiceAnswer? answer;
+                    try { answer = await reply.StartAsync(); }
+                    finally
+                    {
+                        await reply.DisposeAsync();
+                        main.ReleaseSessionRoutingVoiceReply(reply);
+                        readback.Closed -= Cancel;
+                    }
+                    if (!readback.IsCurrent || answer?.Choice != SessionRoutingVoiceReply.SessionRoutingVoiceChoice.Submit)
+                    { return null; }
+                    var automatic = await routing.SubmitReadbackAsync(review, permission, cancellation.Token);
+                    if (automatic is not null) { return automatic; }
+                }
+                readback.Withdraw();
+                readbackView = null;
+            }
             var result = new TaskCompletionSource<SessionRoutingSelection?>(TaskCreationOptions.RunContinuationsAsynchronously);
             void Failure(Exception exception) => main.ReportHostInteractionFailure(
                 "Destination review stopped. No rerouting or submission retry. Failure type: " + exception.GetType().Name);
@@ -116,6 +147,8 @@ internal sealed class SessionRoutingController : IDisposable
                 await destination.JoinAsync();
             }
             window = null;
+            readbackView?.Withdraw();
+            readbackView = null;
             if (adviceWindow is { } advice) { Withdraw(advice.Owner); }
             adviceWindow = null;
             presentation = null;
@@ -175,7 +208,7 @@ internal sealed class SessionRoutingController : IDisposable
     {
         routing.Retire();
         lock (inferenceGate) { inference?.Cancel(); }
-        void Withdraw() { adviceWindow?.Withdraw(); window?.Withdraw(); }
+        void Withdraw() { adviceWindow?.Withdraw(); window?.Withdraw(); readbackView?.Withdraw(); }
         if (Dispatcher.UIThread.CheckAccess()) { Withdraw(); }
         else { Dispatcher.UIThread.Invoke(Withdraw); }
     }

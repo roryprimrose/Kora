@@ -4,5 +4,5 @@ namespace Kora.Core.Conversation.SessionRouting;
 public interface ISessionRelatednessMatcher
 {
     Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot,
-        Func<bool> admitted, CancellationToken token);
+        Func<bool> admitted, CancellationToken token, SessionRouteDescriptor? preferred = null);
 }

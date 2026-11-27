@@ -131,6 +131,7 @@ internal sealed partial class SessionsPresentationOwner
 
     private void UpdateForegroundTarget()
     {
+        UpdateLastSelectedTarget();
         Volatile.Write(ref uniqueForegroundWindow, UniqueForegroundSurface(conversationRequired: false) is not null ? 1 : 0);
         var surface = UniqueForegroundSurface(conversationRequired: true);
         if (surface is null || !model.CanCompose || model.SelectedSessionRecord is not { } entry)

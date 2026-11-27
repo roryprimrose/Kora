@@ -1563,7 +1563,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         !conversationSearchPresentation
         && IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked
-        && (!voiceRecognition.IsListening || IsExactRetainedPlaybackWakeCapture)
+        && (!voiceRecognition.IsListening || IsExactRetainedPlaybackWakeCapture
+            || spokenSendReadback && sessionRoutingVoiceReply is not null && sessionRoutingVoiceRequest is { IsLive: true })
         && IsSpeechOutputAvailable;
 
     public CallState CurrentCallState
@@ -4212,7 +4213,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     ? CapturePermissionReviewSource(manualInput
                         ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision))
                     : null,
-                CaptureSessionRequestVoiceInput(manualInput));
+                CaptureSessionRequestVoiceInput(manualInput), readbackVoiceAdmission:
+                    manualInput?.Origin == RequestOrigin.ActivatedVoice
+                        ? CaptureSkillReviewEligibility(manualInput with { Eligible = manualInput.RoutingStableEligible }) : null);
             return;
         }
         if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)
@@ -5208,6 +5211,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));
         OnPropertyChanged(nameof(CanChangeConversationalReplies));
+        OnPropertyChanged(nameof(CanChangeRoutingAdvice));
         OnPropertyChanged(nameof(CanChangeForegroundPtt));
         OnPropertyChanged(nameof(CanControlLogonStartup));
         OnPropertyChanged(nameof(CanControlLogonStartupNative));

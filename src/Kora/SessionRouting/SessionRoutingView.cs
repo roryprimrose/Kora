@@ -67,15 +67,22 @@ internal sealed class SessionRoutingView : UserControl, IDisposable
         var root = new StackPanel { Margin = new(16), Spacing = 12 };
         root.Children.Add(new TextBlock
         {
-            Text = review.Preselection is { Basis: SessionRoutingReview.PreselectionBasis.Foreground }
-                ? "The original foreground conversation is preselected. Review its name, correct the destination or choose New. Nothing has been submitted."
-                : review.Match switch
+            Text = (review.InferenceFailed ? "Local destination inference failed; no relationship was inferred. " : string.Empty)
+                + (review.Preselection?.Basis switch
+            {
+                SessionRoutingReview.PreselectionBasis.Foreground =>
+                    "The original foreground conversation is preselected. Review its name, correct the destination or choose New. Nothing has been submitted.",
+                SessionRoutingReview.PreselectionBasis.Inferred =>
+                    "Local metadata-only advice inferred this Active conversation. It is preselected, not approved. Review and acknowledge the destination before sending.",
+                SessionRoutingReview.PreselectionBasis.LastSelected =>
+                    "The last selected Active conversation is preselected without a clear inference. Review and acknowledge the destination before sending.",
+                _ => review.Match switch
             {
                 SessionRouteMatch.Clear => "One related Active conversation proposed. Review its name, correct the destination or choose New before submitting.",
                 SessionRouteMatch.Ambiguous => "Several related Active conversations proposed. Choose one exact candidate or New. Nothing has been submitted.",
                 SessionRouteMatch.NoMatch => "No clear relationship. New is the fresh-session fallback; deterministic correction is available.",
                 _ => "Relatedness advice was not requested, is unqualified or is unavailable. Choose New or correct to an exact Active destination; no relationship was guessed.",
-            },
+            }}),
             TextWrapping = TextWrapping.Wrap,
         });
         root.Children.Add(new TextBlock { Text = "Original " + review.Origin + " request (unchanged):" });

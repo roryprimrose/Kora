@@ -2,6 +2,7 @@
 
 using Kora.Application.Dependencies;
 using Kora.Core.Commands;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
 using Kora.Core.Dependencies;
@@ -56,7 +57,7 @@ public sealed partial class SessionRequestCommandService(
 
     public async Task<SessionCommandResult> ExecuteAsync(SessionCommand command, RequestOrigin origin,
         Func<bool> admitted, CancellationToken token, ForegroundConversationTarget? foregroundTarget = null,
-        Action? expiredOrdinaryAccepted = null)
+        Action? expiredOrdinaryAccepted = null, SessionPermissionPolicy? readbackPermission = null)
     {
         SessionConversationService.RequireOriginalSource(origin);
         var optedDetailsAdmission = command.RequestDetailsOffer ? captureDetailsOffer?.Invoke() : null;
@@ -69,6 +70,9 @@ public sealed partial class SessionRequestCommandService(
         Pending? previous;
         long attempt;
         lock (gate) { previous = pending; pending = null; completedDetailsOffer = null; attempt = ++epoch; }
+        if (readbackPermission is not null && (command.Operation != SessionCommandOperation.RequestConfirm
+            || origin != RequestOrigin.ActivatedVoice || previous is null || !AllowsReadback(previous)))
+        { throw new InvalidOperationException("Automatic submission requires the exact foreground or named original voice request."); }
         var control = access.ControlRevision;
         bool Live() => !token.IsCancellationRequested && access.CanInspect && access.CanControl && access.ControlRevision == control && admitted()
             && (!command.RequestForegroundTarget || (origin == RequestOrigin.ActivatedVoice
@@ -215,7 +219,7 @@ public sealed partial class SessionRequestCommandService(
                     if (epoch != attempt || !Live()) { throw new InvalidOperationException("Review admission changed."); }
                     pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget,
                         retryProvider, localProfile, bareCurrent, queue, output,
-                        optedDetailsAdmission);
+                        optedDetailsAdmission, command.RequestTargetName is not null || command.RequestSpokenNameRoute is not null);
                 }
                 activity.Complete(HostOperationOutcome.Completed);
                 return new("review", output is not null
@@ -282,7 +286,10 @@ public sealed partial class SessionRequestCommandService(
             ConversationSubmissionReceipt receipt;
             try
             {
-                receipt = previous.Review.ExpiredSource is not null
+                receipt = readbackPermission is not null
+                    ? await conversation.SubmitPermissionBoundAsync(previous.Review.Target, previous.Review.Body,
+                        readbackPermission, OriginalLive, token, Revalidate, [previous.Cause]).ConfigureAwait(false)
+                    : previous.Review.ExpiredSource is not null
                     ? await conversation.SubmitFreshOrdinaryAsync(previous.Review, previous.RetryProvider!, confirmedAt,
                         OriginalLive, Revalidate, [previous.Cause],
                         () => { lock (gate) { accepted = true; } expiredOrdinaryAccepted?.Invoke(); }, token).ConfigureAwait(false)
@@ -313,11 +320,25 @@ public sealed partial class SessionRequestCommandService(
                         accepted: () => { lock (gate) { accepted = true; } }).ConfigureAwait(false);
                 submission.Complete(HostOperationOutcome.Completed);
             }
+            catch (ISessionConversationStore.PermissionChangedException exception)
+            {
+                lock (gate)
+                {
+                    if (epoch != attempt || !OriginalLive())
+                    { throw new InvalidOperationException("The original request changed while returning to review.", exception); }
+                    pending = previous;
+                }
+                submission.Complete(HostOperationOutcome.Failed);
+                activity.Complete(HostOperationOutcome.Completed);
+                return new("review", "The destination permission changed during readback. Confirm separately or cancel; nothing was submitted.")
+                { RequestReview = previous.Review };
+            }
             catch
             {
                 submission.Complete(HostOperationOutcome.Failed);
                 throw;
             }
+
             activity.Complete(HostOperationOutcome.Completed);
             if (previous.Review.OfferDetailsOnce && previous.DetailsAdmission is { } detailLive
                 && detailLive() && receipt.Message.AssistantResponse is not null && receipt.Task.IsTerminal)
@@ -345,6 +366,29 @@ public sealed partial class SessionRequestCommandService(
             throw;
         }
     }
+
+    public async Task<SessionPermissionPolicy?> ReadReadbackPermissionAsync(SessionRequestReview review, CancellationToken token)
+    {
+        Pending? original;
+        lock (gate) { original = pending; }
+        if (original is null || !ReferenceEquals(original.Review, review) || !AllowsReadback(original)
+            || !workspace.SupportsSessionPermission) { return null; }
+        var policy = await workspace.ReadSessionPermissionAsync(review.Target.Authority.SessionId, token).ConfigureAwait(false);
+        lock (gate)
+        {
+            if (!ReferenceEquals(pending, original) || !original.SourceAdmitted()
+                || access.ControlRevision != original.ControlRevision || time.GetUtcNow() >= review.ExpiresAt)
+            { throw new InvalidOperationException("The original voice request changed before readback."); }
+        }
+        policy.Validate(review.Target.Authority);
+        return policy.Level == SessionPermissionLevel.ApproveAll ? policy : null;
+    }
+
+    private static bool AllowsReadback(Pending original) =>
+        original.Review.Origin == RequestOrigin.ActivatedVoice && (original.Foreground || original.Named)
+        && original.Review.Provider == SessionRequestReview.ProviderChoice.Default
+        && original.Review.TaskResponseMode is null && original.Review.FailedSource is null
+        && original.Review.ExpiredSource is null && original.LocalProfile is null;
 
     private async Task<SessionCommandResult> ExecuteDispatchAsync(SessionCommand command, RequestOrigin origin,
         Func<bool> admitted, CancellationToken token)
@@ -452,5 +496,5 @@ public sealed partial class SessionRequestCommandService(
     private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause,
         bool Foreground, ModelTurnHost.RetryProviderReview? RetryProvider, LocalRequestProfileReview? LocalProfile,
         Func<bool>? BareCurrent, ConversationPendingSnapshot? Queue, TaskResponseOutputReview? Output,
-        Func<bool>? DetailsAdmission);
+        Func<bool>? DetailsAdmission, bool Named);
 }

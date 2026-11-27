@@ -113,6 +113,7 @@ internal sealed partial class SessionsPresentationOwner
     {
         if (revoked) { return; }
         revoked = true;
+        UpdateLastSelectedTarget();
         requestCommands?.RetireDetailsOffer();
         Volatile.Write(ref uniqueForegroundWindow, 0);
         draftDialog?.Close();

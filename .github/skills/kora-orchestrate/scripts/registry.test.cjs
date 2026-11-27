@@ -2031,7 +2031,8 @@ test('legacy v1/v2/v3 migrate without changing owner proofs and successive readm
     assert.throws(() => applyEvent(first, { ...firstEvent, id: 'replayed-with-new-id' }), /Stale/);
     const ended = applyEvent(second, { id: 'end-readmission-pass', type: 'pass-ended',
       owner: second.planner.owner, pass: second.planner.pass, head: second.head,
-      readyExamined: true, repairExamined: true, remaining: false }).state;
+      readyExamined: true, repairExamined: true, remaining: false,
+      inventoryComplete: true, remainingFrontier: [] }).state;
     validate(ended);
     assert.equal(ended.items.find(value => value.key === item.key).phase, 'reserved');
   }
@@ -2155,6 +2156,81 @@ test('bootstrap requests one bounded pass examining both pools', () => {
   }]);
 });
 
+test('terminal inventory is retained, forwarded without aliasing, and replaced by the latest pass', () => {
+  for (const inventoryComplete of [false, true]) {
+    for (const remainingFrontier of [[], ['session conversation', 'governed tools']]) {
+      const f = fixture();
+      const frontier = { inventoryComplete, remainingFrontier };
+      const remaining = !inventoryComplete || remainingFrontier.length > 0;
+      const result = f.send({ type: 'pass-ended', owner: planner,
+        readyExamined: true, repairExamined: true, remaining, ...frontier });
+      assert.deepEqual(result.state.planner.frontier, frontier);
+      assert.equal(result.state.planner.active, remaining);
+      assert.equal(result.actions.length, Number(remaining));
+      if (remaining) {
+        assert.equal(result.actions[0].type, 'discover');
+        assert.deepEqual(result.actions[0].frontier, frontier);
+        result.actions[0].frontier.remainingFrontier.push('action mutation');
+        assert.deepEqual(result.state.planner.frontier, frontier);
+        const steered = f.send({ type: 'refresh', head: sha(2) });
+        assert.equal(steered.actions[0].type, 'steer-planner');
+        assert.deepEqual(steered.actions[0].frontier, frontier);
+        const ended = f.send({ type: 'pass-ended', owner: planner,
+          readyExamined: true, repairExamined: true, remaining: false,
+          inventoryComplete: true, remainingFrontier: [] });
+        assert.deepEqual(ended.state.planner.frontier,
+          { inventoryComplete: true, remainingFrontier: [] });
+        assert.deepEqual(ended.actions[0].frontier, ended.state.planner.frontier);
+      } else {
+        const refreshed = f.send({ type: 'refresh', head: sha(2) });
+        assert.deepEqual(refreshed.actions[0].frontier, frontier);
+      }
+      assert.deepEqual(remainingFrontier, frontier.remainingFrontier);
+    }
+  }
+});
+
+test('new terminal reports reject missing, malformed or inconsistent inventory without mutation', () => {
+  const f = fixture(), state = f.state();
+  const valid = { id: 'end', type: 'pass-ended', owner: planner, pass: 1,
+    readyExamined: true, repairExamined: true, remaining: false,
+    inventoryComplete: true, remainingFrontier: [] };
+  for (const bad of [
+    { inventoryComplete: undefined }, { inventoryComplete: null }, { inventoryComplete: 'true' },
+    { remainingFrontier: undefined }, { remainingFrontier: null }, { remainingFrontier: 'next' },
+    { remainingFrontier: [''] }, { remainingFrontier: [' '] }, { remainingFrontier: [' next'] },
+    { remainingFrontier: ['next '] }, { remainingFrontier: [1] }, { remainingFrontier: [null] },
+    { remainingFrontier: ['next', 'next'] }, { remainingFrontier: Array(1) },
+    { remaining: true }, { inventoryComplete: false }, { remainingFrontier: ['next'] }
+  ]) {
+    assert.throws(() => applyEvent(state, { ...valid, ...bad }), /frontier|Remaining/);
+    assert.deepEqual(state, f.state());
+  }
+  for (const frontier of [null, {}, { inventoryComplete: true, remainingFrontier: [' next'] }]) {
+    assert.throws(() => validate({ ...state, planner: { ...state.planner, frontier } }), /frontier/);
+  }
+});
+
+test('saved candidate-readmission state and seen legacy terminal events need no frontier migration', () => {
+  const state = structuredClone(require('./candidate-readmission-fixture.json').state);
+  const original = structuredClone(state);
+  validate(state);
+  for (const id of state.seen.filter(id => id.startsWith('planner-pass-ended-'))) {
+    const result = applyEvent(state, { id, type: 'pass-ended', owner: state.planner.owner,
+      pass: 1, readyExamined: true, repairExamined: true, remaining: false });
+    assert.equal(result.duplicate, true);
+    assert.deepEqual(result.state, original);
+    assert.deepEqual(result.actions, []);
+  }
+  const refreshed = applyEvent(state, { id: 'legacy-rescan', type: 'refresh', head: state.head, rescan: true });
+  assert.equal(refreshed.actions[0].type, 'discover');
+  assert.equal(Object.hasOwn(refreshed.actions[0], 'frontier'), false);
+  const steered = applyEvent(refreshed.state, { id: 'legacy-change', type: 'refresh', head: sha(2) });
+  assert.equal(steered.actions[0].type, 'steer-planner');
+  assert.equal(Object.hasOwn(steered.actions[0], 'frontier'), false);
+  assert.equal(steered.state.version, original.version);
+});
+
 test('unknown source can reserve discovery immediately but cannot admit or launch workers', () => {
   const initial = createState(coordinator, null);
   const attached = applyEvent(initial, { id: 'planner', type: 'planner', owner: planner });
@@ -2269,7 +2345,8 @@ test('refresh coalesces, exhausted discovery does not loop, and stale candidates
   assert.deepEqual(f.send({ type: 'refresh', head: sha(2) }).actions, []);
   assert.throws(() => f.offer('stale', 'ready', { head: sha(1) }), /source refresh/);
   const end = () => f.send({ type: 'pass-ended', owner: planner,
-    readyExamined: true, repairExamined: true, remaining: false });
+    readyExamined: true, repairExamined: true, remaining: false,
+    inventoryComplete: true, remainingFrontier: [] });
   assert.equal(end().actions[0].type, 'discover');
   assert.deepEqual(end().actions, []);
   assert.equal(f.state().enabled, true);
@@ -2282,7 +2359,8 @@ test('a pass cannot omit feature discovery, and unexamined scope continues witho
     readyExamined: false, repairExamined: true, remaining: false }), /both pools/);
   f.offer('running');
   assert.equal(f.send({ type: 'pass-ended', owner: planner,
-    readyExamined: true, repairExamined: true, remaining: true }).actions[0].type, 'discover');
+    readyExamined: true, repairExamined: true, remaining: true,
+    inventoryComplete: false, remainingFrontier: [] }).actions[0].type, 'discover');
 });
 
 test('early maintenance proposals cannot consume feature slots before bounded discovery finishes', () => {
@@ -2292,7 +2370,8 @@ test('early maintenance proposals cannot consume feature slots before bounded di
   }
   assert.deepEqual(f.offer('feature').actions, [{ type: 'launch', key: 'feature', pool: 'ready' }]);
   const result = f.send({ type: 'pass-ended', owner: planner,
-    readyExamined: true, repairExamined: true, remaining: false });
+    readyExamined: true, repairExamined: true, remaining: false,
+    inventoryComplete: true, remainingFrontier: [] });
   assert.equal(result.actions.filter(action => action.type === 'launch').length, 9);
 });
 
@@ -2377,7 +2456,8 @@ test('unknown events and malformed saved state fail without modifying input', ()
 test('delayed reports cannot terminate or populate a newer discovery pass', () => {
   const f = fixture();
   f.send({ type: 'pass-ended', owner: planner,
-    readyExamined: true, repairExamined: true, remaining: true });
+    readyExamined: true, repairExamined: true, remaining: true,
+    inventoryComplete: false, remainingFrontier: [] });
   assert.equal(f.state().planner.pass, 2);
   assert.throws(() => f.send({ type: 'pass-ended', pass: 1, owner: planner,
     readyExamined: true, repairExamined: true, remaining: false }), /active assigned pass/);
@@ -2430,7 +2510,8 @@ test('first source discovery and unchanged refresh do not restart an exhausted p
   state = applyEvent(state, { id: 'planner', type: 'planner', owner: planner }).state;
   state = applyEvent(state, { id: 'source', type: 'refresh', head: sha(1) }).state;
   let result = applyEvent(state, { id: 'end', type: 'pass-ended', pass: 1,
-    owner: planner, readyExamined: true, repairExamined: true, remaining: false });
+    owner: planner, readyExamined: true, repairExamined: true, remaining: false,
+    inventoryComplete: true, remainingFrontier: [] });
   assert.deepEqual(result.actions, []);
   result = applyEvent(result.state, { id: 'same', type: 'refresh', head: sha(1) });
   assert.deepEqual(result.actions, []);
@@ -2648,7 +2729,8 @@ test('refinement schema, proof, history and retirement survive resume and later 
 test('unpreserved local writes and planned writes stay covered, while exhausted discovery restarts only on acceptance', () => {
   let state = refinementFixture();
   state = applyEvent(state, { id: 'end', type: 'pass-ended', owner: 'planner', pass: 1,
-    readyExamined: true, repairExamined: true, remaining: false }).state;
+    readyExamined: true, repairExamined: true, remaining: false,
+    inventoryComplete: true, remainingFrontier: [] }).state;
   assert.equal(state.planner.active, false);
   const event = refinementEvent(state);
   event.proof.preservation.unpreserved = event.proof.preservation.retained;

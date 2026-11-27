@@ -12,6 +12,9 @@ Use its [authority-based quiescence](../skills/kora-orchestrate/SKILL.md#scopeso
 Investigate only; do not implement, publish, dispatch, or create workers.
 One assignment is one bounded pass, not an endless task.
 Report incrementally to the exact coordinator chat and finish the pass.
+Report the latest structured inventory in PASS_ENDED and consume optional
+assigned `frontier` using the [inventory contract](../skills/kora-orchestrate/README.md#structured-planner-inventory);
+never treat absent legacy metadata as complete inventory.
 Remain available for another assigned pass; do not refresh independently.
 For explicitly adopted version10 consume only the
 [shared lifecycle projection](../skills/kora-orchestrate/README.md#opt-in-version10-lifecycle):

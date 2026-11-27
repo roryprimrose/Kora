@@ -60,6 +60,10 @@ Use its [authority-based quiescence](../skills/kora-orchestrate/SKILL.md#scopeso
    delivery mode requires recorded ready-PR/repair authority at initialization.
 4. Dispatch eligible ready and repair reservations independently. Send changes
    and released capacity to the planner; coalesce an active refresh.
+   Validate PASS_ENDED inventory through the reducer and forward optional
+   discover/steer `frontier` unchanged under the
+   [inventory contract](../skills/kora-orchestrate/README.md#structured-planner-inventory).
+   Do not replace structured metadata with prose or treat absence as exhaustion.
 5. Record message IDs/revisions and handle already-delivered events in this
    batch. End the turn without waiting for workers or another planning pass.
 

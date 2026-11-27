@@ -46,20 +46,24 @@ public sealed class SessionRoutingService(
         && access.ControlRevision == control && source();
 
     public Task<SessionRoutingReview> PrepareAsync(string body, RequestOrigin origin,
-        Func<bool> admitted, CancellationToken token)
+        Func<bool> admitted, CancellationToken token, ForegroundConversationTarget? foreground = null)
     {
         SessionConversationService.RequireOriginalSource(origin);
         ConversationText.Validate(body, submission: true);
         var originalControl = access.ControlRevision;
         bool OriginalAdmitted() => access.CanInspect && access.CanControl
             && access.ControlRevision == originalControl && admitted();
-        return admission is null ? PrepareCoreAsync(body, origin, admitted, null, token)
+        var target = origin == RequestOrigin.ActivatedVoice ? foreground : null;
+        bool SourceAdmitted() => admitted() && (target is null || target.IsCurrent);
+        return admission is null ? PrepareCoreAsync(body, origin, SourceAdmitted, null, target, token)
             : admission.RunAsync(origin, OriginalAdmitted, (request, session, current, cancellation) =>
-                PrepareCoreAsync(body, request.Origin, current, session.SessionId, cancellation), token);
+                PrepareCoreAsync(body, request.Origin, () => current() && SourceAdmitted(),
+                    session.SessionId, target, cancellation), token);
     }
 
     private async Task<SessionRoutingReview> PrepareCoreAsync(string body, RequestOrigin origin,
-        Func<bool> admitted, HostId<SessionIdentity>? controlSession, CancellationToken token)
+        Func<bool> admitted, HostId<SessionIdentity>? controlSession,
+        ForegroundConversationTarget? foreground, CancellationToken token)
     {
         long attempt;
         lock (gate)
@@ -84,7 +88,10 @@ public sealed class SessionRoutingService(
             {
                 lock (gate) { return revision == attempt && Live() && time.GetUtcNow() < expires; }
             }
-            var consented = matcher is not null && reviewAdvice is not null
+            var foregroundDestination = snapshot.Descriptors.SingleOrDefault(item => item.Entry == foreground?.Entry);
+            var preselection = foregroundDestination is null ? null
+                : new SessionRoutingReview.PreselectedDestination(foregroundDestination, SessionRoutingReview.PreselectionBasis.Foreground);
+            var consented = preselection is null && matcher is not null && reviewAdvice is not null
                 && await reviewAdvice(new(body, origin, snapshot, expires), AdviceLive, token).ConfigureAwait(false);
             Require(attempt, token);
             if (!AdviceLive())
@@ -99,13 +106,13 @@ public sealed class SessionRoutingService(
             Require(attempt, token);
             if (!AdviceLive())
             { throw new InvalidOperationException("The local advice lifetime ended. No destination review or submission."); }
-            var candidates = ValidateProposal(snapshot, proposal);
+            var candidates = preselection is null ? ValidateProposal(snapshot, proposal) : [preselection.Destination];
             var actual = await ReadInventory(token).ConfigureAwait(false);
             Require(attempt, token);
             if (!AdviceLive() || !Same(page, actual))
             { throw new InvalidOperationException("Routing metadata changed during matching. No New fallback or submission was attempted."); }
             var review = new SessionRoutingReview(body, origin, snapshot, proposal.Match, candidates, time.GetUtcNow().AddSeconds(60),
-                HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Request, origin));
+                HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Request, origin), preselection);
             lock (gate)
             {
                 Require(attempt, token);

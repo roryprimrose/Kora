@@ -31,6 +31,91 @@ public sealed class SessionRoutingTests : IDisposable
     public void Dispose() => listener.Dispose();
 
     [Theory]
+    [InlineData("foreground")]
+    [InlineData("other")]
+    [InlineData("new")]
+    public async Task ForegroundVoiceProposalSkipsAdviceButRequiresExactAcknowledgment(string destination)
+    {
+        var f = new Fixture();
+        f.BeforeAdviceDecision = (_, _) => throw new InvalidOperationException("Advice must not run.");
+        f.Matcher.Propose = _ => throw new InvalidOperationException("Matching must not run.");
+        var foreground = new ForegroundConversationTarget(f.Entries[1], static () => true);
+        var review = await f.Service.PrepareAsync("original voice body", RequestOrigin.ActivatedVoice,
+            static () => true, Token, foreground);
+        review.Preselection!.Basis.Should().Be(SessionRoutingReview.PreselectionBasis.Foreground);
+        review.Preselection.Destination.Entry.Should().Be(f.Entries[1]);
+        review.Candidates.Should().Equal(review.Preselection.Destination);
+        f.Service.IsCurrent(review).Should().BeTrue();
+        f.Messages.Should().BeEmpty();
+        await f.Service.Invoking(service => service.SubmitAsync(new(review, f.Entries[1]), Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        var selection = await f.Service.SelectAsync(review,
+            destination is "new" ? null : f.Entries[destination is "foreground" ? 1 : 0].Authority.SessionId, Token);
+        f.Messages.Should().BeEmpty();
+        var receipt = await f.Service.SubmitAsync(selection, Token);
+        receipt.Submission.Message.Body.Should().Be("original voice body");
+        receipt.Submission.Message.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        receipt.Target.Should().Be(selection.Target);
+        f.Messages.Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ForegroundRetirementInvalidatesReviewBeforeAcknowledgmentOrSubmission(bool acknowledged)
+    {
+        var f = new Fixture();
+        var foreground = new ForegroundConversationTarget(f.Entries[0], static () => true);
+        var review = await f.Service.PrepareAsync("held voice", RequestOrigin.ActivatedVoice,
+            static () => true, Token, foreground);
+        var selection = acknowledged ? await f.Service.SelectAsync(review, f.Entries[0].Authority.SessionId, Token) : null;
+        foreground.Retire();
+        f.Service.IsCurrent(review).Should().BeFalse();
+        await f.Service.Invoking(service => service.SelectAsync(review, f.Entries[1].Authority.SessionId, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        if (selection is not null)
+        {
+            await f.Service.Invoking(service => service.SubmitAsync(selection, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+        }
+        f.Messages.Should().BeEmpty();
+        f.Creates.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, true)]
+    public async Task NonVoiceOrUnpresentedForegroundKeepsAdviceFlow(RequestOrigin origin, bool unpresented)
+    {
+        var f = new Fixture();
+        var calls = 0;
+        f.BeforeAdviceDecision = (_, _) => calls++;
+        var foreground = new ForegroundConversationTarget(unpresented ? Fixture.Entry("Outside page") : f.Entries[0], static () => true);
+        var review = await f.Service.PrepareAsync("ordinary request", origin, static () => true, Token,
+            origin == RequestOrigin.ActivatedVoice && !unpresented ? null : foreground);
+        calls.Should().Be(1);
+        review.Preselection.Should().BeNull();
+        f.Matcher.Body.Should().Be("ordinary request");
+    }
+
+    [Fact]
+    public async Task ForegroundVoiceProposalRetainsRoutingControlAdmission()
+    {
+        var f = new Fixture();
+        await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission, f.ReviewAdvice);
+        var foreground = new ForegroundConversationTarget(f.Entries[0], static () => true);
+        var review = await service.PrepareAsync("voice with control", RequestOrigin.ActivatedVoice,
+            static () => true, Token, foreground);
+        review.Preselection!.Destination.Entry.Should().Be(f.Entries[0]);
+        review.Snapshot.Descriptors.Should().NotContain(item => item.Entry.Authority.SessionId == f.ControlSession!.SessionId);
+        foreground.Retire();
+        service.IsCurrent(review).Should().BeFalse();
+        f.Messages.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice)]
     public async Task ClearProposalAcknowledgesExactNameAndCorrectionSubmitsOriginalOnlyOnce(RequestOrigin origin)

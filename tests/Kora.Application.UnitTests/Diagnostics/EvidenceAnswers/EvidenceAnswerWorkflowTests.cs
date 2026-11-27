@@ -176,10 +176,10 @@ public sealed class EvidenceAnswerWorkflowTests : IDisposable
     }
 
     [Fact]
-    public async Task DefaultPolicyIsExplicitlyUnavailableAndObservesCancellation()
+    public async Task MaintainedPolicyIsUnavailableForIncompleteInputAndObservesCancellation()
     {
-        var fixture = new Fixture();
-        var policy = new UnavailableEvidenceAnswerSourceUsePolicy();
+        var fixture = new Fixture(question: "{private");
+        var policy = Kora.Application.Context.LocalSourceUsePolicy.Instance;
         (await policy.AdmitAsync(fixture.Review, Token)).Should().Be(EvidenceSourceUseDecision.Unavailable);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();

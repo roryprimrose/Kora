@@ -247,7 +247,8 @@ dotnet restore .\Kora.slnx --locked-mode
 dotnet tool restore
 dotnet build .\Kora.slnx --configuration Release --no-restore
 dotnet test --solution .\Kora.UnitTests.slnx --configuration Release --no-build
-dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+dotnet build .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --runtime win-x64 --no-restore
+.\eng\Run-WindowsIntegrationTests.ps1
 ```
 
 Run the smallest checks covering the change. Tests use xUnit v3 and
@@ -257,6 +258,16 @@ coverage across Core, Application, Tools and Definitions**, retaining reports
 even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
+
+The full Windows integration check is the partitioned runner, not a single
+`dotnet test` of the project. Headless UI and tracing collections stay serial
+inside each process, so one process takes as long as the whole suite's summed
+duration (about two hours). The runner uses the same `win-x64` build output and
+filters as CI, runs at most one partition per two logical processors by default
+(`-ThrottleLimit <n>` overrides it), starts the longest measured partitions first,
+and writes each partition's TRX and console log under `.net-test-artifacts\windows`.
+For a focused check, build the project without `--runtime` and run
+`dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build --filter-class <class>`.
 
 PR candidates run the four portable unit modules with unchanged 100% line and
 branch coverage. Windows integration/UI tests, their shared build and twelve

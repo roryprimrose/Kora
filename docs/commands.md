@@ -98,28 +98,6 @@ The offer expires within 60 seconds; source, selection, input, preference or pri
 
 Existing Offer/LinkOnly preference, manual Details and unsent conversation text remain independent. Answering does not rerun work, change preferences or renew retention. Unavailable answer runtimes remain unavailable; this command does not enable a model ([boundary](../Design/Decision_Register.md#exact-opted-in-details-presentation-question---2026-11-06)).
 
-## Review one spoken command before dispatch
-
-The reviewed spoken-command capture owner and host admission remain in Application, but there is currently no native entry point.
-The supporting [capture and review](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs) flow is **Review one spoken command**, one general command using the current assistant name, then **Finish capture**.
-The microphone closes before the exact final transcript appears. Correction is followed by separate **Dispatch this exact voice command once**, or **Cancel reviewed command**.
-These are not currently available native controls. Editing never runs the command.
-
-This one-shot action does not change ordinary push-to-talk or any listening preference. It requires existing voice consent, local command readiness and unchanged private ownership.
-Capture and review expire after 60 seconds; changing the original target, input, device, call or private context discards the candidate instead of sending it elsewhere.
-The [host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs) requires a native-lifetime check, but no current window binds that lifetime.
-
-Finishing capture, editing or confirming does not restart that deadline.
-Late confirmation or delayed dispatch is refused even if the expiry notice has
-not appeared yet. Start a fresh **Review one spoken command** after cleanup;
-the expired transcript is not replayed.
-
-Ordinary response auto-hide is suspended during capture, transcript review and the original confirmed dispatch. Completed ordinary feedback resumes the configured response timeout. This does not extend the command's independent expiry or prevent explicit dismissal or privacy closure.
-
-The corrected command still originates from **voice**, even though you edited it and clicked dispatch. Normal call restrictions, authentication, operation approval and hosted-transmission consent still apply. Transcript acceptance is not approval of the command's action, microphone consent or egress. Oversized, malformed or credential-like text is rejected, never truncated ([normal command admission](../src/Kora.Application/ViewModels/MainViewModel.cs), [text bounds](../src/Kora.Core/Conversation/ConversationText.cs)).
-
-This is not session-message or owned-editor body dictation, and cannot take over a pending question, approval or another dictation owner. The unconfirmed candidate stays in volatile memory only; cancellation does not submit it. No speech profile is enabled and no model rewrites the transcript ([speech-input contract](../Design/Speech_Input.md#one-explicitly-reviewed-activated-command)).
-
 ## Manage customizations
 
 `show customizations`, `show skills`, `show instructions`, `show agents`,

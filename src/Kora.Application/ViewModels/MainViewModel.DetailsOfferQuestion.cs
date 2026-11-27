@@ -106,7 +106,7 @@ public sealed partial class MainViewModel
             await detailsOfferService!.RunAsync(request,
                 () => !disposed && CanRevealPrivatePresentation && detailsOfferPriorityEligible()
                     && (CurrentDetailsOffer?.DetailsOffer!.OriginalRequest == request.Receipt.Message.Request
-                        || (voiceRecognition.IsCaptureQuiescent || CanRetireWakeForManualInput) && IsReviewedVoiceCaptureReleased
+                        || (voiceRecognition.IsCaptureQuiescent || CanRetireWakeForManualInput)
                             && promptInputVoice?.IsActive != true && composerDictation?.IsActive != true),
                 (question, live) => uiDispatcher.InvokeAsync(() =>
                 {

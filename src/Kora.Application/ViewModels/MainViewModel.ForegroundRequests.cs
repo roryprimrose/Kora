@@ -29,7 +29,6 @@ public sealed partial class MainViewModel
         if (ReferenceEquals(previous, target)) { return; }
         Interlocked.Increment(ref foregroundConversationRevision);
         previous?.Retire();
-        reviewedVoiceCommand?.Revalidate();
         completionNotices?.Revalidate();
         if (foregroundRequestReview is not null)
         {

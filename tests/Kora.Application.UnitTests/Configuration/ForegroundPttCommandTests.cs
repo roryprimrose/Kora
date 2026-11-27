@@ -7,6 +7,21 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed class ForegroundPttCommandTests
 {
     [Theory]
+    [InlineData("get global push-to-talk shortcut", AppearanceCommandOperation.Get, null)]
+    [InlineData("Kora, set global push-to-talk to Control Shift Space", AppearanceCommandOperation.Set, "Control Shift Space")]
+    [InlineData("set global push-to-talk to control shift f9", AppearanceCommandOperation.Set, "Control Shift F9")]
+    [InlineData("set global push-to-talk to Unassigned", AppearanceCommandOperation.Set, "Unassigned")]
+    [InlineData("reset global push-to-talk shortcut", AppearanceCommandOperation.Reset, "Unassigned")]
+    public void GlobalCommandsRemainDistinctFromForegroundPreferences(string text, AppearanceCommandOperation operation, string? label)
+    {
+        var command = ForegroundPttCommand.Parse(text, "Kora")!;
+        command.Operation.Should().Be(operation);
+        command.IsGlobal.Should().BeTrue();
+        command.GlobalShortcut?.Label.Should().Be(label);
+        command.Shortcut.Should().BeNull();
+    }
+
+    [Theory]
     [InlineData("get push-to-talk shortcut", AppearanceCommandOperation.Get, null)]
     [InlineData("Kora, set push-to-talk to Control Shift Space", AppearanceCommandOperation.Set, "Control Shift Space")]
     [InlineData("set push-to-talk to control shift f9", AppearanceCommandOperation.Set, "Control Shift F9")]

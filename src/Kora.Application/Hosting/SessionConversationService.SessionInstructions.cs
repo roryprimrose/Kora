@@ -55,13 +55,8 @@ public sealed partial class SessionConversationService
                 : await ResolveRouteAsync(target.Authority.SessionId, token).ConfigureAwait(false);
             if (hosted is ConversationProviderRoute.Copilot or ConversationProviderRoute.Claude)
             {
-                // The Settings-resolved hosted service answers tool-free; admission re-resolves and fails closed on drift.
-                return await SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin,
-                    (request, now) => new(request, Policy, body, [], now, now.Add(HostedTurnAuthorization.MaximumDuration),
-                        ModelToolMode.None),
-                    ModelTurnChoice.Hosted, token, copilot: hosted == ConversationProviderRoute.Copilot,
-                    claude: hosted == ConversationProviderRoute.Claude, pending: pending,
-                    ordinaryActiveDeadline: true).ConfigureAwait(false);
+                return await SubmitHostedHistoryAsync(target, body, admitted, beforeRetain, links, origin,
+                    hosted, pending, token).ConfigureAwait(false);
             }
             if (pending is not null)
             { pending.BareOrdinaryText = localAnswer && beforeRetain is null; }

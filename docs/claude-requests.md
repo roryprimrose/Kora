@@ -40,8 +40,30 @@ this session's service. Then, in a private session, enter or dictate the
 original message and choose **Submit**. Kora sends it to the resolved Claude
 profile; with any other mode or service, Submit does not select Claude.
 The default native HTTPS profile is stateless text-only with thinking disabled:
-no tools, files, history, attachments, memory, agents, delegation or instructions
-from other sources are included. Advertised native effort options map directly
+no tools, files, attachments, memory, agents, delegation or instructions
+from other sources are included. Settings-routed Submit includes earlier whole
+original USER messages and eligible retained ASSISTANT answers from successful
+turns in this same conversation. Newest messages are considered first, then sent
+chronologically, within the complete 16-item / 32768-UTF-8-byte envelope limit.
+Older non-fitting messages are omitted whole, never shortened. HOST statuses,
+failed/denied/cancelled turns without answers, questions, approvals, drafts,
+attachments, memory and other sessions are excluded. Local-source-derived and
+unknown-source ASSISTANT answers are excluded; existing records establish
+eligibility for hosted answers, not local answers. Reviewed LocalOnly evidence
+is never promoted ([history contract](../src/Kora.Core/Conversation/HostedConversationHistoryContext.cs),
+[source validation](../src/Kora.Application/Hosting/SessionConversationService.HostedHistory.cs)).
+When history fits, the complete hosted-history envelope is inert USER input.
+Without eligible fitting history, the original new USER body is unchanged.
+Physical Count Tokens
+and Messages budgets still apply. Kora measures both SDK-generated request bodies
+locally before including history and omits additional older whole messages that
+cannot fit; preparation itself sends nothing. Changed account/profile or unavailable
+preparation fails closed rather than bypassing a limit
+([exact input preparation](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.HistoryInput.cs)).
+Local, Local first's local step, request-only
+profiles and customizations keep their existing context
+([Claude mapping](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.cs)).
+Advertised native effort options map directly
 to the wire; a rejected combination is not changed or retried.
 
 Buffered text, separately qualified streaming, reviewed observations and clarification requests use the official Anthropic .NET SDK through

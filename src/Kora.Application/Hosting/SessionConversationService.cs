@@ -115,7 +115,8 @@ public sealed partial class SessionConversationService(
         bool retainAgentObservations = false,
         Func<ModelTurn, Func<bool>, CancellationToken, Task<ModelTurnReason>>? prepareAdmitted = null,
         CopilotCustomizationRequest? copilotCustomization = null, ClaudeCustomizationRequest? claudeCustomization = null,
-        Func<HostRequest, ModelContextEnvelope, Func<bool>, CancellationToken, Task>? authorizeSubmission = null)
+        Func<HostRequest, ModelContextEnvelope, Func<bool>, CancellationToken, Task>? authorizeSubmission = null,
+        Func<CancellationToken, ValueTask<bool>>? hostedSourceCurrent = null)
     {
         RequireOriginalSource(origin);
         using var lifecycle = EnterLifecycleSubmission(target, body, admitted);
@@ -222,14 +223,18 @@ public sealed partial class SessionConversationService(
                             : claude
                             ? turns is ModelTurnHost claudeHost
                                 ? claudeCustomization is null
-                                    ? await claudeHost.AdmitClaudeAsync(context, token).ConfigureAwait(false)
+                                    ? hostedSourceCurrent is null
+                                        ? await claudeHost.AdmitClaudeAsync(context, token).ConfigureAwait(false)
+                                        : await claudeHost.AdmitClaudeHistoryAsync(context, hostedSourceCurrent, token).ConfigureAwait(false)
                                     : await claudeHost.AdmitClaudeAsync(context, claudeCustomization.Selection,
                                         claudeCustomization.SourceCurrent, token).ConfigureAwait(false)
                                 : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))
                             : copilot
                             ? turns is ICopilotTurnAdmission hosted
                                 ? copilotCustomization is null
-                                    ? await hosted.AdmitCopilotAsync(context, token).ConfigureAwait(false)
+                                    ? hostedSourceCurrent is not null && turns is ModelTurnHost historyHost
+                                        ? await historyHost.AdmitCopilotHistoryAsync(context, hostedSourceCurrent, token).ConfigureAwait(false)
+                                        : await hosted.AdmitCopilotAsync(context, token).ConfigureAwait(false)
                                     : await hosted.AdmitCopilotAsync(context, copilotCustomization.Selection,
                                         copilotCustomization.SourceCurrent,
                                         token).ConfigureAwait(false)

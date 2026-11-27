@@ -137,7 +137,8 @@ public sealed partial class ModelTurnHostTests
     private sealed partial class Fixture
     {
         internal ModelTurnHost ClaudeProfiles(IClaudeTurnRuntime runtime, HostedTransmissionReviewService reviews,
-            bool configuration = true, bool sessions = true, bool composeReviews = true)
+            bool configuration = true, bool sessions = true, bool composeReviews = true,
+            IModelProviderRegistrationSource? registrationSource = null)
         {
             Time.ExpectedDeadline = HostedTurnAuthorization.MaximumDuration;
             ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
@@ -147,19 +148,22 @@ public sealed partial class ModelTurnHostTests
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
                 [new(selection, Gates(selection), Time.Now.AddMinutes(5),
                     new ClaudeModelTurnAdapter(runtime, reviews, Time, NullLogger<BoundedModelTurnAdapter>.Instance))],
-                ProviderConfiguration, configuration ? ProfileConfiguration : null, sessions ? this : null,
+                ProviderConfiguration, configuration ? ProfileConfiguration : null, sessions ? this : null, registrationSource,
                 hostedReviews: composeReviews ? reviews : null);
             ownedHosts.Add(host);
             return host;
         }
     }
 
-    private sealed class ClaudeRuntime(bool observations = false) : IClaudeToolTurnRuntime
+    private sealed class ClaudeRuntime(bool observations = false) : IClaudeToolTurnRuntime, IClaudeHistoryInputPreparation
     {
         public bool IsQuiescent => true;
         internal int Calls { get; private set; }
         internal ModelContextEnvelope? Context { get; private set; }
         internal Action? BeforeAdmit { get; set; }
+        internal Func<ModelContextEnvelope, int> HistoryInputBytes { get; set; } = context => context.Serialize().Length * 2;
+        public Task<int> MeasureHistoryInputAsync(ModelProviderSelection selection, ProviderProfileTuple profile,
+            ModelContextEnvelope context, CancellationToken token) => Task.FromResult(HistoryInputBytes(context));
         internal List<(ProviderProfileTuple Profile, RequestOrigin Origin)> Sends { get; } = [];
         public async Task<ClaudeTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
             ModelContextEnvelope context, Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,

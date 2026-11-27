@@ -12,7 +12,8 @@ internal sealed class ClaudeSdkRequestHandler(
     Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
     Func<CancellationToken, ValueTask<bool>> current, Action quarantine,
     Action<ModelTokenUsage> observeUsage, bool streamAnswer = false, ModelToolRequest? toolRequest = null,
-    ModelContextEnvelope? selectedContext = null, SelectedHostedDefinition? selection = null) : HttpMessageHandler
+    ModelContextEnvelope? selectedContext = null, SelectedHostedDefinition? selection = null,
+    ModelContextEnvelope? historyContext = null) : HttpMessageHandler
 {
     private int sent;
     private HttpResponseMessage? streamingResponse;
@@ -60,19 +61,20 @@ internal sealed class ClaudeSdkRequestHandler(
             { throw new InvalidDataException("Selected Claude input cannot acquire tools, streaming or another request."); }
             ValidateSelectedInput(root, selectedContext, selection);
         }
+        if (historyContext is not null)
+        {
+            var messages = root.GetProperty("messages");
+            if (selection is not null || selectedContext is not null || streamAnswer || toolRequest is not null
+                || !ReferenceEquals(historyContext.Request, provenance.Request)
+                || !Kora.Core.Conversation.HostedConversationHistoryContext.Supports(historyContext)
+                || !ExactText(root.GetProperty("system"), historyContext.SystemPolicy)
+                || messages.ValueKind != JsonValueKind.Array || messages.GetArrayLength() != 1
+                || !ExactUser(messages[0], System.Text.Encoding.UTF8.GetString(historyContext.Serialize())))
+            { throw new InvalidDataException("The complete hosted history input changed before physical transmission."); }
+        }
 
         // Count the SDK's actual input, not a separately reconstructed approximation.
-        using var memory = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(memory))
-        {
-            writer.WriteStartObject();
-            foreach (var property in root.EnumerateObject())
-            {
-                if (property.Name is not ("max_tokens" or "stream" or "output_config")) { property.WriteTo(writer); }
-            }
-            writer.WriteEndObject();
-        }
-        var countBody = memory.ToArray();
+        var countBody = CreateCountBody(root);
         ChargedInputUtf8Bytes = Math.Max(toolRequest is null ? 0 : ModelToolProtocol.SerializeRequest(toolRequest).Length,
             checked(countBody.Length + body.Length));
         var outputBudget = toolRequest?.Budget.OutputUtf8Bytes ?? ModelContextEnvelope.MaximumOutputUtf8Bytes;
@@ -142,6 +144,21 @@ internal sealed class ClaudeSdkRequestHandler(
     {
         Denied = true;
         throw new InvalidDataException("SDK transmission was not admitted by the host.");
+    }
+
+    internal static byte[] CreateCountBody(JsonElement root)
+    {
+        using var memory = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(memory))
+        {
+            writer.WriteStartObject();
+            foreach (var property in root.EnumerateObject())
+            {
+                if (property.Name is not ("max_tokens" or "stream" or "output_config")) { property.WriteTo(writer); }
+            }
+            writer.WriteEndObject();
+        }
+        return memory.ToArray();
     }
 
     private static void ValidateSelectedInput(JsonElement root, ModelContextEnvelope context, SelectedHostedDefinition selected)

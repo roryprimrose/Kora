@@ -61,8 +61,20 @@ denied turns retain no assistant answer. Provisional answer prefixes from the
 SDK are volatile: cancellation or changed authority invalidates them, and only
 the validated final answer is retained.
 The HTTP response is still buffered, so this does not promise
-network-level token latency. Inherited history, attachments, native Copilot
-tools, MCP, skills and agents are not enabled by this operation.
+network-level token latency. Settings-routed Submit includes earlier whole original
+USER messages and eligible retained ASSISTANT answers from successful turns in this
+same conversation. Kora considers the newest messages first and emits them in
+chronological order, omitting older whole messages that cannot fit the shared
+16-item / 32768-UTF-8-byte complete envelope limit; it never shortens a message.
+HOST statuses, failed/denied/cancelled turns without answers, questions, approvals,
+drafts, attachments, memory and other sessions are excluded. Local-source-derived
+and unknown-source ASSISTANT answers are excluded: existing records establish
+eligibility for hosted answers, not for local answers. Reviewed LocalOnly evidence
+is never promoted ([hosted history contract](../src/Kora.Core/Conversation/HostedConversationHistoryContext.cs),
+[source validation](../src/Kora.Application/Hosting/SessionConversationService.HostedHistory.cs)).
+Local, Local first's local step, request-only profiles and customization routes
+keep their existing context. Native Copilot tools, MCP, skills and agents are not
+enabled by this operation.
 
 ## One selected skill or custom agent
 

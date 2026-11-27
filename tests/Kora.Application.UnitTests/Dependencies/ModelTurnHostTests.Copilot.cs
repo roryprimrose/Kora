@@ -159,6 +159,7 @@ public sealed partial class ModelTurnHostTests
         internal int Calls { get; private set; }
         internal int Transmissions { get; private set; }
         internal ModelToolMode? ToolMode { get; private set; }
+        internal byte[]? ContextBytes { get; private set; }
         internal List<(ProviderProfileTuple Profile, RequestOrigin Origin)> Sends { get; } = [];
         internal bool UseTools { get; set; }
         internal CapabilityReply? Version { get; private set; }
@@ -168,6 +169,7 @@ public sealed partial class ModelTurnHostTests
             Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admitTransmission, CancellationToken cancellationToken)
         {
             Calls++;
+            ContextBytes = context.ToArray();
             ToolMode = ModelToolProtocol.ReadContext(context.Span, provenance).ToolMode;
             running = true;
             try

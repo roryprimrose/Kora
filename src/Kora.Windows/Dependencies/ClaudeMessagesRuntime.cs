@@ -9,7 +9,8 @@ using Microsoft.Extensions.AI;
 namespace Kora.Windows.Dependencies;
 
 /// <summary>Bounded, tool-free, stateless native Messages profile. All HTTP work remains owned until joined.</summary>
-public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IClaudeAnswerTurnRuntime, IClaudeCustomizationTurnRuntime, IAsyncDisposable
+public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IClaudeAnswerTurnRuntime, IClaudeCustomizationTurnRuntime,
+    IClaudeHistoryInputPreparation, IAsyncDisposable
 {
     private readonly ClaudeAccountBroker accounts;
     private readonly TimeProvider time;
@@ -49,7 +50,8 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
         {
             if (disposed || quarantined || profile.Service != ProviderService.Claude
                 || !ReferenceEquals(context.Request, provenance.Request) || context.ToolMode != ModelToolMode.None
-                || !context.Evidence.IsEmpty || context.McpTool is not null
+                || !context.Evidence.IsEmpty && !Kora.Core.Conversation.HostedConversationHistoryContext.Supports(context)
+                || context.McpTool is not null
                 || context.CreatedAt > time.GetUtcNow() || context.ExpiresAt <= time.GetUtcNow()
                 || !await current(token).ConfigureAwait(false))
             { return new(ModelTurnOutcome.DeniedEgress); }
@@ -73,17 +75,15 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
                     && !disposed && !quarantined && !ct.IsCancellationRequested && context.ExpiresAt > time.GetUtcNow();
                 using var handler = new ClaudeSdkRequestHandler(sender, account, provenance, profile,
                     inputLimit.Value, outputLimit, admit, Live, Quarantine, usage => tokenUsage = usage,
-                    selectedContext: selection is null ? null : context, selection: selection);
+                    selectedContext: selection is null ? null : context, selection: selection,
+                    historyContext: HasHostedHistory(context) ? context : null);
                 using var sdkHttp = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
                 using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential);
                 using var chat = sdk.AsIChatClient(profile.Model.Value, outputLimit);
                 ChatResponse response;
                 try
                 {
-                    List<ChatMessage> messages = [new(ChatRole.System, context.SystemPolicy)];
-                    if (selection is not null) { messages.Add(new(ChatRole.User, selection.SourceText)); }
-                    messages.Add(new(ChatRole.User, context.UserRequest));
-                    response = await chat.GetResponseAsync(messages,
+                    response = await chat.GetResponseAsync(CreateMessages(context, selection),
                         CreateChatOptions(profile, outputLimit), token).ConfigureAwait(false);
                 }
                 catch (Exception) when (handler.Denied) { return new(ModelTurnOutcome.DeniedEgress); }
@@ -123,6 +123,18 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
                 : new OutputConfig { Effort = profile.Reasoning.Value },
         },
     };
+
+    private static bool HasHostedHistory(ModelContextEnvelope context) => !context.Evidence.IsEmpty
+        && Kora.Core.Conversation.HostedConversationHistoryContext.Supports(context);
+
+    private static List<ChatMessage> CreateMessages(ModelContextEnvelope context, SelectedHostedDefinition? selection = null)
+    {
+        List<ChatMessage> messages = [new(ChatRole.System, context.SystemPolicy)];
+        if (selection is not null) { messages.Add(new(ChatRole.User, selection.SourceText)); }
+        messages.Add(new(ChatRole.User, HasHostedHistory(context)
+            ? Encoding.UTF8.GetString(context.Serialize()) : context.UserRequest));
+        return messages;
+    }
 
     internal static JsonDocument Parse(byte[] bytes)
     {

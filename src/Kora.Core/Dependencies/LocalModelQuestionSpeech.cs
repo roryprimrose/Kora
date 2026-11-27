@@ -83,29 +83,6 @@ public static class LocalModelQuestionSpeech
     internal static bool MatchesNumberPhrase(string phrase, int index) =>
         index < NumberPhrases.Length && NumberPhrases[index].Contains(phrase, StringComparer.OrdinalIgnoreCase);
 
-    public static string? GetFreeTextAnswer(string transcript, string assistantName)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(transcript);
-        var answer = transcript.Trim();
-        var name = AssistantNameRules.ResolveActivationName(answer, assistantName);
-        if (answer.StartsWith(name, StringComparison.OrdinalIgnoreCase)
-            && (answer.Length == name.Length || !char.IsLetterOrDigit(answer[name.Length])))
-        {
-            answer = answer[name.Length..].TrimStart(' ', '\t', ',', ':', '-', '—');
-        }
-        return answer.Length is > 0 and <= LocalModelQuestion.MaximumFreeTextLength
-            ? answer
-            : null;
-    }
-
-    public static bool IsCancellation(string transcript, string assistantName)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(transcript);
-        BuiltInCommandRouter.TryRemoveNormalizedActivationName(
-            BuiltInCommandRouter.Normalize(transcript), assistantName, out var normalized);
-        return normalized is "cancel question" or "never mind" or "reject";
-    }
-
     private static int FindUniqueOption(LocalModelQuestion question, params string[] labels)
     {
         var matches = question.Options

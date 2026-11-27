@@ -88,44 +88,4 @@ public sealed class LocalModelQuestionSpeechTests
         nullQuestion.Should().Throw<ArgumentNullException>();
     }
 
-    [Theory]
-    [InlineData("A different answer", "A different answer")]
-    [InlineData("Nova, use the kitchen display", "use the kitchen display")]
-    [InlineData("Nova: keep both", "keep both")]
-    [InlineData("Kora, keep both", "keep both")]
-    [InlineData("Aria, keep both", "Aria, keep both")]
-    [InlineData("Novator can answer", "Novator can answer")]
-    public void GetFreeTextAnswer_preserves_custom_feedback_and_removes_the_activation_name(
-        string transcript, string expected)
-    {
-        LocalModelQuestionSpeech.GetFreeTextAnswer(transcript, Assistant).Should().Be(expected);
-    }
-
-    [Fact]
-    public void GetFreeTextAnswer_rejects_blank_and_oversized_feedback()
-    {
-        var blank = () => LocalModelQuestionSpeech.GetFreeTextAnswer(" ", Assistant);
-        blank.Should().Throw<ArgumentException>();
-        LocalModelQuestionSpeech.GetFreeTextAnswer(
-            new string('a', LocalModelQuestion.MaximumFreeTextLength + 1), Assistant).Should().BeNull();
-        LocalModelQuestionSpeech.GetFreeTextAnswer(Assistant, Assistant).Should().BeNull();
-    }
-
-    [Theory]
-    [InlineData("cancel question", true)]
-    [InlineData("Nova never mind", true)]
-    [InlineData("reject", true)]
-    [InlineData("approve", false)]
-    [InlineData("Another reject", false)]
-    public void IsCancellation_recognizes_only_explicit_cancellation(string transcript, bool expected)
-    {
-        LocalModelQuestionSpeech.IsCancellation(transcript, Assistant).Should().Be(expected);
-    }
-
-    [Fact]
-    public void IsCancellation_rejects_blank_transcripts()
-    {
-        var action = () => LocalModelQuestionSpeech.IsCancellation(" ", Assistant);
-        action.Should().Throw<ArgumentException>();
-    }
 }

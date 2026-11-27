@@ -31,6 +31,90 @@ public sealed class SessionRoutingTests : IDisposable
     public void Dispose() => listener.Dispose();
 
     [Theory]
+    [InlineData("clear")]
+    [InlineData("ambiguous")]
+    [InlineData("none")]
+    [InlineData("unavailable")]
+    [InlineData("failed")]
+    [InlineData("malformed")]
+    [InlineData("off")]
+    public async Task NonforegroundVoicePrefersLastSelectedButCanInferAnotherActiveChatWithoutSubmission(string mode)
+    {
+        var f = new Fixture();
+        f.BeforeAdviceDecision = (_, _) => throw new InvalidOperationException("Voice must use standing consent only.");
+        var last = new ForegroundConversationTarget(f.Entries[1], static () => true);
+        last.ReleaseForeground();
+        f.Matcher.Failure = mode is "failed";
+        f.Matcher.Propose = snapshot => mode switch
+        {
+            "ambiguous" => new(snapshot.Revision, SessionRouteMatch.Ambiguous, [.. snapshot.Descriptors.Select(item => item.Candidate)]),
+            "none" => new(snapshot.Revision, SessionRouteMatch.NoMatch, []),
+            "unavailable" => new(snapshot.Revision, SessionRouteMatch.Unavailable, []),
+            "malformed" => new(snapshot.Revision + 1, SessionRouteMatch.Clear, []),
+            _ => new(snapshot.Revision, SessionRouteMatch.Clear, [snapshot.Descriptors[0].Candidate]),
+        };
+        var review = await f.Service.PrepareAsync("original voice", RequestOrigin.ActivatedVoice,
+            static () => true, Token, lastSelected: last, standingAdvice: mode is "off" ? null : static () => true);
+        review.Preselection!.Basis.Should().Be(mode is "clear" ? SessionRoutingReview.PreselectionBasis.Inferred
+            : SessionRoutingReview.PreselectionBasis.LastSelected);
+        review.Preselection.Destination.Entry.Should().Be(f.Entries[mode is "clear" ? 0 : 1]);
+        review.Candidates.Should().Equal(review.Preselection.Destination);
+        review.InferenceFailed.Should().Be(mode is "failed" or "malformed");
+        if (mode is "off") { f.Matcher.Snapshot.Should().BeNull(); }
+        else { f.Matcher.Preferred!.Entry.Should().Be(f.Entries[1]); }
+        await f.Service.Invoking(service => service.SubmitAsync(new(review, review.Preselection.Destination.Entry), Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Messages.Should().BeEmpty();
+        var acknowledged = await f.Service.SelectAsync(review, f.Entries[1].Authority.SessionId, Token);
+        (await f.Service.SubmitAsync(acknowledged, Token)).Target.Should().Be(f.Entries[1]);
+        f.Messages.Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData("none")]
+    [InlineData("retired")]
+    [InlineData("outside")]
+    [InlineData("typed")]
+    public async Task MissingUnpresentedOrRetiredLastSelectedIsNotUsedAsAProposal(string mode)
+    {
+        var f = new Fixture { AllowAdvice = false };
+        var last = mode is "none" ? null : new ForegroundConversationTarget(
+            mode is "outside" ? Fixture.Entry("Unpresented") : f.Entries[0], static () => true);
+        if (mode is "retired") { last!.Retire(); }
+        var review = await f.Service.PrepareAsync("original", mode is "typed" ? RequestOrigin.LocalUi : RequestOrigin.ActivatedVoice,
+            static () => true, Token, lastSelected: last);
+        review.Preselection.Should().BeNull();
+        f.Matcher.Snapshot.Should().BeNull();
+        f.Messages.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("preference")]
+    [InlineData("target")]
+    [InlineData("inventory")]
+    [InlineData("cancel")]
+    public async Task StandingConsentAndLastSelectionAreRevalidatedAcrossInference(string change)
+    {
+        var f = new Fixture();
+        var consent = true;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var last = new ForegroundConversationTarget(f.Entries[1], static () => true);
+        f.Matcher.Wait = () =>
+        {
+            if (change is "preference") { consent = false; }
+            if (change is "target") { last.Retire(); }
+            if (change is "inventory") { f.Entries.RemoveAt(0); }
+            if (change is "cancel") { cancellation.Cancel(); }
+            return Task.CompletedTask;
+        };
+        await f.Service.Invoking(service => service.PrepareAsync("original", RequestOrigin.ActivatedVoice,
+            static () => true, cancellation.Token, lastSelected: last, standingAdvice: () => consent))
+            .Should().ThrowAsync<Exception>();
+        f.Messages.Should().BeEmpty();
+        f.Creates.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task VoiceReviewSurvivesForegroundReleaseButNotResourceRetirement(bool acknowledged)
@@ -126,9 +210,9 @@ public sealed class SessionRoutingTests : IDisposable
         var foreground = new ForegroundConversationTarget(unpresented ? Fixture.Entry("Outside page") : f.Entries[0], static () => true);
         var review = await f.Service.PrepareAsync("ordinary request", origin, static () => true, Token,
             origin == RequestOrigin.ActivatedVoice && !unpresented ? null : foreground);
-        calls.Should().Be(1);
+        calls.Should().Be(origin == RequestOrigin.LocalUi ? 1 : 0);
         review.Preselection.Should().BeNull();
-        f.Matcher.Body.Should().Be("ordinary request");
+        f.Matcher.Body.Should().Be(origin == RequestOrigin.LocalUi ? "ordinary request" : null);
     }
 
     [Fact]
@@ -154,7 +238,7 @@ public sealed class SessionRoutingTests : IDisposable
     {
         var f = new Fixture();
         const string body = "  Original e\u0301🙂\r\nunchanged  ";
-        var review = await f.Service.PrepareAsync(body, origin, () => f.Source, Token);
+        var review = await f.Service.PrepareAsync(body, origin, () => f.Source, Token, standingAdvice: static () => true);
         f.Matcher.Body.Should().Be(body);
         f.Matcher.Snapshot!.Descriptors.Should().HaveCount(2);
         f.Matcher.Snapshot.Descriptors[0].Name.Should().Be("Alpha");
@@ -232,7 +316,8 @@ public sealed class SessionRoutingTests : IDisposable
     public async Task AmbiguityAndFallbackOfferNewWithoutImplicitCreationOrGuessing(SessionRouteMatch match)
     {
         var f = new Fixture { Match = match };
-        var review = await f.Service.PrepareAsync("new request", RequestOrigin.ActivatedVoice, () => f.Source, Token);
+        var review = await f.Service.PrepareAsync("new request", RequestOrigin.ActivatedVoice, () => f.Source, Token,
+            standingAdvice: static () => true);
         review.Match.Should().Be(match);
         review.Candidates.Should().HaveCount(match == SessionRouteMatch.Ambiguous ? 2 : 0);
         var selected = await f.Service.SelectAsync(review, null, Token);
@@ -274,7 +359,7 @@ public sealed class SessionRoutingTests : IDisposable
         var f = new Fixture { Match = match };
         await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
         var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission, f.ReviewAdvice);
-        var review = await service.PrepareAsync("original", origin, static () => true, Token);
+        var review = await service.PrepareAsync("original", origin, static () => true, Token, standingAdvice: static () => true);
         review.Origin.Should().Be(origin);
         review.Snapshot.Descriptors.Should().HaveCount(2);
         review.Snapshot.Descriptors.Should().NotContain(item => item.Entry.Authority.SessionId == f.ControlSession!.SessionId);
@@ -282,7 +367,7 @@ public sealed class SessionRoutingTests : IDisposable
         f.Tasks.Values.Should().OnlyContain(task => task.IsTerminal && task.Request.Origin == origin);
         f.Tasks.Values.Should().Contain(task => task.State == (match == SessionRouteMatch.Unavailable
             ? HostTaskState.Unavailable : HostTaskState.Succeeded));
-        var second = await service.PrepareAsync("second original", origin, static () => true, Token);
+        var second = await service.PrepareAsync("second original", origin, static () => true, Token, standingAdvice: static () => true);
         second.Snapshot.Descriptors.Should().HaveCount(2);
         f.Entries.Should().HaveCount(3, "the existing routing domain is reused, not created during each metadata snapshot");
         f.Messages.Should().BeEmpty();
@@ -304,7 +389,8 @@ public sealed class SessionRoutingTests : IDisposable
             if (fault is "input") { f.Source = false; }
             return new(snapshot.Revision, SessionRouteMatch.Clear, [snapshot.Descriptors[0].Candidate]);
         };
-        await service.Invoking(subject => subject.PrepareAsync("original", RequestOrigin.ActivatedVoice, () => f.Source, Token))
+        await service.Invoking(subject => subject.PrepareAsync("original", RequestOrigin.ActivatedVoice, () => f.Source, Token,
+            standingAdvice: static () => true))
             .Should().ThrowAsync<Exception>();
         f.Tasks.Values.Should().OnlyContain(task => task.IsTerminal);
         f.Tasks.Values.Should().Contain(task => task.State == (fault == "cancel" ? HostTaskState.Unknown : HostTaskState.Failed));
@@ -679,8 +765,11 @@ public sealed class SessionRoutingTests : IDisposable
             snapshot => new(snapshot.Revision, SessionRouteMatch.Clear, [snapshot.Descriptors[0].Candidate]);
         internal Func<Task>? Wait { get; set; }
         internal bool Failure { get; set; }
-        public async Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot, Func<bool> admitted, CancellationToken token)
+        internal SessionRouteDescriptor? Preferred { get; private set; }
+        public async Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot, Func<bool> admitted, CancellationToken token,
+            SessionRouteDescriptor? preferred = null)
         {
+            Preferred = preferred;
             Body = request; Snapshot = snapshot;
             if (Wait is { } wait) { await wait(); }
             if (Failure) { throw new IOException("Inference failed, not unavailable."); }

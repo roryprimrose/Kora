@@ -13,13 +13,15 @@ public sealed class SessionRoutingReview
     {
         /// <summary>The exact foreground conversation at original voice admission.</summary>
         Foreground,
+        Inferred,
+        LastSelected,
     }
 
     public sealed record PreselectedDestination(SessionRouteDescriptor Destination, PreselectionBasis Basis);
 
     internal SessionRoutingReview(string body, RequestOrigin origin, SessionRouteSnapshot snapshot,
         SessionRouteMatch match, ImmutableArray<SessionRouteDescriptor> candidates, DateTimeOffset expiresAt,
-        Func<HostActivity> continuation, PreselectedDestination? preselection = null)
+        Func<HostActivity> continuation, PreselectedDestination? preselection = null, bool inferenceFailed = false)
     {
         Body = body;
         Origin = origin;
@@ -29,6 +31,7 @@ public sealed class SessionRoutingReview
         ExpiresAt = expiresAt;
         Continue = continuation;
         Preselection = preselection;
+        InferenceFailed = inferenceFailed;
     }
 
     public string Body { get; }
@@ -38,5 +41,6 @@ public sealed class SessionRoutingReview
     public ImmutableArray<SessionRouteDescriptor> Candidates { get; }
     public DateTimeOffset ExpiresAt { get; }
     public PreselectedDestination? Preselection { get; }
+    public bool InferenceFailed { get; }
     internal Func<HostActivity> Continue { get; }
 }

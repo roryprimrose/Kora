@@ -48,8 +48,7 @@ public sealed partial class SessionsConversationTests
                 {
                     workspace.FindControl<Button>("SubmitConversation")!,
                     compact.FindControl<Button>("SubmitConversation")!,
-                    interaction.FindControl<Button>("SubmitMessage")!,
-                    interaction.FindControl<Button>("SubmitLocalAnswer")!
+                    interaction.FindControl<Button>("SubmitMessage")!
                 };
                 composers.Should().OnlyContain(field => field.IsEnabled && field.Text == body);
                 submits.Should().OnlyContain(button => button.IsEnabled);

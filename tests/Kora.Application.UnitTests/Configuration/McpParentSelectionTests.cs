@@ -5,6 +5,8 @@ using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
 using Kora.Core.Mcp;
 using Kora.Core.Dependencies;
+using Kora.Core.Hosting;
+using Kora.Core.Tools;
 
 namespace Kora.Application.UnitTests.Configuration;
 
@@ -72,6 +74,64 @@ public sealed class McpParentSelectionTests
         configured.IsServerSelected(external).Should().BeTrue();
         fallback.IsServerSelected(external).Should().BeTrue();
         FluentActions.Invoking(() => fallback.IsServerSelected("untrusted.server")).Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void OrdinarySubmitUsesNoToolsOnlyWhenEveryEffectiveToolIsDisabled(bool parent, bool keepOne)
+    {
+        var store = new Store();
+        var directories = new LocalArtifactDirectoryPreferences(store);
+        var settings = new ArtifactDirectoryConfigurationService(directories, new Audit());
+        var controls = new McpCapabilityPreferences(new ArtifactUsePreferences(store), directories, settings);
+        using var configuration = new McpServerConfigurationService(new Paths(), directories, capabilities: controls);
+        var now = DateTimeOffset.UtcNow;
+        var context = new ModelContextEnvelope(HostRequest.Create(RequestOrigin.LocalUi), "policy", "question", [],
+            now, now.AddSeconds(15), ModelToolMode.InteractiveConversation);
+        if (parent) { controls.SetServerEnabled(KoraMcpCatalog.ServerId, false); }
+        else
+        {
+            foreach (var descriptor in context.Tools)
+            {
+                controls.SetToolEnabled(KoraMcpCatalog.ServerId, descriptor.Id,
+                    keepOne && string.Equals(descriptor.Id, ReadOnlyCapabilityCatalog.Version, StringComparison.Ordinal));
+            }
+        }
+        var restricted = configuration.RestrictTools(context);
+        restricted.Request.Should().BeSameAs(context.Request);
+        restricted.UserRequest.Should().Be(context.UserRequest);
+        restricted.CreatedAt.Should().Be(context.CreatedAt);
+        restricted.ExpiresAt.Should().Be(context.ExpiresAt);
+        restricted.ToolMode.Should().Be(keepOne ? ModelToolMode.InteractiveConversation : ModelToolMode.None);
+        restricted.Tools.Select(tool => tool.Id).Should().BeEquivalentTo(
+            keepOne ? new[] { ReadOnlyCapabilityCatalog.Version } : []);
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), context.Request, ModelProviderSelection.OllamaCandidate);
+        var parsed = ModelToolProtocol.ReadContext(restricted.Serialize(), provenance);
+        ModelToolProtocol.CreateRequest(provenance, null, parsed, [], 1).Context.ToolMode.Should().Be(restricted.ToolMode);
+    }
+
+    [Fact]
+    public void NoToolsOrdinarySubmitPreservesTheCapturedInputOutputAndDeadlineLimits()
+    {
+        var store = new Store();
+        var directories = new LocalArtifactDirectoryPreferences(store);
+        var settings = new ArtifactDirectoryConfigurationService(directories, new Audit());
+        var controls = new McpCapabilityPreferences(new ArtifactUsePreferences(store), directories, settings);
+        controls.SetServerEnabled(KoraMcpCatalog.ServerId, false);
+        using var configuration = new McpServerConfigurationService(new Paths(), directories, capabilities: controls);
+        var now = DateTimeOffset.UtcNow;
+        var limits = new ModelTurnConstraints(2, [ReadOnlyCapabilityCatalog.Version], 1, 2, 2048, 1024, 2000);
+        var context = new ModelContextEnvelope(HostRequest.Create(RequestOrigin.LocalUi), "policy", "question", [],
+            now, now.AddSeconds(2), ModelToolMode.InteractiveConversation, limits);
+        var restricted = configuration.RestrictTools(context);
+        restricted.Constraints!.InputUtf8Bytes.Should().Be(2048);
+        restricted.Constraints.OutputUtf8Bytes.Should().Be(1024);
+        restricted.Constraints.DeadlineMilliseconds.Should().Be(2000);
+        restricted.Constraints.MaximumCalls.Should().Be(0);
+        restricted.Constraints.MaximumRounds.Should().Be(1);
+        restricted.RequireCompleteInputLimit();
     }
 
     private sealed class Paths : IApplicationDataPaths

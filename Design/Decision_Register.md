@@ -26,6 +26,16 @@ The product owner directed: "There should be no ordinary submit vs copilot submi
 - Dictated text in a session composer is submitted through the same single Submit once insertion is confirmed ([dictation owner](../src/Kora.Application/Voice/ComposerDictationService.cs)).
 - Follow-on increments, under the same direction: bounded earlier conversation messages sent with hosted turns, and folding the remaining clarification, web page, MCP, local-answer and metadata variants into the single Submit as permission-governed model tools.
 
+On 2026-11-28, the product owner approved these bounded follow-on decisions:
+
+- Newly retrieved single-Submit web, MCP and exact-session metadata results may enter the exact Settings-selected hosted turn after their existing tool/source-use gates and automatic audited physical disclosure. This does not reclassify retained LocalOnly history, memory, attachments or old results.
+- Models may propose exact tool parameters within original-user intent, never authority. Metadata defaults to the current conversation; another subject requires an explicit original-user identifier/name resolved unambiguously by the host. Metadata uses the shared session permission/grant path rather than mandatory bespoke Confirm.
+- Extend the Ollama, Copilot and Claude adapters for these governed tools. Unavailable runtimes remain unavailable; unsupported tools are omitted or denied without provider fallback.
+- Remove **Answer locally (no tools)**. Settings selects the provider; an ordinary local Submit with no enabled effective tools uses the existing tool-free stream. Tool-enabled turns may remain buffered.
+- Keep model-free MCP Invoke and Read/Preview as separately grouped non-submit actions with their existing permissions.
+
+These decisions are not completed tool integration or provider qualification. The local-answer cleanup removes its button from the [primary conversation](../src/Kora/SessionInteractionView.axaml), [Sessions](../src/Kora/SessionsManagementView.axaml) and [compact](../src/Kora/CompactSessionWindow.axaml) surfaces and normalizes an empty ordinary tool catalogue to None without widening captured input/output/deadline limits ([restriction owner](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs)). Remaining clarification, web, MCP and metadata submission variants require their respective integration increments.
+
 The owner chose "Include earlier USER/ASSISTANT messages from this session, limited to fit the request size". On 2026-11-27, the owner further selected a separate hosted-history envelope contract preserving reviewed LocalOnly history, and exclusion of LocalOnly-derived and unknown-source ASSISTANT answers.
 
 - The [hosted history contract](../src/Kora.Core/Conversation/HostedConversationHistoryContext.cs) includes original USER bodies and provably eligible retained ASSISTANT answers from successful same-session turns, considering newest messages first and emitting chronological whole messages. It omits non-fitting older messages within the existing 16-item / 32768-UTF-8-byte complete envelope bound.

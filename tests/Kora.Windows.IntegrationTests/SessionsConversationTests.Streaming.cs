@@ -7,9 +7,11 @@ using Avalonia.VisualTree;
 using AwesomeAssertions;
 
 using Kora.Application.Dependencies;
+using Kora.Application.Configuration;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Providers;
+using Kora.Core.Mcp;
 using Kora.Core.Tools;
 using Kora.Windows.IntegrationTests.Storage;
 
@@ -31,7 +33,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("primary", "revocation")]
     [InlineData("sessions", "revocation")]
     [InlineData("compact", "revocation")]
-    public async Task NativeLocalAnswerUsesNormalConversationAndNeverStoresOrKeepsRevokedProvisionalText(string surface, string terminal)
+    public async Task NativeSubmitWithoutEnabledToolsStreamsAndNeverStoresOrKeepsRevokedProvisionalText(string surface, string terminal)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -39,7 +41,16 @@ public sealed partial class SessionsConversationTests
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             var adapter = new ProvisionalConversationAdapter { ProbeRevocation = terminal is "revocation" };
-            await using var composed = new Composition(f, adapter: adapter);
+            var directories = new LocalArtifactDirectoryPreferences(f.Paths);
+            var settings = new ArtifactDirectoryConfigurationService(directories, new AuditLog());
+            var capabilityPreferences = new McpCapabilityPreferences(new ArtifactUsePreferences(f.Paths), directories, settings);
+            await f.RunAsync(() =>
+            {
+                capabilityPreferences.SetServerEnabled(KoraMcpCatalog.ServerId, false);
+                return Task.CompletedTask;
+            });
+            using var mcp = new McpServerConfigurationService(f.Paths, directories, capabilities: capabilityPreferences);
+            await using var composed = new Composition(f, adapter: adapter, mcpConfiguration: mcp);
             var model = composed.Model;
             var terminalPresented = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             void ObserveTerminal(object? sender, PropertyChangedEventArgs args)
@@ -68,7 +79,9 @@ public sealed partial class SessionsConversationTests
                 await model.ReadConversationAsync();
                 model.ComposerBody = "original local no-tools question";
                 var controls = (Control?)view ?? window;
-                controls.FindControl<Button>("SubmitLocalAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                controls.FindControl<Button>("SubmitLocalAnswer").Should().BeNull();
+                controls.FindControl<Button>(surface is "primary" ? "SubmitMessage" : "SubmitConversation")!
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 operation = window switch
                 {
                     SessionsWindow sessions => sessions.ConversationOperation,

@@ -121,7 +121,6 @@
       <local:PendingConversationPanel />
       <local:ManagementAnswerPanel />
       <local:ComposerRequestReviewPanel />
-      <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
       <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
         <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />
         <TextBlock Text="{Binding ProvisionalAnswer}" TextWrapping="Wrap"

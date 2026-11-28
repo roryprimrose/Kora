@@ -223,7 +223,6 @@
             AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
         <local:PendingConversationPanel />
         <local:ManagementAnswerPanel />
-        <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
         <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
           <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />
           <TextBlock Text="{Binding ProvisionalAnswer}" TextWrapping="Wrap"

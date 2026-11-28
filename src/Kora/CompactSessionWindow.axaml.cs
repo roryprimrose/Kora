@@ -58,7 +58,6 @@ internal sealed partial class CompactSessionWindow : Window
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         NativeComposerSubmitBinding.Bind(ConversationComposer, SubmitConversation);
-        SubmitLocalAnswer.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalAnswerAsync());
         SubmitConversationWithClarification.Click += async (_, _) =>
             await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
         SubmitReadOnlyWithClarification.Click += async (_, _) =>

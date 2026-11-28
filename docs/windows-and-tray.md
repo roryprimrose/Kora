@@ -309,7 +309,7 @@ current Active destination and current local provider/profile. Separately choose
 This completes a new ordinary request, not composer preparation or an old-task retry
 ([operation](../src/Kora/SessionsViewModel.ExpiredOrdinary.cs)).
 
-Only newly recorded bare **Answer locally (no tools)** sources with confirmed
+Only retained bare sources recorded through the former **Answer locally (no tools)** route with confirmed
 pre-dispatch **Denied / ContextExpired** in the current Active session generation
 are supported. History from before Done/Resume remains readable but cannot supply
 this fresh review. Old records without this
@@ -694,8 +694,7 @@ message storage quota and no automatic eviction. Read pages have at most
 50 records/64 KiB complete output. These are predictable work/UI bounds,
 not a total database-size or unlimited physical-disk promise.
 
-With an already qualified provider, ordinary **Submit exact message** and
-**Answer locally (no tools)** can accept another original request while the
+With an already qualified provider, ordinary **Submit** can accept another original request while the
 previous request in that exact Active conversation runs. Real acceptance clears
 only the submitted input; you can immediately compose another message.
 **Refresh submitted work** shows the actual waiting requests in arrival order
@@ -703,6 +702,8 @@ and their positions (at most ten pending). Select one and deliberately choose
 **Cancel selected pending request** to cancel only that request before any
 provider dispatch. Its submitted history remains; running work and your next
 unsent input are unchanged. Both conversation windows use the same controls.
+
+For a tool-free local stream, select **Local only** in Settings and disable the conversation tools through **Manage MCP capabilities**, including the built-in Kora server. Then use the same **Submit**; it no longer has a separate local-answer button. Tool-enabled turns remain buffered, and no unavailable provider is enabled ([display contract](../Design/Information_Display.md#bounded-provisional-local-answers), [capability controls](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs)).
 
 **Clear queue - review all pending** reviews every current never-dispatched request in this one Active conversation. Inspect the complete body-free identities, positions, count, expiry and impact, then independently choose **Confirm clear pending only** or **Cancel pending-only review**. Review/cancel has no execution effects; separate confirmation retains original USER/task/audit history while running work continues ([native operation](../src/Kora/SessionsViewModel.PendingConversation.cs)).
 

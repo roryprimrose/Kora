@@ -741,7 +741,7 @@ jobs:
       matrix:
         partition: [storage-heavy, storage-other, ui-definitions, ui-definition-dialogs, ui-conversations, ui-conversation-core, ui-conversation-actions, native-ux, ui-platform, ui-editors, ui-workflows, ui-presentation]
     env:
-      KORA_TEST_NATIVE_EVIDENCE_MODE: ${{ matrix.partition == 'native-ux' && 'buffered' || 'synchronous' }}
+      KORA_TEST_NATIVE_EVIDENCE_MODE: buffered
     steps:
       - name: Check out admitted source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

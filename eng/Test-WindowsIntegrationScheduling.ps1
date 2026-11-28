@@ -149,7 +149,7 @@ $hostedOwners = @{
 }
 foreach ($partition in $partitions) {
     Assert ($partition.HostedShard -ceq $hostedOwners[$partition.Name]) 'Distribute measured UI work across four synchronous hosted runners, not one runner.'
-    Assert (($partition.HostedShard -ceq 'native-ux') -eq ($partition.Name -ceq 'native-ux')) 'Only native-UX work may run under the buffered fixture profile.'
+    Assert (($partition.HostedShard -ceq 'native-ux') -eq ($partition.Name -ceq 'native-ux')) 'Only native-UX work may run in the fixed native-UX job.'
 }
 $selectedAcrossHosts = @($expected | ForEach-Object { & $runner -Shard $_ -ListPartitions -CatalogPath $syntheticCatalogPath })
 Assert ((($selectedAcrossHosts.Name | Sort-Object) -join ',') -ceq (($expectedPartitions | Sort-Object) -join ',')) 'All five hosted selectors together must execute every partition exactly once.'
@@ -220,9 +220,9 @@ foreach ($method in $syntheticCatalog.Methods) {
     $execution = @(Get-MatchingShard $method.Name -Definitions $partitions)
     Assert ($execution.Count -eq 1) "Execution must cover $($method.Name) exactly once."
     $native = @($nativePrefixes | Where-Object { $method.Name.StartsWith($_, [StringComparison]::Ordinal) }).Count -gt 0
-    Assert (($execution[0].Name -ceq 'native-ux') -eq $native) 'Only native-UX identities may run under the buffered fixture profile.'
+    Assert (($execution[0].Name -ceq 'native-ux') -eq $native) 'Only native-UX identities may run in the fixed native-UX partition.'
 }
-Assert ((($partitions | Where-Object Name -CEQ 'native-ux').Filter) -ceq (($nativePrefixes | ForEach-Object { "FullyQualifiedName~$_" }) -join '|')) 'Packing must not change the buffered native-UX filter.'
+Assert ((($partitions | Where-Object Name -CEQ 'native-ux').Filter) -ceq (($nativePrefixes | ForEach-Object { "FullyQualifiedName~$_" }) -join '|')) 'Packing must not change the fixed native-UX filter.'
 Assert ((($partitions | Measure-Object Cases -Sum).Sum) -eq $syntheticCatalog.Total) 'Every discovered case must be assigned exactly once.'
 $prefixOwners = @('FuturePrefix', 'FuturePrefixLonger') | ForEach-Object {
     @(Get-MatchingShard "Kora.Windows.IntegrationTests.SessionsConversationTests.$_" -Definitions $partitions)[0].Name
@@ -295,15 +295,15 @@ Assert ($deadline.Success -and $deadline.Groups['minutes'].Value -ceq '30') 'Pre
 Assert ($job.Contains('ref: ${{ needs.version.outputs.source-revision }}', [StringComparison]::Ordinal)) 'Candidate jobs must consume the admitted source, including its scheduling script.'
 Assert ($job.Contains('run: .\eng\Run-WindowsIntegrationTests.ps1 -Partition ''${{ matrix.partition }}''',
     [StringComparison]::Ordinal)) 'The workflow must consume candidate-owned partition assignments.'
-Assert ($workflow.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: ${{ matrix.partition == ''native-ux'' && ''buffered'' || ''synchronous'' }}',
-    [StringComparison]::Ordinal)) 'Only the native-UX CI shard may select the measured buffered fixture profile.'
+Assert ($job.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: buffered',
+    [StringComparison]::Ordinal) -and -not $workflow.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: synchronous', [StringComparison]::Ordinal)) 'Every CI partition must select the measured buffered fixture evidence profile.'
 $nativeFilter = @(
     'Kora.Windows.IntegrationTests.NativeUx.'
     'Kora.Windows.IntegrationTests.Presentation.DispatcherEvidenceResponsivenessTests.'
     'Kora.Windows.IntegrationTests.NativeReaderTextScaleTests.'
     'Kora.Windows.IntegrationTests.SpeechCaptionDisplayTests.'
 ) | ForEach-Object { "FullyQualifiedName~$_" }
-Assert (($all | Where-Object Name -EQ 'native-ux').Filter -ceq ($nativeFilter -join '|')) 'Rebalancing must not move synchronous classes into the buffered profile.'
+Assert (($all | Where-Object Name -EQ 'native-ux').Filter -ceq ($nativeFilter -join '|')) 'Rebalancing must not change the legacy native-UX shard filter.'
 $collection = Get-Content -Raw -LiteralPath (Join-Path $root 'tests\Kora.Windows.IntegrationTests\HeadlessUiTestGroup.cs')
 Assert ($collection.Contains('[CollectionDefinition(nameof(HeadlessUiTestGroup), DisableParallelization = true)]',
     [StringComparison]::Ordinal)) 'Headless UI tests must remain serial within each process.'

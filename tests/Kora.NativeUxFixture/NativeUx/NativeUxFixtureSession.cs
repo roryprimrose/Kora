@@ -66,6 +66,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     {
         Time = timeProvider ?? TimeProvider.System;
         this.appearanceStoreFactory = appearanceStoreFactory;
+        SelectEvidenceDelivery(ref bufferedEvidence);
         CapturePhaseObserver();
         using var ownedStorage = BeginPhase(NativeFixturePhase.OwnedStorage);
         if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) + (syntheticVoice ? 1 : 0) > 1)
@@ -131,6 +132,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         }
     }
 
+    partial void SelectEvidenceDelivery(ref bool buffered);
     partial void CapturePhaseObserver();
     partial void ObservePhase(NativeFixturePhaseScope phase, NativeFixturePhaseOutcome outcome);
     partial void VerifyPhaseEvidence();

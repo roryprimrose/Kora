@@ -340,6 +340,7 @@ public sealed partial class SessionRoutingTests
         internal List<string> Originals { get; } = [];
         internal Func<Task>? Hold { get; set; }
         internal Func<Task>? HoldAnswer { get; set; }
+        internal Func<HostRequest, Func<string, string, CancellationToken, ValueTask<CapabilityReply>>, CancellationToken, Task>? AnswerTools { get; set; }
 
         public async Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
             ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool, CancellationToken token)
@@ -378,6 +379,7 @@ public sealed partial class SessionRoutingTests
             }
             root.GetProperty("Evidence").GetArrayLength().Should().Be(0, "routing metadata is not conversation context");
             if (HoldAnswer is { } held) { await held(); }
+            if (AnswerTools is { } tools) { await tools(provenance.Request, invokeTool, token); }
             return new(ModelTurnOutcome.Succeeded, provenance.Selection, new("Genuine second-turn answer", null));
         }
     }

@@ -68,6 +68,16 @@ public sealed class McpCapabilityPreferences(ArtifactUsePreferences preferences,
         { return context; }
         var ids = context.Tools.Where(tool => IsToolEnabled(KoraMcpCatalog.ServerId, tool.Id))
             .Select(tool => tool.Id).ToImmutableArray();
+        if (context.ToolMode == ModelToolMode.InteractiveConversation && ids.IsEmpty)
+        {
+            var limits = context.Constraints;
+            var noTools = new ModelTurnConstraints(2, [], 0, 1,
+                limits?.InputUtf8Bytes ?? ModelToolProtocol.MaximumInputUtf8Bytes,
+                limits?.OutputUtf8Bytes ?? ModelToolProtocol.MaximumOutputUtf8Bytes,
+                limits?.DeadlineMilliseconds ?? (int)ModelToolProtocol.Deadline.TotalMilliseconds);
+            return new(context.Request, context.SystemPolicy, context.UserRequest, context.Evidence,
+                context.CreatedAt, context.ExpiresAt, ModelToolMode.None, noTools);
+        }
         if (ids.Length == context.Tools.Count) { return context; }
         var prior = context.Constraints;
         var constraints = new ModelTurnConstraints(2, ids,

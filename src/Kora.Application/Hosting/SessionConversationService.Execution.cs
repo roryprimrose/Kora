@@ -103,7 +103,7 @@ public sealed partial class SessionConversationService
             { throw new IOException("Execution intent readback is unconfirmed; inspect without repeating the turn."); }
             turn.TaskRevision = dispatched.Task.Revision;
             turn.ConversationTarget = target;
-            if (ordinaryActiveDeadline && runtime is not null)
+            if (ordinaryActiveDeadline && runtime is not null && turn.QuestionContinuation is null)
             {
                 runtime.CaptureOrdinaryActiveBudget(turn,
                     ordinaryDeadlines?.Capture() ?? Kora.Core.Configuration.OrdinaryTurnDeadline.Default);

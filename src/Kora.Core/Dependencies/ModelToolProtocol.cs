@@ -44,6 +44,9 @@ public static partial class ModelToolProtocol
         if (history.OfType<ModelClarificationQuestion>().Any(question => question.Question.Fields is not null
             && (!clarificationAllowed || !AllowsForms(context.ToolMode, provenance.Selection.Provider) || question.CallId is null)))
         { throw new InvalidDataException("Typed forms are confined to the explicit local clarification-only operation."); }
+        if (context.ToolMode == ModelToolMode.InteractiveConversation
+            && history.OfType<ModelClarificationQuestion>().Any(question => question.CallId is null))
+        { throw new InvalidDataException("Conversation clarification requires an exact native tool call."); }
         if (clarificationAllowed && !AllowsClarification(context.ToolMode, provenance.Selection.Provider)
             || context.ToolMode == ModelToolMode.HostedClarification
                 && (!clarificationAllowed || profile is null
@@ -85,7 +88,8 @@ public static partial class ModelToolProtocol
             writer.WriteStartObject();
             writer.WriteNumber("schemaVersion", request.ClarificationAllowed
                 ? request.FormsAllowed ? FormClarificationSchemaVersion
-                    : request.Context.ToolMode == ModelToolMode.ReadOnly ? ReadOnlyClarificationSchemaVersion : ClarificationSchemaVersion
+                    : request.Context.ToolMode is ModelToolMode.ReadOnly or ModelToolMode.InteractiveConversation
+                        ? ReadOnlyClarificationSchemaVersion : ClarificationSchemaVersion
                 : SchemaVersion);
             writer.WritePropertyName("context");
             writer.WriteRawValue(request.Context.Wire.AsSpan());

@@ -79,8 +79,8 @@ internal static partial class OllamaToolWire
                                 formsAllowed: toolMode == ModelToolMode.None),
                             JsonSerializer.SerializeToUtf8Bytes(message));
                     }
-                    if (clarificationAllowed && toolMode != ModelToolMode.ReadOnly)
-                    { throw new InvalidDataException("Only an original read-only clarification turn may request observation tools."); }
+                    if (clarificationAllowed && toolMode is not (ModelToolMode.ReadOnly or ModelToolMode.InteractiveConversation))
+                    { throw new InvalidDataException("Only an admitted observation-capable clarification turn may request tools."); }
                     writer.WriteStartObject();
                     writer.WriteString("callId", call.TryGetProperty("id", out _)
                         ? Text(call, "id") : $"ollama_r{round.ToString(CultureInfo.InvariantCulture)}_c{index.ToString(CultureInfo.InvariantCulture)}");

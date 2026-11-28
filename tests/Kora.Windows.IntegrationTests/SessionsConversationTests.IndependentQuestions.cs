@@ -29,8 +29,11 @@ public sealed partial class SessionsConversationTests
     [InlineData(true, true, false, "privacy")]
     [InlineData(false, true, false, "close")]
     [InlineData(true, false, false, "expiry")]
+    [InlineData(false, false, false, "ordinary")]
+    [InlineData(true, false, false, "ordinary")]
+    [InlineData(false, false, false, "ordinary", true)]
     public async Task OriginalQuestionSurvivesSessionSwitchAndRetainsOnlyItsOwnGenuineOutcome(
-        bool compact, bool readOnly, bool cancel, string retirement)
+        bool compact, bool readOnly, bool cancel, string retirement, bool primary = false)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -42,18 +45,30 @@ public sealed partial class SessionsConversationTests
             f.Request = InteractionStorageFixture.NewRequest();
             await f.AdmitAsync(newSession: true);
             await WindowsSqliteConversationTests.FinishInitial(f);
-            await using var transport = new QuestionTransport(false, readOnly);
+            var ordinary = retirement is "ordinary";
+            if (ordinary)
+            {
+                await f.RunAsync(() =>
+                {
+                    new Kora.Application.Configuration.LocalProviderProfilePreferences(f.Paths)
+                        .Save(new(Kora.Core.Providers.ProviderService.Local, [HandoffCatalogue.Local]));
+                    return Task.CompletedTask;
+                });
+            }
+            await using var transport = new QuestionTransport(false, readOnly, interactive: ordinary, time: f.Time);
             await using var adapter = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
-            await using var composed = new Composition(f, adapter: adapter);
+            await using var composed = new Composition(f, adapter: adapter,
+                localRequestCatalogue: ordinary ? new HandoffCatalogue(f) : null);
             using var host = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
             host.BindGate(static () => true);
             host.BindAdmissionRevision(static () => 1);
             host.BindPrivateRevision(static () => 1);
             var model = composed.Model;
             var presentation = new SessionsPresentationOwner(model);
-            var workspace = compact ? null : new SessionsWindow(model, presentation);
-            var compactWindow = compact ? new CompactSessionWindow(model, presentation) : null;
-            Window owner = workspace ?? (Window)compactWindow!;
+            var workspace = compact || primary ? null : new SessionsWindow(model, presentation);
+            var compactWindow = compact && !primary ? new CompactSessionWindow(model, presentation) : null;
+            var interaction = primary ? new SessionInteractionView { DataContext = model } : null;
+            Window owner = workspace ?? (Window?)compactWindow ?? new Window { Content = interaction };
             var displayed = new TaskCompletionSource<NativeQuestionViewModel>(TaskCreationOptions.RunContinuationsAsynchronously);
             QuestionWindow? questionWindow = null;
             model.QuestionPresenter = async (request, generation, spec, expiry, admitted, token) =>
@@ -81,9 +96,10 @@ public sealed partial class SessionsConversationTests
                 await model.SelectAsync(original);
                 await model.ReadConversationAsync();
                 model.ComposerBody = "Original request requiring an exact answer";
-                owner.FindControl<Button>(readOnly ? "SubmitReadOnlyWithClarification" : "SubmitConversationWithClarification")!
+                ((Control?)interaction ?? owner).FindControl<Button>(primary ? "SubmitMessage" : ordinary ? "SubmitConversation"
+                    : readOnly ? "SubmitReadOnlyWithClarification" : "SubmitConversationWithClarification")!
                     .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                operation = workspace?.ConversationOperation ?? compactWindow!.ConversationOperation;
+                operation = workspace?.ConversationOperation ?? compactWindow?.ConversationOperation ?? interaction!.Operation;
                 var state = await displayed.Task.WaitAsync(f.Token);
                 var question = state.Question;
                 model.CanRead.Should().BeTrue("the dispatched question must not occupy the management UI");
@@ -99,8 +115,8 @@ public sealed partial class SessionsConversationTests
                 state.Question.ExpiresAt.Should().Be(question.ExpiresAt);
                 state.Question.SessionGeneration.Should().Be(question.SessionGeneration);
                 state.IsEditable.Should().BeTrue();
-                model.CanSubmitConversationWithClarification.Should().BeFalse("the original singleton question is still owned");
-                if (!string.Equals(retirement, "none", StringComparison.Ordinal))
+                if (!ordinary) { model.CanSubmitConversationWithClarification.Should().BeFalse("the original singleton question is still owned"); }
+                if (retirement is not ("none" or "ordinary"))
                 {
                     switch (retirement)
                     {
@@ -140,7 +156,10 @@ public sealed partial class SessionsConversationTests
                 var retained = (await f.Store.ReadConversationPageAsync(originalSession, null, 25, f.Token)).Messages.Single();
                 retained.Request.Should().Be(question.Key.Request);
                 retained.Body.Should().Be("Original request requiring an exact answer");
-                retained.Outcome.Should().Be(cancel ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded);
+                retained.Outcome.Should().Be(cancel ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded,
+                    "terminal reason: {0}; provider requests: {1}; context bytes: {2}; physical input bytes: {3}; charged input bytes: {4}",
+                    retained.Reason, transport.Requests.Count, transport.Requests[0].Context.Wire.Length,
+                    transport.NativeBodies.Sum(body => body.Length), transport.NativeUsage.Sum(usage => usage.InputUtf8Bytes));
                 (retained.AssistantResponse?.Body).Should().Be(cancel ? null : "Genuine final response after exact clarification");
                 (await f.Store.ReadConversationPageAsync(other.Authority.SessionId, null, 25, f.Token)).Messages.Should().BeEmpty();
                 var answered = (await f.Store.ReadQuestionsAsync(originalSession, f.Token)).Single();
@@ -151,6 +170,18 @@ public sealed partial class SessionsConversationTests
                     var reply = transport.Requests[^1].Messages.OfType<ModelQuestionAnswerMessage>().Single();
                     reply.Answer.Choices.Should().Equal("option-1");
                     reply.Channel.Should().Be(RequestOrigin.LocalUi);
+                    if (ordinary)
+                    {
+                        transport.Requests.Should().HaveCount(3);
+                        transport.Requests[^1].Messages.OfType<ModelToolResultMessage>().Should().ContainSingle();
+                        transport.NativeBodies.Should().HaveCount(3);
+                        transport.NativeUsage.Sum(usage => usage.InputUtf8Bytes)
+                            .Should().BeLessThanOrEqualTo(ModelToolProtocol.MaximumInputUtf8Bytes);
+                        TestContext.Current.TestOutputHelper!.WriteLine(
+                            "context bytes: {0}; physical input bytes: {1}; charged input bytes: {2}",
+                            transport.Requests[0].Context.Wire.Length, transport.NativeBodies.Sum(body => body.Length),
+                            transport.NativeUsage.Sum(usage => usage.InputUtf8Bytes));
+                    }
                 }
                 await model.SelectAsync(original);
                 model.ComposerBody.Should().Be("new unsent text in the original conversation");

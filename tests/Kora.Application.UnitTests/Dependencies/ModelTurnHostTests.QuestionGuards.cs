@@ -39,7 +39,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("tools")]
     [InlineData("evidence")]
     [InlineData("already-bound")]
-    public async Task QuestionBindingRequiresFreshToolFreeEvidenceFreeTurnAndComposedInteractionStore(string fault)
+    public async Task QuestionBindingRequiresFreshAdmittedEvidenceFreeTurnAndComposedInteractionStore(string fault)
     {
         using var f = new Fixture();
         var admission = new QuestionBindingAdmission(f, fault);
@@ -50,7 +50,7 @@ public sealed partial class ModelTurnHostTests
             questionPresenter: NeverPresent);
         var failure = await operation.Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
         failure.Which.InnerException.Should().BeOfType<InvalidOperationException>()
-            .Which.Message.Should().Contain("fresh local tool-free or read-only turn");
+            .Which.Message.Should().Contain("fresh admitted local turn");
         f.ExecutionStarts.Should().Be(0);
         f.Adapter.Calls.Should().Be(0);
     }

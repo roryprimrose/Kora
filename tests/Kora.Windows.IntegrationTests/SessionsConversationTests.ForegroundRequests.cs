@@ -89,7 +89,8 @@ public sealed partial class SessionsConversationTests
             var adapter = new OriginalRequestAdapter();
             await using var composed = new Composition(f, adapter: adapter);
             composed.Audit.ExpectedOrigin = voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi;
-            using var native = new NativeUxFixtureSession(Path.GetFullPath("."), syntheticVoice: true);
+            // Production-composed buffered evidence does not mask the posted presentation notification below.
+            using var native = new NativeUxFixtureSession(Path.GetFullPath("."), syntheticVoice: true, bufferedEvidence: true);
             await native.InitializeAsync();
             native.Main.BindSessionCommands(composed.Workspace,
                 new(composed.Workspace, composed.Conversation, composed.Access, f.Time));
@@ -127,6 +128,8 @@ public sealed partial class SessionsConversationTests
                     await native.Main.RunTypedCommand.ExecuteAsync();
                 }
                 native.Main.HasForegroundRequestReview.Should().BeTrue(native.Main.ResponseBody);
+                // The review is committed synchronously; its presentation notifications are posted to the UI dispatcher.
+                Dispatcher.UIThread.RunJobs();
                 var panel = window.FindControl<SessionRequestReviewPanel>("OriginalRequestReview")!;
                 panel.IsVisible.Should().BeTrue();
                 var text = panel.Children.OfType<TextBox>().Single();

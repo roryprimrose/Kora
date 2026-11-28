@@ -20,7 +20,8 @@ public sealed partial class App
     private void BindOwnedSkillAuthoring(MainViewModel main)
     {
         var paths = Services.GetRequiredService<IApplicationDataPaths>();
-        var store = new WindowsOwnedDeclarativeSkillStore(paths);
+        var store = new WindowsOwnedDeclarativeSkillStore(paths, Services.GetRequiredService<TimeProvider>(),
+            Services.GetRequiredService<ILogger<WindowsOwnedDeclarativeSkillStore>>());
         var admission = new OwnedSkillControlAdmission(Services.GetRequiredService<ISessionWorkspaceStore>(),
             Services.GetRequiredService<WindowsSqliteHostInteractionStore>(), Services.GetRequiredService<HostTaskCoordinator>());
         var workflow = new OwnedSkillSaveWorkflow(store, admission, Services.GetRequiredService<ISecurityAuditLog>());

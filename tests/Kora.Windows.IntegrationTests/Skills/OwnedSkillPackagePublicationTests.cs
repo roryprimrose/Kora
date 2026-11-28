@@ -7,7 +7,7 @@ using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.Skills;
 
-public sealed class OwnedSkillPackagePublicationTests
+public sealed partial class OwnedSkillPackagePublicationTests
 {
     [Fact]
     public void NativePopulatedDirectoryRenameUsesThePinnedParentWithoutPathPublication()

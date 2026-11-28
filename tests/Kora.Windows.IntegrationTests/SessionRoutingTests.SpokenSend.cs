@@ -116,6 +116,7 @@ public sealed partial class SessionRoutingTests
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal string? Text { get; private set; }
+        internal List<string> Utterances { get; } = [];
         public bool IsSpeaking { get; private set; }
         public SpeechPlaybackFrame PlaybackFrame => SpeechPlaybackFrame.Inactive;
         public void InvalidateOutput() { }
@@ -128,6 +129,7 @@ public sealed partial class SessionRoutingTests
         public async Task SpeakAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice, CancellationToken cancellationToken = default)
         {
             Text = text;
+            Utterances.Add(text);
             IsSpeaking = true;
             Started.TrySetResult();
             try { await Release.Task.WaitAsync(cancellationToken); }

@@ -492,14 +492,15 @@ public sealed partial class SessionRoutingTests
             }
         }
 
-        internal async Task Initialize(bool expanded)
+        internal async Task Initialize(bool expanded, string assistantName = "Nova")
         {
             Composition.Ui.AutoAllowAdvice = false;
             await Composition.Initialize(expanded, voiceRecognition: Voice, speechInputConfiguration: configuration);
             Composition.Adapter.AdviceExpected = false;
             var main = Composition.Ui.Native.Main;
             main.BindSessionRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease.Preserved);
-            await main.SetAssistantNameAsync("Nova");
+            Stage.AssistantName = assistantName;
+            await main.SetAssistantNameAsync(assistantName);
             Composition.Ui.Window!.ShowSessions(expanded);
             await ActivateRoutingWindow(Composition.Ui.Window);
             main.BindVoiceOwnershipGate(static () => true);
@@ -539,11 +540,12 @@ public sealed partial class SessionRoutingTests
         private readonly ConcurrentBag<NativeWakeSession> sessions = [];
         public bool IsAvailable => true;
         internal int Opens { get; private set; }
+        internal string AssistantName { get; set; } = "Nova";
         public Task<IHandsFreeAudioSession> OpenAsync(HandsFreeAudioBinding binding, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             Opens++;
-            var session = new NativeWakeSession(binding);
+            var session = new NativeWakeSession(binding, AssistantName);
             sessions.Add(session);
             session.Session.Start();
             openings.Writer.TryWrite(session).Should().BeTrue();
@@ -572,9 +574,9 @@ public sealed partial class SessionRoutingTests
         internal bool HoldClose { get; set; }
         internal Action? AfterActivation { get; set; }
         internal int OpenCount { get; private set; }
-        internal NativeWakeSession(HandsFreeAudioBinding binding)
+        internal NativeWakeSession(HandsFreeAudioBinding binding, string assistantName)
         {
-            binding.AssistantName.Should().Be("Nova");
+            binding.AssistantName.Should().Be(assistantName);
             Session = new(binding with
             {
                 WakeActivated = wake => { binding.WakeActivated(wake); AfterActivation?.Invoke(); },

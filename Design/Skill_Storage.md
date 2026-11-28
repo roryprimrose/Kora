@@ -132,6 +132,22 @@ stored package bytes, including declared references. List counts reference
 file sizes without reading their bodies and rejects an oversized catalogue
 without returning partial results.
 
+Publication retries only the same pinned no-replace directory rename, and only
+when Windows refuses it with access-denied or sharing-violation (typically a
+short-lived external handle on a new file). It makes at most four attempts with
+50/100/200 ms waits from the injected `TimeProvider`. Before each retry it
+revalidates authority, cancellation, the bound root, ID and stage pins and ACLs,
+and the staged identities and exact bytes. A collision or any other status is
+final, and nothing is replaced. Exhaustion keeps the unchanged unpublished failure
+and audit; a retry never follows an observed or uncertain publication. Failure to clean up
+the operation's own stage never replaces the original error. Under the exclusive
+private lease, a later save of the same ID reaps abandoned `.owned-skill-<guid>`
+stages. It acts only on canonical names, and it pins and verifies the whole bounded tree as owned,
+protected-ACL, non-reparse, single-link entries before any handle-based deletion.
+Any unproven entry leaves the whole stage in place; published versions and
+other IDs are never touched ([staging owner](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Staging.cs),
+[regressions](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillPackagePublicationTests.Staging.cs)).
+
 | Partition | Location | Kora access |
 |---|---|---|
 | Bundled | Embedded resources in the first-party `Kora.Definitions` binary | Current: immutable catalogue and read-only inspection only. Invocation unavailable; no user/agent editing, loose-file overrides, or writable extraction. Installed protection remains a separate admission gate. |

@@ -85,6 +85,13 @@ internal sealed partial class OwnedSkillPackagePublication : IDisposable
 
     internal static void Commit(SafeFileHandle staging, SafeFileHandle parent, string version)
     {
+        var status = TryCommit(staging, parent, version);
+        if (status != 0) { throw CommitFailure(status); }
+    }
+
+    /// <summary>Attempts the single no-replace directory rename and returns its NTSTATUS without interpretation.</summary>
+    internal static uint TryCommit(SafeFileHandle staging, SafeFileHandle parent, string version)
+    {
         var name = Encoding.Unicode.GetBytes(version);
         var offset = nint.Size == 8 ? 20 : 12;
         var buffer = new byte[offset + name.Length + 2];
@@ -93,15 +100,20 @@ internal sealed partial class OwnedSkillPackagePublication : IDisposable
             .CopyTo(buffer.AsSpan(nint.Size == 8 ? 8 : 4));
         BitConverter.GetBytes(name.Length).CopyTo(buffer, offset - 4);
         name.CopyTo(buffer, offset);
-        var status = NtSetInformationFile(staging, out _, buffer, (uint)buffer.Length, 65);
-        if (status == 0xc0000035)
-        { throw new InvalidOperationException("That exact skill version already exists. Choose a new ID/version or cancel; nothing was replaced."); }
-        if (status != 0)
-        {
-            throw new IOException("Atomic no-replace skill directory publication failed.",
-                new Win32Exception(unchecked((int)RtlNtStatusToDosError(status))));
-        }
+        return NtSetInformationFile(staging, out _, buffer, (uint)buffer.Length, 65);
     }
+
+    /// <summary>
+    /// A short-lived external handle on a staged child (for example on-access scanning) refuses the rename with
+    /// access-denied or sharing-violation. Every other status, including a destination collision, is final.
+    /// </summary>
+    internal static bool IsTransientCommitRefusal(uint status) => status is 0xc0000022 or 0xc0000043;
+
+    internal static int WindowsError(uint status) => unchecked((int)RtlNtStatusToDosError(status));
+
+    internal static Exception CommitFailure(uint status) => status == 0xc0000035
+        ? new InvalidOperationException("That exact skill version already exists. Choose a new ID/version or cancel; nothing was replaced.")
+        : new IOException("Atomic no-replace skill directory publication failed.", new Win32Exception(WindowsError(status)));
 
     private static IOException Failure(string message) => new(message, new Win32Exception(Marshal.GetLastWin32Error()));
     public void Dispose()

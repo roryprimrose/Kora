@@ -4,17 +4,23 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Skills;
 using Kora.Windows.Storage;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Win32.SafeHandles;
 
 namespace Kora.Windows.Skills;
 
-public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths paths)
+public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths paths, TimeProvider time,
+    ILogger<WindowsOwnedDeclarativeSkillStore> logger)
     : IOwnedDeclarativeSkillStore, IOwnedSkillRenameStore, IOwnedSkillDeletionStore
 {
     private readonly RestrictedStorageDirectory directory = RestrictedStorageDirectory.ForOwnedSkills(paths);
     private readonly Lock gate = new();
     private string? rootIdentity;
     internal Action<string>? Checkpoint { get; set; }
+
+    internal WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths paths)
+        : this(paths, TimeProvider.System, NullLogger<WindowsOwnedDeclarativeSkillStore>.Instance) { }
 
     public string Destination(OwnedDeclarativeSkillDocument document)
     {
@@ -72,7 +78,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
 
     private OwnedDeclarativeSkillSnapshot PublishCore(OwnedDeclarativeSkillDocument document, Func<bool> eligible, CancellationToken token,
         Action<OwnedDeclarativeSkillSnapshot>? beforeCommit = null, OwnedSkillRename? rename = null,
-        OwnedDeclarativeSkillSnapshot? expectedSource = null)
+        OwnedDeclarativeSkillSnapshot? expectedSource = null, Action? beforeRetry = null)
     {
         document.RequireComplete();
         using var activity = HostActivity.Current is null ? null : HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
@@ -83,6 +89,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                 if (deletionHolds.Contains(Destination(document)))
                 { throw new InvalidOperationException("This exact owned ID/version is retired or has unconfirmed deletion. Use a new identity/version; do not recreate or retry it."); }
                 using var pins = PinRoot(token);
+                var rootPin = pins.Last;
                 using var lease = beforeCommit is null ? directory.AcquireBoundedLease(requireExisting: false, token) : null;
                 if (beforeCommit is null) { RequireNoPendingRename(document.Id, document.Version, token); }
                 using var sourcePins = new OwnedSkillPackagePublication();
@@ -100,6 +107,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                     if (!expectedSource.IsSameRevision(actual))
                     { throw new InvalidDataException("The exact reopened package changed or was replaced; no new version was published."); }
                 }
+                // Every staging writer holds this exclusive lease, so any staging entry visible now is abandoned.
+                ReapOrphanStages(document.Id, token);
                 var existing = Catalogue(pins, token);
                 var count = existing.Count + (rename is null ? 1 : 0);
                 var bytes = existing.TotalBytes + PackageBytes(document);
@@ -123,7 +132,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                 }
                 var parent = pins.PinDirectory(idPath);
                 directory.VerifyOwnedSkillDirectory(idPath);
-                var stage = Path.Combine(idPath, ".owned-skill-" + Guid.NewGuid().ToString("N"));
+                var stage = Path.Combine(idPath, StagePrefix + Guid.NewGuid().ToString("N"));
                 directory.CreateOwnedSkillDirectory(stage);
                 using var stagePins = new OwnedSkillPackagePublication();
                 SafeFileHandle? stageHandle = null;
@@ -131,6 +140,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                 var createdDirectories = new Dictionary<string, string>(StringComparer.Ordinal);
                 var contentPins = new List<SafeFileHandle>();
                 var observed = false;
+                Exception? unpublished = null;
                 try
                 {
                     stageHandle = stagePins.PinDirectory(stage, forRename: true);
@@ -186,7 +196,25 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                     foreach (var pin in contentPins) { pin.Dispose(); }
                     beforeCommit?.Invoke(staged);
                     RequireCurrent(eligible, token);
-                    OwnedSkillPackagePublication.Commit(stageHandle, parent, document.Version);
+                    CommitWithinBound(stageHandle, parent, document.Version, () =>
+                    {
+                        // A retry repeats the same pinned no-replace rename only while every pre-commit fact still holds.
+                        RequireCurrent(eligible, token);
+                        RequireBoundRoot(rootPin);
+                        directory.VerifyOwnedSkillDirectory(idPath);
+                        directory.VerifyOwnedSkillDirectory(stage);
+                        OwnedSkillPackagePublication.Verify(parent, idPath, directory: true);
+                        OwnedSkillPackagePublication.Verify(stageHandle, stage, directory: true);
+                        var current = ReadPackage(stage, token, stageHandle);
+                        if (!string.Equals(current.ManifestIdentity, staged.ManifestIdentity, StringComparison.Ordinal)
+                            || !string.Equals(current.InstructionsIdentity, staged.InstructionsIdentity, StringComparison.Ordinal)
+                            || !staged.IsSameRevision(current))
+                        { throw new InvalidDataException("The staged package names no longer identify the reviewed files."); }
+                        RequireExact(document, current.Document);
+                        // Unpinned sources (the rename original and its intent) are rechecked without repeating beforeCommit's writes.
+                        beforeRetry?.Invoke();
+                        RequireCurrent(eligible, token);
+                    }, token);
                     observed = true;
                     Checkpoint?.Invoke("after-commit");
                     RequireCurrent(eligible, token);
@@ -204,12 +232,17 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                 }
                 catch (Exception exception) when (observed && exception is not OutOfMemoryException)
                 { throw new OwnedSkillPublicationUnconfirmedException(exception); }
+                catch (Exception exception) when (!observed)
+                {
+                    unpublished = exception;
+                    throw;
+                }
                 finally
                 {
                     // Only an unpublished operation-created directory is eligible for cleanup, after all handles join.
                     // Uncertain published targets are never removed or silently retried.
                     foreach (var pin in contentPins) { pin.Dispose(); }
-                    if (!observed && stageHandle is not null) { CleanupStage(stage, stageHandle, createdFiles, createdDirectories); }
+                    if (!observed && stageHandle is not null) { RetireStage(stage, stageHandle, createdFiles, createdDirectories, unpublished); }
                     stagePins.Dispose();
                 }
             }
@@ -311,7 +344,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
             foreach (var versionPath in entries)
             {
                 var version = Path.GetFileName(versionPath);
-                if (version.StartsWith(".owned-skill-", StringComparison.Ordinal))
+                if (version.StartsWith(StagePrefix, StringComparison.Ordinal))
                 {
                     if (version.Length != 45 || !Guid.TryParseExact(version[13..], "N", out _))
                     { throw new InvalidDataException("An unknown private staging entry was found."); }

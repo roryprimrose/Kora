@@ -254,11 +254,11 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         }
 
         internal static async Task<DraftValidationFixture> Create(ArtifactKind kind, bool newDraft,
-            IUiDispatcher? dispatcher = null, bool hosted = false)
+            IUiDispatcher? dispatcher = null, bool hosted = false, bool bufferedEvidence = false)
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            var session = new NativeUxFixtureSession(parent);
+            var session = new NativeUxFixtureSession(parent, bufferedEvidence: bufferedEvidence);
             await session.InitializeAsync(null, dispatcher: dispatcher);
             var fixture = new DraftValidationFixture(session, kind, hosted);
             if (newDraft) { await fixture.Run(fixture.Prefix + " create example"); }

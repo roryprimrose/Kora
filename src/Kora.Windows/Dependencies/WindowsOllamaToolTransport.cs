@@ -33,6 +33,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
     private CancellationTokenRegistration revocation;
     private CancellationTokenRegistration callerCancellation;
     private DateTimeOffset deadline;
+    private ModelTurnLifetime? turnLifetime;
     private int inputBytes;
     private int outputBytes;
     private ModelClarificationQuestion? issuedQuestion;
@@ -145,6 +146,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
             original = request;
             binding = resolveBinding(request);
             deadline = time.GetUtcNow() + ModelToolProtocol.Deadline;
+            turnLifetime = ModelTurnLifetime.For(request.Provenance.Request);
             if (binding is not null)
             {
                 revocation = binding.Revoked.Register(CloseInactiveConversation);
@@ -164,9 +166,10 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
         var resultBytes = request.Messages.Skip(admittedHistory.Length)
             .Where(message => message is ModelToolResultMessage or ModelQuestionAnswerMessage)
             .Sum(result => ModelToolProtocol.SerializeMessage(result).Length);
-        var remaining = deadline - time.GetUtcNow();
-        if (remaining <= TimeSpan.Zero) { return Finish(request, ModelTurnOutcome.TimedOut); }
-        using var timeout = new CancellationTokenSource(remaining, time);
+        // The owning turn's host waits pause this conversation deadline; check-in turns have none.
+        var remaining = turnLifetime?.Remaining(deadline, time.GetUtcNow()) ?? deadline - time.GetUtcNow();
+        if (remaining != Timeout.InfiniteTimeSpan && remaining <= TimeSpan.Zero) { return Finish(request, ModelTurnOutcome.TimedOut); }
+        using var timeout = new ModelTurnDeadline(turnLifetime, remaining, time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(callerToken, lifetime.Token,
             selected.Revoked, timeout.Token);
         try

@@ -190,8 +190,9 @@ public sealed partial class ModelTurnHostTests
         f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
         var host = f.ConfiguredProfiles();
         f.Adapter.OnRun = f.Time.FireDeadline;
-        var receipt = await f.ConversationService(host, execution: host).SubmitAsync(new(f.Session, null),
-            "original timed request", static () => true, Token);
+        // Ordinary turns use check-ins; the specialized fixed route keeps its host runtime deadline.
+        var receipt = await f.ConversationService(host, execution: host).SubmitOriginalLocalAsync(new(f.Session, null),
+            "original timed request", static () => true, _ => Task.CompletedTask, [], RequestOrigin.LocalUi, Token);
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.TimedOut);
         receipt.Message.Reason.Should().Be(ModelTurnReason.DeadlineExceeded);
         receipt.Message.AssistantResponse.Should().BeNull();

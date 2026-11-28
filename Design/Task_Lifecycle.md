@@ -338,13 +338,19 @@ Context packing respects the selected runtime's actual limits.
 Required input that will not fit causes an explicit error or a user-approved reduction; it is not silently dropped.
 When a referenced result is unavailable to a runtime, Kora offers a permitted bounded selection rather than an inaccessible reference.
 
-The [delivered future ordinary conversation deadline](User_Configuration.md#delivered-future-ordinary-conversation-deadline) is a host-owned device preference, not the retired compatibility queue product.
-Its consumed subset excludes user-wait turns; clarification/approval budgets remain fixed.
-Newly dispatched ordinary turns capture the default once, never while pending and never by renewing the immutable original context ([dispatch](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+The [delivered ordinary turn check-in interval](User_Configuration.md#delivered-future-ordinary-conversation-deadline) is a host-owned device preference, not the retired compatibility queue product.
+Its consumed subset excludes clarification turns, which keep their fixed budgets.
+Newly dispatched ordinary turns capture the interval once, never while pending, and only while the immutable original context is still current ([dispatch](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
 
-The effective active budget is the minimum of that captured preference, the fixed runtime/tool limit and remaining original context authorization.
-At or after expiry, late success is suppressed and cancellation/drain uses existing resource ownership and terminal/audit paths; logical timeout is not physical provider termination
-([host budget](../src/Kora.Application/Dependencies/ModelTurnHost.OrdinaryDeadline.cs), [boundary and drain tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.OrdinaryDeadline.cs)).
+Ordinary turns have **no whole-turn limit** ([decision](Decision_Register.md#turn-lifetime-check-ins---2026-11-28)).
+After each interval of active time the host posts a non-blocking check-in; the turn keeps running. Keep going, keep going for chosen minutes and keep running until done are audited answers that reschedule or remove later check-ins.
+Stop is the ordinary audited running-conversation cancellation: late success is suppressed, owned resources are joined and the terminal outcome is truthful; logical cancellation is not physical provider termination.
+An unanswered check-in retires with the turn and is never replayed
+([check-in owner](../src/Kora.Application/Hosting/OrdinaryTurnCheckIns.cs), [regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.CheckIns.cs)).
+
+Blocking user decisions inside a running turn are host waits. Permission cards have no time limit (`HostInteractionLifetime.UntilAnswered`) and retire only on answer, cancellation, or loss of request, session or ownership.
+While one is open, the turn's context expiry, runtime deadline, check-in interval and transport deadline pause, and resume afterwards ([turn clock](../src/Kora.Core/Dependencies/ModelTurnLifetime.cs)).
+Fixed-limit turns (clarification, specialized source and maintenance workflows) keep their limits, measured in active time.
 
 ## Cancellation Semantics
 

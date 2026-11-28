@@ -56,12 +56,12 @@ public sealed partial class SessionConversationService
     internal Task<ConversationSubmissionReceipt> SubmitReviewedClaudeAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, Func<CancellationToken, Task> beforeRetain,
         IEnumerable<ActivityLink> links, RequestOrigin origin,
-        System.Collections.Immutable.ImmutableArray<string> toolIds, CancellationToken token)
+        System.Collections.Immutable.ImmutableArray<string> toolIds, Action dispatched, CancellationToken token)
     {
         var constraints = toolIds.IsEmpty ? null : ClaudeObservationTools.Constrain(toolIds);
         return SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin,
             (request, now) => new(request, constraints is null ? Policy : ClaudeObservationPolicy, body, [], now, now.Add(HostedTurnAuthorization.MaximumDuration),
                 constraints is null ? ModelToolMode.None : ModelToolMode.ReadOnly, constraints),
-            ModelTurnChoice.Hosted, token, claude: true, ordinaryActiveDeadline: true);
+            ModelTurnChoice.Hosted, token, onAdmitted: _ => dispatched(), claude: true, ordinaryActiveDeadline: true);
     }
 }

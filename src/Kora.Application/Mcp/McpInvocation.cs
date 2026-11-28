@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using McpProcessAuthorization = Kora.Core.Mcp.McpConnectionIdentity.McpProcessAuthorization;
 using IMcpProcessPreparation = Kora.Core.Mcp.IMcpConnectionBroker.IMcpProcessPreparation;
@@ -294,18 +294,20 @@ internal sealed partial class McpInvocation(
         lock (guidanceClockGate)
         {
             var now = time.GetUtcNow();
-            if (guidanceClockRetired || now < guidanceObservedAt || now >= expiresAt)
+            if (guidanceClockRetired || now < guidanceObservedAt || !BeforeExpiry(now))
             { guidanceClockRetired = true; return false; }
             guidanceObservedAt = now;
             return true;
         }
     }
 
+    private bool BeforeExpiry(DateTimeOffset now) => now < (turn?.Lifetime.Extend(expiresAt) ?? expiresAt);
+
     private bool Admitted(CancellationToken token) => !disposed && !token.IsCancellationRequested
         && access.CanControl && access.ControlRevision == control && configuration.UseControlRevision == useRevision
         && string.Equals(configuration.CaptureCapabilityRevision(serverId), capabilityRevision, StringComparison.Ordinal)
         && (descriptor is null || configuration.SourceControlRevision(serverId) == descriptor.SourceControlRevision)
-        && admitted() && time.GetUtcNow() < expiresAt
+        && admitted() && BeforeExpiry(time.GetUtcNow())
         && (skill is null || time.GetUtcNow() < skill.ExpiresAt);
 
     private bool Live(CancellationToken token) => Admitted(token)
@@ -370,9 +372,15 @@ internal sealed partial class McpInvocation(
                 identity.Account?.Destination.Digest ?? identity.Digest, Hash("inert-local-only-result-v1"), new(1),
                 new(PermissionGrantArtifactKind.McpServer, source.Scope));
             var proposal = new HostOperationProposal(invocation, new(Guid.NewGuid()), new(1), binding,
-                processAction is null ? HostOperationEffect.BoundedRead : HostOperationEffect.BoundedWrite, expiresAt);
-            var presented = await presenter(proposal, generation, review,
-                () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
+                processAction is null ? HostOperationEffect.BoundedRead : HostOperationEffect.BoundedWrite,
+                HostInteractionLifetime.UntilAnswered);
+            McpApprovalPresentation presented;
+            // In-turn MCP approval cards have no time limit; the owning turn's clocks pause until each is decided.
+            using (turn?.BeginHostWait())
+            {
+                presented = await presenter(proposal, generation, review,
+                    () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
+            }
             token.ThrowIfCancellationRequested();
             if (!Live(token))
             { throw new InvalidOperationException("Exact native MCP endpoint/account/tool/argument approval is required."); }

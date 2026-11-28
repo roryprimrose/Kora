@@ -13,7 +13,8 @@ public sealed partial class ClaudeMessagesRuntime
         Func<CancellationToken, ValueTask<bool>> current,
         Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken token)
     {
-        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2), time);
+        var turnLifetime = ModelTurnLifetime.For(provenance.Request);
+        using var deadline = new ModelTurnDeadline(turnLifetime, TimeSpan.FromMinutes(2), time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token, lifetime.Token);
         token = linked.Token;
         await operation.WaitAsync(token).ConfigureAwait(false);
@@ -33,6 +34,8 @@ public sealed partial class ClaudeMessagesRuntime
             if (account is null) { return new(ModelTurnOutcome.Unavailable); }
             using var revoked = CancellationTokenSource.CreateLinkedTokenSource(token, account.Revocation);
             token = revoked.Token;
+            await using var renewal = HostedLeaseRenewal.Start(turnLifetime, () => account.Catalogue.ValidUntil,
+                ct => accounts.RenewAsync(account, ct), time, exception => LeaseRenewalFailed(logger, exception.GetType().Name), token);
             var model = ProviderProfileRules.Resolve(profile, account.Catalogue, time.GetUtcNow());
             if (model?.Selection != provenance.Selection
                 || model.Context.Single(option => option.Id == profile.Context).InputTokenLimit is not { } inputLimit
@@ -42,12 +45,12 @@ public sealed partial class ClaudeMessagesRuntime
             { return new(ModelTurnOutcome.Unavailable); }
             async ValueTask<bool> Live(CancellationToken ct) => !disposed && !quarantined && !ct.IsCancellationRequested
                 && (!account.Approval.IsDevelopmentPreview || account.Approval.HasCurrentDevelopmentPreview)
-                && context.CreatedAt <= time.GetUtcNow() && context.ExpiresAt > time.GetUtcNow()
+                && ContextLive(context, turnLifetime)
                 && await accounts.CurrentAsync(account, ct).ConfigureAwait(false)
                 && await current(ct).ConfigureAwait(false)
-                && !disposed && !quarantined && !ct.IsCancellationRequested && context.CreatedAt <= time.GetUtcNow()
+                && !disposed && !quarantined && !ct.IsCancellationRequested
                 && (!account.Approval.IsDevelopmentPreview || account.Approval.HasCurrentDevelopmentPreview)
-                && context.ExpiresAt > time.GetUtcNow();
+                && ContextLive(context, turnLifetime);
             http = create();
             var sender = new ClaudeFinalRequestHandler(http, accounts);
             using var handler = new ClaudeSdkRequestHandler(sender, account, provenance, profile, inputLimit,
@@ -55,7 +58,7 @@ public sealed partial class ClaudeMessagesRuntime
             try
             {
                 using var sdkHttp = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
-                using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential);
+                using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential, turnLifetime: turnLifetime);
                 using var chat = sdk.AsIChatClient(profile.Model.Value, outputLimit);
                 var answer = new StringBuilder();
                 ChatFinishReason? finishReason = null;

@@ -252,7 +252,7 @@ public sealed partial class HostedClaudeSessionRequestTests
     }
 
     [Fact]
-    public async Task HostDeadlineFencesNativeLateAnswerAndKeepsPhysicalHttpOwnedUntilJoined()
+    public async Task CheckInObservationTurnHasNoHostDeadlineAndStopFencesNativeLateAnswerUntilPhysicalHttpJoins()
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync(); await WindowsSqliteConversationTests.FinishInitial(f);
@@ -267,19 +267,23 @@ public sealed partial class HostedClaudeSessionRequestTests
         };
         c.Reviews.ClaudeOffered += review =>
         { using var presentation = review.Presentation(); c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
-        var run = c.Conversation.SubmitClaudeObservationsAsync(await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token),
+        var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
+        var run = c.Conversation.SubmitClaudeObservationsAsync(target,
             "original", [ReadOnlyCapabilityCatalog.Version], () => true, f.Token);
         try
         {
             (await Task.WhenAny(entered.Task, run).WaitAsync(f.Token)).Should().BeSameAs(entered.Task);
-            c.TurnTime.FireDeadline();
+            c.TurnTime.HasActive(ModelToolProtocol.Deadline).Should().BeFalse("ordinary observation turns use check-ins, not a fixed deadline");
+            var running = (await c.Conversation.ReadRunningConversationAsync(target, () => true, f.Token))!;
+            (await c.Conversation.CancelRunningConversationAsync(running.Target, () => true, f.Token))
+                .Phase.Should().Be(Kora.Core.Conversation.ConversationExecutionPhase.Cancelling);
             c.Runtime.IsQuiescent.Should().BeFalse();
             c.Turns.IsQuiescent.Should().BeFalse();
             run.IsCompleted.Should().BeFalse();
         }
         finally { release.TrySetResult(ClaudeAccountBrokerTests.Fixture.Json(ClaudeMessagesRuntimeTests.Answer)); }
         var receipt = await run;
-        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.TimedOut);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
         receipt.Message.AssistantResponse.Should().BeNull();
         c.Boundary.VersionReads.Should().Be(0);
         c.Http.Requests.Count(item => item.Method is "POST").Should().Be(2);

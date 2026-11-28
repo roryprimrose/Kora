@@ -58,7 +58,7 @@ public sealed class ModelTurn
     }
     internal ModelTurn(Guid owner, HostActivity issuer, ModelTurnProvenance provenance, ModelContextEnvelope context,
         byte[] wire, HostRevision sessionGeneration, HostRevision taskRevision,
-        long controlRevision, ModelProviderRegistration registration)
+        long controlRevision, ModelProviderRegistration registration, TimeProvider? time = null)
     {
         Owner = owner;
         Issuer = issuer;
@@ -69,9 +69,19 @@ public sealed class ModelTurn
         TaskRevision = taskRevision;
         ControlRevision = controlRevision;
         Registration = registration;
+        Lifetime = new(provenance.Request, time ?? TimeProvider.System);
     }
 
     public ModelTurnProvenance Provenance { get; }
+
+    /// <summary>
+    /// Pauses every clock of this turn (context expiry, runtime and transport deadlines and ordinary check-ins)
+    /// until the returned scope is disposed. Wrap a blocking permission card opened from inside this turn:
+    /// <c>using (turn.BeginHostWait()) { await card; }</c>. It confers no authority and never renews admission.
+    /// </summary>
+    public IDisposable BeginHostWait() => Lifetime.BeginHostWait();
+
+    internal ModelTurnLifetime Lifetime { get; }
     public ProviderProfileTuple? Profile { get; internal set; }
     public long? SessionPolicyRevision { get; internal set; }
     internal Guid Owner { get; }
@@ -85,7 +95,8 @@ public sealed class ModelTurn
     internal ModelProviderRegistration Registration { get; set; }
     internal ModelProviderPolicy? Policy { get; set; }
     internal ModelTurnResult? TerminalResult { get; set; }
-    internal OrdinaryTurnActiveBudget? OrdinaryActiveBudget { get; set; }
+    internal bool ContextCurrent(TimeProvider time) =>
+        time.GetUtcNow() >= Context.CreatedAt && time.GetUtcNow() < Lifetime.Extend(Context.ExpiresAt);
     internal Kora.Core.Conversation.SubmittedAnswerContext? SubmittedContext { get; set; }
     internal LocalUnavailableObservation? LocalUnavailable { get; set; }
     internal RuntimeResourceAllocator.Lease? ResourceLease { get; set; }

@@ -120,6 +120,7 @@
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
         AutomationProperties.Name="Exact running conversation task and cancellation state" />
+      <local:TurnCheckInPanel />
       <local:PendingConversationPanel />
       <local:ManagementAnswerPanel />
       <local:ComposerRequestReviewPanel />

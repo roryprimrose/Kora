@@ -121,7 +121,7 @@ internal sealed partial class BoundedModelTurnAdapter(
 
     private async ValueTask<ModelProviderReply?> CheckContinuationAsync(ModelTurnProvenance provenance,
         DateTimeOffset started, Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
-        TimeSpan deadline, CancellationToken token)
+        TimeSpan deadline, ModelTurnLifetime? turnLifetime, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         if (!HasHostContext(provenance))
@@ -133,7 +133,7 @@ internal sealed partial class BoundedModelTurnAdapter(
         if (!HasHostContext(provenance))
         { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.HostContextRequired); }
         var now = time.GetUtcNow();
-        return now < started || now - started >= deadline
+        return now < started || now >= (turnLifetime?.Extend(started + deadline) ?? started + deadline)
             ? Finish(provenance, ModelTurnOutcome.TimedOut, ModelTurnReason.DeadlineExceeded) : null;
     }
 

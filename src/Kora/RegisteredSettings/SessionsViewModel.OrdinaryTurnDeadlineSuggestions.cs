@@ -43,7 +43,7 @@ internal sealed partial class SessionsViewModel
                 var saved = await (confirmOrdinaryDeadlineSuggestion
                     ?? throw new InvalidOperationException("Deadline confirmation is unavailable."))(review, lifetime.Token);
                 conversationStatus = saved
-                    ? "Future ordinary task deadline saved with committed preference and audit readback. Running turns and earlier context/provider/tool ceilings are unchanged."
+                    ? "Ordinary turn check-in interval saved with committed preference and audit readback. Running turns are unchanged."
                     : UnconfirmedOrdinaryDeadlineSave;
             }
             catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)

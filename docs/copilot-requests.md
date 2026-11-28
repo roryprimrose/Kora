@@ -52,7 +52,12 @@ intend to transmit. Declining, closing the review, cancellation or stale
 authority denies the send. A subsequent tool-result request or SDK retry needs
 new consent; account setup and model selection never approve content egress.
 
-The whole turn, including reviews, has a two-minute deadline. Successful bounded
+Ordinary Copilot requests have no whole-turn time limit: after each
+[check-in interval](settings.md#check-ins-while-a-turn-runs) Kora asks whether
+to keep going, and the turn keeps running meanwhile. Reviews have no time limit
+and pause the turn's clock. While the turn runs, Kora renews the account lease
+in place only while the same approved deployment remains current; each renewal
+is audited and no content is sent for it. Successful bounded
 answers are retained as ASSISTANT data in the same conversation; failed or
 denied turns retain no assistant answer. Tool-free requests can show provisional
 answer prefixes from the SDK while the same request is running. These previews

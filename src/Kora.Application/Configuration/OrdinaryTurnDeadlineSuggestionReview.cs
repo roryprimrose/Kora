@@ -54,8 +54,8 @@ public sealed class OrdinaryTurnDeadlineSuggestionReview : IDisposable
         ? $"work.active-deadline-minutes: Current saved: {(observation!.Saved is { } saved ? $"{saved.Minutes} minutes" : "default five minutes (not saved)")}; "
             + $"effective: {observation.Effective.Minutes} minutes. Proposed: {(proposed is { } value ? $"{value.Minutes} minutes" : "reset to default five minutes (not saved)")}. "
             + "Default: five minutes. Scope: shared device-local, future ordinary task dispatch only. "
-            + "Running turns are unchanged. Earlier original context expiry and fixed provider/tool ceilings always win. "
-            + "Clarification and approval limits, concurrency, privacy, consent and call protections are unchanged. "
+            + "Running turns are unchanged. This is the check-in interval: ordinary turns keep running and ask whether to continue after each interval. "
+            + "Clarification limits, concurrency, privacy, consent and call protections are unchanged. "
             + "Nothing has changed. Confirm separately in this current native surface within 60 seconds, or Cancel."
         : string.Empty;
 

@@ -82,7 +82,7 @@ public sealed partial class SessionsConversationTests
             model.RegisteredSettingSuggestionDescription.Should().Contain("Current saved: 7 minutes")
                 .And.Contain(reset ? "reset to default five minutes (not saved)" : "Proposed: 10 minutes")
                 .And.Contain("shared device-local").And.Contain("future ordinary task dispatch only")
-                .And.Contain("fixed provider/tool ceilings").And.Contain("Running turns are unchanged");
+                .And.Contain("check-in interval").And.Contain("Running turns are unchanged");
             model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue(model.ConversationStatus);
             preferences.Load().Should().Be(new OrdinaryTurnDeadline(7));
             audit.Events.Should().BeEmpty();
@@ -93,11 +93,11 @@ public sealed partial class SessionsConversationTests
             await model.ReviewRegisteredSettingSuggestionAsync(answer);
             await model.ConfirmRegisteredSettingSuggestionAsync();
             model.ConversationStatus.Should().Contain("saved with committed preference and audit readback")
-                .And.Contain("Running turns").And.Contain("ceilings are unchanged");
+                .And.Contain("Running turns are unchanged");
             var expected = reset ? (OrdinaryTurnDeadline?)null : new(10);
             new LocalOrdinaryTurnDeadlinePreferences(f.Paths).Load().Should().Be(expected);
             deadline.Capture().Should().Be(expected ?? OrdinaryTurnDeadline.Default);
-            running.Minutes.Should().Be(7, "the already captured running budget is immutable");
+            running.Minutes.Should().Be(7, "the already captured running check-in interval is immutable");
             audit.Events.Select(item => (item.ActionId, item.Initiator, item.Outcome)).Should().Equal(
                 ("configuration.ordinary-turn-deadline", SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Requested),
                 ("configuration.ordinary-turn-deadline", SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Succeeded));

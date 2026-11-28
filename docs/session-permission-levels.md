@@ -102,6 +102,16 @@ use the same exact-card checks and display the operation review.
 
 No card, multiple eligible cards, expiry, changed authority or failed readback
 refuses the reply without selecting another card or sending it to a model.
+
+The same rules apply to running-turn check-ins: say **Kora, keep going**,
+**Kora, keep going for 10 minutes**, **Kora, keep going until done** or
+**Kora, stop this turn** for exactly one waiting check-in. With this setting Off
+during a protected call, use the check-in buttons instead
+([check-ins](settings.md#check-ins-while-a-turn-runs)).
+
+Permission cards opened while a turn is running have no time limit. They stay
+open until you answer or cancel, or until the request, session or ownership
+changes, and the running turn's time limits pause while they are open.
 **Always** is not available by voice. Native-only confirmations, including
 web/MCP disclosure, MCP process and bundled-script package reviews, stay native-only.
 

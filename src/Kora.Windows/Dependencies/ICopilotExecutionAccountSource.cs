@@ -6,4 +6,7 @@ namespace Kora.Windows.Dependencies;
 public interface ICopilotExecutionAccountSource
 {
     ValueTask<CopilotExecutionAccount?> ResolveAsync(ProviderProfileTuple profile, CancellationToken cancellationToken);
+
+    /// <summary>Audited in-place lease revalidation for a running host turn; sources without leases renew nothing.</summary>
+    ValueTask<bool> RenewAsync(CopilotExecutionAccount expected, CancellationToken token) => ValueTask.FromResult(false);
 }

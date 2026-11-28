@@ -21,7 +21,8 @@ public sealed partial class SessionConversationService
             ?? throw new InvalidOperationException("The admitted model host execution port is not composed.");
         var turn = admission.Turn!;
         var request = retained.Message.Request;
-        bool Current() => live() && time.GetUtcNow() >= context.CreatedAt && time.GetUtcNow() < context.ExpiresAt;
+        // Host waits pause, and ordinary check-ins remove, the original context expiry of this exact turn.
+        bool Current() => live() && turn.ContextCurrent(time);
         if (admission.Result.Outcome != ModelTurnOutcome.Succeeded || admission.Result.Response is not null
             || admission.Result.Provenance != turn.Provenance || turn.Provenance.Request != request
             || !ReferenceEquals(turn.Context, context) || turn.SessionGeneration != target.Authority.Generation
@@ -37,7 +38,7 @@ public sealed partial class SessionConversationService
         turn.PublishResourceStatus = running.PresentResources;
         turn.PublishAnswer = async (update, publicationToken) =>
         {
-            bool PresentCurrent() => Current() && turn.OrdinaryActiveBudget?.Expired != true
+            bool PresentCurrent() => Current()
                 && running.CanContinue && turn.IsRunning
                 && !running.Token.IsCancellationRequested;
             publicationToken.ThrowIfCancellationRequested();
@@ -56,6 +57,7 @@ public sealed partial class SessionConversationService
             }
         };
         var confirmed = false;
+        OrdinaryTurnCheckIns? checkIns = null;
         try
         {
             if (runtime is not null)
@@ -103,17 +105,15 @@ public sealed partial class SessionConversationService
             { throw new IOException("Execution intent readback is unconfirmed; inspect without repeating the turn."); }
             turn.TaskRevision = dispatched.Task.Revision;
             turn.ConversationTarget = target;
-            if (ordinaryActiveDeadline && runtime is not null)
-            {
-                runtime.CaptureOrdinaryActiveBudget(turn,
-                    ordinaryDeadlines?.Capture() ?? Kora.Core.Configuration.OrdinaryTurnDeadline.Default);
-            }
+            if (ordinaryActiveDeadline && runtime is not null) { checkIns = StartCheckIns(runtime, turn, running); }
             var dispatchReadback = await conversations.ReadConversationMessageAsync(request.SessionId, request.RequestId, token).ConfigureAwait(false);
             if (dispatchReadback != dispatched.Message || !Current())
             { throw new IOException("The original dispatch source readback is unconfirmed; no model turn was repeated."); }
             running.Dispatched(dispatched.Task.Revision);
             RunningConversationChanged?.Invoke(running.Status);
             var result = await executor.RunAsync(turn, () => running.CanContinue, running.Token, validateSource).ConfigureAwait(false);
+            // An unanswered check-in retires with the turn; it is never replayed.
+            checkIns?.Dispose();
             if (!ReferenceEquals(turn.TerminalResult, result) || result.Provenance != turn.Provenance
                 || !Enum.IsDefined(result.Outcome) || !Enum.IsDefined(result.Reason)
                 || result.Outcome != ModelTurnOutcome.Succeeded && result.Response is not null)
@@ -160,13 +160,8 @@ public sealed partial class SessionConversationService
             }
             if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
             token.ThrowIfCancellationRequested();
-            if (result.Outcome == ModelTurnOutcome.Succeeded && turn.OrdinaryActiveBudget?.Expired == true)
-            {
-                result = new(ModelTurnOutcome.TimedOut, ModelTurnReason.DeadlineExceeded, turn.Provenance);
-                answer = null;
-            }
             bool RetainCurrent() => live() && (result.Outcome != ModelTurnOutcome.Succeeded
-                || Current() && turn.OrdinaryActiveBudget?.Expired != true
+                || Current()
                     && (runtime is not null ? runtime.IsTurnQuiescent(turn) : turns.IsQuiescent));
             if (!RetainCurrent() || await store.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false) != target)
             { throw new InvalidOperationException("The original source or session changed before terminal retention."); }
@@ -198,6 +193,7 @@ public sealed partial class SessionConversationService
         }
         finally
         {
+            checkIns?.Dispose();
             turn.PublishExecutionStep = null;
             turn.PublishResourceStatus = null;
             turn.PublishAnswer = null;

@@ -312,6 +312,7 @@ public sealed partial class SessionConversationService(
                             bindWebPage?.Invoke(admission.Turn, Live);
                             admission.Turn.RetainLocalObservations = (createContext is null || retainAgentObservations) && prepareContext is null
                                 && !copilot && !claude;
+                            if (pending?.Output is not null) { pending.OutputLifetime = admission.Turn.Lifetime; }
                             using var deferred = pending is null ? null : HostActivity.BeginRoot(request,
                                 HostActivityLayer.Application, HostOperation.Request,
                                 [pending.Cause]);

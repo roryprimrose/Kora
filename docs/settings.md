@@ -76,9 +76,11 @@ Choose Review all, Model review or Approve all. Approve all skips Kora-owned act
 
 Chat shows the level applied to its current session. Change an existing session independently through the native level controls or exact typed/activated-voice commands; changing the default does not change existing sessions, resume an ended policy or replay work ([session controls](session-permission-levels.md#typed-and-activated-voice-changes)).
 
-## Future ordinary task deadline
+## Ordinary turn check-in interval
 
-In **Settings > Sessions**, use **Refresh** in the **Future ordinary task deadline** cog menu, choose **1-60 whole minutes**, then **Save**. **Reset to 5 minutes** restores the default.
+Ordinary conversation turns never silently time out. Instead, after each check-in interval of active time, Kora asks in that conversation whether to keep going ([how check-ins work](#check-ins-while-a-turn-runs)).
+
+In **Settings > Sessions**, use **Refresh** in the **Ordinary turn check-in interval** cog menu, choose **1-60 whole minutes**, then **Save**. **Reset to 5 minutes** restores the default.
 The status shows the confirmed saved/default value; editing the field alone changes nothing ([shared controls](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadline.cs)).
 
 Typed or activated voice can use `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes`.
@@ -93,17 +95,27 @@ Review is inert; only confirmed audited atomic write/readback changes the
 future preference. A replaced source, returned surface, changed preference or
 host/call authority requires fresh review. Unconfirmed saves require Settings
 and audit inspection, not retry, rollback or a default success.
-There is no model/voice write authority or deadline undo
+There is no model/voice write authority or interval undo
 ([complete workflow](setting-proposals.md)).
 
-This preference applies only when an ordinary conversation turn dispatches, including its admitted read-only tools.
-Pending work has no active budget; running turns do not change when you save a new default.
-Clarification/approval turns and specialized source workflows keep their existing fixed limits ([scope](../Design/User_Configuration.md#delivered-future-ordinary-conversation-deadline)).
+This preference applies only when an ordinary conversation turn dispatches, including its admitted read-only tools, for local and hosted (Copilot/Claude) requests.
+Pending work has no running schedule; running turns keep the interval they started with when you save a new default.
+Clarification turns and specialized source workflows keep their existing fixed limits ([scope](../Design/User_Configuration.md#delivered-future-ordinary-conversation-deadline)).
 
-**Shorter safety limits always win:** current local/read-only turns are capped at 15 seconds and ordinary hosted adapters at two minutes, with original context authorization able to expire earlier.
-A longer preference cannot renew that authorization or enable an unavailable provider.
-Provisional answers become noncurrent when the captured active deadline expires, even while the provider is still running.
-Timeout waits for owned runtime resources to finish before final retention; cancelling a request does not prove a remote provider physically stopped ([lifecycle](../Design/Task_Lifecycle.md#defaults-and-bounds)).
+### Check-ins while a turn runs
+
+When a running turn reaches the interval, its running status in that conversation shows a check-in with four choices:
+
+- **Keep going for another N minutes** - check in again after another interval.
+- **Keep going for these minutes** - choose 1-60 whole minutes before the next check-in.
+- **Keep running until done** - no more check-ins for this turn. Stop stays available.
+- **Stop this turn** - the same as **Stop this answer**: Kora cancels only this turn and waits for owned resources before showing its outcome.
+
+The turn keeps running while the check-in is open; nothing is paused while you decide. If you never answer, the turn keeps running until it finishes and the check-in disappears.
+You can also type or say (with the assistant name) **keep going**, **keep going for 10 minutes**, **keep going until done** or **stop this turn**. Kora reads back the exact turn before answering. It refuses if no check-in or more than one is waiting. During a protected call, spoken replies follow **Allow spoken approvals during calls** ([details](session-permission-levels.md#spoken-approvals-during-calls)).
+
+**Permission cards pause the clock.** While a permission card for a running turn is open (for example a web page, MCP or hosted-request review), the turn waits for your decision with no time limit, and its check-in interval and other time limits pause until you decide.
+Cancelling a turn does not prove a remote provider physically stopped ([lifecycle](../Design/Task_Lifecycle.md#defaults-and-bounds)).
 
 ## Start Kora at Windows logon
 

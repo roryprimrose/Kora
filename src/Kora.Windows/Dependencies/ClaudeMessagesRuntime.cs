@@ -39,7 +39,8 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
         Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
         Func<CancellationToken, ValueTask<bool>> current, CancellationToken token)
     {
-        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2), time);
+        var turnLifetime = ModelTurnLifetime.For(provenance.Request);
+        using var deadline = new ModelTurnDeadline(turnLifetime, TimeSpan.FromMinutes(2), time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token, lifetime.Token);
         token = linked.Token;
         await operation.WaitAsync(token).ConfigureAwait(false);
@@ -50,7 +51,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
             if (disposed || quarantined || profile.Service != ProviderService.Claude
                 || !ReferenceEquals(context.Request, provenance.Request) || context.ToolMode != ModelToolMode.None
                 || !context.Evidence.IsEmpty || context.McpTool is not null
-                || context.CreatedAt > time.GetUtcNow() || context.ExpiresAt <= time.GetUtcNow()
+                || !ContextLive(context, turnLifetime)
                 || !await current(token).ConfigureAwait(false))
             { return new(ModelTurnOutcome.DeniedEgress); }
             context.RequireCompleteInputLimit();
@@ -58,6 +59,8 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
             if (account is null) { return new(ModelTurnOutcome.Unavailable); }
             using var accountCancellation = CancellationTokenSource.CreateLinkedTokenSource(token, account.Revocation);
             token = accountCancellation.Token;
+            await using var renewal = HostedLeaseRenewal.Start(turnLifetime, () => account.Catalogue.ValidUntil,
+                ct => accounts.RenewAsync(account, ct), time, exception => LeaseRenewalFailed(logger, exception.GetType().Name), token);
             var model = ProviderProfileRules.Resolve(profile, account.Catalogue, time.GetUtcNow());
             if (model?.Selection != provenance.Selection) { return new(ModelTurnOutcome.Unavailable); }
             var inputLimit = model.Context.Single(option => option.Id == profile.Context).InputTokenLimit;
@@ -68,14 +71,14 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
             {
                 var sender = new ClaudeFinalRequestHandler(http, accounts);
                 async ValueTask<bool> Live(CancellationToken ct) => !disposed && !quarantined && !ct.IsCancellationRequested
-                    && context.ExpiresAt > time.GetUtcNow() && await accounts.CurrentAsync(account, ct).ConfigureAwait(false)
+                    && ContextLive(context, turnLifetime) && await accounts.CurrentAsync(account, ct).ConfigureAwait(false)
                     && await current(ct).ConfigureAwait(false)
-                    && !disposed && !quarantined && !ct.IsCancellationRequested && context.ExpiresAt > time.GetUtcNow();
+                    && !disposed && !quarantined && !ct.IsCancellationRequested && ContextLive(context, turnLifetime);
                 using var handler = new ClaudeSdkRequestHandler(sender, account, provenance, profile,
                     inputLimit.Value, outputLimit, admit, Live, Quarantine, usage => tokenUsage = usage,
                     selectedContext: selection is null ? null : context, selection: selection);
                 using var sdkHttp = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
-                using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential);
+                using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential, turnLifetime: turnLifetime);
                 using var chat = sdk.AsIChatClient(profile.Model.Value, outputLimit);
                 ChatResponse response;
                 try
@@ -111,6 +114,11 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
         }
         finally { operation.Release(); }
     }
+
+    /// <summary>The original context is current; the owning turn's host waits pause, and check-ins remove, its expiry.</summary>
+    private bool ContextLive(ModelContextEnvelope context, ModelTurnLifetime? turnLifetime) =>
+        context.CreatedAt <= time.GetUtcNow()
+        && time.GetUtcNow() < (turnLifetime?.Extend(context.ExpiresAt) ?? context.ExpiresAt);
 
     private static ChatOptions CreateChatOptions(ProviderProfileTuple profile, int outputLimit) => new()
     {

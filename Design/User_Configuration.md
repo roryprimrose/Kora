@@ -1872,7 +1872,7 @@ The table includes proposed controls as well as the [delivered future ordinary c
 | Pending queue capacity | 10; 1-50 entries | "Set the queue limit to twenty" |
 | Successful-completion dispatch | Automatic next ready item; manual mode optional | "Ask before starting each queued task" |
 | Pending request lifetime | Delivered fixed local-version subset: canonical integer 1-120 minutes, default/reset 30, future newly enqueued entries only; broader routing remains proposed | `set queue.pending-lifetime-minutes to 60` |
-| Active-task deadline | Delivered future ordinary conversation subset: default/reset 5, canonical integer 1-60 minutes within earlier context and fixed tool/provider limits; no user-wait turns | `set work.active-deadline-minutes to 10` |
+| Ordinary turn check-in interval | Delivered: default/reset 5, canonical integer 1-60 minutes; future dispatched ordinary conversation turns post a non-blocking check-in at each interval instead of timing out | `set work.active-deadline-minutes to 10` |
 | Session automatic archive inactivity | 24 hours; configurable finite positive duration | "Mark sessions done after two idle days" |
 | Session automatic deletion inactivity | 30 days from last meaningful activity; configurable and later than archive | "Delete sessions after sixty idle days" |
 | Concurrent session task limit | Proposed default 2; positive limit within verified provider/hardware envelope; one task per session | "Run up to three sessions at once" |
@@ -1902,7 +1902,7 @@ Fixed approval lifetimes, process cancellation grace, power confirmations, secre
 
 ### Delivered future ordinary conversation deadline
 
-In Settings > Sessions, refresh **Future ordinary task deadline**, choose 1-60 whole minutes, then Save.
+In Settings > Sessions, refresh **Ordinary turn check-in interval**, choose 1-60 whole minutes, then Save.
 Readback distinguishes saved/default/unavailable state; Reset restores five minutes.
 Typed or activated voice uses `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes` ([shared control](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadline.cs)).
 
@@ -1912,7 +1912,7 @@ The same audited atomic writer and strict unconfirmed-write fence own persistenc
 Review binds the exact retained source, session/generation, original native request, preference observation/revision, host/privacy/call/ownership and native foreground epoch.
 Source/page replacement, source change-and-return, direct control, stale disk, expiry or closure requires fresh inspection; late results are suppressed and owned operations are joined.
 Uncertain audit/readback remains explicitly unconfirmed, with no retry, rollback or default success.
-This subset adds no deadline undo, settings-discovery current-value authority, automatic allowance inference or running-turn extension
+This subset adds no interval undo, settings-discovery current-value authority, automatic allowance inference or running-turn change
 ([review owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineSuggestionReview.cs), [native host binding](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadlineSuggestions.cs)).
 
 The device-local preference is confirmed through original-user host admission, atomic storage, exact readback, required audit and terminal receipt before future dispatch can consume it.
@@ -1920,19 +1920,22 @@ Stale observations, malformed values and unconfirmed writes fail explicitly; an 
 ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs), [preference store](../src/Kora.Application/Configuration/LocalOrdinaryTurnDeadlinePreferences.cs)).
 
 Only newly dispatched queued ordinary conversations, including their ordinary instruction/retry routes, and explicit Copilot/Claude ordinary requests capture this preference.
-Their admitted subset has no approval/clarification waits: tool-free answers and already-admitted read-only observation tools.
-Specialized source workflows and clarification turns keep their existing fixed limits; no output-text inference or speculative pause/resume clock is added ([dispatch owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+Their admitted subset has no clarification waits: tool-free answers and already-admitted read-only observation tools.
+Specialized source workflows and clarification turns keep their existing fixed limits ([dispatch owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
 
-Pending work has no active budget. At durable dispatch the host captures one immutable preference and starts monotonic elapsed accounting; pending expiry and the original context timestamps are not renewed.
-A later saved default never changes a running turn. The shorter fixed provider/tool maximum and original context expiry always win.
-The ordinary conversation execution maximum is a separate reviewed preference: saving or resetting a deadline cannot confirm or overwrite it, and changing concurrency does not renew an active deadline.
-The current local/read-only cap is 15 seconds, and ordinary hosted adapters are capped at two minutes, so choosing five or sixty minutes does not extend those caps ([budget ownership](../src/Kora.Application/Dependencies/ModelTurnHost.OrdinaryDeadline.cs)).
+**Check-ins replace whole-turn limits** ([decision](Decision_Register.md#turn-lifetime-check-ins---2026-11-28)).
+Pending work has no running schedule. At durable dispatch, while the original context is still current, the host captures one immutable interval and removes the ordinary turn's fixed context, runtime, adapter and transport limits ([check-in admission](../src/Kora.Application/Dependencies/ModelTurnHost.OrdinaryDeadline.cs)).
+After each interval of active time the [check-in owner](../src/Kora.Application/Hosting/OrdinaryTurnCheckIns.cs) posts one volatile check-in on the running-turn status: keep going for another interval, keep going for 1-60 chosen minutes, keep running until done, or Stop.
+The turn keeps running and publishing while a check-in is pending; it is never paused. An unanswered check-in retires when the turn ends and is never replayed.
+Stop is the ordinary audited running-conversation cancellation; it joins owned resources before retaining a truthful terminal outcome.
+Issuance and every answer write trusted typed audit (`conversation.check-in`, `conversation.check-in-answer`); without the trusted audit log the turn stops instead of running without a check-in.
+A later saved default never changes a running turn. The ordinary conversation execution maximum is a separate reviewed preference.
 
-Expiry requests runtime cancellation and suppresses late success; the existing conversation owner retains the session/resource lease and waits for physical quiescence before terminal retention.
-Already-published provisional answers also become noncurrent at the captured monotonic deadline, even before a delayed timer callback or physical provider join.
-A cancellation-ignoring or unconfirmed provider cannot free the lease or publish success.
+**Permission cards pause turn clocks.** A turn-owned host wait (`ModelTurn.BeginHostWait()`, or `ModelTurnLifetime.Current?.BeginHostWait()` from a tool callback) pauses every clock of that turn: context expiry, runtime deadline, check-in interval and transport conversation deadline ([turn clock](../src/Kora.Core/Dependencies/ModelTurnLifetime.cs), [pausable deadline](../src/Kora.Core/Dependencies/ModelTurnDeadline.cs)).
+Qualification and catalogue evidence windows are independent gates and are not paused.
+Hosted Copilot/Claude account leases are renewed in place, with audit, while a host turn runs and the same deployment approval and credential lease remain current ([renewal](../src/Kora.Windows/Dependencies/HostedLeaseRenewal.cs)).
 No socket-close or physical provider-stop claim is added, and provider qualification remains independently gated
-([host execution](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [deterministic regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.OrdinaryDeadline.cs)).
+([host execution](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [deterministic regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.CheckIns.cs)).
 
 ## 5. Providers, Local Models, and Connections
 

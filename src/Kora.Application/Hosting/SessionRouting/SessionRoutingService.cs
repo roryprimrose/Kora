@@ -167,9 +167,15 @@ public sealed class SessionRoutingService(
             consumed = true;
             attempt = revision;
         }
+        var accepted = false;
         bool OriginalLive()
         {
-            lock (gate) { return ReferenceEquals(current, review) && revision == attempt && Live() && time.GetUtcNow() < review.ExpiresAt; }
+            // The routing review bounds confirmation through acceptance; accepted work then runs on its own turn clock.
+            lock (gate)
+            {
+                return (accepted || ReferenceEquals(current, review) && revision == attempt && time.GetUtcNow() < review.ExpiresAt)
+                    && Live();
+            }
         }
         using var activity = review.Continue();
         try
@@ -193,7 +199,8 @@ public sealed class SessionRoutingService(
             }
             await Revalidate(token).ConfigureAwait(false);
             var receipt = await conversation.SubmitAsync(target, review.Body, OriginalLive, token,
-                Revalidate, links: [new ActivityLink(activity.Activity!.Context)], origin: review.Origin).ConfigureAwait(false);
+                Revalidate, links: [new ActivityLink(activity.Activity!.Context)], origin: review.Origin,
+                accepted: () => { lock (gate) { accepted = true; } }).ConfigureAwait(false);
             activity.Complete(HostOperationOutcome.Completed);
             return new(target, receipt);
         }

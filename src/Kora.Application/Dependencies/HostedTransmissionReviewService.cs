@@ -63,17 +63,20 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
     }
 
     internal bool Current(HostedTurnAuthorization authorization) =>
-        ReferenceEquals(authorization.Owner, this) && Live(authorization.Issuer, authorization.Context);
+        ReferenceEquals(authorization.Owner, this) && IssuerLive(authorization.Issuer, authorization.Context)
+        && authorization.ContextCurrent(time);
 
     internal async ValueTask<bool> PermissionCurrentAsync(HostedTurnAuthorization authorization, CancellationToken token) =>
         authorization.AutomaticPermission is not { } expected
             || await expected.Store.ReadSessionPermissionAsync(authorization.Context.Request.SessionId, token).ConfigureAwait(false) == expected.Policy;
 
     private bool Live(HostActivity issuer, ModelContextEnvelope context) =>
+        IssuerLive(issuer, context) && context.CreatedAt <= time.GetUtcNow() && context.ExpiresAt > time.GetUtcNow();
+
+    private static bool IssuerLive(HostActivity issuer, ModelContextEnvelope context) =>
         !issuer.Activity!.IsStopped && issuer.Outcome == HostOperationOutcome.Unknown
         && ReferenceEquals(issuer.Request, context.Request)
-        && issuer.Request.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice
-        && context.CreatedAt <= time.GetUtcNow() && context.ExpiresAt > time.GetUtcNow();
+        && issuer.Request.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice;
 
     internal ValueTask<bool> ReviewAsync(ClaudeTurnAuthorization authorization, ClaudeTransmission transmission,
         Func<CancellationToken, ValueTask<bool>> current, CancellationToken token) =>
@@ -137,7 +140,10 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
 
             if (claude) { claudeReview = new(review); claudeOffered!(claudeReview); }
             else { copilotOffered!(review); }
-            var approved = await review.Completion.Task.WaitAsync(token).ConfigureAwait(false);
+            bool approved;
+            // The final-byte review blocks without a time limit; the owning turn's clocks pause until it is decided.
+            using (authorization.Lifetime?.BeginHostWait())
+            { approved = await review.Completion.Task.WaitAsync(token).ConfigureAwait(false); }
             approved = approved && Current(authorization) && await current(token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             outcome = approved ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied;

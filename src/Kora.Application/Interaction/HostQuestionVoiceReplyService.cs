@@ -170,7 +170,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                 opened.PresentationContext = presentationContext;
             }
             opened.Expiry = time.CreateTimer(_ => Retire(opened, "Question expired. Microphone closed; start a fresh question."),
-                null, canonical.ExpiresAt - time.GetUtcNow(), Timeout.InfiniteTimeSpan);
+                null, HostInteractionLifetime.Remaining(canonical.ExpiresAt, time.GetUtcNow()), Timeout.InfiniteTimeSpan);
             opened.Cancellation.Token.Register(opened.Expiry.Dispose);
             if (afterPlayback)
             {

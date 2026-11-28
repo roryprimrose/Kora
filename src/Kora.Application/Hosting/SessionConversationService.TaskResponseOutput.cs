@@ -1,4 +1,4 @@
-﻿using Kora.Core.Conversation;
+using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
@@ -25,7 +25,8 @@ public sealed partial class SessionConversationService
             HostActivityLayer.Application, HostOperation.Presentation, [pending.Cause]);
         bool Current() => admitted() && access.CanControl && !pending.CancelRequested
             && access.ControlRevision == pending.OutputControlRevision
-            && time.GetUtcNow() >= pending.OutputCreatedAt && time.GetUtcNow() < pending.OutputExpiresAt;
+            && time.GetUtcNow() >= pending.OutputCreatedAt
+            && time.GetUtcNow() < (pending.OutputLifetime?.Extend(pending.OutputExpiresAt) ?? pending.OutputExpiresAt);
         try
         {
             if (Current() && validateSource is not null) { await validateSource(token).ConfigureAwait(false); }

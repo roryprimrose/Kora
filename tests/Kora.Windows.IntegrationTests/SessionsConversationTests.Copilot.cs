@@ -110,7 +110,9 @@ public sealed partial class SessionsConversationTests
     [InlineData(61, true, ModelTurnOutcome.Succeeded)]
     [InlineData(119, true, ModelTurnOutcome.Succeeded)]
     [InlineData(61, false, ModelTurnOutcome.DeniedEgress)]
-    [InlineData(120, true, ModelTurnOutcome.Denied)]
+    // Final-byte reviews have no time limit and pause the turn clock, so the former two-minute ceiling no longer denies.
+    [InlineData(120, true, ModelTurnOutcome.Succeeded)]
+    [InlineData(240, true, ModelTurnOutcome.Succeeded)]
     public async Task Native_copilot_review_beyond_sdk_default_wait_preserves_exact_request_and_durable_answer(
         int seconds, bool approve, ModelTurnOutcome expected)
     {

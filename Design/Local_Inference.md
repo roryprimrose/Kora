@@ -398,6 +398,19 @@ or second continuation around native Copilot is introduced. These
 [deterministic package regressions](../tests/Kora.Application.UnitTests/Dependencies/AgentFrameworkExecutionTests.cs)
 do not qualify a model or enable concurrent execution.
 
+**Turn clock.** Every admitted turn owns a [ModelTurnLifetime](../src/Kora.Core/Dependencies/ModelTurnLifetime.cs).
+Ordinary conversation turns use check-ins instead of whole-turn limits
+([decision](Decision_Register.md#turn-lifetime-check-ins---2026-11-28)): the
+15-second local context, host runtime, bounded-adapter and
+[native transport](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.cs)
+conversation deadlines no longer end them. Other turns keep those fixed limits,
+measured in active time: an open permission card is a host wait that pauses the
+context expiry, [runtime deadline](../src/Kora.Core/Dependencies/ModelTurnDeadline.cs),
+adapter deadline and transport deadline until it is decided. The ambient
+lifetime is matched to the exact host request and is timing policy only; it
+confers no session, tool or egress authority. Qualification and catalogue
+evidence windows remain independent gates and are not paused.
+
 A future enablement owner must supply an exact, unexpired host-created binding
 for the admitted provenance and complete account/catalogue/model/options
 profile. The native profile implemented here fixes `stream=false` and

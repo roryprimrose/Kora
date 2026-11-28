@@ -12,6 +12,7 @@ public sealed partial class ClaudeMessagesRuntime
         Func<CancellationToken, ValueTask<bool>> current, CancellationToken token)
     {
         await operation.WaitAsync(token).ConfigureAwait(false);
+        var turnLifetime = ModelTurnLifetime.For(provenance.Request);
         var transferred = false;
         try
         {
@@ -19,7 +20,7 @@ public sealed partial class ClaudeMessagesRuntime
                 || !ReferenceEquals(context.Request, provenance.Request)
                 || context.ToolMode is not (ModelToolMode.ReadOnly or ModelToolMode.HostedClarification)
                 || !ClaudeObservationTools.Supports(context)
-                || context.CreatedAt > time.GetUtcNow() || context.ExpiresAt <= time.GetUtcNow()
+                || !ContextLive(context, turnLifetime)
                 || !await current(token).ConfigureAwait(false))
             { return null; }
             context.RequireCompleteInputLimit();
@@ -31,7 +32,7 @@ public sealed partial class ClaudeMessagesRuntime
                 || !account.OutputLimits.TryGetValue(profile.Model, out var outputLimit))
             { return null; }
             var transport = new ToolTransport(this, provenance, profile, context, account,
-                inputLimit, outputLimit, admit, current, token);
+                inputLimit, outputLimit, admit, current, turnLifetime, token);
             transferred = true;
             return transport;
         }
@@ -49,6 +50,8 @@ public sealed partial class ClaudeMessagesRuntime
         private readonly int outputLimit;
         private readonly Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit;
         private readonly Func<CancellationToken, ValueTask<bool>> current;
+        private readonly ModelTurnLifetime? turnLifetime;
+        private readonly HostedLeaseRenewal? renewal;
         private readonly CancellationTokenSource cancellation;
         private readonly HttpClient http;
         private readonly SemaphoreSlim exchange = new(1, 1);
@@ -60,22 +63,26 @@ public sealed partial class ClaudeMessagesRuntime
         internal ToolTransport(ClaudeMessagesRuntime owner, ModelTurnProvenance provenance,
             ProviderProfileTuple profile, ModelContextEnvelope context, ClaudeAccount account,
             int inputLimit, int outputLimit, Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
-            Func<CancellationToken, ValueTask<bool>> current, CancellationToken token)
+            Func<CancellationToken, ValueTask<bool>> current, ModelTurnLifetime? turnLifetime, CancellationToken token)
         {
+            this.turnLifetime = turnLifetime;
             this.owner = owner; this.provenance = provenance; this.profile = profile;
             this.context = context; this.account = account; this.inputLimit = inputLimit; this.outputLimit = outputLimit;
             this.admit = admit; this.current = current;
             http = owner.create();
             cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, owner.lifetime.Token, account.Revocation);
+            renewal = HostedLeaseRenewal.Start(turnLifetime, () => account.Catalogue.ValidUntil,
+                ct => owner.accounts.RenewAsync(account, ct), owner.time,
+                exception => LeaseRenewalFailed(owner.logger, exception.GetType().Name), cancellation.Token);
         }
 
         private async ValueTask<bool> Live(CancellationToken token) =>
             !disposed && !owner.disposed && !owner.quarantined && !token.IsCancellationRequested
-            && context.CreatedAt <= owner.time.GetUtcNow() && context.ExpiresAt > owner.time.GetUtcNow()
+            && owner.ContextLive(context, turnLifetime)
             && await owner.accounts.CurrentAsync(account, token).ConfigureAwait(false)
             && await current(token).ConfigureAwait(false)
             && !disposed && !owner.disposed && !owner.quarantined && !token.IsCancellationRequested
-            && context.CreatedAt <= owner.time.GetUtcNow() && context.ExpiresAt > owner.time.GetUtcNow();
+            && owner.ContextLive(context, turnLifetime);
 
         public async Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
         {
@@ -100,7 +107,7 @@ public sealed partial class ClaudeMessagesRuntime
                     toolRequest: request);
                 using var sdkHttp = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
                 // The qualified legacy tool envelope omits the SDK-required caller field; strict raw host validation is authoritative.
-                using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential, validateResponse: false);
+                using var sdk = ClaudeSdkClient.Create(sdkHttp, account.Credential, validateResponse: false, turnLifetime: turnLifetime);
                 using var chat = sdk.AsIChatClient(profile.Model.Value, outputLimit);
                 var options = CreateChatOptions(profile, outputLimit);
                 options.Tools = ClaudeToolMessages.CreateTools(request);
@@ -149,6 +156,7 @@ public sealed partial class ClaudeMessagesRuntime
             await exchange.WaitAsync().ConfigureAwait(false);
             try
             {
+                if (renewal is not null) { await renewal.DisposeAsync().ConfigureAwait(false); }
                 http.Dispose();
                 if (stopFailure is not null) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(stopFailure).Throw(); }
             }

@@ -771,7 +771,12 @@ Validated v1 metadata maintenance precedes v2-to-v3 consolidation. The legacy
 `HostStorageV1/host.db` ledger is validated and durably frozen before copying
 its complete identities/events into one destination schema transaction.
 It is retained as an inert migration receipt, never an alternate execution
-source. Interrupted consolidation leaves the old destination schema intact;
+source. Every interaction-store open re-verifies its private file security under
+the retired partition lease. The SQLite open, integrity and frozen-handoff
+validation is repeated whenever its file identity or database/journal bytes
+differ from the process-local receipt captured while the last successful
+validation held its lock; the receipt is never persisted or treated as authority.
+Interrupted consolidation leaves the old destination schema intact;
 reopening revalidates the frozen source and completes only storage migration.
 Missing/corrupt destination authority cannot be rebuilt from that retired
 snapshot. Evidence projections and retention remain independent. See

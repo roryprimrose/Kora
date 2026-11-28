@@ -170,11 +170,6 @@
         <local:SessionDictationButton IsEnabled="{Binding CanCompose}" />
         <local:ComposerRequestReviewPanel />
         <local:TaskResponseOutputPanel />
-        <TextBlock Text="Optional Claude observation scope: comma-separated exact IDs from capabilities.list, capabilities.get, application.get_version, readiness.get, runtime.list, runtime.get_status. No files, web, MCP, settings or provider tools. Ordinary Claude stays tool-free."
-            TextWrapping="Wrap" />
-        <TextBox x:Name="ClaudeObservationIds" Text="{Binding ClaudeObservationIds, Mode=TwoWay}"
-            IsEnabled="{Binding CanCompose}" AutomationProperties.Name="Exact optional Claude read-only observation subset"
-            ToolTip.Tip="Review this subset before explicit submission. Every token-count and Messages continuation still requires separate native final-byte consent. Six calls, seven rounds, 15-second complete-turn deadline; no retry or fallback." />
         <CheckBox x:Name="WrapDraftText" Content="Wrap draft text" IsEnabled="{Binding CanCompose}"
             AutomationProperties.Name="Wrap draft text"
             ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view and source only, until closed." />
@@ -182,22 +177,9 @@
           <Button x:Name="RecoverConversationDraft" Content="Recover existing legacy text into empty input" IsEnabled="{Binding CanRecoverConversationDraft}"
               AutomationProperties.Name="Read-only compatibility recovery for this exact session; no save, delete or submit" />
           <Button x:Name="DiscardComposer" Content="Discard this unsent message..." IsEnabled="{Binding CanReadConversation}" />
-          <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
+          <Button x:Name="SubmitConversation" Content="_Submit" IsEnabled="{Binding CanSubmitConversation}"
+            ToolTip.Tip="Uses the service and model selected in Settings, or this session's override. Local only never sends to a hosted service; Local first offers a hosted handoff only when the local model is unavailable." />
           <Button x:Name="ReviewSessionMetadata" Content="Review one session metadata answer..." IsEnabled="{Binding CanReadConversation}" />
-          <Button x:Name="SubmitCopilotConversation" Content="Submit explicitly with Copilot (separate disclosure review)"
-            IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires explicit Copilot setup in Settings, a current selected account/model and hosted policy. Live evaluation is not production qualification. Every request requires disclosure review; never falls back." />
-          <Button x:Name="SubmitCopilotAnswerStream" Content="Stream explicitly with Copilot (text only, separate disclosure review)"
-            IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Uses SDK answer events without tools. Same explicit Copilot setup and final-byte consent. Previews are volatile; only the validated final answer is retained. HTTP remains buffered; no guaranteed token latency or production qualification." />
-          <Button x:Name="SubmitLocalFirst" Content="Ask locally; review Copilot only if unavailable"
-            IsEnabled="{Binding CanSubmitLocalFirst}" ToolTip.Tip="Requires Local first mode. Only a genuine local Unavailable result and confirmed exact resource join can offer review. Separate final-byte disclosure approval is always required." />
-          <Button x:Name="SubmitClaudeConversation" Content="Submit explicitly with Claude (separate disclosure reviews)"
-            IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires independent Claude approval and an exact current account/profile. Each token-count and Messages POST needs native consent. Never falls back." />
-          <Button x:Name="SubmitClaudeWithClarification" Content="Ask Claude with one clarification (separate disclosure reviews)"
-            IsEnabled="{Binding CanSubmitConversationWithClarification}" AutomationProperties.HelpText="Explicit question-only Claude operation. Answer one bounded question in the session-owned window or by eligible voice. Answering does not transmit: every token-count and Messages POST needs fresh native consent. No observation tools, sources or automatic retry." />
-          <Button x:Name="SubmitClaudeObservations" Content="Submit with reviewed Claude observation subset"
-            IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Explicit host-owned read-only observations only. Each physical POST needs new native consent. Unqualified Claude stays unavailable." />
-          <Button x:Name="SubmitClaudeAnswerStream" Content="Stream explicitly with Claude (text only, separately qualified)"
-            IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Requires positive exact-profile native text-stream approval. Separate native consent for token count and stream Messages. Provisional text is not retained; only a fully validated final answer is saved. No tools, retry or buffered fallback." />
           <Button x:Name="SubmitConversationWithClarification" Content="Submit with one clarification"
             IsEnabled="{Binding CanSubmitConversationWithClarification}"
             AutomationProperties.HelpText="Local request with ask_user only: one question with radio buttons, checkboxes or bounded text, answered here through the session-owned question window or by voice. Unqualified providers remain unavailable." />
@@ -242,7 +224,6 @@
         <local:TurnCheckInPanel />
         <local:PendingConversationPanel />
         <local:ManagementAnswerPanel />
-        <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
         <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
           <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />
           <TextBlock Text="{Binding ProvisionalAnswer}" TextWrapping="Wrap"

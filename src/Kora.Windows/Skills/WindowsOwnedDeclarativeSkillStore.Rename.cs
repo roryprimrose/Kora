@@ -106,7 +106,11 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
                         intent = WriteRenameIntent(updated, intent, eligible, token);
                         Checkpoint?.Invoke("rename-intent-durable");
                         RequireOriginal(proposal, token);
-                    }, proposal);
+                    }, proposal, beforeRetry: () =>
+                    {
+                        RequireIntentCurrent(intent!, token);
+                        RequireOriginal(proposal, token);
+                    });
                 }
                 else
                 {

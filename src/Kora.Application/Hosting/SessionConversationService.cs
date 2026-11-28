@@ -1,6 +1,8 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 
 using Kora.Application.Dependencies;
+using Kora.Core.Authorization;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -59,6 +61,22 @@ public sealed partial class SessionConversationService(
         ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>
         workspace.ReadSettingSuggestionAsync(target, expected, admitted, token);
 
+    public async Task<ConversationSubmissionReceipt> SubmitPermissionBoundAsync(SessionWorkspaceEntry target, string body,
+        SessionPermissionPolicy expected, Func<bool> admitted, CancellationToken token,
+        Func<CancellationToken, Task>? beforeRetain = null, IEnumerable<ActivityLink>? links = null, Action? accepted = null)
+    {
+        RequireOriginalSource(RequestOrigin.ActivatedVoice);
+        expected.Validate(target.Authority);
+        if (expected.Level != SessionPermissionLevel.ApproveAll)
+        { throw new InvalidOperationException("Automatic readback submission requires the exact Approve all destination."); }
+        var submitted = await SubmitQueuedCoreAsync(target, body, admitted, beforeRetain, links,
+            RequestOrigin.ActivatedVoice, false, accepted, null, token, readbackPermission: expected).ConfigureAwait(false);
+        if (submitted.Position > 0) { return submitted.Receipt; }
+        try { return (await submitted.Completion.WaitAsync(token).ConfigureAwait(false)).RequireReceipt(); }
+        catch (OperationCanceledException exception) when (token.IsCancellationRequested)
+        { throw new ConversationSubmissionUnconfirmedException(submitted.Receipt.Message.Request, exception); }
+    }
+
     public Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null,
         IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi,
@@ -73,19 +91,6 @@ public sealed partial class SessionConversationService(
         Func<bool> admitted, Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink> links,
         RequestOrigin origin, CancellationToken token) =>
         SubmitCoreAsync(target, body, admitted, validateSource, links, origin, null, ModelTurnChoice.Local, token);
-
-    /// <summary>Explicit hosted request; selection and preparation never replace final-byte disclosure approval.</summary>
-    public Task<ConversationSubmissionReceipt> SubmitCopilotAsync(SessionWorkspaceEntry target, string body,
-        Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null) =>
-        SubmitCoreAsync(target, body, admitted, beforeRetain, null, RequestOrigin.LocalUi, null,
-            ModelTurnChoice.Hosted, token, copilot: true, ordinaryActiveDeadline: true);
-
-    public Task<ConversationSubmissionReceipt> SubmitCopilotAnswerStreamAsync(SessionWorkspaceEntry target, string body,
-        Func<bool> admitted, CancellationToken token) =>
-        SubmitCoreAsync(target, body, admitted, null, null, RequestOrigin.LocalUi,
-            (request, now) => new(request, Policy, body, [], now,
-                now.Add(HostedTurnAuthorization.MaximumDuration), ModelToolMode.None),
-            ModelTurnChoice.Hosted, token, copilot: true, ordinaryActiveDeadline: true);
 
     /// <summary>Host-only reviewed-source lifecycle; callbacks cannot confer authority or replace host validation.</summary>
     internal Task<ConversationSubmissionReceipt> SubmitReviewedContextAsync(SessionWorkspaceEntry target, string body,
@@ -122,13 +127,14 @@ public sealed partial class SessionConversationService(
         Action<ModelTurn, Func<bool>>? bindWebPage = null,
         Action? terminalCommitted = null, bool copilot = false,
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
-        bool claude = false, bool claudeStreamAnswer = false, PendingConversation? pending = null,
+        bool claude = false, PendingConversation? pending = null,
         LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false,
         bool ordinaryActiveDeadline = false, LocalRequestProfileReview? localRequestProfile = null,
         bool retainAgentObservations = false,
         Func<ModelTurn, Func<bool>, CancellationToken, Task<ModelTurnReason>>? prepareAdmitted = null,
         CopilotCustomizationRequest? copilotCustomization = null, ClaudeCustomizationRequest? claudeCustomization = null,
-        Func<HostRequest, ModelContextEnvelope, Func<bool>, CancellationToken, Task>? authorizeSubmission = null)
+        Func<HostRequest, ModelContextEnvelope, Func<bool>, CancellationToken, Task>? authorizeSubmission = null,
+        Func<CancellationToken, ValueTask<bool>>? hostedSourceCurrent = null)
     {
         RequireOriginalSource(origin);
         using var lifecycle = EnterLifecycleSubmission(target, body, admitted);
@@ -163,18 +169,19 @@ public sealed partial class SessionConversationService(
         pending?.Output?.Bind(request);
         localRequestProfile?.Bind(request);
         var now = time.GetUtcNow();
-        var originalLocalTools = createContext is null && prepareContext is null && !copilot && !claude
+        var originalLocalTools = createContext is null && prepareContext is null && !copilot
             && localRequestProfile is null && !retainAgentObservations;
         var providerSettings = originalLocalTools && Kora.Core.Tools.ProviderSettingsTools.IsExplicitRequest(body);
         var maintenance = originalLocalTools && Kora.Core.Tools.MaintenanceTools.IsExplicitRequest(body);
         if (providerSettings || maintenance) { choice = ModelTurnChoice.Local; }
+        // Every Claude route supplies its own context; a missing one fails closed at Claude admission.
         var context = createContext is null ? new ModelContextEnvelope(request,
             maintenance ? Policy + " " + Kora.Core.Tools.MaintenanceTools.ModelPolicy
                 : providerSettings ? Policy + " " + Kora.Core.Tools.ProviderSettingsTools.ModelPolicy : Policy, body, [], now,
             maintenance ? now.Add(Kora.Core.Tools.MaintenanceTools.Deadline)
-                : copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
+                : copilot ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
             maintenance ? ModelToolMode.ApplicationMaintenance
-                : providerSettings ? ModelToolMode.ProviderSettings : claude ? ModelToolMode.None
+                : providerSettings ? ModelToolMode.ProviderSettings
                 : prepareContext is null && localRequestProfile is null && !retainAgentObservations
                     ? ModelToolMode.InteractiveConversation : ModelToolMode.ReadOnly)
             : createContext(request, now);
@@ -191,7 +198,13 @@ public sealed partial class SessionConversationService(
         try
         {
             // Body + original task intent + requested audit have one physical commit. Saved drafts stay independent data.
-            var retained = pending is null
+            var retained = pending?.ReadbackPermission is { } readbackPermission
+                ? await conversations.RetainPermissionBoundConversationAsync(request, actual.Authority.Generation,
+                    actual.Metadata?.Revision.Value ?? 0, body, pending.Predecessors, readbackPermission,
+                    new(request, readbackPermission, "conversation.voice-readback", HostOperationEffect.BoundedWrite,
+                        "request-readback", Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+                            System.Text.Encoding.UTF8.GetBytes(body)))), Live, token).ConfigureAwait(false)
+                : pending is null
                 ? await conversations.RetainConversationMessageAsync(request, actual.Authority.Generation,
                     actual.Metadata?.Revision.Value ?? 0, body, Live, token).ConfigureAwait(false)
                 : pending.BareOrdinaryText
@@ -234,14 +247,18 @@ public sealed partial class SessionConversationService(
                             : claude
                             ? turns is ModelTurnHost claudeHost
                                 ? claudeCustomization is null
-                                    ? await claudeHost.AdmitClaudeAsync(context, token, claudeStreamAnswer).ConfigureAwait(false)
+                                    ? hostedSourceCurrent is null
+                                        ? await claudeHost.AdmitClaudeAsync(context, token).ConfigureAwait(false)
+                                        : await claudeHost.AdmitClaudeHistoryAsync(context, hostedSourceCurrent, token).ConfigureAwait(false)
                                     : await claudeHost.AdmitClaudeAsync(context, claudeCustomization.Selection,
                                         claudeCustomization.SourceCurrent, token).ConfigureAwait(false)
                                 : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))
                             : copilot
                             ? turns is ICopilotTurnAdmission hosted
                                 ? copilotCustomization is null
-                                    ? await hosted.AdmitCopilotAsync(context, token).ConfigureAwait(false)
+                                    ? hostedSourceCurrent is not null && turns is ModelTurnHost historyHost
+                                        ? await historyHost.AdmitCopilotHistoryAsync(context, hostedSourceCurrent, token).ConfigureAwait(false)
+                                        : await hosted.AdmitCopilotAsync(context, token).ConfigureAwait(false)
                                     : await hosted.AdmitCopilotAsync(context, copilotCustomization.Selection,
                                         copilotCustomization.SourceCurrent,
                                         token).ConfigureAwait(false)
@@ -360,7 +377,7 @@ public sealed partial class SessionConversationService(
         {
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
-            if (exception is ConversationCapacityException) { throw; }
+            if (exception is ConversationCapacityException or ISessionConversationStore.PermissionChangedException) { throw; }
             throw new ConversationSubmissionUnconfirmedException(request, exception);
         }
     }

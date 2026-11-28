@@ -10,6 +10,11 @@ internal sealed partial class NativeUxFixtureSession
 {
     private NativeFixturePhaseTimings? phaseTimings;
 
+    // The test run's evidence profile applies to every fixture; an explicitly buffered fixture stays buffered.
+    partial void SelectEvidenceDelivery(ref bool buffered) =>
+        buffered |= NativeFixtureEvidenceMode.IsBuffered(
+            Environment.GetEnvironmentVariable(NativeFixtureEvidenceMode.EnvironmentVariable));
+
     partial void CapturePhaseObserver() =>
         phaseTimings = NativeFixturePhaseTimings.Capture(TestContext.Current);
 

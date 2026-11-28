@@ -22,6 +22,49 @@ public sealed partial class ClaudeMessagesRuntimeTests : IDisposable
     public void Dispose() => listener.Dispose();
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    [Fact]
+    public async Task SettingsHostedHistoryReachesBothNativePostsAsTheExactCompleteToolFreeEnvelope()
+    {
+        var f = new ClaudeAccountBrokerTests.Fixture();
+        await using var broker = f.Create();
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        using var root = HostActivity.BeginRoot(request, HostActivityLayer.Windows, HostOperation.Request);
+        await broker.SignInAsync(ClaudeAccountBrokerTests.Fixture.Credential, () => true, Token);
+        var catalogue = await broker.ObserveAsync(Token);
+        var profile = f.Profile(catalogue);
+        var original = new HostRequest(new(Guid.NewGuid()), request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+        var prior = new ModelTurnProvenance(new(Guid.NewGuid()), original, catalogue.Models[0].Selection);
+        var message = new Kora.Core.Conversation.ConversationMessage(original, new(1), 1, 3,
+            f.Time.GetUtcNow(), "earlier whole user", ModelTurnOutcome.Succeeded, ModelTurnReason.ProviderOutcome)
+        {
+            Version = 2, Execution = prior, ExecutionMetadataRevision = 0,
+            AssistantResponse = new(prior, "earlier retained assistant"),
+        };
+        var history = new Kora.Core.Conversation.HostedConversationHistoryContext(request, "unchanged new user",
+            f.Time.GetUtcNow(), f.Time.GetUtcNow().AddMinutes(1));
+        history.Include(new(message, Kora.Core.Conversation.ConversationHistoryRole.Assistant));
+        history.Include(new(message, Kora.Core.Conversation.ConversationHistoryRole.User));
+        f.Respond = post => ClaudeAccountBrokerTests.Fixture.Json(
+            post.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal) ? "{\"input_tokens\":25}" : Answer);
+        await using var runtime = new ClaudeMessagesRuntime(broker, f.Time, NullLogger<ClaudeMessagesRuntime>.Instance, f.CreateHttp);
+        var inputBytes = await runtime.MeasureHistoryInputAsync(catalogue.Models[0].Selection, profile, history.Context, Token);
+        f.Requests.Should().NotContain(post => string.Equals(post.Method, "POST", StringComparison.Ordinal),
+            "input preparation is local and cannot send content");
+        var result = await runtime.RunAsync(new(new(Guid.NewGuid()), request, catalogue.Models[0].Selection), profile,
+            history.Context, (_, _) => ValueTask.FromResult(true), _ => ValueTask.FromResult(true), Token);
+        result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        var posts = f.Requests.Where(post => post.Method is "POST").ToArray();
+        posts.Should().HaveCount(2);
+        posts.Sum(post => post.Body.Length).Should().Be(inputBytes);
+        foreach (var post in posts)
+        {
+            using var wire = JsonDocument.Parse(post.Body);
+            wire.RootElement.GetProperty("messages")[0].GetProperty("content")[0].GetProperty("text").GetString()
+                .Should().Be(Encoding.UTF8.GetString(history.Context.Serialize()));
+            wire.RootElement.TryGetProperty("tools", out _).Should().BeFalse();
+        }
+    }
+
     [Theory]
     [InlineData(0, 0, ModelTurnOutcome.DeniedEgress)]
     [InlineData(1, 1, ModelTurnOutcome.DeniedEgress)]

@@ -22,6 +22,8 @@ public sealed partial class SessionRoutingVoiceReply : IAsyncDisposable
     private readonly Func<bool> exact;
     private readonly Func<QuestionVoiceAdmission?> observe;
     private readonly ILogger logger;
+    private readonly Func<Func<bool>, CancellationToken, Task>? readback;
+    private readonly bool submitAfterReadback;
     private readonly Dictionary<string, SessionRoutingVoiceAnswer> answers;
     private readonly CancellationTokenSource cancellation = new();
     private readonly TaskCompletionSource<SessionRoutingVoiceAnswer?> answer = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -45,6 +47,29 @@ public sealed partial class SessionRoutingVoiceReply : IAsyncDisposable
         this.observe = observe;
         this.logger = logger;
         Spec = spec;
+    }
+
+    internal SessionRoutingVoiceReply(SessionRoutingVoiceRequest request, Func<bool> exact,
+        Func<QuestionVoiceAdmission?> observe, Func<Func<bool>, CancellationToken, Task> readback, ILogger logger,
+        bool submitAfterReadback = false)
+    {
+        this.request = request;
+        this.exact = exact;
+        this.observe = observe;
+        this.readback = readback;
+        this.logger = logger;
+        this.submitAfterReadback = submitAfterReadback;
+        Spec = new("Send or cancel", QuestionKind.SingleChoice, [new("send", "send"), new("cancel", "cancel")]);
+        answers = new(StringComparer.Ordinal)
+        {
+            ["send"] = new(SessionRoutingVoiceChoice.Submit),
+            ["cancel"] = new(SessionRoutingVoiceChoice.Cancel),
+        };
+        if (submitAfterReadback)
+        {
+            Spec = new("Cancel automatic readback", QuestionKind.SingleChoice, [new("cancel", "cancel")]);
+            answers = new(StringComparer.Ordinal) { ["cancel"] = new(SessionRoutingVoiceChoice.Cancel) };
+        }
     }
 
     public static SessionRoutingVoiceReply ForDestinations(SessionRoutingVoiceRequest request, SessionRoutingReview review,
@@ -119,6 +144,10 @@ public sealed partial class SessionRoutingVoiceReply : IAsyncDisposable
         var failed = false;
         try
         {
+            if (readback is not null && !submitAfterReadback)
+            {
+                await readback(Eligible, cancellation.Token).ConfigureAwait(false);
+            }
             if (!request.BeginHandover() || !Eligible()) { throw new OperationCanceledException("Original routing input retired."); }
             ownsCapture = true;
             await request.OpenAsync(admission!.Microphone, Spec.Options.Select(option => option.Label), Eligible, cancellation.Token).ConfigureAwait(false);
@@ -128,6 +157,16 @@ public sealed partial class SessionRoutingVoiceReply : IAsyncDisposable
             { throw new OperationCanceledException("Exact routing reply generation was not acknowledged."); }
             lock (gate) { status = "Speak exactly " + string.Join(", ", Spec.Options.Select(option => option.Label)) + ". No other input is routed."; }
             Changed?.Invoke(this, EventArgs.Empty);
+            if (submitAfterReadback)
+            {
+                await readback!(Eligible, cancellation.Token).ConfigureAwait(false);
+                if (!Eligible()) { throw new OperationCanceledException("Readback admission changed."); }
+                lock (gate)
+                {
+                    consuming = true;
+                    answer.TrySetResult(new(SessionRoutingVoiceChoice.Submit));
+                }
+            }
 #pragma warning disable VSTHRD003 // The exact one-use utterance receipt, not a separate capture operation.
             result = await answer.Task.ConfigureAwait(false);
 #pragma warning restore VSTHRD003
@@ -217,6 +256,7 @@ public sealed partial class SessionRoutingVoiceReply : IAsyncDisposable
             }
             consuming = true;
             answer.TrySetResult(answers[option.Id]);
+            if (submitAfterReadback) { cancellation.Cancel(); }
         }
     }
 

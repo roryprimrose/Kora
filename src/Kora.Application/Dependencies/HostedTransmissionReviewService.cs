@@ -12,16 +12,14 @@ using System.Text.Json;
 
 namespace Kora.Application.Dependencies;
 
-/// <summary>Explicit final-byte review, independent of saved profiles and earlier envelope/handoff reviews.</summary>
+/// <summary>
+/// Automatic hosted final-request admission. Choosing a hosted service in Settings is the disclosure decision;
+/// each physical send still revalidates exact authorization, account/profile and host authority and is audited.
+/// </summary>
 public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, TimeProvider time,
     ISessionPermissionStore? permissions = null)
 {
-    private readonly Lock gate = new();
-    private CopilotTransmissionReview? pending;
-    public event Action<CopilotTransmissionReview>? Offered;
-    public event Action<CopilotTransmissionReview>? Retired;
-    public event Action<HostedTransmissionReview>? ClaudeOffered;
-    public event Action<HostedTransmissionReview>? ClaudeRetired;
+    internal const string AutomaticReason = "hosted-provider-settings";
 
     public CopilotTurnAuthorization PrepareTurn(ModelContextEnvelope context, ProviderProfileTuple profile,
         CopilotCustomizationSelection? selection = null,
@@ -92,9 +90,8 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
             SecurityAuditOutcome.Requested, SecurityAuditInitiator.System,
             transmission.Provenance.Turn.Value.ToString("D"));
         audit.Write(requested);
-        CopilotTransmissionReview? review = null;
-        HostedTransmissionReview? claudeReview = null;
         var outcome = SecurityAuditOutcome.Denied;
+        string? reason = null;
         try
         {
             token.ThrowIfCancellationRequested();
@@ -119,35 +116,15 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
                     await permissions.RecordAutomaticApprovalAsync(authorization.Context.Request, policy, details,
                         () => Current(authorization) && !token.IsCancellationRequested, token).ConfigureAwait(false);
                     authorization.AutomaticPermission = (permissions, policy);
-                    var automatic = Current(authorization) && await current(token).ConfigureAwait(false)
-                        && await PermissionCurrentAsync(authorization, token).ConfigureAwait(false)
-                        && Current(authorization) && await current(token).ConfigureAwait(false);
-                    token.ThrowIfCancellationRequested();
-                    outcome = automatic ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied;
-                    return automatic;
                 }
             }
-            var claude = authorization is ClaudeTurnAuthorization;
-            var claudeOffered = ClaudeOffered;
-            var copilotOffered = Offered;
-            if (claude ? claudeOffered is null : copilotOffered is null) { return false; }
-            review = new(transmission, HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Presentation));
-            lock (gate)
-            {
-                if (pending is not null) { return false; }
-                pending = review;
-            }
-
-            if (claude) { claudeReview = new(review); claudeOffered!(claudeReview); }
-            else { copilotOffered!(review); }
-            bool approved;
-            // The final-byte review blocks without a time limit; the owning turn's clocks pause until it is decided.
-            using (authorization.Lifetime?.BeginHostWait())
-            { approved = await review.Completion.Task.WaitAsync(token).ConfigureAwait(false); }
-            approved = approved && Current(authorization) && await current(token).ConfigureAwait(false);
+            var admitted = Current(authorization) && await current(token).ConfigureAwait(false)
+                && await PermissionCurrentAsync(authorization, token).ConfigureAwait(false)
+                && Current(authorization) && await current(token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
-            outcome = approved ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied;
-            return approved;
+            outcome = admitted ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied;
+            reason = admitted ? AutomaticReason : null;
+            return admitted;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         { outcome = SecurityAuditOutcome.Cancelled; throw; }
@@ -155,42 +132,11 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
         { outcome = SecurityAuditOutcome.Unknown; throw; }
         finally
         {
-            lock (gate)
-            {
-                if (ReferenceEquals(pending, review)) { pending = null; }
-                review?.Completion.TrySetResult(false);
-            }
-            audit.Write(requested.WithOutcome(outcome));
+            audit.Write(requested.WithOutcome(outcome, reason));
             activity.Complete(outcome == SecurityAuditOutcome.Succeeded ? HostOperationOutcome.Completed
                 : outcome == SecurityAuditOutcome.Cancelled ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
-            if (claudeReview is not null) { ClaudeRetired?.Invoke(claudeReview); }
-            else if (review is not null) { Retired?.Invoke(review); }
         }
     }
 
     private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
-
-    public bool Confirm(CopilotTransmissionReview review, bool approve, RequestOrigin channel)
-    {
-        ArgumentNullException.ThrowIfNull(review);
-        var current = HostActivity.Current;
-        lock (gate)
-        {
-            if (!ReferenceEquals(pending, review) || current is null || current.Activity!.IsStopped
-                || current.Outcome != HostOperationOutcome.Unknown
-                || !ReferenceEquals(current.Request, review.Transmission.Provenance.Request)
-                || (review.Transmission.Profile.Service == ProviderService.Claude
-                    ? channel != RequestOrigin.LocalUi
-                    : channel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)))
-            { return false; }
-            return review.Completion.TrySetResult(approve);
-        }
-
-    }
-
-    public bool Confirm(HostedTransmissionReview review, bool approve, RequestOrigin channel)
-    {
-        ArgumentNullException.ThrowIfNull(review);
-        return Confirm(review.Review, approve, channel);
-    }
 }

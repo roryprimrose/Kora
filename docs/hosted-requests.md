@@ -4,8 +4,11 @@
 not enabled. These are review controls, not a working sign-in or a cloud
 fallback. Enabling hosted models or signing in to another app cannot enable them.
 
-Use this only when deliberately choosing Copilot for one request. Ordinary
-requests do not gain hosted fallback. Local-only policy remains unchanged.
+Ordinary **Submit** already uses Copilot when Settings select **Hosted preferred**
+and the resolved service is Copilot; see [Copilot live evaluation](copilot-requests.md).
+Use the commands below only when deliberately choosing Copilot for one request
+through the typed or voice command surface. Ordinary requests do not gain hosted
+fallback. Local-only policy remains unchanged.
 Copilot stays unavailable unless the host has a current authorized Copilot
 account/profile, permitted provider mode and ready runtime. Choosing this command
 does not set up an account, enable voice or change those settings.
@@ -40,19 +43,15 @@ of a voice request preserves its original channel; it cannot renew stale voice
 authority. Changed session state, expired review or lost original admission
 requires a fresh review, not a replay.
 
-## Separately approve each physical send
+## Hosted sends are automatic
 
 Confirmation retains the original USER request and asks the host to admit the
-explicit Copilot operation. It does **not** approve transmission.
-
-When authorized and ready, a separate native **Copilot - exact hosted disclosure**
-tab in the expanded workbench shows the destination, account/model, complete noncredential headers and
-complete final JSON body. Inspect these bytes, then choose
-**Transmit this exact request once**, or **Deny**. Voice request confirmation cannot replace this
-native final-send decision. Closing or losing private access never approves.
-Each later physical send requires its own disclosure.
-
-Switching away, hiding or minimizing retires the displayed review; returning does not renew consent. An old review's button cannot authorize or dismiss the next review ([disclosure owner](../src/Kora/CopilotTransmissionWindowController.cs), [native and hosted tests](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)).
+explicit Copilot operation. Choosing a hosted service is the disclosure decision:
+Kora sends each physical request automatically, without a byte-review window,
+at every session permission level. Each send is still bound to the current
+account, model, session and host authority, and is recorded in the security
+audit. Stale or changed authority, privacy loss or cancellation stops the send
+([admission owner](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)).
 
 Inspect the original request's HOST/task outcome. Only a genuine bounded
 successful answer becomes an ASSISTANT response on that same request. Denial,
@@ -85,8 +84,8 @@ Omitting the service in `once` retains its existing **Local** meaning
 ([command syntax](../src/Kora.Core/Commands/SessionCommand.Request.cs)).
 
 This affects only that exact request: app defaults and session overrides stay
-unchanged, and the next request uses normal inheritance. Every hosted physical
-send still requires the separate native disclosure above. Existing credentials,
+unchanged, and the next request uses normal inheritance. Hosted physical sends
+are automatic, as described above. Existing credentials,
 model approval, privacy, voice/call admission and provider mode remain mandatory;
 the picker cannot make an unavailable account or provider ready
 ([request admission](../src/Kora.Application/Dependencies/ModelTurnHost.LocalRequestProfile.cs)).
@@ -98,10 +97,10 @@ to another provider ([hosted submission](../src/Kora.Application/Hosting/Session
 
 ## Review a verified local Unavailable result
 
-In an explicitly configured **Local first** session, the Sessions window offers
-**Ask locally; review Copilot only if unavailable**. This is separate from ordinary
-Submit and from explicitly requesting Copilot. It starts one tool-free local
-request using the exact selected session and original input.
+In an explicitly configured **Local first** session, the ordinary **Submit**
+starts one tool-free local request using the exact selected session and
+original input, and offers a Copilot handoff only if that local request is
+unavailable.
 
 Only the owning local runtime's actual **Unavailable** result, followed by its
 confirmed exact physical resource join, can open this handoff. A reason label,
@@ -117,8 +116,8 @@ never inherited approval.
 
 Approved current review atomically records the local Unavailable outcome and
 one fresh linked request in the same conversation. It does not retry the local
-request or approve a send. The separate **Copilot - exact hosted disclosure**
-review above must still approve the actual final bytes, destination and account.
+request. The hosted request is then sent automatically under the current
+account and profile.
 Only a genuine successful hosted result is retained as the successor's answer.
 Original input/channel, private access, resource ownership and retention rules
 remain authoritative; nothing is retargeted to a newly selected conversation.

@@ -70,13 +70,24 @@ public sealed partial class SessionWorkspaceServiceTests
     {
         using var f = new Fixture();
         using var cancellation = new CancellationTokenSource();
-        await using var queue = f.QueueService();
+        using var dispatcherPastCancellationCheck = new ManualResetEventSlim();
+        // A second slot makes the dispatcher look for more ready work after admitting the callback. That lookup follows
+        // its last cancellation check before it joins the callback, so holding the callback until then makes the refused
+        // receipt, not the dispatcher's own cancellation check, the first failure. Observing cancellation first is the
+        // equally fail-closed OperationCanceledException outcome covered by EarlyCancellationDrainsHeldCallback...
+        await using var queue = f.QueueService(slots: 2);
         await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        f.BeforeFindReady = call => { if (call == 2) { dispatcherPastCancellationCheck.Set(); } };
+        f.OnObserve = () => dispatcherPastCancellationCheck.Wait(f.Token);
         f.BeforeComplete = () => { if (privacy) { f.CanControl = false; } else { cancellation.Cancel(); } };
+        var committed = false;
+        f.AfterComplete = () => committed = true;
         var dispatch = () => queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 1 },
             RequestOrigin.LocalUi, () => true, cancellation.Token);
-        await dispatch.Should().ThrowAsync<InvalidOperationException>();
-        f.QueueRows.Single().State.Should().Be(SessionQueueState.Running);
+        (await dispatch.Should().ThrowExactlyAsync<InvalidOperationException>()).WithMessage("Private receipt admission changed.");
+        committed.Should().BeFalse("the final receipt admission refused the commit");
+        f.QueueActions.Should().Be(1);
+        f.QueueRows.Single().State.Should().Be(SessionQueueState.Running, "the executed callback remains for Unknown recovery");
     }
 
     [Theory]
@@ -643,6 +654,8 @@ public sealed partial class SessionWorkspaceServiceTests
         internal Func<SessionQueueEntry, SessionQueueEntry>? AdmissionReceipt { get; set; }
         internal Action? BeforeComplete { get; set; }
         internal Action? AfterComplete { get; set; }
+        internal Action<int>? BeforeFindReady { get; set; }
+        private int findReadyCalls;
         internal Action? AfterQueueRead { get; set; }
         internal Func<SessionQueueSnapshot, SessionQueueSnapshot>? QueueReadProjection { get; set; }
         internal CapabilityOutcome QueueActionOutcome { get; init; } = CapabilityOutcome.Succeeded;
@@ -819,6 +832,7 @@ public sealed partial class SessionWorkspaceServiceTests
         }
         public ValueTask<SessionQueueEntry?> FindReadyAsync(long admissionRevision, SessionQueueLimits limits, CancellationToken token)
         {
+            BeforeFindReady?.Invoke(Interlocked.Increment(ref findReadyCalls));
             QueueCheck("find");
             return ValueTask.FromResult(SessionQueuePolicy.SelectReady(QueueRows,
                 new Dictionary<HostId<TaskIdentity>, HostTaskState>(), queueRun, QueueTime.GetUtcNow(), admissionRevision, limits));

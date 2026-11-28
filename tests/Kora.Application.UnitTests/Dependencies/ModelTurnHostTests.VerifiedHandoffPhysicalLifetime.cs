@@ -55,11 +55,6 @@ public sealed partial class ModelTurnHostTests
         runtime.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
         runtime.OnTransmission = () => sent.TrySetResult();
         f.Time.ExpectedDeadline = HostedTurnAuthorization.MaximumDuration;
-        f.HandoffReviews.Offered += exact =>
-        {
-            using var presentation = exact.Presentation();
-            f.HandoffReviews.Confirm(exact, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
         var deciding = review.Decide(offer, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
         try
         {

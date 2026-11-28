@@ -42,8 +42,8 @@ internal sealed class CopilotModelTurnAdapter(ICopilotTurnRuntime runtime, Hoste
             authorization is not null && current is not null && reviews.Current(authorization)
             && await reviews.PermissionCurrentAsync(authorization, token).ConfigureAwait(false)
             && await current(token).ConfigureAwait(false)
-            && (authorization.Selection is null || authorization.SourceCurrent is not null
-                && await authorization.SourceCurrent(token).ConfigureAwait(false)
+            && (authorization.SourceCurrent is null
+                || await authorization.SourceCurrent(token).ConfigureAwait(false)
                 && await current(token).ConfigureAwait(false) && reviews.Current(authorization));
         if (authorization is null || current is null || profile != authorization.Profile
             || !ReferenceEquals(provenance.Request, authorization.Context.Request)

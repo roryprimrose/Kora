@@ -1,9 +1,11 @@
 ﻿using System.Text;
 
 using Kora.Application.Hosting;
+using Kora.Application.Hosting.SessionRouting;
 using Kora.Application.Diagnostics;
 using Kora.Core;
 using Kora.Core.Auditing;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
 
@@ -62,7 +64,8 @@ public sealed partial class MainViewModel
     internal async Task ExecuteSessionCommandAsync(SessionCommand command, SecurityAuditInitiator initiator,
         Func<bool>? originalScopeEligibility = null, bool scopeActivationPrefixed = false,
         long? originalScopeNameRevision = null, ForegroundConversationTarget? foregroundTarget = null,
-        Func<bool>? permissionReviewSource = null)
+        Func<bool>? permissionReviewSource = null, Func<string, SessionRoutingVoiceRequest>? createVoiceRequest = null,
+        SessionPermissionPolicy? readbackPermission = null, Func<bool>? readbackVoiceAdmission = null)
     {
         if (disposed) { return; }
         if (command.Operation == SessionCommandOperation.Metrics
@@ -102,9 +105,16 @@ public sealed partial class MainViewModel
         var attachmentCommand = command.Operation == SessionCommandOperation.AttachmentInspect;
         var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand || command.IsConversationDispatch
             || command.IsPermissionCommand;
+        SessionRoutingVoiceRequest? automaticVoiceSource = null;
+        long? joinedReadbackGeneration = null;
+        var automaticReadback = false;
         bool StableEligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
             && (!requestCommand || ReferenceEquals(originalRequests, sessionRequests))
-            && (!command.RequestForegroundTarget || originalScopeEligibility?.Invoke() == true
+            && automaticVoiceSource?.IsLive != false
+            && (!command.RequestForegroundTarget || (automaticVoiceSource?.IsLive
+                ?? (joinedReadbackGeneration is { } joined
+                    ? voiceRecognition.Generation == joined && readbackVoiceAdmission?.Invoke() == true
+                    : originalScopeEligibility?.Invoke())) == true
                 && (origin == RequestOrigin.ActivatedVoice
                     ? foregroundTarget?.IsResourceCurrent : foregroundTarget?.IsCurrent) == true
                 && originalScopeNameRevision == assistantNameConfiguration.Get().Revision
@@ -198,10 +208,36 @@ public sealed partial class MainViewModel
                 ? await ExecuteSessionRetentionCommandAsync(command, origin, Eligible, CancellationToken.None)
                 : requestCommand || command.IsConversationDispatch
                 ? await (originalRequests ?? throw new InvalidOperationException("The canonical retained-request command service is unavailable."))
-                    .ExecuteAsync(command, origin, inputEligible, CancellationToken.None, foregroundTarget)
+                    .ExecuteAsync(command, origin, inputEligible, CancellationToken.None, foregroundTarget,
+                        readbackPermission: readbackPermission)
                 : await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { return; }
+            if (result.RequestReview is { Origin: RequestOrigin.ActivatedVoice, TaskResponseMode: null } spokenReview
+                && createVoiceRequest is not null)
+            {
+                var permission = await originalRequests!.ReadReadbackPermissionAsync(spokenReview, CancellationToken.None);
+                if (AreSpokenSendRepliesEnabled || permission is not null)
+                {
+                    if (sessionRoutingVoiceRequest is not null)
+                    { throw new InvalidOperationException("Another original request still owns voice capture."); }
+                    SetApproveAllReadback(permission is not null);
+                    automaticReadback = permission is not null;
+                    automaticVoiceSource = createVoiceRequest(spokenReview.Body);
+                    sessionRequestNativeDecision = Task.CompletedTask;
+                    sessionRoutingVoiceRequest = automaticVoiceSource;
+                    PropertyChanged += RevalidateSessionRoutingVoice;
+                    PrivacyClosureRequested += RoutingVoicePrivacyClosed;
+                }
+            }
             if (result.PendingClearReview is { } pendingReview) { SetPendingClearReview(pendingReview); }
+            if (readbackPermission is not null && result.RequestReview is { } changedPermissionReview)
+            {
+                SetForegroundRequestReview(changedPermissionReview);
+                Transcript = result.Message;
+                forceVisualResponse = true;
+                NotifyOutputPolicyChanged();
+                return;
+            }
             if (result.RequestSubmission is { } submitted)
             {
                 if (foregroundConfirmation) { ForegroundRequestSubmitted?.Invoke(submitted); }
@@ -230,6 +266,7 @@ public sealed partial class MainViewModel
             else if (result.RequestReview is { } review && (command.RequestActiveTarget || command.RequestTargetName is not null
                 || command.RequestSpokenNameRoute is not null))
             {
+                if (automaticVoiceSource is not null) { SetForegroundRequestReview(review); }
                 ShowInformation("Review conversation request.",
                     "Conversation: " + (review.Target.Metadata?.Name.Value ?? "Active conversation")
                     + "\nProvider: " + review.Provider + "\nOriginal channel: " + review.Origin
@@ -251,6 +288,8 @@ public sealed partial class MainViewModel
             else { ShowInformation("Session command " + result.Outcome + ".", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result))); }
             if (command.SessionId is { } id) { sessionPresentationSources.Add(id); }
             foreach (var row in result.Sessions) { sessionPresentationSources.Add(row.Id); }
+            if (automaticVoiceSource is not null && result.RequestReview is { } voiceReview)
+            { await AnswerSessionRequestByVoiceAsync(voiceReview, automaticVoiceSource, Eligible); }
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or InvalidDataException
             or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
@@ -273,6 +312,24 @@ public sealed partial class MainViewModel
                 + "A mutation may already have committed before a receipt failure; no rollback or automatic retry is claimed.");
             ShowFailure("Session command not confirmed.", command.RequestForegroundTarget || originalForegroundReview is not null
                 ? result.Message : Encoding.UTF8.GetString(SessionCommandResult.Serialize(result)));
+        }
+        finally
+        {
+            if (automaticVoiceSource is not null)
+            {
+#pragma warning disable VSTHRD003 // A native choice joins this same original capture before confirmation and retirement.
+                await sessionRequestNativeDecision;
+#pragma warning restore VSTHRD003
+                if (automaticReadback && automaticVoiceSource.IsCurrent && foregroundRequestReview is not null)
+                { joinedReadbackGeneration = voiceRecognition.Generation; }
+                await JoinSessionRoutingVoice();
+                SetApproveAllReadback(false);
+                automaticVoiceSource.ReleaseOwner();
+                automaticVoiceSource = null;
+                sessionRoutingVoiceRequest = null;
+                PropertyChanged -= RevalidateSessionRoutingVoice;
+                PrivacyClosureRequested -= RoutingVoicePrivacyClosed;
+            }
         }
 
     }

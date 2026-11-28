@@ -119,15 +119,10 @@ internal sealed partial class SessionsManagementView : UserControl, IDisposable
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         ReviewSessionMetadata.Click += async (_, _) => await (ConversationOperation = model.OpenMetadataAnswerAsync());
         NativeComposerSubmitBinding.Bind(ConversationComposer, SubmitConversation);
-        SubmitLocalAnswer.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalAnswerAsync());
         ReviewLocalRequestProfile.Click += async (_, _) => await (ConversationOperation = model.ReviewLocalRequestProfileAsync());
         ReviewFailedLocalProfile.Click += async (_, _) => await (ConversationOperation = model.ReviewFailedLocalProfileAsync());
         BindLocalRequestProfileDecision(ConfirmLocalRequestProfile, true, model);
         BindLocalRequestProfileDecision(CancelLocalRequestProfile, false, model);
-        SubmitCopilotConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotConversationAsync());
-        SubmitCopilotAnswerStream.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotAnswerStreamAsync());
-        SubmitLocalFirst.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalFirstAsync());
-        BindClaudeConversation(model);
         SubmitConversationWithClarification.Click += async (_, _) =>
             await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
         SubmitReadOnlyWithClarification.Click += async (_, _) =>

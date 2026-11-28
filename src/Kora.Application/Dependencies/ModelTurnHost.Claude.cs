@@ -6,6 +6,10 @@ namespace Kora.Application.Dependencies;
 
 public sealed partial class ModelTurnHost
 {
+    internal Task<ModelTurnAdmission> AdmitClaudeHistoryAsync(ModelContextEnvelope context,
+        Func<CancellationToken, ValueTask<bool>> sourceCurrent, CancellationToken token) =>
+        AdmitClaudeCoreAsync(context, false, null, sourceCurrent, token);
+
     public Task<ModelTurnAdmission> AdmitClaudeAsync(ModelContextEnvelope context, CancellationToken token,
         bool streamAnswer = false) => AdmitClaudeCoreAsync(context, streamAnswer, null, null, token);
 
@@ -44,17 +48,18 @@ public sealed partial class ModelTurnHost
         var authorization = hostedReviews.PrepareClaudeTurn(context, profile, streamAnswer, selection, sourceCurrent);
         Volatile.Write(ref authorization.Used, 1);
         var admission = await AdmitConfiguredProfileAsync(ModelTurnChoice.Hosted, context, null, token, authorization).ConfigureAwait(false);
-        if ((selection is not null || streamAnswer || context.ToolMode == ModelToolMode.HostedClarification) && admission.Turn is { } turn)
-        {
-            turn.ValidateAnswerCommit = async ct =>
-            {
-                var reason = await RevalidateContinuationAsync(turn, ct).ConfigureAwait(false);
-                if (reason != ModelTurnReason.None) { return reason; }
-                if (sourceCurrent is not null && !await sourceCurrent(ct).ConfigureAwait(false))
-                { return ModelTurnReason.EgressNotAdmitted; }
-                return await RevalidateContinuationAsync(turn, ct).ConfigureAwait(false);
-            };
-        }
+        if (admission.Turn is { } turn) { BindHostedAnswerCommit(turn, sourceCurrent); }
         return admission;
     }
+
+    /// <summary>Revalidates host continuation and any selected source immediately before a hosted answer commits.</summary>
+    private void BindHostedAnswerCommit(ModelTurn turn, Func<CancellationToken, ValueTask<bool>>? sourceCurrent) =>
+        turn.ValidateAnswerCommit = async ct =>
+        {
+            var reason = await RevalidateContinuationAsync(turn, ct).ConfigureAwait(false);
+            if (reason != ModelTurnReason.None) { return reason; }
+            if (sourceCurrent is not null && !await sourceCurrent(ct).ConfigureAwait(false))
+            { return ModelTurnReason.EgressNotAdmitted; }
+            return await RevalidateContinuationAsync(turn, ct).ConfigureAwait(false);
+        };
 }

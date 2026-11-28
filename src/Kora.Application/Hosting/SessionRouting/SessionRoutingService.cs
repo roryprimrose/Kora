@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 
 using Kora.Core.Conversation;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Conversation.SessionRouting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -46,7 +47,8 @@ public sealed class SessionRoutingService(
         && access.ControlRevision == control && source();
 
     public Task<SessionRoutingReview> PrepareAsync(string body, RequestOrigin origin,
-        Func<bool> admitted, CancellationToken token, ForegroundConversationTarget? foreground = null)
+        Func<bool> admitted, CancellationToken token, ForegroundConversationTarget? foreground = null,
+        ForegroundConversationTarget? lastSelected = null, Func<bool>? standingAdvice = null)
     {
         SessionConversationService.RequireOriginalSource(origin);
         ConversationText.Validate(body, submission: true);
@@ -54,16 +56,21 @@ public sealed class SessionRoutingService(
         bool OriginalAdmitted() => access.CanInspect && access.CanControl
             && access.ControlRevision == originalControl && admitted();
         var target = origin == RequestOrigin.ActivatedVoice ? foreground : null;
-        bool SourceAdmitted() => admitted() && (target is null || target.IsResourceCurrent);
-        return admission is null ? PrepareCoreAsync(body, origin, SourceAdmitted, null, target, token)
+        var preferred = origin == RequestOrigin.ActivatedVoice && target is null
+            && lastSelected?.IsResourceCurrent == true ? lastSelected : null;
+        var consent = origin == RequestOrigin.ActivatedVoice && target is null ? standingAdvice : null;
+        bool SourceAdmitted() => admitted() && (target is null || target.IsResourceCurrent)
+            && (preferred is null || preferred.IsResourceCurrent) && (consent is null || consent());
+        return admission is null ? PrepareCoreAsync(body, origin, SourceAdmitted, null, target, preferred, consent, token)
             : admission.RunAsync(origin, OriginalAdmitted, (request, session, current, cancellation) =>
                 PrepareCoreAsync(body, request.Origin, () => current() && SourceAdmitted(),
-                    session.SessionId, target, cancellation), token);
+                    session.SessionId, target, preferred, consent, cancellation), token);
     }
 
     private async Task<SessionRoutingReview> PrepareCoreAsync(string body, RequestOrigin origin,
         Func<bool> admitted, HostId<SessionIdentity>? controlSession,
-        ForegroundConversationTarget? foreground, CancellationToken token)
+        ForegroundConversationTarget? foreground, ForegroundConversationTarget? lastSelected,
+        Func<bool>? standingAdvice, CancellationToken token)
     {
         long attempt;
         lock (gate)
@@ -91,8 +98,12 @@ public sealed class SessionRoutingService(
             var foregroundDestination = snapshot.Descriptors.SingleOrDefault(item => item.Entry == foreground?.Entry);
             var preselection = foregroundDestination is null ? null
                 : new SessionRoutingReview.PreselectedDestination(foregroundDestination, SessionRoutingReview.PreselectionBasis.Foreground);
-            var consented = preselection is null && matcher is not null && reviewAdvice is not null
-                && await reviewAdvice(new(body, origin, snapshot, expires), AdviceLive, token).ConfigureAwait(false);
+            var preferred = snapshot.Descriptors.SingleOrDefault(item => item.Entry == lastSelected?.Entry);
+            var voiceInference = origin == RequestOrigin.ActivatedVoice;
+            var consented = preselection is null && matcher is not null
+                && (voiceInference ? standingAdvice is not null && standingAdvice()
+                    : reviewAdvice is not null
+                        && await reviewAdvice(new(body, origin, snapshot, expires), AdviceLive, token).ConfigureAwait(false));
             Require(attempt, token);
             if (!AdviceLive())
             { throw new InvalidOperationException("The local advice disclosure expired or changed. No inference or fallback."); }
@@ -100,19 +111,38 @@ public sealed class SessionRoutingService(
             Require(attempt, token);
             if (!AdviceLive() || !Same(page, disclosed))
             { throw new InvalidOperationException("Disclosed routing metadata changed before local advice. Nothing was sent."); }
-            var proposal = !consented
-                ? new(snapshot.Revision, SessionRouteMatch.Unavailable, [])
-                : await matcher!.MatchAsync(body, snapshot, AdviceLive, token).ConfigureAwait(false);
+            var proposal = new SessionRouteProposal(snapshot.Revision, SessionRouteMatch.Unavailable, []);
+            ImmutableArray<SessionRouteDescriptor> candidates = [];
+            var inferenceFailed = false;
+            try
+            {
+                if (consented)
+                { proposal = await matcher!.MatchAsync(body, snapshot, AdviceLive, token, preferred).ConfigureAwait(false); }
+                candidates = ValidateProposal(snapshot, proposal);
+            }
+            catch (Exception exception) when (voiceInference && exception is IOException or InvalidDataException or SessionRoutingInferenceException)
+            {
+                Require(attempt, token);
+                inferenceFailed = true;
+                proposal = new(snapshot.Revision, SessionRouteMatch.Unavailable, []);
+            }
             Require(attempt, token);
             if (!AdviceLive())
             { throw new InvalidOperationException("The local advice lifetime ended. No destination review or submission."); }
-            var candidates = preselection is null ? ValidateProposal(snapshot, proposal) : [preselection.Destination];
+            if (preselection is null && voiceInference)
+            {
+                if (proposal.Match == SessionRouteMatch.Clear)
+                { preselection = new(candidates[0], SessionRoutingReview.PreselectionBasis.Inferred); }
+                else if (preferred is not null)
+                { preselection = new(preferred, SessionRoutingReview.PreselectionBasis.LastSelected); }
+            }
+            if (preselection is not null) { candidates = [preselection.Destination]; }
             var actual = await ReadInventory(token).ConfigureAwait(false);
             Require(attempt, token);
             if (!AdviceLive() || !Same(page, actual))
             { throw new InvalidOperationException("Routing metadata changed during matching. No New fallback or submission was attempted."); }
             var review = new SessionRoutingReview(body, origin, snapshot, proposal.Match, candidates, time.GetUtcNow().AddSeconds(60),
-                HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Request, origin), preselection);
+                HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Request, origin), preselection, inferenceFailed);
             lock (gate)
             {
                 Require(attempt, token);
@@ -156,7 +186,52 @@ public sealed class SessionRoutingService(
         catch { activity.Complete(HostOperationOutcome.Failed); throw; }
     }
 
-    public async Task<SessionRoutingReceipt> SubmitAsync(SessionRoutingSelection selection, CancellationToken token)
+    public Task<SessionRoutingReceipt> SubmitAsync(SessionRoutingSelection selection, CancellationToken token) =>
+        SubmitCoreAsync(selection, null, token);
+
+    public async Task<SessionPermissionPolicy?> ReadReadbackPermissionAsync(SessionRoutingReview review, CancellationToken token)
+    {
+        if (review.Origin != RequestOrigin.ActivatedVoice
+            || review.Preselection is not { Basis: SessionRoutingReview.PreselectionBasis.Foreground } destination
+            || !workspace.SupportsSessionPermission) { return null; }
+        using var activity = review.Continue();
+        await ValidateReview(review, token).ConfigureAwait(false);
+        await ValidateTarget(destination.Destination.Entry, review, token).ConfigureAwait(false);
+        var policy = await workspace.ReadSessionPermissionAsync(destination.Destination.Entry.Authority.SessionId, token).ConfigureAwait(false);
+        if (!IsCurrent(review)) { throw new InvalidOperationException("Original routing admission changed before readback."); }
+        policy.Validate(destination.Destination.Entry.Authority);
+        activity.Complete(HostOperationOutcome.Completed);
+        return policy.Level == SessionPermissionLevel.ApproveAll ? policy : null;
+    }
+
+    public async Task<SessionRoutingReceipt?> SubmitReadbackAsync(SessionRoutingReview review,
+        SessionPermissionPolicy expected, CancellationToken token)
+    {
+        if (review.Origin != RequestOrigin.ActivatedVoice
+            || review.Preselection is not { Basis: SessionRoutingReview.PreselectionBasis.Foreground } destination)
+        { throw new InvalidOperationException("Only the original foreground voice destination admits automatic readback submission."); }
+        using var activity = review.Continue();
+        await ValidateReview(review, token).ConfigureAwait(false);
+        await ValidateTarget(destination.Destination.Entry, review, token).ConfigureAwait(false);
+        SessionRoutingSelection selection;
+        lock (gate) { selected = selection = new(review, destination.Destination.Entry); }
+        try
+        {
+            var receipt = await SubmitCoreAsync(selection, expected, token).ConfigureAwait(false);
+            activity.Complete(HostOperationOutcome.Completed);
+            return receipt;
+        }
+        catch (ISessionConversationStore.PermissionChangedException exception)
+        {
+            lock (gate) { consumed = false; selected = null; }
+            if (!IsCurrent(review)) { throw new InvalidOperationException("Original request changed while returning to destination review.", exception); }
+            activity.Complete(HostOperationOutcome.Failed);
+            return null;
+        }
+    }
+
+    private async Task<SessionRoutingReceipt> SubmitCoreAsync(SessionRoutingSelection selection,
+        SessionPermissionPolicy? readbackPermission, CancellationToken token)
     {
         var review = selection.Review;
         long attempt;
@@ -198,9 +273,13 @@ public sealed class SessionRoutingService(
                 { throw new InvalidOperationException("The acknowledged destination or original permission changed; inspect any committed creation. No rerouting."); }
             }
             await Revalidate(token).ConfigureAwait(false);
-            var receipt = await conversation.SubmitAsync(target, review.Body, OriginalLive, token,
-                Revalidate, links: [new ActivityLink(activity.Activity!.Context)], origin: review.Origin,
-                accepted: () => { lock (gate) { accepted = true; } }).ConfigureAwait(false);
+            var receipt = readbackPermission is not null
+                ? await conversation.SubmitPermissionBoundAsync(target, review.Body, readbackPermission, OriginalLive, token,
+                    Revalidate, [new ActivityLink(activity.Activity!.Context)],
+                    accepted: () => { lock (gate) { accepted = true; } }).ConfigureAwait(false)
+                : await conversation.SubmitAsync(target, review.Body, OriginalLive, token,
+                    Revalidate, links: [new ActivityLink(activity.Activity!.Context)], origin: review.Origin,
+                    accepted: () => { lock (gate) { accepted = true; } }).ConfigureAwait(false);
             activity.Complete(HostOperationOutcome.Completed);
             return new(target, receipt);
         }

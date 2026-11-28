@@ -67,9 +67,64 @@ function Assert-CatalogCoverage {
 
 $expected = @('storage-heavy', 'storage-other', 'ui-definitions', 'native-ux', 'ui-platform')
 $all = @(& $runner -ListShards)
-$partitions = @(& $runner -ListPartitions)
-$legacyPartitions = @('storage-heavy', 'storage-other', 'ui-definitions', 'ui-conversations', 'native-ux', 'ui-platform', 'ui-editors')
-$ninePartitions = @('storage-heavy', 'storage-other', 'ui-definitions', 'ui-definition-dialogs', 'ui-conversations', 'ui-conversation-actions', 'native-ux', 'ui-platform', 'ui-editors')
+$nativePrefixes = @(
+    'Kora.Windows.IntegrationTests.NativeUx.'
+    'Kora.Windows.IntegrationTests.Presentation.DispatcherEvidenceResponsivenessTests.'
+    'Kora.Windows.IntegrationTests.NativeReaderTextScaleTests.'
+    'Kora.Windows.IntegrationTests.SpeechCaptionDisplayTests.'
+)
+$durations = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'windows-test-durations.json') | ConvertFrom-Json
+Assert ($durations.Version -eq 1 -and $durations.SourceRun -gt 0 -and $durations.SourceRevision -cmatch '^[0-9a-f]{40}$' -and
+    $durations.DefaultCaseSeconds -gt 0) 'Measured durations must identify their complete source run.'
+$measuredClasses = @($durations.Classes.PSObject.Properties)
+$measuredMethods = @($durations.Methods.PSObject.Properties)
+Assert ($measuredClasses.Count -gt 0 -and @($measuredClasses | Where-Object { $_.Value -lt 0 }).Count -eq 0) 'Measured class durations must be complete and nonnegative.'
+foreach ($method in $measuredMethods) {
+    $class = $method.Name.Substring(0, $method.Name.LastIndexOf('.'))
+    Assert ($durations.Classes.$class -gt $WindowsSplitClassSeconds) 'Only measured oversized classes may be packed as whole methods.'
+}
+
+# A synthetic catalog of every measured class or split method, plus future and near-match identities.
+$fixtureRoot = Join-Path $root ".scratch\windows-scheduling-tests\$([guid]::NewGuid().ToString('N'))"
+New-Item -ItemType Directory -Path $fixtureRoot -Force | Out-Null
+$splitClasses = @($measuredMethods | ForEach-Object { $_.Name.Substring(0, $_.Name.LastIndexOf('.')) } | Sort-Object -Unique)
+$futureClasses = @(
+    'FuturePlatformTests', 'Storage.FutureStorageTests', 'ArtifactDiscovery.FutureDefinitionTests', 'NativeUx.FutureNativeUxTests'
+    'SessionsConversationTestsExtra', 'ArtifactDiscovery.OwnedDefinitionEditorWindowTestsExtra'
+    'ArtifactDiscovery.CustomizationWindowTestsExtra', 'ArtifactDiscovery.PromptParameterWindowTestsExtra'
+    'EvidenceLiteralFindTestsExtra', 'BoundedSurfaceAccessibilityTestsExtra', 'Presentation.DispatcherEvidenceResponsivenessTestsExtra'
+    'NativeReaderTextScaleTestsExtra', 'SpeechCaptionDisplayTestsExtra'
+) + @(1..20 | ForEach-Object { 'FutureSpread{0:00}Tests' -f $_ })
+$syntheticTests = @(
+    foreach ($class in $measuredClasses.Name) {
+        if ($class -cnotin $splitClasses) { [pscustomobject]@{ Class = $class; Method = 'Test'; Cases = 1 } }
+    }
+    foreach ($method in $measuredMethods.Name) {
+        [pscustomobject]@{ Class = $method.Substring(0, $method.LastIndexOf('.')); Method = $method.Substring($method.LastIndexOf('.') + 1); Cases = 1 }
+    }
+    foreach ($class in $futureClasses) {
+        [pscustomobject]@{ Class = "Kora.Windows.IntegrationTests.$class"; Method = 'Test'; Cases = $(if ($class.StartsWith('FutureSpread', [StringComparison]::Ordinal)) { 40 } else { 1 }) }
+    }
+    # Future methods in a split class; the shorter name is a substring of the longer one.
+    [pscustomobject]@{ Class = 'Kora.Windows.IntegrationTests.SessionsConversationTests'; Method = 'FuturePrefix'; Cases = 3 }
+    [pscustomobject]@{ Class = 'Kora.Windows.IntegrationTests.SessionsConversationTests'; Method = 'FuturePrefixLonger'; Cases = 2 }
+)
+$syntheticList = @(foreach ($test in $syntheticTests) {
+        foreach ($row in 1..$test.Cases) {
+            $name = "$($test.Class).$($test.Method)"
+            [pscustomobject]@{ Class = $test.Class; Method = $test.Method; DisplayName = $(if ($test.Cases -gt 1) { "$name(row: $row)" } else { $name }); Explicit = $false }
+        }
+    })
+$syntheticListPath = Join-Path $fixtureRoot 'list.json'
+ConvertTo-Json -InputObject $syntheticList -Depth 3 -Compress | Set-Content -LiteralPath $syntheticListPath
+$syntheticCatalog = [pscustomobject]@{
+    Version = 2; SourceRevision = ''; Total = $syntheticList.Count
+    Methods = @($syntheticTests | ForEach-Object { [pscustomobject]@{ Name = "$($_.Class).$($_.Method)"; Cases = $_.Cases } })
+    Tests = @($syntheticList | ForEach-Object { [pscustomobject]@{ Name = $_.DisplayName; Cases = 1; Explicit = $false } })
+}
+$syntheticCatalogPath = Join-Path $fixtureRoot 'catalog.json'
+$syntheticCatalog | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $syntheticCatalogPath
+$partitions = @(& $runner -ListPartitions -CatalogPath $syntheticCatalogPath)
 $expectedPartitions = @('storage-heavy', 'storage-other', 'ui-definitions', 'ui-definition-dialogs', 'ui-conversations', 'ui-conversation-core', 'ui-conversation-actions', 'native-ux', 'ui-platform', 'ui-editors', 'ui-workflows', 'ui-presentation')
 Assert (($partitions.Name -join ',') -ceq ($expectedPartitions -join ',')) 'Execute exactly twelve disjoint partitions.'
 Assert ($all.Count -eq 5) 'Default scheduling must retain all five shards.'
@@ -79,7 +134,7 @@ foreach ($name in $expected) {
     Assert ($selected.Count -eq 1) "Selector must return exactly one shard: $name."
     Assert ($selected[0].Name -ceq $name) "Selector returned a different shard: $name."
     Assert ($selected[0].Filter -ceq ($all | Where-Object Name -EQ $name).Filter) 'Selection changed a filter.'
-    $selectedPartitions = @(& $runner -Shard $name -ListPartitions)
+    $selectedPartitions = @(& $runner -Shard $name -ListPartitions -CatalogPath $syntheticCatalogPath)
     $expectedCount = switch ($name) { 'storage-heavy' { 3 }; 'storage-other' { 3 }; 'ui-definitions' { 2 }; 'ui-platform' { 3 }; default { 1 } }
     Assert ($selectedPartitions.Count -eq $expectedCount) "Wrong execution-partition count for $name."
     Assert (@($selectedPartitions | Where-Object HostedShard -CNE $name).Count -eq 0) 'A hosted selector must execute exactly its assigned partitions.'
@@ -94,9 +149,9 @@ $hostedOwners = @{
 }
 foreach ($partition in $partitions) {
     Assert ($partition.HostedShard -ceq $hostedOwners[$partition.Name]) 'Distribute measured UI work across four synchronous hosted runners, not one runner.'
-    Assert (($partition.HostedShard -ceq 'native-ux') -eq ($partition.Name -ceq 'native-ux')) 'Only native-UX work may run under the buffered fixture profile.'
+    Assert (($partition.HostedShard -ceq 'native-ux') -eq ($partition.Name -ceq 'native-ux')) 'Only native-UX work may run in the fixed native-UX job.'
 }
-$selectedAcrossHosts = @($expected | ForEach-Object { & $runner -Shard $_ -ListPartitions })
+$selectedAcrossHosts = @($expected | ForEach-Object { & $runner -Shard $_ -ListPartitions -CatalogPath $syntheticCatalogPath })
 Assert ((($selectedAcrossHosts.Name | Sort-Object) -join ',') -ceq (($expectedPartitions | Sort-Object) -join ',')) 'All five hosted selectors together must execute every partition exactly once.'
 $rejected = $false
 try { & $runner -Shard 'unknown' -ListShards | Out-Null }
@@ -158,43 +213,51 @@ foreach ($class in $classes.Keys) {
     $matching = @(Get-MatchingShard $qualified)
     Assert ($matching.Count -eq 1) "Partition must cover $class exactly once."
     Assert ($matching[0].Name -ceq $classes[$class]) "Partition placed $class in the wrong shard."
-    $execution = @(Get-MatchingShard "Kora.Windows.IntegrationTests.$class.Test" -Definitions $partitions)
-    Assert ($execution.Count -eq 1) "Execution must cover $class exactly once."
-    Assert ($execution[0].Shard -ceq $classes[$class]) "Execution changed the hosted owner of $class."
-}
-$conversation = @(Get-MatchingShard 'Kora.Windows.IntegrationTests.SessionsConversationTests.Test' -Definitions $partitions)
-$editor = @(Get-MatchingShard 'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests.Test' -Definitions $partitions)
-Assert ($conversation[0].Name -ceq 'ui-conversations') 'New unclassified conversation methods must remain in the default serial conversation process.'
-Assert ($editor[0].Name -ceq 'ui-editors') 'Isolate the complete editor class in its own serial UI process.'
-foreach ($method in @('NativeExample', 'OwnedExample', 'NamedExample')) {
-    $execution = @(Get-MatchingShard "Kora.Windows.IntegrationTests.SessionsConversationTests.$method" -Definitions $partitions)
-    $owner = if ($method.StartsWith('Native', [StringComparison]::Ordinal)) { 'ui-conversation-actions' } else { 'ui-conversations' }
-    Assert ($execution.Count -eq 1 -and $execution[0].Name -ceq $owner) 'Keep each complete conversation method family and all its theory rows in its assigned serial process.'
-}
-foreach ($method in @(
-    'CriteriaEditsFenceLateDetailCallbacksWithoutClearingIndependentComposer'
-    'InvalidConversationDatesRetainEditableInputsAndRefuseBeforeAnyBodyRead'
-    'ModelAgentProposalCompletesOnlyThroughExactNativeReviewSeparateConsentAndJoinedOriginalSessionAnswer'
-)) {
-    $execution = @(Get-MatchingShard "Kora.Windows.IntegrationTests.SessionsConversationTests.$method" -Definitions $partitions)
-    $owner = if ($method.StartsWith('M', [StringComparison]::Ordinal)) { 'ui-conversation-core' } else { 'ui-conversations' }
-    Assert ($execution.Count -eq 1 -and $execution[0].Name -ceq $owner) 'All methods unfinished at the hosted timeout must remain scheduled, not disappear from the repair.'
-}
-foreach ($class in @('CustomizationWindowTests', 'PromptParameterWindowTests')) {
-    $execution = @(Get-MatchingShard "Kora.Windows.IntegrationTests.ArtifactDiscovery.$class.Test" -Definitions $partitions)
-    Assert ($execution.Count -eq 1 -and $execution[0].Name -ceq 'ui-definition-dialogs') 'Split the two complete measured dialog classes from remaining definitions work.'
-}
-foreach ($qualifiedName in @(
-    'Kora.Windows.IntegrationTests.SessionsConversationTestsExtra.Test'
-    'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTestsExtra.Test'
-    'Kora.Windows.IntegrationTests.SessionsConversationTestsExtra.NativeExample'
-    'Kora.Windows.IntegrationTests.ArtifactDiscovery.CustomizationWindowTestsExtra.Test'
-    'Kora.Windows.IntegrationTests.ArtifactDiscovery.PromptParameterWindowTestsExtra.Test'
-)) {
-    $execution = @(Get-MatchingShard $qualifiedName -Definitions $partitions)
-    Assert ($execution.Count -eq 1 -and $execution[0].Name -notin @('ui-conversations', 'ui-conversation-actions', 'ui-definition-dialogs', 'ui-editors')) 'Exact class boundaries must not capture similarly named future classes.'
 }
 
+# Execution partitions are packed from the catalog; assert their properties rather than fixed class owners.
+foreach ($method in $syntheticCatalog.Methods) {
+    $execution = @(Get-MatchingShard $method.Name -Definitions $partitions)
+    Assert ($execution.Count -eq 1) "Execution must cover $($method.Name) exactly once."
+    $native = @($nativePrefixes | Where-Object { $method.Name.StartsWith($_, [StringComparison]::Ordinal) }).Count -gt 0
+    Assert (($execution[0].Name -ceq 'native-ux') -eq $native) 'Only native-UX identities may run in the fixed native-UX partition.'
+}
+Assert ((($partitions | Where-Object Name -CEQ 'native-ux').Filter) -ceq (($nativePrefixes | ForEach-Object { "FullyQualifiedName~$_" }) -join '|')) 'Packing must not change the fixed native-UX filter.'
+Assert ((($partitions | Measure-Object Cases -Sum).Sum) -eq $syntheticCatalog.Total) 'Every discovered case must be assigned exactly once.'
+$prefixOwners = @('FuturePrefix', 'FuturePrefixLonger') | ForEach-Object {
+    @(Get-MatchingShard "Kora.Windows.IntegrationTests.SessionsConversationTests.$_" -Definitions $partitions)[0].Name
+}
+Assert ($prefixOwners[0] -ceq $prefixOwners[1]) 'Method units whose names overlap must share one process so a substring filter cannot run either twice.'
+$spread = @(1..20 | ForEach-Object {
+        @(Get-MatchingShard ('Kora.Windows.IntegrationTests.FutureSpread{0:00}Tests.Test' -f $_) -Definitions $partitions)[0].Name
+    } | Sort-Object -Unique)
+Assert ($spread.Count -ge 5) 'Unmeasured classes must be spread by estimated load, not collected in one catch-all partition.'
+$packed = @($partitions | Where-Object Name -CNE 'native-ux')
+$heaviest = ($packed | Measure-Object EstimatedSeconds -Maximum).Maximum
+$mean = ($packed | Measure-Object EstimatedSeconds -Average).Average
+Assert ($heaviest -le 1.1 * $mean) 'Measured work must be balanced across the eleven packed partitions.'
+# Run 45801316727 recorded 1,248 seconds of serial work in the former catch-all ui-platform partition.
+Assert ($heaviest -lt 0.6 * 1248) 'Packing must shorten the measured critical path, not move it.'
+$repeat = @(& $runner -ListPartitions -CatalogPath $syntheticCatalogPath)
+Assert ((($repeat | ForEach-Object Filter) -join "`n") -ceq (($partitions | ForEach-Object Filter) -join "`n")) 'Every job must derive the same assignment from the same catalog.'
+$guarded = $false
+$savedLimit = $WindowsMaximumFilterLength
+try {
+    $WindowsMaximumFilterLength = 100
+    Get-WindowsExecutionPartitions $syntheticCatalog $durations $expectedPartitions 'native-ux' $nativePrefixes | Out-Null
+}
+catch { $guarded = $true }
+finally { $WindowsMaximumFilterLength = $savedLimit }
+Assert $guarded 'An oversized generated filter must fail before any process starts.'
+$sparse = [pscustomobject]@{ Methods = @([pscustomobject]@{ Name = 'Kora.Windows.IntegrationTests.FuturePlatformTests.Test'; Cases = 1 }) }
+$failed = $false
+try { Get-WindowsExecutionPartitions $sparse $durations $expectedPartitions 'native-ux' $nativePrefixes | Out-Null } catch { $failed = $true }
+Assert $failed 'An empty execution partition must fail instead of reporting empty success.'
+$overlap = @($partitions | ForEach-Object { $_.PSObject.Copy() })
+$overlap[0].Filter += '|' + $overlap[1].Filter
+$failed = $false
+try { Assert-WindowsPartitionCoverage $syntheticCatalog $overlap } catch { $failed = $true }
+Assert $failed 'Overlapping execution filters must fail coverage validation.'
 Assert ($workflow.Contains('shard: [storage-heavy, storage-other, ui-definitions, native-ux, ui-platform]',
     [StringComparison]::Ordinal)) 'CI matrix must include every maintained shard.'
 Assert ($workflow.Contains('fail-fast: false', [StringComparison]::Ordinal)) 'One failure must not cancel other evidence.'
@@ -232,34 +295,23 @@ Assert ($deadline.Success -and $deadline.Groups['minutes'].Value -ceq '30') 'Pre
 Assert ($job.Contains('ref: ${{ needs.version.outputs.source-revision }}', [StringComparison]::Ordinal)) 'Candidate jobs must consume the admitted source, including its scheduling script.'
 Assert ($job.Contains('run: .\eng\Run-WindowsIntegrationTests.ps1 -Partition ''${{ matrix.partition }}''',
     [StringComparison]::Ordinal)) 'The workflow must consume candidate-owned partition assignments.'
-Assert ($workflow.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: ${{ matrix.partition == ''native-ux'' && ''buffered'' || ''synchronous'' }}',
-    [StringComparison]::Ordinal)) 'Only the native-UX CI shard may select the measured buffered fixture profile.'
+Assert ($job.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: buffered',
+    [StringComparison]::Ordinal) -and -not $workflow.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: synchronous', [StringComparison]::Ordinal)) 'Every CI partition must select the measured buffered fixture evidence profile.'
 $nativeFilter = @(
     'Kora.Windows.IntegrationTests.NativeUx.'
     'Kora.Windows.IntegrationTests.Presentation.DispatcherEvidenceResponsivenessTests.'
     'Kora.Windows.IntegrationTests.NativeReaderTextScaleTests.'
     'Kora.Windows.IntegrationTests.SpeechCaptionDisplayTests.'
 ) | ForEach-Object { "FullyQualifiedName~$_" }
-Assert (($all | Where-Object Name -EQ 'native-ux').Filter -ceq ($nativeFilter -join '|')) 'Rebalancing must not move synchronous classes into the buffered profile.'
+Assert (($all | Where-Object Name -EQ 'native-ux').Filter -ceq ($nativeFilter -join '|')) 'Rebalancing must not change the legacy native-UX shard filter.'
 $collection = Get-Content -Raw -LiteralPath (Join-Path $root 'tests\Kora.Windows.IntegrationTests\HeadlessUiTestGroup.cs')
 Assert ($collection.Contains('[CollectionDefinition(nameof(HeadlessUiTestGroup), DisableParallelization = true)]',
     [StringComparison]::Ordinal)) 'Headless UI tests must remain serial within each process.'
 $tracingCollection = Get-Content -Raw -LiteralPath (Join-Path $root 'tests\Kora.Windows.IntegrationTests\HostTracingTestGroup.cs')
 Assert ($tracingCollection.Contains('[CollectionDefinition("Host tracing", DisableParallelization = true)]',
     [StringComparison]::Ordinal)) 'Process-wide tracing listeners must remain isolated within each process.'
-$redistributedClasses = [ordered]@{
-    'ForegroundPttUiContractTests' = 'ui-workflows'
-    'PreparedLocalSearchWindowTests' = 'ui-presentation'
-    'LocalFileTextMeasurementWindowTests' = 'ui-presentation'
-    'AdaptiveSessionNameSearchTests' = 'ui-presentation'
-}
-foreach ($class in $redistributedClasses.Keys) {
-    foreach ($method in @('ExistingMethod', 'FutureMethod')) {
-        $execution = @(Get-MatchingShard "Kora.Windows.IntegrationTests.$class.$method" -Definitions $partitions)
-        Assert ($execution.Count -eq 1 -and $execution[0].Name -ceq $redistributedClasses[$class]) "Move the entire $class class, including future methods."
-    }
-    $nearMatch = @(Get-MatchingShard "Kora.Windows.IntegrationTests.${class}Extra.Test" -Definitions $partitions)
-    Assert ($nearMatch.Count -eq 1 -and $nearMatch[0].Name -ceq 'ui-platform') 'Exact class boundaries must not capture similarly named future platform classes.'
+$redistributedClasses = @('ForegroundPttUiContractTests', 'PreparedLocalSearchWindowTests', 'LocalFileTextMeasurementWindowTests', 'AdaptiveSessionNameSearchTests')
+foreach ($class in $redistributedClasses) {
     $source = Get-Content -Raw -LiteralPath (Join-Path $root "tests\Kora.Windows.IntegrationTests\$class.cs")
     Assert ($source.Contains('[Collection(nameof(HeadlessUiTestGroup))]', [StringComparison]::Ordinal)) 'Whole-class redistribution must preserve the serial dispatcher collection.'
 }
@@ -470,21 +522,15 @@ function Assert-RetainedResults {
 
     $catalog = if ($ExpectedCatalogPath) { Get-Content -Raw -LiteralPath $ExpectedCatalogPath | ConvertFrom-Json } else { $null }
     $reports = @(Get-ChildItem -LiteralPath $RetainedResultsDirectory -Filter '*.trx' -Recurse -File)
-    Assert ($reports.Count -in @($expected.Count, $legacyPartitions.Count, $ninePartitions.Count, $expectedPartitions.Count)) 'Retained evidence must contain a complete five-, seven-, nine- or twelve-report set.'
-    $reportNames = if ($reports.Count -eq $expected.Count) { $expected }
-        elseif ($reports.Count -eq $legacyPartitions.Count) { $legacyPartitions }
-        elseif ($reports.Count -eq $ninePartitions.Count) { $ninePartitions }
-        else { $expectedPartitions }
+    Assert ($reports.Count -in @($expected.Count, $expectedPartitions.Count)) 'Retained evidence must contain a complete five-shard or twelve-partition report set.'
+    $legacyLayout = $reports.Count -eq $expected.Count
+    $reportNames = if ($legacyLayout) { $expected } else { $expectedPartitions }
     $executions = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $recordedClasses = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $recordedCases = 0
     $recordedMethods = @{}
     $recordedTests = @{}
-    $partitionCases = @{}
-    $partitionSeconds = @{}
-    $legacyUiSeconds = @{}
-    foreach ($name in $expectedPartitions) { $partitionCases[$name] = 0 }
-    foreach ($name in $expectedPartitions) { $partitionSeconds[$name] = 0.0 }
+    $recorded = [Collections.Generic.List[object]]::new()
     foreach ($name in $reportNames) {
         $report = @($reports | Where-Object { $_.Directory.Name -ceq $name })
         Assert ($report.Count -eq 1) "Retained evidence must contain exactly one $name report."
@@ -500,71 +546,47 @@ function Assert-RetainedResults {
             Assert ($executions.Add($result.executionId)) 'Retained reports contain a duplicate test execution.'
             Assert ($definitions.ContainsKey($result.testId)) 'A retained result has no test definition.'
             $method = $definitions[$result.testId]
+            Assert (-not [string]::IsNullOrWhiteSpace($method.className)) 'A retained test has no class identity.'
             $qualified = "$($method.className).$($method.name)"
             if (-not $recordedMethods.ContainsKey($qualified)) { $recordedMethods[$qualified] = 0 }
             $recordedMethods[$qualified]++
             if (-not $recordedTests.ContainsKey($result.testName)) { $recordedTests[$result.testName] = 0 }
             $recordedTests[$result.testName]++
-            Assert (-not [string]::IsNullOrWhiteSpace($method.className)) 'A retained test has no class identity.'
             $recordedClasses.Add($method.className) | Out-Null
-            $matching = @(Get-MatchingShard "$($method.className).$($method.name)")
-            Assert ($matching.Count -eq 1) "Partition must cover retained case $($result.testName) exactly once."
-            $execution = @(Get-MatchingShard "$($method.className).$($method.name)" -Definitions $partitions)
-            Assert ($execution.Count -eq 1) "Execution must cover retained case $($result.testName) exactly once."
-            $sourceName = $execution[0].Name
-            if ($reports.Count -ne $expectedPartitions.Count) {
-                $sourceName = switch ($sourceName) {
-                    'ui-conversation-core' { 'ui-conversations' }
-                    'ui-workflows' { 'ui-platform' }
-                    'ui-presentation' { 'ui-platform' }
-                    default { $sourceName }
-                }
-                if ($qualified.StartsWith('Kora.Windows.IntegrationTests.SessionsConversationTests.Owned', [StringComparison]::Ordinal) -or
-                    $qualified.StartsWith('Kora.Windows.IntegrationTests.SessionsConversationTests.Named', [StringComparison]::Ordinal)) {
-                    $sourceName = 'ui-conversation-actions'
-                }
-            }
-            if ($reports.Count -eq $expected.Count) { $sourceName = $execution[0].Shard }
-            elseif ($reports.Count -eq $legacyPartitions.Count) {
-                $sourceName = switch ($sourceName) {
-                    'ui-definition-dialogs' { 'ui-definitions' }
-                    'ui-conversation-actions' { 'ui-conversations' }
-                    default { $sourceName }
-                }
-            }
-            Assert ($sourceName -ceq $name) 'A retained case must belong to its recorded source partition.'
-            $partitionCases[$execution[0].Name]++
-            $seconds = [TimeSpan]::Parse($result.duration).TotalSeconds
-            $partitionSeconds[$execution[0].Name] += $seconds
-            if ($name.StartsWith('ui-', [StringComparison]::Ordinal)) {
-                if (-not $legacyUiSeconds.ContainsKey($name)) { $legacyUiSeconds[$name] = 0.0 }
-                $legacyUiSeconds[$name] += $seconds
-            }
+            $recorded.Add([pscustomobject]@{ Report = $name; Method = $qualified; Name = $result.testName })
             $recordedCases++
         }
     }
     if ($ExpectedCatalogPath) {
         Assert-CatalogCoverage $catalog $ExpectedSourceRevision $reports.Count $recordedCases $recordedMethods $recordedTests
     }
+    # Current execution partitions are packed from the source catalog, or from the complete recorded method set.
+    $packingCatalog = if ($null -ne $catalog) { $catalog } else {
+        [pscustomobject]@{ Methods = @($recordedMethods.Keys | Sort-Object -CaseSensitive | ForEach-Object { [pscustomobject]@{ Name = $_; Cases = $recordedMethods[$_] } }) }
+    }
+    $current = @(Get-WindowsExecutionPartitions $packingCatalog $durations $expectedPartitions 'native-ux' $nativePrefixes)
+    Assert-WindowsPartitionCoverage $packingCatalog $current
+    $partitionCases = @{}
+    foreach ($name in $expectedPartitions) { $partitionCases[$name] = 0 }
+    foreach ($case in $recorded) {
+        $matching = @(Get-MatchingShard $case.Method)
+        Assert ($matching.Count -eq 1) "Partition must cover retained case $($case.Name) exactly once."
+        $execution = @(Get-MatchingShard $case.Method -Definitions $current)
+        Assert ($execution.Count -eq 1) "Execution must cover retained case $($case.Name) exactly once."
+        $sourceName = if ($legacyLayout) { $matching[0].Name } else { $execution[0].Name }
+        Assert ($sourceName -ceq $case.Report) 'A retained case must belong to its recorded source partition.'
+        $partitionCases[$execution[0].Name]++
+    }
     Write-Host "Retained partition: $recordedCases cases across $($recordedClasses.Count) classes covered exactly once."
     foreach ($name in $expectedPartitions) {
         Assert ($partitionCases[$name] -gt 0) "Projected execution partition $name must not be empty."
         Write-Host "$name`: $($partitionCases[$name]) retained cases."
     }
-    if ($reports.Count -eq $legacyPartitions.Count) {
-        $before = ($legacyUiSeconds.Values | Measure-Object -Maximum).Maximum
-        $after = ($expectedPartitions | Where-Object { $_.StartsWith('ui-', [StringComparison]::Ordinal) } |
-            ForEach-Object { $partitionSeconds[$_] } | Measure-Object -Maximum).Maximum
-        Assert ($after -lt 0.75 * $before) 'Twelve independent jobs must reduce the complete retained maximum serial UI workload by at least 25 percent.'
-        Write-Host ("Independent-host retained UI workload: {0:N1}s -> {1:N1}s; hosted completion remains unverified." -f $before, $after)
-    }
 }
-
 if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
     Assert-RetainedResults $RetainedResultsDirectory $ExpectedCatalogPath $ExpectedSourceRevision
 }
 
-$fixtureRoot = Join-Path $root ".scratch\windows-scheduling-tests\$([guid]::NewGuid().ToString('N'))"
 $fakeDirectory = Join-Path $fixtureRoot 'cli'
 $fakePath = Join-Path $fakeDirectory 'dotnet.ps1'
 New-Item -ItemType Directory -Path $fakeDirectory -Force | Out-Null
@@ -576,11 +598,11 @@ if ($arguments -contains '-list') {
         Write-Output '[{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"Test","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.Test","Explicit":"false"}]'
         exit 0
     }
+    $list = Get-Content -Raw -LiteralPath $env:KORA_WINDOWS_SCHEDULING_LIST
     if ($env:KORA_WINDOWS_SCHEDULING_FIXTURE -ceq 'explicit') {
-        Write-Output '[{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"Test","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.Test","Explicit":false},{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"OptIn","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.OptIn(row: 1)","Explicit":true},{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"OptIn","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.OptIn(row: 2)","Explicit":true}]'
-        exit 0
+        $list = $list.TrimEnd().TrimEnd(']') + ',{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"OptIn","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.OptIn(row: 1)","Explicit":true},{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"OptIn","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.OptIn(row: 2)","Explicit":true}]'
     }
-    Write-Output '[{"Class":"Kora.Windows.IntegrationTests.FuturePlatformTests","Method":"Test","DisplayName":"Kora.Windows.IntegrationTests.FuturePlatformTests.Test","Explicit":false}]'
+    Write-Output $list
     exit 0
 }
 $directory = $arguments[[Array]::IndexOf($arguments, '--results-directory') + 1]
@@ -611,10 +633,12 @@ finally {
 '@ | Set-Content -LiteralPath $fakePath
 $savedPath = $env:PATH
 $savedFixture = [Environment]::GetEnvironmentVariable('KORA_WINDOWS_SCHEDULING_FIXTURE')
+$savedList = [Environment]::GetEnvironmentVariable('KORA_WINDOWS_SCHEDULING_LIST')
 try {
     $env:PATH = $fakeDirectory + [IO.Path]::PathSeparator + $savedPath
     $resolved = Get-Command dotnet -CommandType Application, ExternalScript | Select-Object -First 1
     Assert ($resolved.Source -ceq $fakePath) 'Execution fixtures must resolve only the fake CLI, never real tests or restores.'
+    $env:KORA_WINDOWS_SCHEDULING_LIST = $syntheticListPath
     $env:KORA_WINDOWS_SCHEDULING_FIXTURE = 'success'
     $executionRoot = Join-Path $fixtureRoot 'success'
     & $runner -ResultsDirectory $executionRoot
@@ -634,6 +658,13 @@ try {
         Assert ((Get-Content -Raw -LiteralPath (Join-Path $receipt[0].Directory.FullName 'console.log')).Contains('Fixture started-test diagnostic',
             [StringComparison]::Ordinal)) 'Process-finalization diagnostics must remain visible in predecessor-compatible console artifacts.'
     }
+    Assert (@($partitions | Where-Object { $_.EstimatedSeconds -isnot [double] -or $_.EstimatedSeconds -le 0 }).Count -eq 0) 'Every execution partition must carry a positive estimated duration for local ordering.'
+    $throttledRoot = Join-Path $fixtureRoot 'throttled'
+    & $runner -ThrottleLimit 1 -ResultsDirectory $throttledRoot
+    $started = @(Get-ChildItem -LiteralPath $throttledRoot -Filter 'command.json' -Recurse -File |
+        Sort-Object LastWriteTimeUtc | ForEach-Object { $_.Directory.Name })
+    $longestFirst = @($partitions | Sort-Object -Stable -Descending -Property EstimatedSeconds | ForEach-Object Name)
+    Assert (($started -join ',') -ceq ($longestFirst -join ',')) 'A throttled run must start every partition exactly once, longest estimated partition first.'
     foreach ($mode in @('exit', 'missing', 'empty', 'incomplete', 'failed', 'skipped', 'malformed', 'duplicate')) {
         $env:KORA_WINDOWS_SCHEDULING_FIXTURE = $mode
         $modeRoot = Join-Path $fixtureRoot $mode
@@ -676,7 +707,7 @@ try {
     }
     $env:KORA_WINDOWS_SCHEDULING_FIXTURE = 'explicit'
     $discovered = Get-WindowsTestCatalog $fakePath $modules $revision
-    Assert ($discovered.Total -eq 3 -and @($discovered.Tests | Where-Object Explicit).Count -eq 2) 'Compiled discovery must retain explicit theory rows without executing them.'
+    Assert ($discovered.Total -eq $syntheticCatalog.Total + 2 -and @($discovered.Tests | Where-Object Explicit).Count -eq 2) 'Compiled discovery must retain explicit theory rows without executing them.'
     & $runner -Partition 'ui-platform' -ResultsDirectory (Join-Path $fixtureRoot 'explicit-run')
     foreach ($fault in @('discovery-empty', 'discovery-invalid')) {
         $env:KORA_WINDOWS_SCHEDULING_FIXTURE = $fault
@@ -686,18 +717,22 @@ try {
     }
     $env:KORA_WINDOWS_SCHEDULING_FIXTURE = 'success'
     $catalog = Get-Content -Raw -LiteralPath (Join-Path $modules 'kora-test-catalog.json') | ConvertFrom-Json
-    $method = $catalog.Methods[0].Name
-    $test = $catalog.Tests[0].Name
-    Assert-CatalogCoverage $catalog $revision 12 1 @{ $method = 1 } @{ $test = 1 }
+    $catalogMethods = @{}
+    foreach ($entry in $catalog.Methods) { $catalogMethods[$entry.Name] = $entry.Cases }
+    $catalogTests = @{}
+    foreach ($entry in $catalog.Tests) { $catalogTests[$entry.Name] = $entry.Cases }
+    Assert-CatalogCoverage $catalog $revision 12 $catalog.Total $catalogMethods $catalogTests
     foreach ($fault in @('source', 'reports', 'total', 'method', 'theory-row')) {
+        $methods = $catalogMethods.Clone()
+        $tests = $catalogTests.Clone()
         $failed = $false
         try {
             switch ($fault) {
-                'source' { Assert-CatalogCoverage $catalog ('b' * 40) 12 1 @{ $method = 1 } @{ $test = 1 } }
-                'reports' { Assert-CatalogCoverage $catalog $revision 11 1 @{ $method = 1 } @{ $test = 1 } }
-                'total' { Assert-CatalogCoverage $catalog $revision 12 2 @{ $method = 2 } @{ $test = 2 } }
-                'method' { Assert-CatalogCoverage $catalog $revision 12 1 @{ 'different' = 1 } @{ $test = 1 } }
-                'theory-row' { Assert-CatalogCoverage $catalog $revision 12 1 @{ $method = 1 } @{ 'different' = 1 } }
+                'source' { Assert-CatalogCoverage $catalog ('b' * 40) 12 $catalog.Total $methods $tests }
+                'reports' { Assert-CatalogCoverage $catalog $revision 11 $catalog.Total $methods $tests }
+                'total' { Assert-CatalogCoverage $catalog $revision 12 ($catalog.Total + 1) $methods $tests }
+                'method' { $methods.Remove($catalog.Methods[0].Name); $methods['different'] = 1; Assert-CatalogCoverage $catalog $revision 12 $catalog.Total $methods $tests }
+                'theory-row' { $tests.Remove($catalog.Tests[0].Name); $tests['different'] = 1; Assert-CatalogCoverage $catalog $revision 12 $catalog.Total $methods $tests }
             }
         }
         catch { $failed = $true }
@@ -719,16 +754,20 @@ try {
         'ForegroundPttUiContractTests.Test'
         'PreparedLocalSearchWindowTests.Test'
     )
-    $identities = @()
-    for ($index = 0; $index -lt $expectedPartitions.Count; $index++) {
-        $qualified = "Kora.Windows.IntegrationTests.$($fixtureMethods[$index])"
+    $identities = @($fixtureMethods | ForEach-Object { [pscustomobject]@{ Name = "Kora.Windows.IntegrationTests.$_"; Cases = 1 } })
+    $fixturePartitions = @(Get-WindowsExecutionPartitions ([pscustomobject]@{ Methods = $identities }) $durations $expectedPartitions 'native-ux' $nativePrefixes)
+    $fixtureOwners = @{}
+    foreach ($identity in $identities) {
+        $qualified = $identity.Name
         $class, $method = $qualified -split '\.(?=[^.]+$)'
-        $directory = Join-Path $catalogRoot $expectedPartitions[$index]
+        $owner = @(Get-MatchingShard $qualified -Definitions $fixturePartitions)
+        Assert ($owner.Count -eq 1 -and -not $fixtureOwners.ContainsKey($owner[0].Name)) 'Each fixture partition must own exactly one recorded case.'
+        $fixtureOwners[$owner[0].Name] = $qualified
+        $directory = Join-Path $catalogRoot $owner[0].Name
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
         $id = [guid]::NewGuid().ToString()
         $report = "<TestRun><TestDefinitions><UnitTest id=`"$id`"><TestMethod className=`"$class`" name=`"$method`"/></UnitTest></TestDefinitions><Results><UnitTestResult testId=`"$id`" executionId=`"$id`" testName=`"$qualified`" outcome=`"Passed`" duration=`"00:00:01`"/></Results><ResultSummary><Counters total=`"1`" passed=`"1`"/></ResultSummary></TestRun>"
         Set-Content -LiteralPath (Join-Path $directory 'results.trx') -Value $report
-        $identities += [pscustomobject]@{ Name = $qualified; Cases = 1 }
     }
     $completeCatalog = [pscustomobject]@{ Version = 1; SourceRevision = $revision; Total = 12; Methods = $identities; Tests = $identities }
     $completeCatalog | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $catalogPath
@@ -747,20 +786,23 @@ try {
         catch { $failure = $_ }
         Assert ($null -ne $failure) "The actual twelve-report join must reject $fault catalog evidence."
     }
-    $explicitReportPath = Join-Path $catalogRoot 'ui-platform\results.trx'
+    # Explicit rows join a measured class so the packed layout is unchanged by their case count.
+    $explicitClass = 'Kora.Windows.IntegrationTests.ForegroundPttUiContractTests'
+    $explicitOwner = @($fixtureOwners.Keys | Where-Object { $fixtureOwners[$_] -ceq "$explicitClass.Test" })
+    $explicitReportPath = Join-Path $catalogRoot "$($explicitOwner[0])\results.trx"
     $ordinaryReport = Get-Content -Raw -LiteralPath $explicitReportPath
     [xml] $explicitReport = $ordinaryReport
     $explicitCatalog = $completeCatalog | ConvertTo-Json -Depth 4 | ConvertFrom-Json
     $explicitCatalog.Version = 2
     $explicitCatalog.Total += 2
     foreach ($test in $explicitCatalog.Tests) { $test | Add-Member -NotePropertyName Explicit -NotePropertyValue $false }
-    $explicitMethod = 'Kora.Windows.IntegrationTests.FuturePlatformTests.OptIn'
+    $explicitMethod = "$explicitClass.OptIn"
     $explicitCatalog.Methods += [pscustomobject]@{ Name = $explicitMethod; Cases = 2 }
     foreach ($row in 1, 2) {
         $id = [guid]::NewGuid().ToString()
         $displayName = "$explicitMethod(row: $row)"
         $explicitCatalog.Tests += [pscustomobject]@{ Name = $displayName; Cases = 1; Explicit = $true }
-        [xml] $definition = "<UnitTest id=`"$id`"><TestMethod className=`"Kora.Windows.IntegrationTests.FuturePlatformTests`" name=`"OptIn`"/></UnitTest>"
+        [xml] $definition = "<UnitTest id=`"$id`"><TestMethod className=`"$explicitClass`" name=`"OptIn`"/></UnitTest>"
         [xml] $explicitCaseResult = "<UnitTestResult testId=`"$id`" executionId=`"$id`" testName=`"$displayName`" outcome=`"NotExecuted`" duration=`"00:00:00`"/>"
         $explicitReport.TestRun.TestDefinitions.AppendChild($explicitReport.ImportNode($definition.DocumentElement, $true)) | Out-Null
         $explicitReport.TestRun.Results.AppendChild($explicitReport.ImportNode($explicitCaseResult.DocumentElement, $true)) | Out-Null
@@ -802,22 +844,13 @@ try {
         Assert ($null -ne $failure) "Explicit qualification classification must reject $fault evidence."
     }
     Set-Content -LiteralPath $explicitReportPath -Value $ordinaryReport
-    foreach ($reportCount in @(5, 7, 9)) {
+    foreach ($reportCount in @(5)) {
         $legacyRoot = Join-Path $fixtureRoot "legacy-$reportCount"
         $legacyReports = @{}
         foreach ($report in Get-ChildItem -LiteralPath $catalogRoot -Filter '*.trx' -Recurse -File) {
             [xml] $trx = Get-Content -Raw -LiteralPath $report.FullName
-            $current = $partitions | Where-Object Name -CEQ $report.Directory.Name
-            $sourceName = $current.Name
-            if ($sourceName -cin @('ui-conversation-core', 'ui-workflows', 'ui-presentation')) {
-                $sourceName = if ($sourceName -ceq 'ui-conversation-core') { 'ui-conversations' } else { 'ui-platform' }
-            }
-            if ($current.Name -ceq 'ui-conversations') { $sourceName = 'ui-conversation-actions' }
-            if ($reportCount -eq 7) {
-                if ($sourceName -ceq 'ui-definition-dialogs') { $sourceName = 'ui-definitions' }
-                if ($sourceName -ceq 'ui-conversation-actions') { $sourceName = 'ui-conversations' }
-            }
-            if ($reportCount -eq 5) { $sourceName = $current.Shard }
+            $recordedMethod = $trx.TestRun.TestDefinitions.UnitTest.TestMethod
+            $sourceName = @(Get-MatchingShard "$($recordedMethod.className).$($recordedMethod.name)")[0].Name
             if (-not $legacyReports.ContainsKey($sourceName)) {
                 $legacyReports[$sourceName] = [xml] '<TestRun><TestDefinitions/><Results/><ResultSummary><Counters total="0" passed="0"/></ResultSummary></TestRun>'
             }
@@ -840,6 +873,7 @@ try {
 finally {
     $env:PATH = $savedPath
     [Environment]::SetEnvironmentVariable('KORA_WINDOWS_SCHEDULING_FIXTURE', $savedFixture)
+    [Environment]::SetEnvironmentVariable('KORA_WINDOWS_SCHEDULING_LIST', $savedList)
     Remove-Item -LiteralPath $fixtureRoot -Recurse -Force
 }
 

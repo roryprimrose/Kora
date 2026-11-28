@@ -66,6 +66,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     {
         Time = timeProvider ?? TimeProvider.System;
         this.appearanceStoreFactory = appearanceStoreFactory;
+        SelectEvidenceDelivery(ref bufferedEvidence);
         CapturePhaseObserver();
         using var ownedStorage = BeginPhase(NativeFixturePhase.OwnedStorage);
         if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) + (syntheticVoice ? 1 : 0) > 1)
@@ -131,6 +132,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         }
     }
 
+    partial void SelectEvidenceDelivery(ref bool buffered);
     partial void CapturePhaseObserver();
     partial void ObservePhase(NativeFixturePhaseScope phase, NativeFixturePhaseOutcome outcome);
     partial void VerifyPhaseEvidence();
@@ -167,6 +169,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     internal HostQuestionRecord? RevisionQuestion { get; private set; }
     internal MainViewModel Main => main ?? throw new InvalidOperationException("The native fixture has not initialized its presentation state.");
     internal ILogger<MainViewModel>? MainLogger { get; set; }
+    internal ITextToSpeechService? SpeechOverride { get; set; }
     internal ArtifactCatalogue ArtifactCatalogue { get; private set; } = null!;
     internal IUserDocumentationProvider Documents { get; } = new EmbeddedUserDocumentationProvider();
 
@@ -256,7 +259,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         sessions = new(Interactions, new(Tasks), Access, NullLogger<SessionWorkspaceService>.Instance, queue);
         var clipboard = new ClipboardSnapshotBroker(new FixtureClipboardReader(), Time,
             NullLogger<ClipboardSnapshotBroker>.Instance);
-        ITextToSpeechService speech = SilentSpeech is { } silent ? silent : new FixtureSpeech();
+        ITextToSpeechService speech = SpeechOverride ?? (SilentSpeech is { } silent ? silent : new FixtureSpeech());
         var audioPreferences = new LocalAudioDevicePreferences(this, NullLogger<LocalAudioDevicePreferences>.Instance);
         SpeechTextConfigurationService? captionConfiguration = null;
         if (SilentSpeech is not null)

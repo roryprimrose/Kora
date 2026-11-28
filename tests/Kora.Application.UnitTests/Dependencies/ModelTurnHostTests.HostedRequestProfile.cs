@@ -10,14 +10,12 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
-    [InlineData(ProviderService.Copilot, RequestOrigin.LocalUi, true)]
-    [InlineData(ProviderService.Copilot, RequestOrigin.ActivatedVoice, true)]
-    [InlineData(ProviderService.Claude, RequestOrigin.LocalUi, true)]
-    [InlineData(ProviderService.Claude, RequestOrigin.ActivatedVoice, true)]
-    [InlineData(ProviderService.Copilot, RequestOrigin.LocalUi, false)]
-    [InlineData(ProviderService.Claude, RequestOrigin.ActivatedVoice, false)]
+    [InlineData(ProviderService.Copilot, RequestOrigin.LocalUi)]
+    [InlineData(ProviderService.Copilot, RequestOrigin.ActivatedVoice)]
+    [InlineData(ProviderService.Claude, RequestOrigin.LocalUi)]
+    [InlineData(ProviderService.Claude, RequestOrigin.ActivatedVoice)]
     public async Task HostedRequestProfileUsesOnlyReviewedTupleAndNextRequestInheritsWithoutWrites(
-        ProviderService service, RequestOrigin origin, bool approve)
+        ProviderService service, RequestOrigin origin)
     {
         using var f = new Fixture(origin);
         var reviews = new HostedTransmissionReviewService(f, f.Time);
@@ -28,52 +26,29 @@ public sealed partial class ModelTurnHostTests
         var app = f.ProfilePreferences.Value!.Serialize();
         var policy = f.SessionOverrides.Serialize();
         var chosen = Profile(service) with { Reasoning = new("exact-effort"), Context = new("exact-window") };
-        var expected = chosen;
-        var expectedOrigin = origin;
-        var offers = 0;
-        reviews.Offered += review =>
-        {
-            review.Transmission.Profile.Should().Be(expected);
-            review.Transmission.Provenance.Request.Origin.Should().Be(expectedOrigin);
-            copilot.Transmissions.Should().Be(approve ? offers : 0);
-            offers++;
-            using var presentation = review.Presentation();
-            reviews.Confirm(review, approve, RequestOrigin.LocalUi).Should().BeTrue();
-        };
-        reviews.ClaudeOffered += review =>
-        {
-            review.Profile.Should().Be(expected);
-            offers++;
-            using var presentation = review.Presentation();
-            reviews.Confirm(review, true, RequestOrigin.ActivatedVoice).Should().BeFalse("Claude egress remains native-only");
-            reviews.Confirm(review, approve, RequestOrigin.LocalUi).Should().BeTrue();
-        };
+        var sends = service == ProviderService.Copilot ? copilot.Sends : claude.Sends;
         await using var conversation = f.ConversationService(host, execution: host);
         var commands = LocalProfileCommands(f, conversation);
         const string body = "  Original e\u0301🙂\r\nend  ";
         var review = (await commands.ExecuteAsync(LocalProfileCommand(f, body, chosen),
             origin, static () => true, Token)).RequestReview!;
         f.RetainCalls.Should().Be(0);
-        offers.Should().Be(0);
+        sends.Should().BeEmpty();
         var receipt = (await commands.ExecuteAsync(LocalProfileConfirm(review),
             RequestOrigin.LocalUi, static () => true, Token)).RequestSubmission!;
         receipt.Message.Body.Should().Be(body);
         receipt.Message.Request.Origin.Should().Be(origin);
         receipt.Message.Execution!.Selection.Provider.Should().Be(service == ProviderService.Copilot
             ? ModelProviderIdentity.Copilot : ModelProviderIdentity.Claude);
-        receipt.Message.Outcome.Should().Be(approve ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        receipt.Message.AssistantResponse?.Body.Should().Be(!approve ? null : service == ProviderService.Copilot
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        receipt.Message.AssistantResponse?.Body.Should().Be(service == ProviderService.Copilot
             ? "actual-boundary-answer" : "genuine Claude answer");
-        offers.Should().Be(1);
+        sends.Should().Equal((chosen, origin));
         await commands.Invoking(value => value.ExecuteAsync(LocalProfileConfirm(review),
             origin, static () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
-        expected = Profile(service);
-        expectedOrigin = RequestOrigin.LocalUi;
-        if (service == ProviderService.Copilot)
-        { await conversation.SubmitCopilotAsync(new(f.Session, f.Metadata), "next inherited request", static () => true, Token); }
-        else
-        { await conversation.SubmitClaudeAsync(new(f.Session, f.Metadata), "next inherited request", static () => true, Token); }
-        offers.Should().Be(2);
+        var next = await conversation.SubmitAsync(new(f.Session, f.Metadata), "next inherited request", static () => true, Token);
+        next.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        sends.Should().Equal((chosen, origin), (Profile(service), RequestOrigin.LocalUi));
         f.ProfilePreferences.Value.Serialize().Should().Be(app);
         f.ProfilePreferences.Writes.Should().Be(0);
         f.SessionOverrides.Serialize().Should().Be(policy);
@@ -104,7 +79,7 @@ public sealed partial class ModelTurnHostTests
     [Theory]
     [MemberData(nameof(HostedRequestProfileDriftCases))]
     public async Task HostedRequestProfileDriftBeforeConfirmationOrPhysicalSendNeverSubstitutesOrSends(
-        ProviderService service, string fault, bool duringDisclosure)
+        ProviderService service, string fault, bool beforeSend)
     {
         using var f = new Fixture();
         var reviews = new HostedTransmissionReviewService(f, f.Time);
@@ -131,20 +106,10 @@ public sealed partial class ModelTurnHostTests
                 case "held": f.SessionProfileHeld = true; break;
             }
         }
-        if (duringDisclosure)
+        if (beforeSend)
         {
-            reviews.Offered += offered =>
-            {
-                Change();
-                using var presentation = offered.Presentation();
-                reviews.Confirm(offered, true, RequestOrigin.LocalUi).Should().BeTrue();
-            };
-            reviews.ClaudeOffered += offered =>
-            {
-                Change();
-                using var presentation = offered.Presentation();
-                reviews.Confirm(offered, true, RequestOrigin.LocalUi).Should().BeTrue();
-            };
+            copilot.BeforeTransmission = Change;
+            claude.BeforeAdmit = Change;
             var receipt = (await commands.ExecuteAsync(LocalProfileConfirm(review),
                 RequestOrigin.LocalUi, static () => true, Token)).RequestSubmission!;
             receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
@@ -219,11 +184,6 @@ public sealed partial class ModelTurnHostTests
         var runtime = new HostedRuntime { Reply = new(outcome) };
         var host = f.CopilotProfiles(runtime, reviews);
         var before = f.ProfilePreferences.Value!.Serialize();
-        reviews.Offered += offered =>
-        {
-            using var presentation = offered.Presentation();
-            reviews.Confirm(offered, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
         await using var conversation = f.ConversationService(host, execution: host);
         var commands = LocalProfileCommands(f, conversation);
         var review = (await commands.ExecuteAsync(LocalProfileCommand(f, "original", Profile(ProviderService.Copilot)),
@@ -248,11 +208,6 @@ public sealed partial class ModelTurnHostTests
         var runtime = new HostedRuntime
         { OnTransmission = () => f.ProfilePreferences.Value = new(ProviderService.Local, []) };
         var host = f.CopilotProfiles(runtime, reviews);
-        reviews.Offered += offered =>
-        {
-            using var presentation = offered.Presentation();
-            reviews.Confirm(offered, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
         await using var conversation = f.ConversationService(host, execution: host);
         var commands = LocalProfileCommands(f, conversation);
         var review = (await commands.ExecuteAsync(LocalProfileCommand(f, "original", Profile(ProviderService.Copilot)),

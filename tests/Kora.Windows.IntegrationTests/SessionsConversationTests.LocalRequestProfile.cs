@@ -49,13 +49,6 @@ public sealed partial class SessionsConversationTests
                     .And.Contain("separate native approval");
                 runtime.Sends.Should().Be(0);
                 var captured = model.CaptureLocalRequestProfileDecision(true);
-                composed.Reviews.Offered += offered =>
-                {
-                    runtime.Sends.Should().Be(0);
-                    offered.Transmission.Profile.Should().Be(CopilotCatalogue.Profile);
-                    using var presentation = offered.Presentation();
-                    composed.Reviews.Confirm(offered, true, RequestOrigin.LocalUi).Should().BeTrue();
-                };
                 if (changeService) { model.RequestProfileService = ProviderService.Claude; }
                 await captured();
                 runtime.Sends.Should().Be(changeService ? 0 : 1);
@@ -69,6 +62,7 @@ public sealed partial class SessionsConversationTests
                 else
                 {
                     model.ConversationMessages.Single().AssistantResponse!.Body.Should().Be("genuine hosted boundary answer");
+                    runtime.Profile.Should().Be(CopilotCatalogue.Profile);
                     model.ComposerBody.Should().BeEmpty();
                 }
                 var after = await f.Store.ReadProviderProfile(f.Request.SessionId, f.Token);

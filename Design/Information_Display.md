@@ -61,7 +61,9 @@ Exports leave Kora retention and are never opened automatically.
 
 ## Bounded provisional local answers
 
-**Answer locally (no tools)** submits the selected conversation's original input through the ordinary session/instruction owner, explicitly selecting local, tool-free execution. The primary conversation, Sessions and compact views label arriving text **Provisional answer - not retained**. Existing Send, tool loops, clarification and ordinary hosted paths remain buffered ([submission](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [native controls](../src/Kora/SessionInteractionView.axaml), [adapter selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs)).
+Use ordinary **Submit** with **Local only** selected in Settings and no enabled effective conversation tools for a tool-free local stream. The separate **Answer locally (no tools)** button is removed; an empty ordinary catalogue becomes None without widening captured limits ([restriction owner](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs), [single-Submit decision](Decision_Register.md#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27)).
+
+The primary conversation, Sessions and compact views label arriving text **Provisional answer - not retained**. Tool-enabled and clarification turns remain buffered; existing hosted streaming/buffering behavior is unchanged ([native controls](../src/Kora/SessionInteractionView.axaml), [adapter selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs)).
 
 Only decoded assistant-content snapshots from the bounded native Ollama NDJSON decoder enter this presentation. Every envelope, model identity, field, Unicode string and cumulative wire-byte charge is validated; normal terminal framing and EOF are required. The reconstructed complete answer still passes existing whole-response validation. JSON envelopes, tool calls and nonempty thinking fields cannot become provisional answer text ([decoder](../src/Kora.Windows/Dependencies/OllamaToolWire.Streaming.cs), [whole validation](../src/Kora.Windows/Dependencies/OllamaToolWire.cs), [transport regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Streaming.cs)).
 
@@ -77,7 +79,7 @@ The original USER remains retained under existing rules. Only a fully validated 
 
 ### Separately admitted native Claude text streams
 
-The explicit native-only Claude text stream reuses this canonical typed progress and inert provisional pane, not a renderer variant. Positive exact model/compute/token-ceiling stream evidence, independent native final-byte consent for Count Tokens and Messages, strict SSE terminal/EOF validation and actual disposal join are additional boundaries. Unknown evidence leaves it unavailable ([complete interaction and bounds](../docs/claude-requests.md#separately-qualified-native-text-streaming), [native decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [progressive host/retention tests](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
+The Claude text stream runtime reuses this canonical typed progress and inert provisional pane, not a renderer variant. Positive exact model/compute/token-ceiling stream evidence, automatic current-authority admission for Count Tokens and Messages, strict SSE terminal/EOF validation and actual disposal join are additional boundaries. Unknown evidence leaves it unavailable ([complete interaction and bounds](../docs/claude-requests.md#native-text-streaming-runtime), [native decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [progressive host/retention tests](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
 
 ## Delivered bounded response-window preference commands
 

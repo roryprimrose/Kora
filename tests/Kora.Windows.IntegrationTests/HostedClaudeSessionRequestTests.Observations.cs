@@ -21,13 +21,9 @@ public sealed partial class HostedClaudeSessionRequestTests
         + content + """],"stop_reason":"tool_use","stop_sequence":null,"usage":{"input_tokens":25,"output_tokens":5}}""";
 
     [Theory]
-    [InlineData(RequestOrigin.LocalUi, 4)]
-    [InlineData(RequestOrigin.ActivatedVoice, 4)]
-    [InlineData(RequestOrigin.LocalUi, 0)]
-    [InlineData(RequestOrigin.LocalUi, 1)]
-    [InlineData(RequestOrigin.ActivatedVoice, 2)]
-    [InlineData(RequestOrigin.ActivatedVoice, 3)]
-    public async Task RealWireProposalDispatchAndResultContinuationRequireFourIndependentNativeConsents(RequestOrigin origin, int approvals)
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task RealWireProposalDispatchAndResultContinuationAdmitFourIndependentAuditedSends(RequestOrigin origin)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -44,32 +40,25 @@ public sealed partial class HostedClaudeSessionRequestTests
         var messages = 0;
         c.Http.Respond = request => ClaudeAccountBrokerTests.Fixture.Json(request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
             ? """{"input_tokens":25}""" : ++messages == 1 ? Proposal(VersionProposal) : ClaudeMessagesRuntimeTests.Answer);
-        var offered = 0;
-        HostedTransmissionReview? previous = null;
-        c.Reviews.ClaudeOffered += disclosure =>
-        {
-            c.Http.Requests.Count(item => item.Method is "POST").Should().Be(offered);
-            c.Boundary.VersionReads.Should().Be(offered >= 2 ? 1 : 0);
-            using var json = JsonDocument.Parse(disclosure.Body.ToArray());
-            json.RootElement.GetProperty("tools").GetArrayLength().Should().Be(1);
-            json.RootElement.GetProperty("tools")[0].GetProperty("name").GetString().Should().Be("kora_application_get_version");
-            using var presentation = disclosure.Presentation();
-            if (previous is not null) { c.Reviews.Confirm(previous, true, RequestOrigin.LocalUi).Should().BeFalse(); }
-            c.Reviews.Confirm(disclosure, true, RequestOrigin.ActivatedVoice).Should().BeFalse();
-            c.Reviews.Confirm(disclosure, ++offered <= approvals, RequestOrigin.LocalUi).Should().BeTrue();
-            previous = disclosure;
-            presentation.Complete(HostOperationOutcome.Completed);
-        };
+
         var receipt = (await commands.ExecuteAsync(SessionCommand.Parse("session request confirm", "Kora")!,
             RequestOrigin.LocalUi, () => true, f.Token)).RequestSubmission!;
         receipt.Message.Request.Origin.Should().Be(origin);
         receipt.Message.Body.Should().Be(original);
-        receipt.Message.Outcome.Should().Be(approvals == 4 ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
-        (receipt.Message.AssistantResponse?.Body).Should().Be(approvals == 4 ? "genuine exact answer" : null);
-        c.Boundary.VersionReads.Should().Be(approvals >= 2 ? 1 : 0);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        (receipt.Message.AssistantResponse?.Body).Should().Be("genuine exact answer");
+        c.Boundary.VersionReads.Should().Be(1);
         var posts = c.Http.Requests.Where(item => item.Method is "POST").ToArray();
-        posts.Should().HaveCount(approvals);
-        if (approvals >= 3)
+        posts.Should().HaveCount(4);
+        foreach (var post in posts)
+        {
+            using var json = JsonDocument.Parse(post.Body);
+            json.RootElement.GetProperty("tools").GetArrayLength().Should().Be(1);
+            json.RootElement.GetProperty("tools")[0].GetProperty("name").GetString().Should().Be("kora_application_get_version");
+        }
+        c.Http.Audits.Where(item => item.ActionId is "model.claude.transmission"
+                && item.Outcome != Kora.Core.Auditing.SecurityAuditOutcome.Requested)
+            .Should().HaveCount(4).And.OnlyContain(item => item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
         {
             using var continuation = JsonDocument.Parse(posts[2].Body);
             var history = continuation.RootElement.GetProperty("messages");
@@ -123,8 +112,6 @@ public sealed partial class HostedClaudeSessionRequestTests
         };
         c.Http.Respond = request => ClaudeAccountBrokerTests.Fixture.Json(request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
             ? """{"input_tokens":25}""" : proposal);
-        c.Reviews.ClaudeOffered += review =>
-        { using var presentation = review.Presentation(); c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
         var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
         var receipt = await c.Conversation.SubmitClaudeObservationsAsync(target, "original",
             [ReadOnlyCapabilityCatalog.Version], () => true, f.Token);
@@ -151,8 +138,6 @@ public sealed partial class HostedClaudeSessionRequestTests
             if (++messages == 1 && afterTool) { return ClaudeAccountBrokerTests.Fixture.Json(Proposal(VersionProposal)); }
             throw new HttpRequestException("Synthetic partial network failure.");
         };
-        c.Reviews.ClaudeOffered += review =>
-        { using var presentation = review.Presentation(); c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
         var receipt = await c.Conversation.SubmitClaudeObservationsAsync(await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token),
             "original", [ReadOnlyCapabilityCatalog.Version], () => true, f.Token);
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unknown);
@@ -170,8 +155,6 @@ public sealed partial class HostedClaudeSessionRequestTests
         await using var c = new Composition(f); await c.InitializeAsync();
         c.Http.Respond = request => ClaudeAccountBrokerTests.Fixture.Json(request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
             ? """{"input_tokens":25}""" : Proposal(VersionProposal));
-        c.Reviews.ClaudeOffered += review =>
-        { using var presentation = review.Presentation(); c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
         var receipt = await c.Conversation.SubmitClaudeObservationsAsync(await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token),
             "original", [ReadOnlyCapabilityCatalog.Version], () => true, f.Token);
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unknown);
@@ -199,25 +182,27 @@ public sealed partial class HostedClaudeSessionRequestTests
                 ? Proposal("{\"type\":\"tool_use\",\"id\":\"exact_call_1\",\"name\":\""
                     + Kora.Windows.Dependencies.ClaudeToolMessages.Name(id) + "\",\"input\":" + input + "}")
                 : ClaudeMessagesRuntimeTests.Answer);
-        c.Reviews.ClaudeOffered += review =>
-        {
-            using var json = JsonDocument.Parse(review.Body.ToArray());
-            var schema = json.RootElement.GetProperty("tools")[0].GetProperty("input_schema");
-            schema.GetRawText().Should().Be(ReadOnlyCapabilitySchema.Serialize(id));
-            var history = json.RootElement.GetProperty("messages");
-            if (history.GetArrayLength() > 1)
-            {
-                using var result = JsonDocument.Parse(history[2].GetProperty("content")[0].GetProperty("content").GetString()!);
-                result.RootElement.TryGetProperty(resultProperty, out _).Should().BeTrue();
-            }
-            using var presentation = review.Presentation();
-            c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-        };
+
         var receipt = await c.Conversation.SubmitClaudeObservationsAsync(await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token),
             "original", [id], () => true, f.Token);
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         receipt.Message.AssistantResponse!.Body.Should().Be("genuine exact answer");
         c.Http.Requests.Count(item => item.Method is "POST").Should().Be(4);
+        var continuations = 0;
+        foreach (var post in c.Http.Requests.Where(item => item.Method is "POST"))
+        {
+            using var json = JsonDocument.Parse(post.Body);
+            var schema = json.RootElement.GetProperty("tools")[0].GetProperty("input_schema");
+            schema.GetRawText().Should().Be(ReadOnlyCapabilitySchema.Serialize(id));
+            var history = json.RootElement.GetProperty("messages");
+            if (history.GetArrayLength() > 1)
+            {
+                continuations++;
+                using var result = JsonDocument.Parse(history[2].GetProperty("content")[0].GetProperty("content").GetString()!);
+                result.RootElement.TryGetProperty(resultProperty, out _).Should().BeTrue();
+            }
+        }
+        continuations.Should().Be(2);
     }
 
     [Fact]
@@ -232,8 +217,6 @@ public sealed partial class HostedClaudeSessionRequestTests
                 ? Proposal(string.Join(",", Enumerable.Range(1, 6).Select(index => VersionProposal.Replace("call_version_1",
                     "call_version_" + index.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal))))
                 : Proposal(VersionProposal.Replace("call_version_1", "call_version_7", StringComparison.Ordinal)));
-        c.Reviews.ClaudeOffered += review =>
-        { using var presentation = review.Presentation(); c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
         var receipt = await c.Conversation.SubmitClaudeObservationsAsync(await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token),
             "original", [ReadOnlyCapabilityCatalog.Version], () => true, f.Token);
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
@@ -265,8 +248,6 @@ public sealed partial class HostedClaudeSessionRequestTests
             { return Task.FromResult(ClaudeAccountBrokerTests.Fixture.Json("""{"input_tokens":25}""")); }
             entered.TrySetResult(); return release.Task;
         };
-        c.Reviews.ClaudeOffered += review =>
-        { using var presentation = review.Presentation(); c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
         var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
         var run = c.Conversation.SubmitClaudeObservationsAsync(target,
             "original", [ReadOnlyCapabilityCatalog.Version], () => true, f.Token);

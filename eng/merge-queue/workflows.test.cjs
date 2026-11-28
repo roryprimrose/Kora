@@ -300,7 +300,7 @@ test('Windows tests scale out to twelve artifact-only jobs behind predecessor-co
   assert.doesNotMatch(consumers, /dotnet (restore|build)|--project|max-threads|larger|xlarge/);
   assert.match(consumers, /-Partition '\$\{\{ matrix\.partition \}\}' -TestModuleDirectory/);
   assert.match(consumers, /-ExpectedSourceRevision '\$\{\{ needs\.version\.outputs\.source-revision \}\}'/);
-  assert.match(consumers, /KORA_TEST_NATIVE_EVIDENCE_MODE: \$\{\{ matrix\.partition == 'native-ux' && 'buffered' \|\| 'synchronous' \}\}/);
+  assert.match(consumers, /KORA_TEST_NATIVE_EVIDENCE_MODE: buffered\r?\n/);
   assert.match(consumers, /windows-test-build-\$\{\{ needs\.version\.outputs\.source-revision \}\}/);
   assert.match(consumers, /windows-execution-results-\$\{\{ matrix\.partition \}\}/);
   assert.match(job('windows-integration-shards'), /needs: \[admission, version, windows-test-build, windows-test-partitions\]/);

@@ -44,7 +44,6 @@ public sealed partial class App : Avalonia.Application
     private AllWorkWindowController? allWorkWindow;
     private WorkspaceSurfaceCommandController? workspaceSurfaceCommands;
     private ClipboardPreviewWindowController? clipboardWindow;
-    private CopilotTransmissionWindowController? copilotTransmissionWindow;
     private CopilotAccountWindowController? copilotAccountWindow;
     private LocalFilePreviewWindowController? fileWindow;
     private SessionAttachmentWindowController? attachmentWindow;
@@ -427,12 +426,6 @@ public sealed partial class App : Avalonia.Application
                     string.Equals(proposal.Binding.ActionId, Kora.Application.Context.ClipboardPermissionSourceUsePolicy.ReadActionId, StringComparison.Ordinal)
                         ? questionWindow.RequestClipboardPermissionAsync(null, proposal, generation, current, token)
                         : clipboardWindow.RequestPermissionAsync(questionWindow, proposal, generation, current, token));
-            if (Services.GetService<Kora.Application.Dependencies.HostedTransmissionReviewService>() is { } hostedReviews)
-            {
-                copilotTransmissionWindow = new CopilotTransmissionWindowController(viewModel, hostedReviews,
-                Services.GetRequiredService<ILogger<CopilotTransmissionWindowController>>());
-                copilotTransmissionWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner);
-            }
             copilotAccountWindow = new CopilotAccountWindowController(viewModel,
                 Services.GetRequiredService<Kora.Windows.Dependencies.CopilotAccountBroker>(),
                 Services.GetRequiredService<Kora.Application.Voice.AudioControlAdmission>(),
@@ -606,8 +599,6 @@ public sealed partial class App : Avalonia.Application
         attachmentWindow = null;
         clipboardWindow?.Dispose();
         clipboardWindow = null;
-        copilotTransmissionWindow?.Dispose();
-        copilotTransmissionWindow = null;
         copilotAccountWindow?.Dispose();
         copilotAccountWindow = null;
         fileWindow?.Dispose();

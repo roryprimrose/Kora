@@ -38,8 +38,11 @@ The product owner approved these implementation choices on the same day:
   spoken/typed replies. It is not a persisted question record and never
   occupies the single modal native question slot that permission cards use.
 - **Permission-card scope:** `HostInteractionLifetime.UntilAnswered` and the
-  host-wait pause apply to every existing in-turn card: hosted Copilot/Claude
-  final-byte reviews, local web-page approval and in-turn MCP reviews.
+  host-wait pause apply to every existing in-turn card: local web-page approval
+  and in-turn MCP reviews. Hosted Copilot/Claude final-byte reviews were since
+  replaced by automatic audited admission
+  ([Settings-routed single Submit](#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27)),
+  so no hosted per-send card remains to pause.
 - **Lease renewal:** audited in-place revalidation extends the same lease by
   at most five minutes while the same deployment approval and credential lease
   remain current. It never re-authenticates, changes the catalogue revision or
@@ -53,6 +56,36 @@ Implementation owners: [turn clock](../src/Kora.Core/Dependencies/ModelTurnLifet
 These are product decisions with deterministic implementation evidence, not
 provider qualification. Qualification freshness (registration and catalogue
 evidence windows) remains an independent gate and is not paused.
+
+## Settings-routed single Submit and automatic hosted disclosure - 2026-11-27
+
+The product owner directed: "There should be no ordinary submit vs copilot submit buttons. The settings would define which platform is used", "We don't need the user to confirm bytes. Just send the session. The only reason the message should be blocked (before sending) would be related to permissions/grants/allow-all", "The chat UI should only have one submit button" and "A voice command is implicitly submitted when the text is obtained". For sessions below Approve all, the owner chose automatic sending, with the hosted platform choice in Settings acting as the permission.
+
+- Ordinary Submit resolves the [provider mode and service/model tuple](Model_Providers_Memory_And_Knowledge.md#hosted-service-model-and-compute-profile) from Settings or the session override. Hosted preferred sends to the resolved Copilot or Claude profile, Local only stays local, and Local first runs locally before offering the existing verified hosted handoff. Admission still re-resolves the exact profile and fails closed on drift ([route preview](../src/Kora.Application/Dependencies/ModelTurnHost.ConversationRoute.cs), [ordinary route](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs)).
+- Each hosted final request is admitted automatically at every session permission level, with no byte-review window. Host validation, captured final bytes, size bounds, exact destination/account/profile/session admission, cancellation, physical joins and egress enforcement remain unchanged. Every send writes the Requested and terminal transmission audit with reason `hosted-provider-settings`; Approve all additionally keeps its typed session audit ([admission owner](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)). This supersedes the per-send review in the [Copilot live evaluation](#explicit-copilot-live-evaluation---2026-11-14) and Claude decisions.
+- The per-provider Copilot, Claude and local-first Submit variants are removed from the chat surfaces. Hosted Settings-routed answers are tool-free in this increment; Copilot streams provisional text, Claude is buffered.
+- Dictated text in a session composer is submitted through the same single Submit once insertion is confirmed ([dictation owner](../src/Kora.Application/Voice/ComposerDictationService.cs)).
+- Follow-on increments, under the same direction: bounded earlier conversation messages sent with hosted turns, and folding the remaining clarification, web page, MCP, local-answer and metadata variants into the single Submit as permission-governed model tools.
+
+On 2026-11-28, the product owner approved these bounded follow-on decisions:
+
+- Newly retrieved single-Submit web, MCP and exact-session metadata results may enter the exact Settings-selected hosted turn after their existing tool/source-use gates and automatic audited physical disclosure. This does not reclassify retained LocalOnly history, memory, attachments or old results.
+- Models may propose exact tool parameters within original-user intent, never authority. Metadata defaults to the current conversation; another subject requires an explicit original-user identifier/name resolved unambiguously by the host. Metadata uses the shared session permission/grant path rather than mandatory bespoke Confirm.
+- Extend the Ollama, Copilot and Claude adapters for these governed tools. Unavailable runtimes remain unavailable; unsupported tools are omitted or denied without provider fallback.
+- Remove **Answer locally (no tools)**. Settings selects the provider; an ordinary local Submit with no enabled effective tools uses the existing tool-free stream. Tool-enabled turns may remain buffered.
+- Keep model-free MCP Invoke and Read/Preview as separately grouped non-submit actions with their existing permissions.
+
+These decisions are not completed tool integration or provider qualification. The local-answer cleanup removes its button from the [primary conversation](../src/Kora/SessionInteractionView.axaml), [Sessions](../src/Kora/SessionsManagementView.axaml) and [compact](../src/Kora/CompactSessionWindow.axaml) surfaces and normalizes an empty ordinary tool catalogue to None without widening captured input/output/deadline limits ([restriction owner](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs)). Remaining clarification, web, MCP and metadata submission variants require their respective integration increments.
+
+The owner chose "Include earlier USER/ASSISTANT messages from this session, limited to fit the request size". On 2026-11-27, the owner further selected a separate hosted-history envelope contract preserving reviewed LocalOnly history, and exclusion of LocalOnly-derived and unknown-source ASSISTANT answers.
+
+- The [hosted history contract](../src/Kora.Core/Conversation/HostedConversationHistoryContext.cs) includes original USER bodies and provably eligible retained ASSISTANT answers from successful same-session turns, considering newest messages first and emitting chronological whole messages. It omits non-fitting older messages within the existing 16-item / 32768-UTF-8-byte complete envelope bound.
+- Existing hosted execution provenance establishes eligible ASSISTANT admission; local answers lack general persisted source-classification proof and remain excluded. HOST, failed/denied/cancelled outcomes without answers, questions, approvals, drafts, attachments, memories and other sessions are not context. No existing LocalOnly source is reclassified.
+- The [host owner](../src/Kora.Application/Hosting/SessionConversationService.HostedHistory.cs) revalidates exact retained sources through physical sends and answer commit. Copilot retains its serialized-envelope prompt; the [Claude tool-free mapping](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.cs) sends that complete envelope as inert USER input with an exact final-wire guard. No portable MEAI multi-turn contract is added.
+- Local routes, Local first's local step, request-only profiles, customization and separately reviewed context routes remain unchanged. Retention is not renewed authority; provider/runtime qualification and physical request budgets remain independent.
+- The owner additionally chose to honor both envelope and Claude physical input bounds using exact provider preparation. The [Claude preparation seam](../src/Kora.Core/Dependencies/IClaudeHistoryInputPreparation.cs) measures SDK-generated Messages and Count Tokens bodies locally, with no HTTP transmission or fabricated answer. The [host](../src/Kora.Application/Dependencies/ModelTurnHost.HostedHistory.cs) binds the qualified profile/session; older whole messages exceeding that combined byte charge are omitted before admission.
+
+Runtime/account evaluation admission, entitlement, possible charges and production qualification remain separate; this decision enables no unavailable provider.
 
 ## Voice-to-action interaction - 2026-11-27
 

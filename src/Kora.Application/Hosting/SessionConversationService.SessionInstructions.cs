@@ -11,6 +11,11 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionConversationService
 {
+    /// <summary>Previews the Settings-selected provider route; it never admits a turn.</summary>
+    public Task<ConversationProviderRoute> ResolveRouteAsync(HostId<SessionIdentity> session, CancellationToken token) =>
+        turns is ModelTurnHost host ? host.ResolveConversationRouteAsync(session, token)
+            : Task.FromResult(ConversationProviderRoute.Local);
+
     /// <summary>Explicit local tool-free answer through the ordinary conversation and instruction owner.</summary>
     public Task<ConversationSubmissionReceipt> SubmitLocalAnswerAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token) =>
@@ -46,6 +51,13 @@ public sealed partial class SessionConversationService
             : await sessionInstructionScopes.PrepareRequestAsync(target, body, origin, token).ConfigureAwait(false);
         if (review is null)
         {
+            var hosted = localAnswer || localRequestProfile is not null ? ConversationProviderRoute.Local
+                : await ResolveRouteAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+            if (hosted is ConversationProviderRoute.Copilot or ConversationProviderRoute.Claude)
+            {
+                return await SubmitHostedHistoryAsync(target, body, admitted, beforeRetain, links, origin,
+                    hosted, pending, token).ConfigureAwait(false);
+            }
             if (pending is not null)
             { pending.BareOrdinaryText = localAnswer && beforeRetain is null; }
             ModelContextEnvelope Create(HostRequest request, DateTimeOffset now) =>

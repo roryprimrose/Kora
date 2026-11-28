@@ -17,7 +17,8 @@ internal sealed class SessionRequestReviewPanel : StackPanel
     {
         Spacing = 8;
         Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasSessionOperationReview)));
-        var heading = new TextBlock { Text = "Review original request - nothing sent yet" };
+        var heading = new TextBlock();
+        heading.Bind(TextBlock.TextProperty, new Binding(nameof(MainViewModel.ForegroundRequestHeading)));
         heading.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasForegroundRequestReview)));
         Children.Add(heading);
         var body = new TextBox
@@ -31,12 +32,17 @@ internal sealed class SessionRequestReviewPanel : StackPanel
         body.Bind(TextBox.TextProperty, new Binding(nameof(MainViewModel.ForegroundRequestReviewText)));
         body.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasForegroundRequestReview)));
         Children.Add(body);
+        var voiceStatus = new TextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+        voiceStatus.Bind(TextBlock.TextProperty, new Binding(nameof(MainViewModel.SessionRequestVoiceReplyStatus)));
+        voiceStatus.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasForegroundRequestReview)));
+        Children.Add(voiceStatus);
         var offer = new CheckBox { Name = "OfferDetailsOnce", Content = "Offer to open Details once for this request (no listening)" };
         offer.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasForegroundRequestReview)));
         offer.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(MainViewModel.OfferDetailsOnce)) { Mode = BindingMode.TwoWay });
         Children.Add(offer);
         var buttons = new WrapPanel();
         var confirm = new Button { Name = "ConfirmOriginalRequest", Content = "_Confirm original request once" };
+        confirm.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.CanConfirmForegroundRequest)));
         var cancel = new Button { Name = "CancelOriginalRequest", Content = "_Cancel original request" };
         BindDecision(confirm, confirmed: true, pendingOnly: false);
         BindDecision(cancel, confirmed: false, pendingOnly: false);

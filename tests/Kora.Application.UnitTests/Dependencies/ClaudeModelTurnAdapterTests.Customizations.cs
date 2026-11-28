@@ -38,7 +38,6 @@ public sealed partial class ClaudeModelTurnAdapterTests
     [InlineData("source-after")]
     [InlineData("host-after-source")]
     [InlineData("non-capable")]
-    [InlineData("no-presenter")]
     public async Task SelectedCopyIsExactAndCannotFallBackOrOutliveSourceAuthority(string fault)
     {
         var f = new Fixture();
@@ -57,22 +56,13 @@ public sealed partial class ClaudeModelTurnAdapterTests
             f.Reviews, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance)
             .Bind(f.Reviews.PrepareClaudeTurn(f.Context, f.Profile, selection: copy, sourceCurrent: Source),
                 _ => ValueTask.FromResult(true));
-        if (fault is not "no-presenter")
-        {
-            f.Reviews.ClaudeOffered += review =>
-            {
-                if (fault is "source-review") { source = false; }
-                using var presentation = review.Presentation();
-                f.Reviews.Confirm(review, true, RequestOrigin.ActivatedVoice).Should().BeFalse();
-                f.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
-                presentation.Complete(HostOperationOutcome.Completed);
-            };
-        }
         selected.Run = async (provenance, profile, context, selection, admit, current, token) =>
         {
             selection.Should().BeSameAs(copy);
             context.Should().BeSameAs(f.Context);
-            if (!await current(token) || !await admit(new(provenance, profile,
+            if (!await current(token)) { return new(ModelTurnOutcome.DeniedEgress); }
+            if (fault is "source-review") { source = false; }
+            if (!await admit(new(provenance, profile,
                 new("https://api.anthropic.com/v1/messages"), new byte[] { 123, 125 }, []), token))
             { return new(ModelTurnOutcome.DeniedEgress); }
             if (fault is "source-after") { source = false; }

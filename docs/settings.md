@@ -44,6 +44,28 @@ focus has a distinct accent outline. The larger click target, setting-specific
 tooltip and menu behavior are unchanged. When inspection is allowed but changes
 are unavailable, Refresh remains accessible while Reset stays disabled.
 
+**Spoken send or cancel**, under **Speech and audio**, is a device-local opt-in,
+default **Off**. It reads back an exact voice-originated request review before
+one bounded **send** or **cancel** reply. It never listens during playback or
+automatically opens for typed reviews. Native controls remain available; this
+setting grants neither microphone consent nor hosted disclosure approval.
+See [the complete review interaction](session-routing.md#optional-spoken-send-or-cancel).
+
+**Local voice destination advice**, under **Speech and audio**, is a separate
+device-local opt-in, default **Off**. When Kora has no foreground chat, On permits
+the unchanged voice request and one bounded permitted Active-chat metadata page
+to reach a qualified LOCAL model without tools, history or memory. The last
+selected chat is preferred when related; a more related Active chat may be
+proposed. Off, unavailable, ambiguous or failed advice offers the last selected
+Active chat alone when eligible. Failures are shown, not reported as inference.
+The destination review identifies inferred versus last-selected proposals;
+acknowledgment and send are still required even for Approve all. Typed advice
+keeps its per-request consent. Changes use the owning unlocked Settings view,
+original-channel audit and atomic device preference storage; corrupt or
+unconfirmed saved values leave advice unavailable. This preference grants no
+microphone, hosted-provider, conversation-history or submission authority.
+See [destination review](session-routing.md#choose-acknowledge-correct-submit).
+
 ## Compact controls
 
 Settings uses flat sections, compact inputs and quiet secondary actions. Numeric
@@ -651,7 +673,7 @@ This is independent of the unchanged **LocalOnly** `providers.default-mode` safe
 
 Durable session inheritance/overrides use the separate Sessions controls below. Generic unscoped “Use Claude” and one-turn directives remain deferred; existing [app-scoped commands](commands.md#inspect-or-change-app-provider-profiles) never alias session changes. Larger context choices cannot override Kora's limits. Failed/unconfirmed writes require inspecting saved state and audit/control receipts before explicit repair and refresh, not automatic retry.
 
-Saving a Claude profile is not streaming approval. **Stream explicitly with Claude (text only, separately qualified)** in Sessions requires separate exact-profile stream evidence; an existing buffered approval never supplies it. The shipped Claude source remains unavailable. See [Claude streaming availability, native consent and bounds](claude-requests.md#separately-qualified-native-text-streaming).
+Saving a Claude profile is not streaming approval. Settings-routed Claude answers are buffered; the implemented stream runtime requires separate exact-profile stream evidence, and an existing buffered approval never supplies it. The shipped Claude source remains unavailable. See [Claude streaming runtime](claude-requests.md#native-text-streaming-runtime).
 
 ### Review local runtime admission
 

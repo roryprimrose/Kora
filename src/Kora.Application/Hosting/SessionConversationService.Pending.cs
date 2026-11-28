@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 
 using Kora.Core.Auditing;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -39,6 +40,7 @@ public sealed partial class SessionConversationService
         internal RetryIntent? Retry { get; } = retry;
         internal FreshOrdinaryIntent? Fresh { get; } = fresh;
         internal bool BareOrdinaryText;
+        internal SessionPermissionPolicy? ReadbackPermission;
         internal SessionWorkspaceEntry Target { get; } = target;
         internal IReadOnlyList<HostRequest> Predecessors { get; } = predecessors;
         internal readonly TaskCompletionSource<ConversationQueuedSubmission> Accepted = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -83,7 +85,8 @@ public sealed partial class SessionConversationService
     private async Task<ConversationQueuedSubmission> SubmitQueuedCoreAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, Func<CancellationToken, Task>? validateSource,
         IEnumerable<ActivityLink>? links, RequestOrigin origin, bool localAnswer, Action? accepted, RetryIntent? retry,
-        CancellationToken token, TaskResponseOutputReview? taskOutput = null, FreshOrdinaryIntent? fresh = null)
+        CancellationToken token, TaskResponseOutputReview? taskOutput = null, FreshOrdinaryIntent? fresh = null,
+        SessionPermissionPolicy? readbackPermission = null)
     {
         RequireOriginalSource(origin);
         ConversationLane lane;
@@ -108,7 +111,8 @@ public sealed partial class SessionConversationService
                 if (lane.Entries.Count(item => item.Phase == ConversationPendingPhase.Pending) >= SessionQueueLimits.MaximumPendingPerSession)
                 { throw new InvalidOperationException("The conversation queue is full. Remove or defer pending work; nothing was evicted."); }
                 pending = new(target, lane.Entries.Where(item => item.Retained is not null)
-                    .Select(item => item.Retained!.Message.Request).ToArray(), accepted, retry, fresh) { Output = taskOutput };
+                    .Select(item => item.Retained!.Message.Request).ToArray(), accepted, retry, fresh)
+                { Output = taskOutput, ReadbackPermission = readbackPermission };
                 lane.Entries.Add(pending);
                 // The worker owns the original source token, issuer and terminal join, not the acceptance caller.
                 pending.Worker = RunPendingConversationAsync(lane, pending, body, admitted,

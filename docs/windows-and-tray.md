@@ -259,8 +259,8 @@ new-request admission; it never resets or replays the original task.
 
 A held queue still requires its existing separate explicit **Resume** control.
 FIFO, queue bounds, original expiry, cancellation and physical resource joins
-are unchanged. Hosted requests still require native approval of each final
-physical send. Changing source, provider/profile/account, session, privacy or
+are unchanged. Hosted requests are sent automatically against the current
+provider authority. Changing source, provider/profile/account, session, privacy or
 authority requires fresh review or refusal, never a provider fallback.
 
 Legacy/pre-dispatch failures without a recorded original provider are explicitly
@@ -309,7 +309,7 @@ current Active destination and current local provider/profile. Separately choose
 This completes a new ordinary request, not composer preparation or an old-task retry
 ([operation](../src/Kora/SessionsViewModel.ExpiredOrdinary.cs)).
 
-Only newly recorded bare **Answer locally (no tools)** sources with confirmed
+Only retained bare sources recorded through the former **Answer locally (no tools)** route with confirmed
 pre-dispatch **Denied / ContextExpired** in the current Active session generation
 are supported. History from before Done/Resume remains readable but cannot supply
 this fresh review. Old records without this
@@ -645,8 +645,8 @@ Typing writes nothing. Switching topics preserves a separate memory-only unsent 
 
 #### Continue another conversation while answering an original question
 
-Submit using **Submit with one clarification**, **Ask locally with observations
-and one question**, or the explicit Claude clarification action. When the original
+Submit using **Submit with one clarification** or **Ask locally with observations
+and one question**. When the original
 dispatched task asks its question, its retained request leaves the input box and
 you may select another conversation and write independent unsent text.
 
@@ -654,7 +654,7 @@ Use the still-open original question window to **Review exact record**, edit or
 **Save draft**, and separately **Submit** or **Cancel question**. Selecting another
 conversation changes neither the question's target nor its original expiry.
 Submitting an answer does not submit the active conversation's composer or grant
-approval; Claude still requires each separate native transmission consent.
+approval.
 
 Return to the original conversation and choose **Read conversation** to inspect
 its genuine retained ASSISTANT answer or truthful HOST outcome. The other
@@ -694,8 +694,7 @@ message storage quota and no automatic eviction. Read pages have at most
 50 records/64 KiB complete output. These are predictable work/UI bounds,
 not a total database-size or unlimited physical-disk promise.
 
-With an already qualified provider, ordinary **Submit exact message** and
-**Answer locally (no tools)** can accept another original request while the
+With an already qualified provider, ordinary **Submit** can accept another original request while the
 previous request in that exact Active conversation runs. Real acceptance clears
 only the submitted input; you can immediately compose another message.
 **Refresh submitted work** shows the actual waiting requests in arrival order
@@ -703,6 +702,8 @@ and their positions (at most ten pending). Select one and deliberately choose
 **Cancel selected pending request** to cancel only that request before any
 provider dispatch. Its submitted history remains; running work and your next
 unsent input are unchanged. Both conversation windows use the same controls.
+
+For a tool-free local stream, select **Local only** in Settings and disable the conversation tools through **Manage MCP capabilities**, including the built-in Kora server. Then use the same **Submit**; it no longer has a separate local-answer button. Tool-enabled turns remain buffered, and no unavailable provider is enabled ([display contract](../Design/Information_Display.md#bounded-provisional-local-answers), [capability controls](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs)).
 
 **Clear queue - review all pending** reviews every current never-dispatched request in this one Active conversation. Inspect the complete body-free identities, positions, count, expiry and impact, then independently choose **Confirm clear pending only** or **Cancel pending-only review**. Review/cancel has no execution effects; separate confirmation retains original USER/task/audit history while running work continues ([native operation](../src/Kora/SessionsViewModel.PendingConversation.cs)).
 
@@ -717,7 +718,7 @@ context lifetime is unchanged (ordinary local requests currently expire after
 fifteen seconds), even though the pending domain's default upper bound is
 thirty minutes. Expired/changed authority is denied or held for fresh review;
 it is never silently extended. Unqualified providers still report unavailable,
-not queued success. Questions, approvals and separate hosted disclosure reviews
+not queued success. Questions and approvals
 keep their existing fences. Switching sessions after acceptance does not move
 the submitted request or its eventual result. Restart never replays it.
 

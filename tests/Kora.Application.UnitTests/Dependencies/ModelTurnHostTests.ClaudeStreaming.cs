@@ -12,46 +12,65 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExplicitClaudeStreamTurnPublishesThroughHostOwnerAndRevalidatesBeforeCommit(bool fail)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var runtime = new HostClaudeStream { Fail = fail };
+        var host = f.ClaudeProfiles(runtime, new(f, f.Time));
+        var turn = (await host.AdmitClaudeAsync(f.Context(toolMode: ModelToolMode.None), Token, streamAnswer: true)).Turn!;
+        turn.Should().NotBeNull();
+        var updates = new List<string>();
+        turn.ConversationTarget = new(f.Session, null);
+        turn.PublishAnswer = (update, _) => { updates.Add(update.Answer); return ValueTask.CompletedTask; };
+        runtime.Release.TrySetResult();
+        var result = await host.RunAsync(turn, Token);
+        updates.Should().Equal("safe preview");
+        runtime.Streams.Should().Be(1);
+        runtime.Buffered.Should().Be(0);
+        if (fail)
+        {
+            result.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+            result.Response.Should().BeNull("a failed stream never promotes its provisional text");
+            return;
+        }
+        result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        result.Response!.Answer.Should().Be("safe preview complete");
+        (await turn.ValidateAnswerCommit!(Token)).Should().Be(ModelTurnReason.None);
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Unavailable;
+        (await turn.ValidateAnswerCommit(Token)).Should().NotBe(ModelTurnReason.None,
+            "the current account/profile is rechecked after provider completion before final commit");
+        runtime.Streams.Should().Be(1);
+        runtime.Buffered.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]
-    public async Task ClaudeStreamUsesCanonicalProvisionalOwnerWithFinalOnlySameRequestRetention(bool fail, bool cancel)
+    public async Task OrdinaryClaudeSubmitIsBufferedWithFinalOnlySameRequestRetentionEvenWhenTheRuntimeCanStream(bool fail, bool cancel)
     {
         using var f = new Fixture();
         var runtime = new HostClaudeStream { Fail = fail };
         var host = f.ClaudeProfiles(runtime, new(f, f.Time));
         await using var service = f.ConversationService(host, execution: host);
-        var updates = new List<ConversationAnswerPresentation>();
-        service.ProvisionalAnswerChanged += (update, _) =>
-        {
-            f.Retained!.AssistantResponse.Should().BeNull();
-            f.ExecutionCompletions.Should().Be(0);
-            updates.Add(update);
-            return ValueTask.CompletedTask;
-        };
+        var updates = 0;
+        service.ProvisionalAnswerChanged += (_, _) => { updates++; return ValueTask.CompletedTask; };
         var target = new SessionWorkspaceEntry(f.Session, null);
-        var pending = service.SubmitClaudeAnswerStreamAsync(target, "original Claude input", () => true, Token);
+        var pending = service.SubmitAsync(target, "original Claude input", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         try
         {
-            updates.Should().ContainSingle().Which.Update.Answer.Should().Be("safe preview");
-            updates[0].IsCurrent().Should().BeTrue();
             pending.IsCompleted.Should().BeFalse();
             f.Retained!.AssistantResponse.Should().BeNull();
-            var retained = f.Retained;
-            var retainCalls = f.RetainCalls;
-            await service.Invoking(value => value.SubmitQueuedAsync(target, "not an ordinary Claude request", () => true, Token))
-                .Should().ThrowAsync<InvalidOperationException>();
-            f.RetainCalls.Should().Be(retainCalls);
-            f.Retained.Should().Be(retained);
-            (await service.ReadPendingConversationAsync(target, () => true, Token)).Turns.Should().BeEmpty();
             if (cancel)
             {
                 var running = (await service.ReadRunningConversationAsync(target, () => true, Token))!;
                 (await service.CancelRunningConversationAsync(running.Target, () => true, Token))
                     .Phase.Should().Be(ConversationExecutionPhase.Cancelling);
-                updates[0].IsCurrent().Should().BeFalse();
-                pending.IsCompleted.Should().BeFalse("the stream ignores cancellation until its physical release");
+                pending.IsCompleted.Should().BeFalse("the runtime ignores cancellation until its physical release");
                 host.IsQuiescent.Should().BeFalse();
                 f.ExecutionCompletions.Should().Be(0);
                 f.Retained.AssistantResponse.Should().BeNull();
@@ -63,12 +82,11 @@ public sealed partial class ModelTurnHostTests
         receipt.Message.Outcome.Should().Be(cancel ? ModelTurnOutcome.Cancelled
             : fail ? ModelTurnOutcome.Unknown : ModelTurnOutcome.Succeeded);
         receipt.Message.Body.Should().Be("original Claude input");
-        receipt.Message.Request.Should().Be(updates[0].Target.Request);
-        updates.Should().OnlyContain(update => !update.IsCurrent());
+        updates.Should().Be(0, "ordinary Claude answers are not provisional streams");
         f.ExecutionCompletions.Should().Be(1);
         host.IsQuiescent.Should().BeTrue();
-        runtime.Streams.Should().Be(1);
-        runtime.Buffered.Should().Be(0);
+        runtime.Streams.Should().Be(0);
+        runtime.Buffered.Should().Be(1);
     }
 
     [Theory]
@@ -86,18 +104,18 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Fact]
-    public async Task ClaudeStreamRechecksCurrentAccountProfileAfterProviderCompletionBeforeFinalCommit()
+    public async Task OrdinaryClaudeRechecksCurrentAccountProfileAfterProviderCompletionBeforeFinalCommit()
     {
         using var f = new Fixture();
         var runtime = new HostClaudeStream();
         var host = f.ClaudeProfiles(runtime, new(f, f.Time));
-        var service = f.ConversationService(host, execution: host);
+        await using var service = f.ConversationService(host, execution: host);
         service.RunningConversationChanged += status =>
         {
             if (status.Phase == Kora.Core.Conversation.ConversationExecutionPhase.Completing)
             { f.ProfileCatalogue.Status = ProviderCatalogueStatus.Unavailable; }
         };
-        var pending = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "original", () => true, Token);
+        var pending = service.SubmitAsync(new(f.Session, null), "original", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         runtime.Release.TrySetResult();
         var receipt = await pending;
@@ -114,10 +132,17 @@ public sealed partial class ModelTurnHostTests
         internal bool Fail { get; init; }
         internal int Buffered { get; private set; }
         internal int Streams { get; private set; }
-        public Task<ClaudeTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
+        public async Task<ClaudeTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
             ModelContextEnvelope context, Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
             Func<CancellationToken, ValueTask<bool>> current, CancellationToken token)
-        { Buffered++; throw new InvalidOperationException("No buffered fallback."); }
+        {
+            Buffered++;
+            if (!await admit(new(provenance, profile, new("https://api.anthropic.com/v1/messages"), new byte[] { 123, 125 }, []), token))
+            { return new(ModelTurnOutcome.DeniedEgress); }
+            Entered.TrySetResult();
+            await Release.Task;
+            return Fail ? new(ModelTurnOutcome.Unknown) : new(ModelTurnOutcome.Succeeded, "safe preview complete");
+        }
         public async Task<ClaudeTurnReply> RunWithAnswerAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
             ModelContextEnvelope context, Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
             Func<CancellationToken, ValueTask<bool>> current,

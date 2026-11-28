@@ -247,7 +247,8 @@ dotnet restore .\Kora.slnx --locked-mode
 dotnet tool restore
 dotnet build .\Kora.slnx --configuration Release --no-restore
 dotnet test --solution .\Kora.UnitTests.slnx --configuration Release --no-build
-dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+dotnet build .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --runtime win-x64 --no-restore
+.\eng\Run-WindowsIntegrationTests.ps1
 ```
 
 Run the smallest checks covering the change. Tests use xUnit v3 and
@@ -257,6 +258,16 @@ coverage across Core, Application, Tools and Definitions**, retaining reports
 even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
+
+The full Windows integration check is the partitioned runner, not a single
+`dotnet test` of the project. Headless UI and tracing collections stay serial
+inside each process, so one process takes as long as the whole suite's summed
+duration (about two hours). The runner uses the same `win-x64` build output and
+filters as CI, runs at most one partition per two logical processors by default
+(`-ThrottleLimit <n>` overrides it), starts the longest measured partitions first,
+and writes each partition's TRX and console log under `.net-test-artifacts\windows`.
+For a focused check, build the project without `--runtime` and run
+`dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build --filter-class <class>`.
 
 PR candidates run the four portable unit modules with unchanged 100% line and
 branch coverage. Windows integration/UI tests, their shared build and twelve
@@ -395,9 +406,9 @@ Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to ch
 
 For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the portable unit solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.
 
-The separate `compare_native_evidence=true` input runs [17 representative headless cases](eng/Compare-NativeFixtureEvidence.ps1) in synchronous/buffered/buffered/synchronous order on one Windows runner. The [test-only selector](tests/Kora.Windows.IntegrationTests/NativeUxTestFixture.cs) uses the fixture's existing buffering option and rejects unknown profiles.
+The separate `compare_native_evidence=true` input runs [17 representative headless cases](eng/Compare-NativeFixtureEvidence.ps1) in synchronous/buffered/buffered/synchronous order on one Windows runner. The [test-only selector](tests/Kora.Windows.IntegrationTests/NativeUx/NativeUxFixtureSession.PhaseTimings.cs) applies the profile to every headless native fixture session through the fixture's existing buffering option (an explicitly buffered fixture stays buffered) and rejects unknown profiles.
 
-Normal CI selects buffered evidence only for those 17 cases in the native-UX shard; other shards and unconfigured local runs retain synchronous delivery ([workflow](.github/workflows/ci.yml), [profile defaults](tests/Kora.Windows.IntegrationTests/NativeFixtureEvidenceMode.cs)). To reproduce the enabled profile locally, set `KORA_TEST_NATIVE_EVIDENCE_MODE=buffered` before running the native-UX shard.
+Normal CI selects buffered evidence for every Windows partition; unconfigured local runs retain synchronous delivery ([workflow](.github/workflows/ci.yml), [profile defaults](tests/Kora.Windows.IntegrationTests/NativeFixtureEvidenceMode.cs)). Buffered delivery is the production composition: audits stay synchronous, diagnostics are buffered and copied to the daily file. Complete comparison [run 46084335792](https://github.com/roryprimrose/Kora/actions/runs/46084335792) passed all four runs and measured 170.7s synchronous against 102.9s buffered for the 17 cases. To reproduce CI locally, set `KORA_TEST_NATIVE_EVIDENCE_MODE=buffered` before running `.\eng\Run-WindowsIntegrationTests.ps1`.
 
 Stop All notification-failure fixtures inject once at the first accepted
 cancellation notification and retain the observer through joined terminal
@@ -426,20 +437,19 @@ scales out to twelve independent standard Windows hosted jobs. Consumer jobs
 download this run's exact-source artifact, verify its revision and file hashes,
 and run MTP through `--root-directory` / `--test-modules`, without restore or
 compilation. No larger host or increased per-process thread limit is requested.
-`ui-definition-dialogs`
-owns the complete customization and prompt-parameter window classes;
-`ui-conversation-actions` owns conversation methods beginning Native;
-`ui-conversation-core` owns conversation methods beginning B, E or M;
-`ui-conversations` owns all other conversation methods, including future
-methods outside those families and the complete Owned/Named families.
-`ui-definitions` owns remaining definition classes.
-`ui-workflows` and `ui-presentation` isolate measured expensive platform classes;
-the former includes the complete foreground push-to-talk UI contract class;
-the latter includes the complete prepared local search, local file text
-measurement and adaptive session-name search classes.
-`ui-platform` catches the remainder, including future classes.
-All theory rows for each method stay together. `ui-editors` owns the complete
-owned-definition editor class.
+Partition contents are packed, not hand-assigned. Every job derives the same
+assignment from the exact discovery catalog (the artifact's, or local discovery)
+and the measured durations in [windows-test-durations.json](eng/windows-test-durations.json).
+`native-ux` keeps its fixed filter and job identity. The other
+eleven partitions receive whole classes, or whole methods of classes measured
+above 240 seconds, longest first into the least-loaded partition. Methods whose
+names overlap as substrings share a partition, so every theory row of a method
+runs in one process exactly once. Unmeasured classes and methods are weighted
+by their discovered case count and spread the same way, so no catch-all
+partition accumulates new tests. Before any process starts, the runner verifies
+that every catalog method matches exactly one generated filter and that each
+filter stays within the Windows command-line budget. Partition names are stable
+job identities, not ownership categories.
 All twelve execution partitions preserve serial headless UI
 execution within each process and the existing per-process thread limit.
 Each partition retains its own TRX and console output under a fresh run directory;
@@ -450,8 +460,9 @@ the run. `-Partition <name>` selects one independent execution process.
 `-Shard <name>` retains the five-job bootstrap assignments while trusted main
 still consumes the predecessor workflow;
 `-ListShards` lists legacy logical ownership filters for retained-data comparison;
-`-ListPartitions` lists actual process filters and `HostedShard` assignments
-without running tests. `Shard` on each partition retains its legacy logical owner.
+`-ListPartitions` lists actual process filters, `HostedShard` assignments and
+estimated seconds without running tests; `-CatalogPath <catalog.json>` lists them
+for an existing discovery catalog without a build.
 CI retains the five legacy Windows job names as lightweight fail-closed joins
 of the shared build and twelve execution jobs. This preserves queue retirement
 of predecessor runs without adding required job names to queue policy.
@@ -474,8 +485,10 @@ The [scheduling regression](eng/Test-WindowsIntegrationScheduling.ps1) checks
 both hosted ownership and exact process partitions, exercises the real runner
 with a fake CLI, and rejects missing/malformed execution evidence. Its optional
 `-RetainedResultsDirectory <path>` accepts a complete legacy five-report or
-legacy seven-report, nine-report or current twelve-report dataset and checks every recorded case against the new
-partition exactly once. Complete successful runs
+current-layout twelve-report dataset. It checks every recorded case against its
+legacy logical shard (five reports) or against the partitions packed from the
+supplied catalog, or from the recorded method set when no catalog is given
+(twelve reports), exactly once. Complete successful runs
 [41223826625](https://github.com/roryprimrose/Kora/actions/runs/41223826625) and
 [41229047847](https://github.com/roryprimrose/Kora/actions/runs/41229047847)
 project at least a 25% shorter UI critical path with measured setup/post costs.
@@ -498,22 +511,23 @@ establish hosted timing. Aim for 12-15 minutes end-to-end, but measure actual
 runner scheduling, artifact transfer, build and slowest-test time before claiming
 that target. More jobs cannot fix a test that stalls.
 
-The unchanged twelve-job layout is rebalanced using complete successful
-[run 41687015183](https://github.com/roryprimrose/Kora/actions/runs/41687015183)
-(source `0cd532a0fb6c74345d8820c1e5a27549bff385b0`, 8,012 cases) and
-[run 41695737766](https://github.com/roryprimrose/Kora/actions/runs/41695737766)
-(source `844a3ec2fb65620a617b610f782f3e9c64bc893c`, 8,030 cases).
-Their retained TRX durations project maximum serial work of 1,059.792s to
-720.966s and 940.896s to 619.868s respectively; these are estimates, not
-revised-source runtime evidence. Only whole platform classes and the existing
-Owned/Named conversation families move; theory rows, per-test fixture lifecycle,
+The twelve-job layout is now packed from measured durations. Complete successful
+[run 45801316727](https://github.com/roryprimrose/Kora/actions/runs/45801316727)
+(source `3a0a1341316a5e0aad6ff7b2f7fb2e1fe73c1e01`, 10,351 cases) recorded 1,248
+seconds of serial work in the former catch-all `ui-platform` partition; its
+durations pack every partition except `native-ux` to about 640 seconds. Applied
+to the same layout, [run 45957457830](https://github.com/roryprimrose/Kora/actions/runs/45957457830)
+sums to at most 774 seconds per partition. These are estimates, not
+revised-source runtime evidence. Theory rows, per-test fixture lifecycle,
 headless/tracing isolation, native profiles and all twelve/five job identities
 remain unchanged ([runner](eng/Run-WindowsIntegrationTests.ps1),
 [regressions](eng/Test-WindowsIntegrationScheduling.ps1)).
 Historical reports keep their historical partition ownership; do not pass
-pre-rebalance twelve-report evidence as current-layout execution proof.
+pre-packing twelve-report evidence as current-layout execution proof.
 The current-layout twelve-report join validates the complete source catalog
 after collecting every report, including exact method and theory-row counts.
+Refresh the measured durations from a later complete successful twelve-report
+run with `.\eng\Update-WindowsTestDurations.ps1 -RetainedResultsDirectory <results-root> -SourceRun <run-id> -SourceRevision <sha>`.
 
 To reproduce downloaded-artifact execution after packaging:
 
@@ -619,10 +633,10 @@ quiescence before teardown, and restore shared application, renderer and tray
 state. These tests do not acquire real instance ownership, audio devices or
 network access, and are not native-renderer qualification evidence.
 
-The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs conversation and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs Evidence Find and the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
+The [runner's legacy shard filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing logical shard names for retained-data comparison: `ui-definitions` also covers conversation and bounded accessibility tests; `native-ux` also covers dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` covers Evidence Find and the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps. Execution partitions are packed separately, as described above.
 
-Rebalance classes or explicit method families using per-shard TRX durations, not test counts; keep each method's theory rows together. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; isolated processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
-Validate complete retained five-, seven- or nine-report TRX evidence with `.\eng\Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory <results-root>`; this checks every recorded case against the current partition, not revised-source hosted timing.
+Rebalance by refreshing the measured durations from a complete successful run, not by hand-assigning classes or using test counts; the packer keeps each method's theory rows together. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; isolated processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing the packing rules.
+Validate complete retained five- or twelve-report TRX evidence with `.\eng\Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory <results-root>`; this checks every recorded case against the current layout, not revised-source hosted timing.
 
 Documentation-only changes need local link/heading, exact example and availability
 checks. Changes to the embedded user guide also run its focused tests. They do

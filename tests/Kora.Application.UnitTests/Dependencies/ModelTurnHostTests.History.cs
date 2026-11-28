@@ -335,5 +335,6 @@ public sealed partial class ModelTurnHostTests
         internal Dictionary<HostId<RequestIdentity>, ConversationMessage> HistoryMessages { get; } = [];
         internal int HistoryReads { get; private set; }
         internal Action? BeforeHistoryRead { get; set; }
+        internal Func<HostId<SessionIdentity>, ConversationCursor?, int, ConversationPage>? HostedHistoryPage { get; set; }
     }
 }

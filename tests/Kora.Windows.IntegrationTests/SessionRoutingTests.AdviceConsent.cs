@@ -11,7 +11,7 @@ public sealed partial class SessionRoutingTests
 {
     [Theory]
     [InlineData(false, RequestOrigin.LocalUi)]
-    [InlineData(true, RequestOrigin.ActivatedVoice)]
+    [InlineData(true, RequestOrigin.LocalUi)]
     public async Task SeparateAdviceConsentThenDestinationReviewCompletesUnchangedOrdinaryRequest(bool expanded, RequestOrigin origin)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -98,7 +98,7 @@ public sealed partial class SessionRoutingTests
             var opening = new TaskCompletionSource<SessionRoutingAdviceWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var opened = Window.WindowOpenedEvent.AddClassHandler<SessionRoutingAdviceWindow>((window, _) => opening.TrySetResult(window));
             var live = true;
-            var operation = f.Routing.RouteAsync("private original", RequestOrigin.ActivatedVoice, () => live);
+            var operation = f.Routing.RouteAsync("private original", RequestOrigin.LocalUi, () => live);
             var window = await opening.Task;
             var late = window.GetVisualDescendants().OfType<Button>().Single(item => item.Name is "RoutingAdviceAllow");
             if (change is "cancel") { ClickAdvice(window, "RoutingAdviceCancel"); }

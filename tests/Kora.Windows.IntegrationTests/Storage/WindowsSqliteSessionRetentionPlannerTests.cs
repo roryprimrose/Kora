@@ -253,7 +253,17 @@ public sealed class WindowsSqliteSessionRetentionPlannerTests(ITestOutputHelper 
         preferences.Reset();
         reader.IsCurrent(result).Should().BeFalse();
         using var secondReader = new WindowsSqliteSessionRetentionPlannerReader(fixture.Store, fixture.Paths, Logger);
-        var second = await secondReader.ReadAsync(new(1, 3), fixture.Time.Now, HostRequest.Create(RequestOrigin.LocalUi), fixture.Token);
+        var notifications = 0;
+        secondReader.Changed += (_, _) => Interlocked.Increment(ref notifications);
+        SessionRetentionPlanResult second = null!;
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            // NTFS can report the reset's Preferences directory change after the delete; that late source change
+            // correctly retires a read in progress. A read that saw no notification must complete.
+            var before = Volatile.Read(ref notifications);
+            second = await secondReader.ReadAsync(new(1, 3), fixture.Time.Now, HostRequest.Create(RequestOrigin.LocalUi), fixture.Token);
+            if (second.Status == SessionRetentionPlanStatus.Complete || Volatile.Read(ref notifications) == before) { break; }
+        }
         second.Status.Should().Be(SessionRetentionPlanStatus.Complete);
         fixture.Mutate("UPDATE session_retention SET last_activity='invalid';");
         secondReader.IsCurrent(second).Should().BeFalse();

@@ -648,6 +648,31 @@
               </StackPanel>
             </Border>
 
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Spoken send or cancel (off by default)" Classes="settings-title" />
+                <TextBlock Text="{Binding SpokenSendReplyStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="For voice-originated request reviews only: hear the exact destination and message, then say exactly send or cancel once. No listening during playback. Native buttons remain available. This does not grant microphone consent or authorize hosted disclosure."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Enable spoken send replies" Command="{Binding EnableSpokenSendRepliesCommand}" IsEnabled="{Binding CanChangeSpokenSendReplies}" />
+                  <Button Content="Turn off" Command="{Binding DisableSpokenSendRepliesCommand}" IsEnabled="{Binding CanChangeSpokenSendReplies}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Local voice destination advice (off by default)" Classes="settings-title" />
+                <TextBlock Text="{Binding RoutingAdviceStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="When no Kora chat is foreground, allow the unchanged voice request and one permitted Active-chat metadata page to be sent to a qualified LOCAL model, without tools, history or memory. Prefer the last selected chat when related, or propose a more related Active chat. If advice is off, unavailable, ambiguous or fails, offer the last selected Active chat alone. Review the destination and acknowledge before sending; this setting never sends a request or grants microphone or hosted-provider access."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Enable local destination advice" Command="{Binding EnableRoutingAdviceCommand}" IsEnabled="{Binding CanChangeRoutingAdvice}" />
+                  <Button Content="Turn off" Command="{Binding DisableRoutingAdviceCommand}" IsEnabled="{Binding CanChangeRoutingAdvice}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
             <Border Classes="settings-card" controls:SettingsSearch.Id="voice.command-start-wait voice.reply-start-wait voice.trailing-silence voice.maximum-capture" controls:SettingsSearch.Group="Input">
               <controls:SettingsSearch.Value>
                 <MultiBinding StringFormat="{}{0} {1} {2}">

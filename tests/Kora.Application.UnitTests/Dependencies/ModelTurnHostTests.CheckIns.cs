@@ -23,12 +23,12 @@ public sealed partial class ModelTurnHostTests
         await using var settings = new OrdinaryDeadlineConfigurationFixture();
         settings.Preferences.Save(new(1));
         f.Time.CheckInDue = TimeSpan.FromMinutes(1);
-        var runtime = new HostClaudeStream();
-        var host = f.ClaudeProfiles(runtime, new(f, f.Time));
+        var runtime = new ConversationCopilotStream();
+        var host = f.CopilotProfiles(runtime, new(f, f.Time));
         await using var service = DeadlineConversation(f, host, settings);
         ConversationAnswerPresentation? preview = null;
         service.ProvisionalAnswerChanged += (value, _) => { preview = value; return ValueTask.CompletedTask; };
-        var submitted = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "long hosted request", () => true, Token);
+        var submitted = service.SubmitAsync(new(f.Session, null), "long hosted request", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         f.Time.Now += TimeSpan.FromMinutes(3);
         f.Time.FireCheckIn();
@@ -46,7 +46,7 @@ public sealed partial class ModelTurnHostTests
         f.CancelAudit.Events.Select(item => (item.ActionId, item.Outcome, item.ReasonCode)).Should().Equal(
             ("conversation.check-in", SecurityAuditOutcome.Requested, null),
             ("conversation.check-in", SecurityAuditOutcome.Cancelled, "turn-ended"));
-        f.CancelAudit.Contexts.Should().OnlyContain(request => request == receipt.Message.Request);
+        f.CancelAudit.Contexts.Should().OnlyContain(request => request.Equals(receipt.Message.Request));
     }
 
     [Theory]
@@ -430,7 +430,7 @@ public sealed partial class ModelTurnHostTests
         var runtime = new HostClaudeStream();
         var host = f.ClaudeProfiles(runtime, new(f, f.Time));
         await using var service = DeadlineConversation(f, host, settings);
-        var submitted = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "original", () => true, Token);
+        var submitted = service.SubmitAsync(new(f.Session, null), "original", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         var observation = await settings.Refresh();
         (await settings.Save(observation, new(1))).Should().BeTrue();
@@ -535,28 +535,19 @@ public sealed partial class ModelTurnHostTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task HostedFinalByteReviewPausesItsTurnClockUntilDecidedButNeverBeforeCreation(bool bound)
+    public void HostedAuthorizationFollowsItsBoundTurnClockButNeverBeforeCreation(bool bound)
     {
         using var f = new Fixture();
         using var root = f.Root();
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var authorization = reviews.PrepareTurn(f.Context(toolMode: ModelToolMode.None), Profile(Kora.Core.Providers.ProviderService.Copilot));
         var lifetime = new ModelTurnLifetime(f.Request, f.Time);
+        lifetime.UseCheckIns();
         if (bound) { authorization.Lifetime = lifetime; }
-        CopilotTransmissionReview? offered = null;
-        reviews.Offered += review => offered = review;
-        var transmission = new CopilotTransmission(new(new(Guid.NewGuid()), f.Request, ModelProviderSelection.CopilotCandidate),
-            authorization.Profile, new("https://example.com/final"), new byte[] { 1 });
-        var pending = reviews.ReviewAsync(authorization, transmission, _ => ValueTask.FromResult(true), Token).AsTask();
-        offered.Should().NotBeNull();
-        lifetime.IsWaitingForHost.Should().Be(bound, "the blocking final-byte review pauses its owning turn");
         f.Time.Now = f.Time.Now.AddMinutes(5);
-        reviews.Confirm(offered!, true, RequestOrigin.LocalUi).Should().BeTrue();
-        (await pending).Should().Be(bound, "an unbound review keeps the original fixed context expiry");
-        lifetime.IsWaitingForHost.Should().BeFalse();
-        reviews.Current(authorization).Should().Be(bound);
+        reviews.Current(authorization).Should().Be(bound, "an unbound authorization keeps the original fixed context expiry");
         f.Time.Now = authorization.Context.CreatedAt.AddTicks(-1);
-        reviews.Current(authorization).Should().BeFalse("pausing never admits a context before it was created");
+        reviews.Current(authorization).Should().BeFalse("the turn clock never admits a context before it was created");
     }
 
     [Fact]

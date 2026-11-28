@@ -477,7 +477,8 @@ public sealed partial class ModelTurnHostTests
             await excluded.SubmitAsync(target, "Question-enabled request", static () => true, Token,
                 questionPresenter: static (_, _, _, _, _, _) => throw new InvalidOperationException("No question expected."));
             admission.Context!.Evidence.Should().BeEmpty();
-            await excluded.SubmitCopilotAsync(target, "Explicit hosted request", static () => true, Token);
+            await excluded.SubmitClaudeObservationsAsync(target, "Explicit hosted request",
+                [Kora.Core.Tools.ReadOnlyCapabilityCatalog.Version], static () => true, Token);
             f.RetainCalls.Should().Be(3);
         }
 

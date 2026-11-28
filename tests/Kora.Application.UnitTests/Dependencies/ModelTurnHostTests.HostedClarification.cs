@@ -25,8 +25,6 @@ public sealed partial class ModelTurnHostTests
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var host = f.ClaudeProfiles(new ClaudeRuntime(observations: true), reviews);
         await using var service = DeadlineConversation(f, host, settings);
-        reviews.ClaudeOffered += review =>
-        { using var presentation = review.Presentation(); reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
         service.RunningConversationChanged += status =>
         {
             if (revokeAtCommit && status.Phase == ConversationExecutionPhase.Completing)

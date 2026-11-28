@@ -75,7 +75,8 @@ public sealed partial class ModelTurnHostTests
         b.Completion.IsCompleted.Should().BeFalse();
         f.Adapter.Calls.Should().Be(1);
         var retainedBeforeStream = f.RetainCalls;
-        await service.Invoking(value => value.SubmitClaudeAnswerStreamAsync(target, "not a queued Claude request", () => true, Token))
+        await service.Invoking(value => value.SubmitClaudeObservationsAsync(target, "not a queued Claude request",
+                [Kora.Core.Tools.ReadOnlyCapabilityCatalog.Version], () => true, Token))
             .Should().ThrowAsync<InvalidOperationException>();
         f.RetainCalls.Should().Be(retainedBeforeStream, "explicit hosted streaming cannot enter or replace an ordinary pending lane");
         f.Adapter.Calls.Should().Be(1);

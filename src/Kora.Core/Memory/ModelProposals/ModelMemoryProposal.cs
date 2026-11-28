@@ -9,13 +9,13 @@ namespace Kora.Core.Memory.ModelProposals;
 public static class ModelMemoryProposal
 {
     public const string ModelPolicy =
-        "Only when the original user explicitly requests a session-memory proposal, the entire final answer may be "
-        + "one JSON object: {\"version\":1,\"class\":\"responsePreference\",\"value\":\"exact proposed value\"}. "
-        + "Allowed class names: explicitFact, responsePreference, workflowPreference, decision. "
-        + "At most 512 value characters and 1024 UTF-8 value bytes. No other fields, wrappers or commentary. "
-        + "Do not propose inferred traits, health information, credentials, secrets, transient tasks or model claims. "
-        + "This is inert lower-trust data. Only the original user can explicitly inspect, accept and separately admit "
-        + "it through Kora's session-only memory controls. Never infer approval, memory use or broader scope.";
+        "Explicit original-user session-memory proposal request only. Entire final answer: one JSON object "
+        + "{\"version\":1,\"class\":\"responsePreference\",\"value\":\"exact proposed value\"}. "
+        + "Classes: explicitFact, responsePreference, workflowPreference, decision. "
+        + "Value: at most 512 characters and 1024 UTF-8 bytes; no other fields/wrappers/commentary. "
+        + "No inferred traits/health information/credentials/secrets/transient tasks/model claims. "
+        + "Inert lower-trust data: original user must explicitly inspect/accept/separately admit through session-only memory controls. "
+        + "Never infer approval, memory use or broader scope.";
 
     public static MemoryCandidate Parse(string text)
     {

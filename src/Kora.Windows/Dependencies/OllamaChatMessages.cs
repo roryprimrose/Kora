@@ -140,7 +140,9 @@ internal static class OllamaChatMessages
         return new(new()
         {
             Model = model, Stream = false, Think = false, Messages = messages, Tools = tools,
-            Format = request.ClarificationAllowed ? OllamaToolWire.QuestionFormat(request.Context.ToolMode) : null,
+            Format = request.ClarificationAllowed ? OllamaToolWire.QuestionFormat(request.Context.ToolMode,
+                includeQuestion: request.Context.ToolMode != ModelToolMode.InteractiveConversation
+                    || !request.Messages.OfType<ModelClarificationQuestion>().Any()) : null,
         }, resultIds);
 
         void AddResult(string name, string? callId, string content)

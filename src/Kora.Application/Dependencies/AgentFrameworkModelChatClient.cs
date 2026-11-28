@@ -143,6 +143,7 @@ internal sealed class AgentFrameworkModelChatClient : IChatClient
         if (message is ModelClarificationQuestion question)
         {
             if (ask is null || questionAsked
+                || context.ToolMode == ModelToolMode.InteractiveConversation && question.CallId is null
                 || question.Question.Fields is not null
                     && (!ModelToolProtocol.AllowsForms(context.ToolMode, provenance.Selection.Provider) || question.CallId is null)
                 || question.CallId is { } questionId && !callIds.Add(questionId)

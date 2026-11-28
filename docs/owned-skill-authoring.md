@@ -700,6 +700,15 @@ volatile draft and open a fresh editor before List/Reopen; this does not delete
 any published package. Saving never registers the root as a shared source and never grants
 tools, model access, invocation, enablement or execution authority.
 
+Windows briefly refuses the publishing rename while another program, such as
+security scanning, still has one of the new files open. Kora then repeats the
+same no-replace rename a few times within about a third of a second, rechecking
+your authority and the staged files before each attempt. If Windows still
+refuses, nothing is saved and Save reports the failure; you can Save again.
+A cancelled or expired save never makes another attempt. Leftover private
+staging from such a failure is removed by a later save of the same skill ID,
+only after Kora verifies it is its own unpublished staging.
+
 The owning design contracts are [Skill storage](../Design/Skill_Storage.md),
 [Skill authoring](../Design/Skill_Authoring.md) and
 [Definition management](../Design/Definition_Management.md).

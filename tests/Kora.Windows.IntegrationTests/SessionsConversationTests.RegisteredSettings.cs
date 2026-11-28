@@ -230,7 +230,7 @@ public sealed partial class SessionsConversationTests
         {
             Calls++;
             Encoding.UTF8.GetString(context.Span).Should().Contain("work.active-deadline-minutes")
-                .And.Contain("No deadline undo").And.Contain("one inert suggestion");
+                .And.Contain("No deadline undo").And.Contain("one suggestion or 2 through 8");
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection, new(text, null)));
         }
     }
@@ -539,10 +539,10 @@ public sealed partial class SessionsConversationTests
             CancellationToken cancellationToken)
         {
             Calls++;
-            Encoding.UTF8.GetString(context.Span).Should().Contain("Registered Kora setting suggestions are inert data")
+            Encoding.UTF8.GetString(context.Span).Should().Contain("Registered Kora setting suggestion policy v2: inert data")
                 .And.Contain("responses.default-mode").And.Contain("Hybrid/VoiceOnly/VisualOnly")
                 .And.Contain("including VoiceOnly")
-                .And.Contain("explicitly requests a session-memory proposal");
+                .And.Contain("Explicit original-user session-memory proposal request only");
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection,
                 new(Calls == 1 ? setting : MemoryProposal, null)));
         }

@@ -80,7 +80,8 @@ public sealed class McpParentSelectionTests
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]
-    public void OrdinarySubmitUsesNoToolsOnlyWhenEveryEffectiveToolIsDisabled(bool parent, bool keepOne)
+    [InlineData(false, false, true)]
+    public void OrdinarySubmitUsesNoToolsOnlyWhenEveryEffectiveToolIsDisabled(bool parent, bool keepOne, bool keepQuestion = false)
     {
         var store = new Store();
         var directories = new LocalArtifactDirectoryPreferences(store);
@@ -98,18 +99,26 @@ public sealed class McpParentSelectionTests
                 controls.SetToolEnabled(KoraMcpCatalog.ServerId, descriptor.Id,
                     keepOne && string.Equals(descriptor.Id, ReadOnlyCapabilityCatalog.Version, StringComparison.Ordinal));
             }
+            controls.SetToolEnabled(KoraMcpCatalog.ServerId, ModelToolProtocol.AskUserToolName, keepQuestion);
         }
         var restricted = configuration.RestrictTools(context);
         restricted.Request.Should().BeSameAs(context.Request);
         restricted.UserRequest.Should().Be(context.UserRequest);
         restricted.CreatedAt.Should().Be(context.CreatedAt);
         restricted.ExpiresAt.Should().Be(context.ExpiresAt);
-        restricted.ToolMode.Should().Be(keepOne ? ModelToolMode.InteractiveConversation : ModelToolMode.None);
+        restricted.ToolMode.Should().Be(keepOne || keepQuestion ? ModelToolMode.InteractiveConversation : ModelToolMode.None);
         restricted.Tools.Select(tool => tool.Id).Should().BeEquivalentTo(
             keepOne ? new[] { ReadOnlyCapabilityCatalog.Version } : []);
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), context.Request, ModelProviderSelection.OllamaCandidate);
         var parsed = ModelToolProtocol.ReadContext(restricted.Serialize(), provenance);
         ModelToolProtocol.CreateRequest(provenance, null, parsed, [], 1).Context.ToolMode.Should().Be(restricted.ToolMode);
+        if (keepQuestion)
+        {
+            var question = new ModelClarificationQuestion(new("Which format?", ["Compact", "Detailed"]), "ask_format");
+            var answer = new ModelQuestionAnswerMessage(question, new(["option-0"]), RequestOrigin.LocalUi);
+            ModelToolProtocol.CreateRequest(provenance, null, parsed, [question, answer], 2,
+                clarificationAllowed: true).Messages.Should().Equal(question, answer);
+        }
     }
 
     [Fact]

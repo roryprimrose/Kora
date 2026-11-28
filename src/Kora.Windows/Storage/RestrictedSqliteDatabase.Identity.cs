@@ -11,6 +11,17 @@ internal sealed partial class RestrictedSqliteDatabase
         return WindowsFileIdentity.Read(handle);
     }
 
+    // Binds the verified file identity to the exact database and journal bytes. Equal receipts mean
+    // an unchanged file whose deterministic open/validation outcome is already known.
+    internal string ReadContentReceipt()
+    {
+        VerifyFiles();
+        using var database = new FileStream(databasePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var journal = new FileStream(journalPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        return string.Join('|', WindowsFileIdentity.Read(database.SafeFileHandle),
+            Convert.ToHexString(SHA256.HashData(database)), Convert.ToHexString(SHA256.HashData(journal)));
+    }
+
     internal byte[] ComputeDatabaseDigest()
     {
         VerifyFiles();

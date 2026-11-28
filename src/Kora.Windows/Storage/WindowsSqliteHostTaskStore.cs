@@ -37,6 +37,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     private readonly RestrictedStorageDirectory interactionPartition;
     private Action<SqliteConnection>? validateAuthority;
     private Guid? authorityRun;
+    private volatile string? retiredReceipt;
     private Action<SqliteConnection, SqliteTransaction, HostTaskRecord, bool>? observeActivity;
     private readonly ISqliteTransactionCheckpoint? checkpoint;
 
@@ -94,6 +95,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     internal void ImportAuthority(SqliteConnection destination, SqliteTransaction transaction, CancellationToken token)
     {
         using var lease = legacy.AcquireReadLease(token);
+        retiredReceipt = null;
         using var source = legacy.Open(created: false, token);
         ValidateTasks(source);
         using (var freeze = source.CreateCommand())
@@ -139,6 +141,12 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     internal void RequireRetiredAuthority(CancellationToken token)
     {
         using var lease = legacy.AcquireReadLease(token);
+        // File security is verified on every call; only the deterministic open/validation of unchanged bytes is skipped.
+        if (retiredReceipt is { } verified && string.Equals(verified, legacy.ReadContentReceipt(), StringComparison.Ordinal))
+        {
+            return;
+        }
+        retiredReceipt = null;
         using var source = legacy.Open(created: false, token);
         ValidateTasks(source);
         using var command = source.CreateCommand();
@@ -147,6 +155,8 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         {
             throw new InvalidDataException("The consolidated task authority has no validated frozen handoff. Recovery is required.");
         }
+        // The EXCLUSIVE-mode connection still holds its lock, so the receipt binds exactly the validated bytes.
+        retiredReceipt = legacy.ReadContentReceipt();
     }
 
     // The interaction writer holds this same lease until its own SQLite COMMIT finishes.
@@ -424,6 +434,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     internal void PurgeRetiredSession(HostId<SessionIdentity> session, CancellationToken token)
     {
         using var lease = legacy.AcquireReadLease(token);
+        retiredReceipt = null;
         using var connection = legacy.Open(created: false, token);
         ValidateTasks(connection);
         legacy.RequireEmptyArtifactInventory();

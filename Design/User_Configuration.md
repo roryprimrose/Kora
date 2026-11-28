@@ -1921,7 +1921,7 @@ Stale observations, malformed values and unconfirmed writes fail explicitly; an 
 
 Only newly dispatched queued ordinary conversations, including their ordinary instruction/retry routes, and explicit Copilot/Claude ordinary requests capture this preference.
 Their admitted subset has no approval/clarification waits: tool-free answers and already-admitted read-only observation tools.
-Specialized source workflows and clarification turns keep their existing fixed limits; no output-text inference or speculative pause/resume clock is added ([dispatch owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+Specialized source workflows and clarification turns, including an ordinary local turn with a bound ask_user continuation, keep their existing fixed limits; no output-text inference or speculative pause/resume clock is added ([dispatch owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
 
 Pending work has no active budget. At durable dispatch the host captures one immutable preference and starts monotonic elapsed accounting; pending expiry and the original context timestamps are not renewed.
 A later saved default never changes a running turn. The shorter fixed provider/tool maximum and original context expiry always win.

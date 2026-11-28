@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Kora.Core.Tools;
@@ -7,6 +8,7 @@ namespace Kora.Core.Dependencies;
 
 public static partial class ModelToolProtocol
 {
+    internal const int ConversationContextVersion = 2;
     private static readonly IReadOnlyList<CapabilityDescriptor> ConversationTools = Array.AsReadOnly(
         ReadOnlyCapabilityCatalog.Descriptors.Append(SettingsNavigationTool.Descriptor).ToArray());
     private static readonly JsonSerializerOptions ContextOptions = new()
@@ -19,7 +21,14 @@ public static partial class ModelToolProtocol
     {
         ValidateProvenance(provenance);
         using var document = ReadJson(wire, MaximumInputUtf8Bytes);
-        if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("OutputFormat", out _))
+        var compact = document.RootElement.ValueKind == JsonValueKind.Object
+            && document.RootElement.TryGetProperty("ContextVersion", out _);
+        if (compact)
+        {
+            RequireFields(document.RootElement, "ContextVersion", "SystemPolicy", "UserRequest", "Evidence",
+                "ToolMode", "Tools", "MaximumOutputUtf8Bytes", "Constraints", "ToolCatalogueDigest");
+        }
+        else if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("OutputFormat", out _))
         { RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "ToolMode", "Tools", "MaximumOutputUtf8Bytes", "OutputFormat"); }
         else if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("WebPages", out _))
         {
@@ -36,7 +45,8 @@ public static partial class ModelToolProtocol
         try
         {
             // RequireFields has already established an object; the fixed serializer has no null-producing converter.
-            content = document.RootElement.Deserialize<ContextContent>(ContextOptions)!;
+            content = compact ? ReadCompactContext(document.RootElement)
+                : document.RootElement.Deserialize<ContextContent>(ContextOptions)!;
         }
         catch (Exception exception) when (exception is JsonException or ArgumentException)
         { throw new InvalidDataException("The host context has invalid typed fields.", exception); }
@@ -62,6 +72,24 @@ public static partial class ModelToolProtocol
             ImmutableArray.CreateRange(wire.ToArray()), content.Constraints, content.McpTool, content.WebPages, content.OutputFormat);
     }
 
+    // References bind every descriptor field, not just IDs or schema versions.
+    internal static string GetCatalogueDigest(IReadOnlyList<CapabilityDescriptor> tools) =>
+        Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(tools)));
+
+    private static ContextContent ReadCompactContext(JsonElement root)
+    {
+        var compact = root.Deserialize<CompactContextContent>(ContextOptions)!;
+        if (compact.ContextVersion != ConversationContextVersion || compact.ToolMode != ModelToolMode.InteractiveConversation)
+        { throw new InvalidDataException("The compact context requires its exact versioned conversation mode."); }
+        var tools = compact.Constraints?.GetTools(compact.ToolMode) ?? GetTools(compact.ToolMode);
+        if (compact.Tools is null || compact.Tools.Length != tools.Count
+            || compact.Tools.Where((id, index) => !string.Equals(id, tools[index].Id, StringComparison.Ordinal)).Any()
+            || !string.Equals(compact.ToolCatalogueDigest, GetCatalogueDigest(tools), StringComparison.Ordinal))
+        { throw new InvalidDataException("The compact catalogue references do not match the exact host descriptors."); }
+        return new(compact.SystemPolicy, compact.UserRequest, compact.Evidence, compact.ToolMode,
+            tools.ToArray(), compact.MaximumOutputUtf8Bytes, compact.Constraints);
+    }
+
     public static IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode) => mode switch
     {
         ModelToolMode.ReadOnly => ReadOnlyCapabilityCatalog.Descriptors,
@@ -82,4 +110,8 @@ public static partial class ModelToolProtocol
         ModelToolMode ToolMode, CapabilityDescriptor[] Tools, int MaximumOutputUtf8Bytes,
         ModelTurnConstraints? Constraints = null, Mcp.McpModelTool? McpTool = null, Network.LocalWebPageScope? WebPages = null,
         ModelOutputFormat OutputFormat = ModelOutputFormat.Text);
+
+    private sealed record CompactContextContent(int ContextVersion, string SystemPolicy, string UserRequest,
+        ModelContextEvidence[] Evidence, ModelToolMode ToolMode, string[] Tools, int MaximumOutputUtf8Bytes,
+        ModelTurnConstraints? Constraints, string ToolCatalogueDigest);
 }

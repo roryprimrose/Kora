@@ -406,9 +406,9 @@ Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to ch
 
 For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the portable unit solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.
 
-The separate `compare_native_evidence=true` input runs [17 representative headless cases](eng/Compare-NativeFixtureEvidence.ps1) in synchronous/buffered/buffered/synchronous order on one Windows runner. The [test-only selector](tests/Kora.Windows.IntegrationTests/NativeUxTestFixture.cs) uses the fixture's existing buffering option and rejects unknown profiles.
+The separate `compare_native_evidence=true` input runs [17 representative headless cases](eng/Compare-NativeFixtureEvidence.ps1) in synchronous/buffered/buffered/synchronous order on one Windows runner. The [test-only selector](tests/Kora.Windows.IntegrationTests/NativeUx/NativeUxFixtureSession.PhaseTimings.cs) applies the profile to every headless native fixture session through the fixture's existing buffering option (an explicitly buffered fixture stays buffered) and rejects unknown profiles.
 
-Normal CI selects buffered evidence only for those 17 cases in the native-UX shard; other shards and unconfigured local runs retain synchronous delivery ([workflow](.github/workflows/ci.yml), [profile defaults](tests/Kora.Windows.IntegrationTests/NativeFixtureEvidenceMode.cs)). To reproduce the enabled profile locally, set `KORA_TEST_NATIVE_EVIDENCE_MODE=buffered` before running the native-UX shard.
+Normal CI selects buffered evidence for every Windows partition; unconfigured local runs retain synchronous delivery ([workflow](.github/workflows/ci.yml), [profile defaults](tests/Kora.Windows.IntegrationTests/NativeFixtureEvidenceMode.cs)). Buffered delivery is the production composition: audits stay synchronous, diagnostics are buffered and copied to the daily file. Complete comparison [run 46084335792](https://github.com/roryprimrose/Kora/actions/runs/46084335792) passed all four runs and measured 170.7s synchronous against 102.9s buffered for the 17 cases. To reproduce CI locally, set `KORA_TEST_NATIVE_EVIDENCE_MODE=buffered` before running `.\eng\Run-WindowsIntegrationTests.ps1`.
 
 Stop All notification-failure fixtures inject once at the first accepted
 cancellation notification and retain the observer through joined terminal
@@ -440,7 +440,7 @@ compilation. No larger host or increased per-process thread limit is requested.
 Partition contents are packed, not hand-assigned. Every job derives the same
 assignment from the exact discovery catalog (the artifact's, or local discovery)
 and the measured durations in [windows-test-durations.json](eng/windows-test-durations.json).
-`native-ux` keeps its fixed filter and buffered evidence profile. The other
+`native-ux` keeps its fixed filter and job identity. The other
 eleven partitions receive whole classes, or whole methods of classes measured
 above 240 seconds, longest first into the least-loaded partition. Methods whose
 names overlap as substrings share a partition, so every theory row of a method

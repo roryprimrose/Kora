@@ -156,7 +156,7 @@ else {
 }
 
 # Every job derives the same assignment from the exact discovery catalog and committed measured durations.
-# native-ux keeps its fixed filter and buffered evidence profile; whole classes (or whole methods of measured
+# native-ux keeps its fixed filter and job identity; whole classes (or whole methods of measured
 # oversized classes) are packed longest-first into the other eleven partitions, so new tests are spread by load.
 $durations = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'windows-test-durations.json') | ConvertFrom-Json
 $partitionNames = @('storage-heavy', 'storage-other', 'ui-definitions', 'ui-definition-dialogs', 'ui-conversations',

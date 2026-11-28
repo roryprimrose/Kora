@@ -55,6 +55,7 @@ public sealed partial class SessionConversationService
         internal Action? OnAccepted { get; } = accepted;
         internal Task Worker = Task.CompletedTask;
         internal TaskResponseOutputReview? Output;
+        internal ConversationQuestionPresenter? QuestionPresenter;
         internal DateTimeOffset OutputCreatedAt;
         internal DateTimeOffset OutputExpiresAt;
         // The executing turn's clock: paused host waits and check-ins extend output freshness like its context.
@@ -77,8 +78,10 @@ public sealed partial class SessionConversationService
     public Task<ConversationQueuedSubmission> SubmitQueuedAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? validateSource = null,
         IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi, bool localAnswer = false,
-        Action? accepted = null, TaskResponseOutputReview? taskOutput = null) =>
-        SubmitQueuedCoreAsync(target, body, admitted, validateSource, links, origin, localAnswer, accepted, null, token, taskOutput);
+        Action? accepted = null, TaskResponseOutputReview? taskOutput = null,
+        ConversationQuestionPresenter? questionPresenter = null) =>
+        SubmitQueuedCoreAsync(target, body, admitted, validateSource, links, origin, localAnswer, accepted, null, token,
+            taskOutput, questionPresenter: questionPresenter);
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
         Justification = "The host-owned worker signals acceptance off the UI context; all continuations are asynchronous.")]
@@ -86,7 +89,7 @@ public sealed partial class SessionConversationService
         Func<bool> admitted, Func<CancellationToken, Task>? validateSource,
         IEnumerable<ActivityLink>? links, RequestOrigin origin, bool localAnswer, Action? accepted, RetryIntent? retry,
         CancellationToken token, TaskResponseOutputReview? taskOutput = null, FreshOrdinaryIntent? fresh = null,
-        SessionPermissionPolicy? readbackPermission = null)
+        SessionPermissionPolicy? readbackPermission = null, ConversationQuestionPresenter? questionPresenter = null)
     {
         RequireOriginalSource(origin);
         ConversationLane lane;
@@ -112,7 +115,7 @@ public sealed partial class SessionConversationService
                 { throw new InvalidOperationException("The conversation queue is full. Remove or defer pending work; nothing was evicted."); }
                 pending = new(target, lane.Entries.Where(item => item.Retained is not null)
                     .Select(item => item.Retained!.Message.Request).ToArray(), accepted, retry, fresh)
-                { Output = taskOutput, ReadbackPermission = readbackPermission };
+                { Output = taskOutput, ReadbackPermission = readbackPermission, QuestionPresenter = questionPresenter };
                 lane.Entries.Add(pending);
                 // The worker owns the original source token, issuer and terminal join, not the acceptance caller.
                 pending.Worker = RunPendingConversationAsync(lane, pending, body, admitted,

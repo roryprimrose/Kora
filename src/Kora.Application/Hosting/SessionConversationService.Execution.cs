@@ -105,7 +105,8 @@ public sealed partial class SessionConversationService
             { throw new IOException("Execution intent readback is unconfirmed; inspect without repeating the turn."); }
             turn.TaskRevision = dispatched.Task.Revision;
             turn.ConversationTarget = target;
-            if (ordinaryActiveDeadline && runtime is not null) { checkIns = StartCheckIns(runtime, turn, running); }
+            if (ordinaryActiveDeadline && runtime is not null && turn.QuestionContinuation is null)
+            { checkIns = StartCheckIns(runtime, turn, running); }
             var dispatchReadback = await conversations.ReadConversationMessageAsync(request.SessionId, request.RequestId, token).ConfigureAwait(false);
             if (dispatchReadback != dispatched.Message || !Current())
             { throw new IOException("The original dispatch source readback is unconfirmed; no model turn was repeated."); }

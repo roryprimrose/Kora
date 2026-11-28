@@ -19,7 +19,9 @@ public sealed partial class ModelTurnHostTests
     [InlineData(false, RequestOrigin.ActivatedVoice)]
     [InlineData(true, RequestOrigin.LocalUi)]
     [InlineData(true, RequestOrigin.ActivatedVoice)]
-    public async Task AskUserResumesOriginalReadOnlyTurnWithExactTextOrMultipleAnswers(bool text, RequestOrigin channel)
+    [InlineData(false, RequestOrigin.LocalUi, true)]
+    [InlineData(true, RequestOrigin.ActivatedVoice, true)]
+    public async Task AskUserResumesOriginalTurnWithExactTextOrMultipleAnswers(bool text, RequestOrigin channel, bool ordinary = false)
     {
         using var f = new Fixture(channel);
         f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
@@ -32,8 +34,7 @@ public sealed partial class ModelTurnHostTests
         var host = f.ConfiguredProfiles(adapter: loop);
         var reads = 0;
         f.OnVersion = () => reads++;
-        var receipt = await QuestionService(f, host).SubmitReadOnlyWithClarificationAsync(new(f.Session, null),
-            "Original ask_user request", static () => true, async (request, _, spec, expiry, _, token) =>
+        ConversationQuestionPresenter presenter = async (request, _, spec, expiry, _, token) =>
             {
                 Microsoft.Extensions.AI.FunctionInvokingChatClient.CurrentContext.Should().NotBeNull();
                 Microsoft.Extensions.AI.FunctionInvokingChatClient.CurrentContext!.CallContent.CallId.Should().Be("ask_1");
@@ -44,11 +45,25 @@ public sealed partial class ModelTurnHostTests
                 var submitted = await questions.SubmitAsync(initial.Key, text ? new([], "Original details")
                     : new(["option-0", "option-1"]), channel, token);
                 return new(initial, submitted);
-            }, Token, origin: channel);
-        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            };
+        var service = QuestionService(f, host);
+        var receipt = ordinary
+            ? (await (await service.SubmitQueuedAsync(new(f.Session, null), "Original ask_user request",
+                static () => true, Token, origin: channel, questionPresenter: presenter)).Completion.WaitAsync(Token)).RequireReceipt()
+            : await service.SubmitReadOnlyWithClarificationAsync(new(f.Session, null), "Original ask_user request",
+                static () => true, presenter, Token, origin: channel);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded,
+            "terminal reason: {0}; provider rounds: {1}; context bytes: {2}; consumed input bytes: {3}; remaining input bytes: {4}",
+            receipt.Message.Reason, transport.Requests.Count, transport.Requests[0].Context.Wire.Length,
+            transport.Requests.Sum(request => ModelToolProtocol.SerializeRequest(request).Length),
+            transport.Requests[^1].Budget.InputUtf8Bytes - ModelToolProtocol.SerializeRequest(transport.Requests[^1]).Length);
         receipt.Message.AssistantResponse!.Body.Should().Be("The observed version is 1.0.");
         reads.Should().Be(1);
         transport.Requests.Should().HaveCount(3);
+        transport.Requests.Sum(request => ModelToolProtocol.SerializeRequest(request).Length)
+            .Should().BeLessThanOrEqualTo(ModelToolProtocol.MaximumInputUtf8Bytes);
+        transport.Requests.Should().OnlyContain(request =>
+            request.Context.ToolMode == (ordinary ? ModelToolMode.InteractiveConversation : ModelToolMode.ReadOnly));
         var answer = transport.Requests[^1].Messages.OfType<ModelQuestionAnswerMessage>().Single();
         answer.Answer.Text.Should().Be(text ? "Original details" : null);
         answer.Answer.Choices.Should().Equal(text ? [] : ["option-0", "option-1"]);

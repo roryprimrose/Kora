@@ -4,11 +4,10 @@ namespace Kora.Core.Presentation;
 public sealed record AnswerPresentation(string Brief, bool HasDetails)
 {
     public const string ModelPolicy =
-        "For a complex answer, begin with 'Brief response:' on its own line, followed by a concise "
-        + "plain-text summary of at most 80 words, then a blank line and 'Detailed response:' on its own line "
-        + "followed by the complete answer in Markdown, including diagrams/code/tables as needed. "
-        + "Keep all necessary warnings in the brief. Do not ask whether to open details yourself: "
-        + "Kora owns that question and all window controls. For a short answer, return the answer normally.";
+        "Complex answer: 'Brief response:' on its own line, plain-text summary of at most 80 words, "
+        + "blank line, 'Detailed response:' on its own line, complete Markdown answer with diagrams/code/tables as needed. "
+        + "Keep all necessary warnings in the brief. Kora owns the detail question and all window controls; "
+        + "do not ask whether to open details. Short answer: answer normally.";
     public const string Offer = "Would you like to view the detailed response?";
     public const string Available = "A detailed response is available.";
 

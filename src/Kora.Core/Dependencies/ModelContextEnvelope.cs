@@ -16,7 +16,7 @@ public sealed class ModelContextEnvelope
     public static int MaximumOutputUtf8Bytes => ReadOnlyCapabilityCatalog.Limits.MaximumOutputUtf8Bytes;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     // This is a JSON-only local protocol, never HTML. Avoid amplifying nested reviewed metadata quotes.
-    private static readonly JsonSerializerOptions SettingsJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    private static readonly JsonSerializerOptions LocalJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     public ModelContextEnvelope(HostRequest request, string systemPolicy, string userRequest,
         IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt,
@@ -117,7 +117,16 @@ public sealed class ModelContextEnvelope
 
     public byte[] Serialize()
     {
-        var options = ToolMode == ModelToolMode.SettingsDiscovery ? SettingsJson : null;
+        if (ToolMode == ModelToolMode.InteractiveConversation)
+        {
+            return JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                ContextVersion = ModelToolProtocol.ConversationContextVersion, SystemPolicy, UserRequest, Evidence, ToolMode,
+                Tools = Tools.Select(tool => tool.Id), MaximumOutputUtf8Bytes, Constraints,
+                ToolCatalogueDigest = ModelToolProtocol.GetCatalogueDigest(Tools),
+            }, LocalJson);
+        }
+        var options = ToolMode == ModelToolMode.SettingsDiscovery ? LocalJson : null;
         if (OutputFormat != ModelOutputFormat.Text)
         {
             return JsonSerializer.SerializeToUtf8Bytes(new

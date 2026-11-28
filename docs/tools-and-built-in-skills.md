@@ -135,7 +135,7 @@ grant host authority.
 
 ## Asking Kora to do something
 
-For one ambiguous conversational observation request, **Ask locally with observations and one choice** in Sessions or its compact view runs the existing six read-only observation tools, permits one bounded native/activated-voice choice, and retains the actual final answer in the original conversation. See the [complete interaction and unavailable boundaries](responses-and-calls.md#conversation-clarification). A choice is not approval, permission, source consent or a reusable grant.
+For an ambiguous conversational request, ordinary **Submit** with an admitted local model and `ask_user` enabled can clarify once, use admitted observations and retain the actual answer in the original conversation. The separate local observation/clarification controls remain during the integration. See the [complete interaction and unavailable boundaries](responses-and-calls.md#conversation-clarification). A choice is not approval, permission, source consent or a reusable grant.
 
 Type a command or hold push-to-talk and use the configured assistant name.
 Exact phrases take precedence; unmatched requests outside session routing reject

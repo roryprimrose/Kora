@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using Kora.Core.Dependencies;
 
@@ -37,7 +38,8 @@ internal sealed class OllamaSdkRequestHandler(string model, bool streaming,
         { throw new InvalidDataException("The SDK did not preserve the exact host-selected proposal schema. No fallback is admitted."); }
 
         using var memory = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(memory))
+        // This is JSON-only protocol data, never HTML or JavaScript.
+        using (var writer = new Utf8JsonWriter(memory, new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
         {
             writer.WriteStartObject();
             foreach (var field in root.EnumerateObject())

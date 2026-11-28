@@ -135,6 +135,52 @@ public sealed class WindowsSqliteTaskConsolidationTests
     }
 
     [WindowsFact]
+    public async Task Unchanged_verified_retired_handoff_is_not_reopened_for_each_operation()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        using (var held = OpenLegacy(f))
+        {
+            using var command = held.CreateCommand();
+            command.CommandText = "PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE;";
+            command.ExecuteNonQuery();
+
+            (await f.Store.ReadSessionAsync(f.Request.SessionId, f.Token)).Should().NotBeNull();
+        }
+    }
+
+    [WindowsFact]
+    public async Task Unfreezing_a_verified_retired_handoff_fails_the_next_operation_closed()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        (await f.Store.ReadSessionAsync(f.Request.SessionId, f.Token)).Should().NotBeNull();
+        SetFrozen(f, 0);
+
+        var read = () => f.Store.ReadSessionAsync(f.Request.SessionId, f.Token).AsTask();
+
+        await read.Should().ThrowAsync<InvalidDataException>().WithMessage("*no validated frozen handoff*");
+        SetFrozen(f, 1);
+        (await f.Store.ReadSessionAsync(f.Request.SessionId, f.Token)).Should().NotBeNull();
+    }
+
+    [WindowsFact]
+    public async Task Planted_file_beside_a_verified_retired_handoff_fails_the_next_operation_closed()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        (await f.Store.ReadSessionAsync(f.Request.SessionId, f.Token)).Should().NotBeNull();
+        var planted = Path.Combine(f.Paths.LocalRoot, "HostStorageV1", "planted.db");
+        await File.WriteAllBytesAsync(planted, [1], f.Token);
+
+        var read = () => f.Store.ReadSessionAsync(f.Request.SessionId, f.Token).AsTask();
+
+        await read.Should().ThrowAsync<UnauthorizedAccessException>().WithMessage("*owner or ACL*");
+        File.Delete(planted);
+        (await f.Store.ReadSessionAsync(f.Request.SessionId, f.Token)).Should().NotBeNull();
+    }
+
+    [WindowsFact]
     public async Task Lost_consolidated_authority_is_not_reconstructed_from_retired_source()
     {
         using var f = new InteractionStorageFixture();
@@ -149,5 +195,24 @@ public sealed class WindowsSqliteTaskConsolidationTests
         var read = () => f.Tasks.ReadIncompleteAsync(10, f.Token).AsTask();
         await read.Should().ThrowAsync<FileNotFoundException>();
         Directory.Exists(partition).Should().BeFalse();
+    }
+
+    private static SqliteConnection OpenLegacy(InteractionStorageFixture f)
+    {
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = Path.Combine(f.Paths.LocalRoot, "HostStorageV1", "host.db"), Mode = SqliteOpenMode.ReadWrite, Pooling = false,
+        }.ToString());
+        connection.Open();
+        return connection;
+    }
+
+    private static void SetFrozen(InteractionStorageFixture f, int frozen)
+    {
+        using var connection = OpenLegacy(f);
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA journal_mode=PERSIST; UPDATE task_authority_handoff SET frozen=$frozen;";
+        command.Parameters.AddWithValue("$frozen", frozen);
+        command.ExecuteNonQuery();
     }
 }

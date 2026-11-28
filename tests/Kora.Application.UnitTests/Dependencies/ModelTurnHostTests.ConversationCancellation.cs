@@ -102,7 +102,6 @@ public sealed partial class ModelTurnHostTests
     [InlineData("task")]
     [InlineData("generation")]
     [InlineData("revision")]
-    [InlineData("expired")]
     [InlineData("clock-back")]
     [InlineData("privacy")]
     [InlineData("selection")]
@@ -117,9 +116,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("audit-request")]
     [InlineData("audit-outcome")]
     [InlineData("missing-audit")]
-    [InlineData("expiry-during-read")]
     [InlineData("clock-back-during-read")]
-    [InlineData("expiry-during-audit")]
     [InlineData("privacy-during-audit")]
     [InlineData("caller")]
     [InlineData("model-origin")]
@@ -145,7 +142,6 @@ public sealed partial class ModelTurnHostTests
         var priorTask = f.Task;
         var priorSession = f.Session;
         var priorControl = f.ControlRevision;
-        if (fault is "expired") { f.Time.Now = original.ExpiresAt; }
         if (fault is "clock-back") { f.Time.Now = original.CreatedAt.AddTicks(-1); }
         if (fault is "privacy") { f.CanControl = false; }
         if (fault is "source") { f.Task = f.Task! with { CurrentSource = false }; }
@@ -158,12 +154,10 @@ public sealed partial class ModelTurnHostTests
         if (fault is "private-revision") { f.ControlRevision++; }
         if (fault is "audit-request") { f.CancelAudit.FailAt = 0; }
         if (fault is "audit-outcome") { f.CancelAudit.FailAt = 1; }
-        if (fault is "expiry-during-read") { f.OnRead = () => f.Time.Now = original.ExpiresAt; }
         if (fault is "clock-back-during-read") { f.OnRead = () => f.Time.Now = original.CreatedAt.AddTicks(-1); }
         f.CancelAudit.OnWrite = audit =>
         {
             if (audit.Outcome != SecurityAuditOutcome.Requested) { return; }
-            if (fault is "expiry-during-audit") { f.Time.Now = original.ExpiresAt; }
             if (fault is "privacy-during-audit") { f.ControlRevision++; }
         };
         using var caller = CancellationTokenSource.CreateLinkedTokenSource(Token);
@@ -219,7 +213,9 @@ public sealed partial class ModelTurnHostTests
         f.Adapter.Pending = pending.Task;
         ConversationExecutionStatus? last = null;
         service.RunningConversationChanged += status => last = status;
-        var submission = service.SubmitAsync(new(f.Session, null), "original", static () => true, Token);
+        // Ordinary turns use check-ins; the specialized fixed route keeps its logical runtime deadline.
+        var submission = service.SubmitOriginalLocalAsync(new(f.Session, null), "original", static () => true,
+            _ => Task.CompletedTask, [], RequestOrigin.LocalUi, Token);
         f.Time.FireDeadline();
         submission.IsCompleted.Should().BeFalse();
         f.ExecutionCompletions.Should().Be(0);

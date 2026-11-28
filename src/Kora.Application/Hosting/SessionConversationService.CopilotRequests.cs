@@ -11,7 +11,7 @@ public sealed partial class SessionConversationService
 {
     internal Task<ConversationSubmissionReceipt> SubmitReviewedCopilotAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, Func<CancellationToken, Task> beforeRetain,
-        IEnumerable<ActivityLink> links, RequestOrigin origin, CancellationToken token) =>
+        IEnumerable<ActivityLink> links, RequestOrigin origin, Action dispatched, CancellationToken token) =>
         SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin, null,
-            ModelTurnChoice.Hosted, token, copilot: true, ordinaryActiveDeadline: true);
+            ModelTurnChoice.Hosted, token, onAdmitted: _ => dispatched(), copilot: true, ordinaryActiveDeadline: true);
 }

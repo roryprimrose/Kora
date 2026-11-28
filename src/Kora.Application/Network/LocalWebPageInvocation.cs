@@ -24,6 +24,7 @@ internal sealed class LocalWebPageInvocation(
     LocalWebPageScope? workflowScope = null, Func<CancellationToken, Task>? validateSource = null)
 {
     private int used;
+    private ModelTurnLifetime? turnLifetime;
     internal Uri Destination => destination;
     internal bool Completed { get; private set; }
     private Func<CancellationToken, Task>? validateGranted;
@@ -34,6 +35,8 @@ internal sealed class LocalWebPageInvocation(
         string input, CancellationToken token)
     {
         var parsed = CapabilityInputPolicy.Read(LocalWebPageTool.Descriptor, input);
+        // Bind before admission: earlier cards in the same turn may already have paused (extended) its clocks.
+        turnLifetime ??= ModelTurnLifetime.For(original);
         if (provenance.Request != original || provenance.Selection.Provider != ModelProviderIdentity.Ollama
             || !string.Equals(id, WebPageCapability.Id, StringComparison.Ordinal)
             || parsed.DenialReason is not null || parsed.WebPageAddress != destination
@@ -49,8 +52,13 @@ internal sealed class LocalWebPageInvocation(
         {
             var proposal = CreateProposal(invocation);
             // Native review owns its own activity; presentation freshness is not executable host context.
-            var presented = await present(proposal, generation, destination,
-                () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
+            WebPageApprovalPresentation presented;
+            // The approval card has no time limit; the owning turn's clocks pause until it is decided.
+            using (turnLifetime?.BeginHostWait())
+            {
+                presented = await present(proposal, generation, destination,
+                    () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
+            }
             if (!Live(token))
             { activity.Complete(HostOperationOutcome.Failed); return new(CapabilityOutcome.Denied, "exact-page-approval-required"); }
             var authorization = new HostAuthorizationService(store, time);
@@ -91,7 +99,7 @@ internal sealed class LocalWebPageInvocation(
                         && InteractionTransaction.CanInteract(snapshot) && snapshot.Policy.OtherMandatoryGatesSatisfied
                         && (snapshot.Proposal == proposal
                             || continuation && workflowScope is not null && snapshot.Proposal is { } next
-                                && next.Request == invocation && next.ExpiresAt == expiresAt
+                                && next.Request == invocation && HostInteractionLifetime.IsUntilAnswered(next.ExpiresAt)
                                 && next.Effect == HostOperationEffect.BoundedRead && next.Revision == new HostRevision(1)
                                 && workflowScope.Destinations.Any(item => next.Binding == CreateBinding(invocation, item)))
                         && snapshot.EffectivePermission == dispatch.Policy && snapshot.Admissions.Contains(dispatch)
@@ -145,14 +153,16 @@ internal sealed class LocalWebPageInvocation(
         { activity.Complete(HostOperationOutcome.Failed); throw; }
     }
 
-    private bool Admitted(CancellationToken token) => !token.IsCancellationRequested && admitted() && time.GetUtcNow() < expiresAt;
+    private bool Admitted(CancellationToken token) => !token.IsCancellationRequested && admitted()
+        && time.GetUtcNow() < (turnLifetime?.Extend(expiresAt) ?? expiresAt);
 
     private bool Live(CancellationToken token) => Admitted(token) && HostActivity.Current is { } current
         && current.Request.IsWithinIntent(original) && current.Outcome == HostOperationOutcome.Unknown
         && !current.Activity!.IsStopped;
 
     private HostOperationProposal CreateProposal(HostRequest invocation) =>
-        new(invocation, new(Guid.NewGuid()), new(1), CreateBinding(invocation, destination), HostOperationEffect.BoundedRead, expiresAt);
+        new(invocation, new(Guid.NewGuid()), new(1), CreateBinding(invocation, destination), HostOperationEffect.BoundedRead,
+            HostInteractionLifetime.UntilAnswered);
 
     private ExactOperationBinding CreateBinding(HostRequest invocation, Uri destination)
     {

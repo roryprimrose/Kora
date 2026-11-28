@@ -507,7 +507,11 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 28);
+        sections.Should().HaveCount(commands.Count + 29);
+        var checkIn = sections.Single(section => section.StartsWith("Answer a running-turn check-in", StringComparison.Ordinal));
+        foreach (var phrase in Kora.Core.Commands.TurnCheckInReply.FixedPhrases) { checkIn.Should().Contain("**" + phrase + "**"); }
+        checkIn.Should().Contain("**keep going for 10 minutes** (whole minutes 1-60)")
+            .And.Contain("assistant-name prefix").And.Contain("every turn keeps running");
         var timeoutSuggestion = sections.Single(section => section.StartsWith(
             "Review one retained response-timeout suggestion", StringComparison.Ordinal));
         foreach (var phrase in Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
@@ -726,7 +730,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, volumeSuggestion)
             && !ReferenceEquals(section, sharedInvocation)
             && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)
-            && !ReferenceEquals(section, attachment) && !ReferenceEquals(section, newRequest)).ToArray();
+            && !ReferenceEquals(section, attachment) && !ReferenceEquals(section, newRequest)
+            && !ReferenceEquals(section, checkIn)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

@@ -49,7 +49,7 @@ public sealed class OrdinaryTurnDeadlineSuggestionReviewTests : IDisposable
             review.Description.Should().Contain(saved ? "Current saved: 7 minutes" : "default five minutes (not saved)")
                 .And.Contain("Proposed: " + (minutes is { } value ? $"{value} minutes" : "reset to default five minutes (not saved)"))
                 .And.Contain("future ordinary task dispatch only").And.Contain("Running turns are unchanged")
-                .And.Contain("fixed provider/tool ceilings").And.Contain("within 60 seconds");
+                .And.Contain("This is the check-in interval").And.Contain("within 60 seconds");
             f.Audit.Events.Should().BeEmpty();
             f.Service.Capture().Should().Be(running);
             await FluentActions.Awaiting(() => review.ConfirmAsync(Token)).Should().ThrowAsync<InvalidOperationException>();

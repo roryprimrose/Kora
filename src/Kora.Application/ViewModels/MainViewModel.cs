@@ -3678,6 +3678,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteCallSpeechAsync(operation, initiator);
             return;
         }
+        if (TurnCheckInReply.Parse(spokenText, AssistantName) is { } checkInReply)
+        {
+            await ExecuteTurnCheckInReplyAsync(checkInReply, spokenText, initiator);
+            return;
+        }
         if (SpokenApprovalReply.Parse(spokenText, AssistantName) is { } approvalReply)
         {
             await ExecuteSpokenToolApprovalAsync(approvalReply, spokenText, initiator);
@@ -5275,6 +5280,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(QuietHoursCommand.FixedPhrases)
             .Concat(ForegroundPttCommand.FixedPhrases)
             .Concat(SpokenApprovalReply.FixedPhrases)
+            .Concat(TurnCheckInReply.FixedPhrases)
             .Concat(VoiceCaptureTimingCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)

@@ -12,13 +12,14 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
-    [InlineData(RequestOrigin.LocalUi, "once", true)]
-    [InlineData(RequestOrigin.LocalUi, "session", true)]
-    [InlineData(RequestOrigin.LocalUi, "perpetual", true)]
-    [InlineData(RequestOrigin.ActivatedVoice, "once", true)]
-    [InlineData(RequestOrigin.LocalUi, "once", false)]
+    [InlineData(RequestOrigin.LocalUi, "once", true, false)]
+    [InlineData(RequestOrigin.LocalUi, "session", true, false)]
+    [InlineData(RequestOrigin.LocalUi, "perpetual", true, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, "once", true, false)]
+    [InlineData(RequestOrigin.LocalUi, "once", false, false)]
+    [InlineData(RequestOrigin.LocalUi, "once", true, true)]
     public async Task McpContinuationWaitsForSeparateExactResultConsentAfterPhysicalJoin(
-        RequestOrigin origin, string invocationScope, bool structured)
+        RequestOrigin origin, string invocationScope, bool structured, bool longReview)
     {
         using var f = new Fixture(origin);
         using var source = new McpSource();
@@ -64,6 +65,9 @@ public sealed partial class ModelTurnHostTests
                     review with { Continuation = null },
                     review with { Stage = McpReviewStage.Invocation },
                 }) { altered.IsBoundTo(proposal).Should().BeFalse(); }
+                proposal.ExpiresAt.Should().Be(Kora.Core.Interaction.HostInteractionLifetime.UntilAnswered);
+                // A blocking result review has no time limit: three minutes exceeds the MCP, context and adapter windows.
+                if (longReview) { f.Time.Now = f.Time.Now.AddMinutes(3); }
                 entered.SetResult();
                 await release.Task;
             }
@@ -103,7 +107,6 @@ public sealed partial class ModelTurnHostTests
     [InlineData("permission")]
     [InlineData("account")]
     [InlineData("generation")]
-    [InlineData("expiry")]
     [InlineData("cancel")]
     public async Task McpContinuationCannotDiscloseAfterDeclineOrAuthorityChangesDuringResultReview(string fault)
     {
@@ -139,7 +142,6 @@ public sealed partial class ModelTurnHostTests
                     case "permission": approvals.Revoke(); break;
                     case "account": broker.Fault = "denied-account"; break;
                     case "generation": f.Session = f.Session with { Generation = new(2) }; break;
-                    case "expiry": f.Time.Now = f.Time.Now.AddMinutes(3); break;
                     case "cancel": await cancellation.CancelAsync(); break;
                 }
             }

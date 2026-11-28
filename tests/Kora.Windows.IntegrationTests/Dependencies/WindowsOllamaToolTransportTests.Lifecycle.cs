@@ -84,6 +84,39 @@ public sealed partial class WindowsOllamaToolTransportTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Check_in_turns_have_no_conversation_deadline_and_host_waits_pause_a_fixed_one(bool checkIns)
+    {
+        await using var fixture = new Fixture();
+        using var root = fixture.Root();
+        var pauses = new PauseClock();
+        var lifetime = new ModelTurnLifetime(fixture.Provenance.Request, pauses);
+        if (checkIns) { lifetime.UseCheckIns(); }
+        using var turn = ModelTurnLifetime.Enter(lifetime);
+        fixture.Chat = (message, _) =>
+        {
+            using (checkIns ? null : lifetime.BeginHostWait())
+            {
+                // A permission card stays open three times longer than the fixed 15-second conversation deadline.
+                fixture.Time.Now += ModelToolProtocol.Deadline * 3;
+                pauses.Timestamp += (ModelToolProtocol.Deadline * 3).Ticks;
+            }
+            return Task.FromResult(Json(message, Final));
+        };
+        var reply = await fixture.Transport.CompleteAsync(fixture.Request(), Token);
+        reply.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        reply.Message.Should().NotBeNull();
+    }
+
+    private sealed class PauseClock : TimeProvider
+    {
+        internal long Timestamp { get; set; }
+        public override long GetTimestamp() => Timestamp;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+    }
+
+    [Theory]
     [InlineData("admission")]
     [InlineData("owner")]
     [InlineData("revocation")]

@@ -619,10 +619,10 @@ public sealed partial class ModelTurnHostTests : IDisposable
             return host;
         }
         internal ModelTurnHost Qualified(ModelProviderSelection selection, ModelQualificationGate? evidence = null,
-            bool composeProfileStoreOnly = false, McpCapabilityPreferences? capabilities = null)
+            bool composeProfileStoreOnly = false, McpCapabilityPreferences? capabilities = null, Func<bool>? remainsQualified = null)
         {
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
-                [new(selection, evidence ?? Gates(selection), Time.Now.AddSeconds(30), Adapter)],
+                [new(selection, evidence ?? Gates(selection), Time.Now.AddSeconds(30), Adapter, remainsQualified)],
                 sessionProfiles: composeProfileStoreOnly ? this : null, capabilities: capabilities,
                 builtInMcp: capabilities is null ? null : new Kora.Application.Mcp.KoraMcpServer(registry, capabilities));
             ownedHosts.Add(host);
@@ -762,21 +762,32 @@ public sealed partial class ModelTurnHostTests : IDisposable
     {
         internal TimeSpan ExpectedDeadline { get; set; } = TimeSpan.FromSeconds(15);
         internal TimeSpan? AdditionalExpectedDeadline { get; set; }
+        /// <summary>The ordinary check-in interval; its timer is tracked separately from runtime deadlines.</summary>
+        internal TimeSpan CheckInDue { get; set; } = Kora.Core.Configuration.OrdinaryTurnDeadline.Default.Duration;
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
         internal long? Timestamp { get; set; }
         private TimerCallback? callback;
         private object? state;
+        private TimerCallback? checkIn;
+        internal int CheckInTimers { get; private set; }
         public override DateTimeOffset GetUtcNow() => Now;
         public override long GetTimestamp() => Timestamp ?? Now.UtcTicks;
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
+            if (dueTime == CheckInDue && dueTime != ExpectedDeadline && dueTime != AdditionalExpectedDeadline)
+            {
+                checkIn = callback;
+                CheckInTimers++;
+                return new FakeTimer();
+            }
             this.callback = callback;
             this.state = state;
             new[] { ExpectedDeadline, AdditionalExpectedDeadline ?? ExpectedDeadline }.Should().Contain(dueTime);
             return new FakeTimer();
         }
         internal void FireDeadline() => callback!(state);
+        internal void FireCheckIn() => checkIn!(null);
         private sealed class FakeTimer : ITimer
         {
             public bool Change(TimeSpan dueTime, TimeSpan period) => true;

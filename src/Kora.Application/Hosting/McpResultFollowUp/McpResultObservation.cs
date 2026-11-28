@@ -4,6 +4,7 @@ using Kora.Core.Authorization;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
+using Kora.Core.Interaction;
 using Kora.Core.Mcp;
 using Kora.Core.Mcp.ResultFollowUp;
 using Kora.Core.Storage;
@@ -41,10 +42,14 @@ internal sealed class McpResultObservation
         Cause = cause;
         ValidateSource = validateSource;
         SourceReceipt = sourceReceipt;
-        ExpiresAt = sourceExpiresAt is { } expiry && expiry < invocation.ExpiresAt ? expiry : invocation.ExpiresAt;
+        // An until-answered invocation card has no expiry, so the follow-up keeps its own fixed freshness bound.
+        var bound = HostInteractionLifetime.IsUntilAnswered(invocation.ExpiresAt)
+            ? result.ObservedAt + FollowUpLifetime : invocation.ExpiresAt;
+        ExpiresAt = sourceExpiresAt is { } expiry && expiry < bound ? expiry : bound;
         Provenance = new(serverName, mapping.Identity.NativeDestination, mapping.AccountDisplayName, mapping.ToolName, request.Origin);
     }
 
+    internal static TimeSpan FollowUpLifetime { get; } = TimeSpan.FromMinutes(2);
     internal Guid Nonce { get; } = Guid.NewGuid();
     internal SessionWorkspaceEntry Target { get; }
     internal HostRequest Request { get; }

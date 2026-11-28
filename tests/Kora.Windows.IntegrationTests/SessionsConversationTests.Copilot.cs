@@ -100,7 +100,9 @@ public sealed partial class SessionsConversationTests
     [Theory]
     [InlineData(61, ModelTurnOutcome.Succeeded)]
     [InlineData(119, ModelTurnOutcome.Succeeded)]
-    [InlineData(120, ModelTurnOutcome.Denied)]
+    // Ordinary hosted turns use check-ins instead of the former two-minute ceiling.
+    [InlineData(120, ModelTurnOutcome.Succeeded)]
+    [InlineData(240, ModelTurnOutcome.Succeeded)]
     public async Task Native_copilot_send_beyond_sdk_default_wait_preserves_exact_request_and_durable_answer(
         int seconds, ModelTurnOutcome expected)
     {

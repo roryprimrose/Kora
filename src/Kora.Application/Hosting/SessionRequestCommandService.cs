@@ -245,8 +245,10 @@ public sealed partial class SessionRequestCommandService(
             {
                 lock (gate)
                 {
+                    // The review window bounds confirmation through acceptance; accepted work then runs on its own turn clock.
                     return (accepted || epoch == attempt) && Live() && previous.SourceAdmitted()
-                        && access.ControlRevision == previous.ControlRevision && time.GetUtcNow() < previous.Review.ExpiresAt
+                        && access.ControlRevision == previous.ControlRevision
+                        && (accepted || time.GetUtcNow() < previous.Review.ExpiresAt)
                         && (previous.Review.ExpiredSource is null || time.GetUtcNow() >= previous.Review.ExpiresAt.AddSeconds(-60))
                         && (previous.BareCurrent?.Invoke() ?? true);
                 }
@@ -311,10 +313,12 @@ public sealed partial class SessionRequestCommandService(
                         Revalidate, [previous.Cause], previous.Review.Origin, token).ConfigureAwait(false)
                     : previous.Review.Provider == SessionRequestReview.ProviderChoice.Claude
                     ? await conversation.SubmitReviewedClaudeAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
-                        Revalidate, [previous.Cause], previous.Review.Origin, previous.Review.ClaudeTools, token).ConfigureAwait(false)
+                        Revalidate, [previous.Cause], previous.Review.Origin, previous.Review.ClaudeTools,
+                        () => { lock (gate) { accepted = true; } }, token).ConfigureAwait(false)
                     : previous.Review.Provider == SessionRequestReview.ProviderChoice.Copilot
                     ? await conversation.SubmitReviewedCopilotAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
-                        Revalidate, [previous.Cause], previous.Review.Origin, token).ConfigureAwait(false)
+                        Revalidate, [previous.Cause], previous.Review.Origin,
+                        () => { lock (gate) { accepted = true; } }, token).ConfigureAwait(false)
                     : await conversation.SubmitAsync(previous.Review.Target, previous.Review.Body, OriginalLive, token,
                         Revalidate, [previous.Cause], previous.Review.Origin,
                         accepted: () => { lock (gate) { accepted = true; } }).ConfigureAwait(false);

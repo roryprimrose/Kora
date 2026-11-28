@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Copilot;
 using Kora.Core.Dependencies;
@@ -107,6 +107,10 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotAnswerTurnRuntime, I
             else
             {
                 var sessionId = provenance.Turn.Value.ToString("D");
+                // A host-owned turn renews this account lease in place while it runs; blocking reviews have no time limit.
+                await using var renewal = HostedLeaseRenewal.Start(ModelTurnLifetime.For(provenance.Request), () => account.ExpiresAt,
+                    ct => accounts.RenewAsync(account, ct), time, exception => LeaseRenewalFailed(logger, exception.GetType().Name),
+                    callbacks.Token);
                 files = new(account.WorkingDirectory);
                 bool Live() => !Volatile.Read(ref disposed) && Volatile.Read(ref live) != 0 && !callbacks.IsCancellationRequested
                     && account.ExpiresAt > time.GetUtcNow();

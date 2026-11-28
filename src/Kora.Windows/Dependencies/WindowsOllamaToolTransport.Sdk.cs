@@ -109,7 +109,7 @@ public sealed partial class WindowsOllamaToolTransport
             if (!await ObserveAsync(request, token).ConfigureAwait(false))
             { return Finish(request, ModelTurnOutcome.Denied); }
             token.ThrowIfCancellationRequested();
-            if (time.GetUtcNow() >= deadline) { return Finish(request, ModelTurnOutcome.TimedOut); }
+            if (time.GetUtcNow() >= (turnLifetime?.Extend(deadline) ?? deadline)) { return Finish(request, ModelTurnOutcome.TimedOut); }
             return AcceptReply(request, parsed, validated?.NativeMessage ?? [], inputCharge, outputCharge);
         }
         catch (InvalidDataException) when (denied is not null)

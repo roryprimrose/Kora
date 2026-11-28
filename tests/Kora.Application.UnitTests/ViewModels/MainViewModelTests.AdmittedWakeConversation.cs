@@ -170,6 +170,33 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task RoutedWakeTurnOutlivesItsRoutingReviewWindowOnItsOwnTurnClock()
+    {
+        var stage = new HandsFreeStage();
+        HandsFreeVoiceRecognitionService? decorated = null;
+        var f = CreateHandsFreeFixture(stage, value => decorated = value);
+        await using var voice = decorated!;
+        f.NamePreferences.Name = "Nova";
+        await using var conversation = new WakeConversation(f, () => voice.IsCaptureQuiescent);
+        await f.ViewModel.InitializeAsync();
+        var first = await stage.NextAsync();
+        first.Wake.SetResult(new(first.Binding.Generation, 12, true));
+        first.Result.SetResult(new("compare these plans", 1, first.Binding.Generation));
+        await conversation.Adapter.Entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        // The accepted routed turn runs past its 15-second context and the 60-second routing review window.
+        conversation.Clock.Now += TimeSpan.FromMinutes(2);
+        conversation.Adapter.Release.SetResult();
+        await stage.NextAsync();
+        conversation.Store.RequestMessage!.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        conversation.Store.RequestMessage.AssistantResponse!.Body.Should().Be(WakeAnswerAdapter.Answer);
+        conversation.Store.TaskResult!.Task.State.Should().Be(HostTaskState.Succeeded);
+        conversation.Turns.IsQuiescent.Should().BeTrue();
+        await f.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        await voice.Completion;
+        f.ViewModel.Dispose();
+    }
+
+    [Fact]
     public async Task NativeActivationDoesNotQualifyAnUnavailableModelOrFallBackToLegacyInference()
     {
         var stage = new HandsFreeStage();
@@ -560,7 +587,8 @@ public sealed partial class MainViewModelTests
 
     private sealed class WakeClock : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch;
+        internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 
     private sealed class WakeConversation : IAsyncDisposable
@@ -568,6 +596,7 @@ public sealed partial class MainViewModelTests
         internal SessionCommandStore Store { get; }
         internal WakeAnswerAdapter Adapter { get; }
         internal ModelTurnHost Turns { get; }
+        internal WakeClock Clock { get; } = new();
         internal int RouteCalls { get; private set; }
         internal Func<Task>? BeforeSelection { get; set; }
         private readonly SessionConversationService conversation;
@@ -577,7 +606,7 @@ public sealed partial class MainViewModelTests
         {
             Store = new(fixture);
             Adapter = new(captureJoined);
-            var clock = new WakeClock();
+            var clock = Clock;
             var workspace = new SessionWorkspaceService(Store, new(fixture.HostStore), Store,
                 NullLogger<SessionWorkspaceService>.Instance);
             var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);

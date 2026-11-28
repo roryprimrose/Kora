@@ -221,6 +221,7 @@
         <local:McpResultFollowUpControls x:Name="McpResultFollowUp" />
         <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
+        <local:TurnCheckInPanel />
         <local:PendingConversationPanel />
         <local:ManagementAnswerPanel />
         <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">

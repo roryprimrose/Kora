@@ -26,13 +26,17 @@ public sealed class CopilotExecutionAccount
         WorkingDirectory = workingDirectory;
         BaseDirectory = baseDirectory;
         Environment = CopilotExecutionEnvironment.Copy(environment);
-        ExpiresAt = expiresAt;
+        this.expiresAt = expiresAt;
         IsEvaluation = isEvaluation;
     }
 
     public ProviderProfileTuple Profile { get; }
     public string Login { get; }
-    public DateTimeOffset ExpiresAt { get; }
+    private DateTimeOffset expiresAt;
+    public DateTimeOffset ExpiresAt { get { lock (gate) { return expiresAt; } } }
+    private readonly Lock gate = new();
+    /// <summary>Only the owning broker extends this lease, after audited revalidation of the same approval.</summary>
+    internal void Renew(DateTimeOffset value) { lock (gate) { expiresAt = value; } }
     public bool IsEvaluation { get; }
     internal string Token { get; }
     internal string ExecutablePath { get; }

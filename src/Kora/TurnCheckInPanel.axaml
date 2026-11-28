@@ -1,0 +1,27 @@
+<UserControl x:Class="Kora.TurnCheckInPanel"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
+    xmlns:local="using:Kora">
+  <Border IsVisible="{Binding HasTurnCheckIn}" Classes="card" Padding="8"
+      AutomationProperties.Name="Running turn check-in; the turn keeps running while this question is open">
+    <StackPanel Spacing="6">
+      <controls:NamedTextBlock Text="{Binding TurnCheckInText}" TextWrapping="Wrap"
+          AutomationProperties.Name="Running turn check-in question" />
+      <WrapPanel>
+        <Button x:Name="KeepGoing" Content="{Binding KeepGoingCheckInLabel}"
+            AutomationProperties.HelpText="Keeps this exact turn running for another check-in interval." />
+        <NumericUpDown x:Name="CheckInMinutes" Value="{Binding CheckInMinutes, Mode=TwoWay}" Increment="1" FormatString="0"
+            Minimum="{x:Static local:SessionsViewModel.MinimumCheckInMinutes}"
+            Maximum="{x:Static local:SessionsViewModel.MaximumCheckInMinutes}" MinWidth="110"
+            AutomationProperties.Name="Minutes to keep going before the next check-in" />
+        <Button x:Name="KeepGoingFor" Content="Keep going for these minutes"
+            AutomationProperties.HelpText="Keeps this exact turn running for the chosen whole minutes, then checks in again." />
+        <Button x:Name="KeepRunning" Content="Keep running until done"
+            AutomationProperties.HelpText="Keeps this exact turn running until it finishes, without more check-ins. Stop remains available." />
+        <Button x:Name="StopTurn" Content="Stop this turn"
+            AutomationProperties.HelpText="Requests cancellation of only this exact running turn and waits for owned resources." />
+      </WrapPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

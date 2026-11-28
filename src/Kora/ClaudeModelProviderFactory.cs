@@ -21,7 +21,8 @@ internal sealed class ClaudeModelProviderFactory(ClaudeAccountBroker accounts, C
             ModelQualificationGate.DotNetFinalRequest
                 | (DevelopmentPreviewBuild.Enabled ? ModelQualificationGate.UserReviewedClaudeEvaluation : ModelQualificationGate.AllPathLifecycle)
                 | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost,
-            catalogue.ValidUntil, new ClaudeModelTurnAdapter(runtime, reviews, time, logger),
-            () => catalogue.IsCurrent(time.GetUtcNow()));
+            // The live account lease governs; a running turn's audited renewal extends it in place.
+            DateTimeOffset.MaxValue, new ClaudeModelTurnAdapter(runtime, reviews, time, logger),
+            () => accounts.IsLeaseCurrent(profile));
     }
 }

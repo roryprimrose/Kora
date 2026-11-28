@@ -254,6 +254,7 @@ public sealed partial class HostedClaudeSessionRequestTests
             var timer = new ObservationTimer(callback, state, dueTime);
             timers.Add(timer); return timer;
         }
+        internal bool HasActive(TimeSpan due) => timers.Any(item => !item.Disposed && item.Due == due);
         internal void FireDeadline(TimeSpan? due = null)
         {
             var active = timers.Where(item => !item.Disposed).ToArray();

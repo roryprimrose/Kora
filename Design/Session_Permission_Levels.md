@@ -150,11 +150,15 @@ When explicitly enabled, allow deliberate voice approval under the normal exact-
 
 Recheck call evidence and setting revision atomically at voice answer acceptance. Call entry invalidates an unaccepted voice answer when the setting is Off; it does not revoke an already committed exact grant or invalidate an already accepted user decision solely because the channel is now unavailable. Other content/policy/cancellation checks still apply before dispatch.
 
+Running-turn check-in replies (`keep going`, `keep going for N minutes`, `keep going until done`, `stop this turn`) follow the same rule: during a protected call they are admitted only when spoken approvals are enabled, still need exact single-target readback, and otherwise use the native check-in buttons ([check-ins](Interaction_And_Sessions.md#running-turn-check-ins---2026-11-28)).
+
 Call clearance never accepts rejected speech, answers a card, reopens capture, restores an ended grant, or replays work. UI approval remains available subject to independent unlocked/ownership/presentation policy. While locked, neither channel can approve.
 
 This supersedes `calls.ignoreReusableGrants`: calls restrict the approval channel instead of forcing Once or ignoring reusable grants. The [manual-call implementation](Call_Aware_Speech.md#delivered-bounded-manual-mode---2026-10-07) keeps its independent capture, output and unknown-evidence protections.
 
 ## Session UX, Lifecycle, and Races
+
+Permission cards opened from inside a running turn block with **no time limit** ([decision](Decision_Register.md#turn-lifetime-check-ins---2026-11-28)). Their proposals and questions use [`HostInteractionLifetime.UntilAnswered`](../src/Kora.Core/Interaction/HostInteractionLifetime.cs) and retire only on answer, cancellation, or loss of request, session, generation, privacy, call or host ownership; every existing admission check still applies. While a card is open its turn is in a host wait (`using (turn.BeginHostWait())`, or `ModelTurnLifetime.Current?.BeginHostWait()` from a tool callback): context expiry, runtime deadline, check-in interval and transport deadline pause and resume after the decision. This applies to local web-page approval and in-turn MCP reviews; hosted final requests are admitted automatically with audit and have no per-send card. New in-turn card owners adopt the same lifetime and wait scope.
 
 Show the effective level persistently in the compact session view and Sessions workspace, alongside the exact session name/ID. Show protected-call voice eligibility separately: **Spoken approvals disabled during call; UI available**. Never display a fourth effective level or silently replace Approve all with Review all.
 

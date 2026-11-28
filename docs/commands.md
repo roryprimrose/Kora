@@ -1714,7 +1714,7 @@ Use `review response timeout suggestion` to review the exact host-pinned success
 
 The answer must be one exact `set appearance.response-timeout to <integer>` using canonical digits, 1-60 seconds. It changes only the existing response-window inactivity hide delay, not provider deadlines or Always show. Review saves nothing; original-channel call policy, source, preference, privacy and host checks remain required through commit ([review and recovery](settings.md#review-a-response-timeout-suggestion)).
 
-**Future ordinary deadline suggestions are a separate native-only review.**
+**Check-in interval suggestions are a separate native-only review.**
 
 An original local user can choose **Review setting suggestion...** on an exact
 successful retained answer containing `set work.active-deadline-minutes to 10`
@@ -1723,11 +1723,11 @@ Review shows actual saved/default, effective and proposed values and future-only
 device-local scope; separately confirm or cancel in the same current native
 surface within 60 seconds. The model never executes the suggestion.
 Confirmed audited atomic write/readback is required before future dispatch
-consumes it. Running work and earlier context/provider/tool ceilings stay
-unchanged. Stale sources, returned surfaces, changed authority or uncertain
-saves require inspection, not retry, rollback, deadline undo or default success.
+consumes it. Running turns keep the interval they started with. Stale sources,
+returned surfaces, changed authority or uncertain saves require inspection,
+not retry, rollback, interval undo or default success.
 This model route adds no typed/voice confirmation
-([complete review](setting-proposals.md), [direct controls](settings.md#future-ordinary-task-deadline)).
+([complete review](setting-proposals.md), [direct controls](settings.md#ordinary-turn-check-in-interval)).
 
 ### Detail presentation preference
 
@@ -2028,6 +2028,18 @@ unavailable without opening capture or stopping playback. See
 
 **Stop** cancels the active task; it does not mean stop speaking. Use one of
 the speech-playback phrases to stop the voice instead.
+
+### Answer a running-turn check-in
+
+- **keep going**
+- **keep going for 10 minutes** (whole minutes 1-60)
+- **keep going until done**
+- **stop this turn**
+
+These answer the single check-in shown when an ordinary turn has run for the
+[check-in interval](settings.md#check-ins-while-a-turn-runs). Voice needs the
+assistant-name prefix; Kora reads back the exact turn first. With no waiting
+check-in, or more than one, the reply is refused and every turn keeps running.
 
 ### Disable listening for this run
 

@@ -49,7 +49,7 @@ public static class RegisteredSettingRegistry
         new(RegisteredSetting.MaximumCapture, VoiceCaptureTiming.MaximumCaptureId,
             "maximum duration for future eligible captures only, never listening or review authority", "seconds", null, null, true),
         new(RegisteredSetting.OrdinaryTurnDeadline, "work.active-deadline-minutes",
-            "future ordinary task allowance only; running work and earlier context/provider/tool ceilings unchanged",
+            "future ordinary turn check-in interval only; running turns and their check-ins unchanged",
             "minutes", OrdinaryTurnDeadline.MinimumMinutes, OrdinaryTurnDeadline.MaximumMinutes, true),
     ]);
 

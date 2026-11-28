@@ -1,4 +1,3 @@
-using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 
 namespace Kora.Application.Dependencies;
@@ -15,15 +14,16 @@ public sealed partial class ModelTurnHost
         return constraint < provider ? constraint : provider;
     }
 
-    internal void CaptureOrdinaryActiveBudget(ModelTurn turn, OrdinaryTurnDeadline preference)
+    /// <summary>
+    /// Replaces the fixed context, runtime and transport limits of a newly dispatched ordinary turn with
+    /// user check-ins. The turn keeps every admission, revalidation, cancellation and audit boundary.
+    /// </summary>
+    internal void UseOrdinaryCheckIns(ModelTurn turn)
     {
-        if (turn.Owner != owner || turn.ConversationTarget is null || turn.OrdinaryActiveBudget is not null
-            || turn.QuestionContinuation is not null
+        if (turn.Owner != owner || turn.ConversationTarget is null || turn.Lifetime.UsesCheckIns
+            || turn.QuestionContinuation is not null || !turn.ContextCurrent(time)
             || turn.Context.ToolMode is not (ModelToolMode.None or ModelToolMode.ReadOnly or ModelToolMode.InteractiveConversation))
-        { throw new InvalidOperationException("Only a newly dispatched ordinary turn without user waits may capture this budget."); }
-        var contextRemaining = turn.Context.ExpiresAt - time.GetUtcNow();
-        var maximum = RuntimeDeadline(turn);
-        if (contextRemaining < maximum) { maximum = contextRemaining; }
-        turn.OrdinaryActiveBudget = new(preference, maximum, time);
+        { throw new InvalidOperationException("Only a newly dispatched, still-current ordinary turn without clarification waits may use check-ins."); }
+        turn.Lifetime.UseCheckIns();
     }
 }

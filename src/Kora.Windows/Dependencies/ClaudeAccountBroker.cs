@@ -82,6 +82,17 @@ public sealed partial class ClaudeAccountBroker : IAsyncDisposable
             && ProviderProfileRules.Resolve(profile, saved.Catalogue, time.GetUtcNow()) is not null ? saved : null;
     }
 
+    /// <summary>Synchronous lease check for an already admitted profile; asynchronous approval revalidation stays separate.</summary>
+    public bool IsLeaseCurrent(ProviderProfileTuple profile)
+    {
+        lock (gate)
+        {
+            var now = time.GetUtcNow();
+            return !disposed && account is { } current && current.Catalogue.IsCurrent(now)
+                && ProviderProfileRules.Resolve(profile, current.Catalogue, now) is not null;
+        }
+    }
+
     public async Task<bool> IsProfileCurrentAsync(ProviderProfileTuple profile, CancellationToken token) =>
         await ResolveAsync(profile, token).ConfigureAwait(false) is not null;
 
@@ -100,6 +111,43 @@ public sealed partial class ClaudeAccountBroker : IAsyncDisposable
         }
         expected.Dispose();
         return false;
+    }
+
+    /// <summary>
+    /// Audited in-place revalidation for one running host turn: extends the same account's catalogue lease by at
+    /// most five minutes, never past the deployment approval or credential lease, without re-authentication,
+    /// catalogue revision change or new egress. Returns <see langword="false"/> when nothing can be extended.
+    /// </summary>
+    internal async ValueTask<bool> RenewAsync(ClaudeAccount expected, CancellationToken token)
+    {
+        var issuer = HostActivity.Current;
+        var approved = await deployments.ResolveAsync(token).ConfigureAwait(false);
+        var lease = approved is null ? null : await deployments.BindCredentialAsync(approved,
+            expected.Lease.CredentialSha256, token).ConfigureAwait(false);
+        lock (gate)
+        {
+            var now = time.GetUtcNow();
+            if (disposed || issuer is null || issuer.Activity!.IsStopped || !ReferenceEquals(account, expected)
+                || !ReferenceEquals(approved, expected.Approval) || !ReferenceEquals(lease, expected.Lease)
+                || approved.ExpiresAt <= now || lease.ExpiresAt <= now || !expected.Catalogue.IsCurrent(now))
+            { return false; }
+            var expires = new[] { now.AddMinutes(5), approved.ExpiresAt, lease.ExpiresAt }.Min();
+            if (expires <= expected.Catalogue.ValidUntil) { return false; }
+            var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval,
+                "model.claude.lease-renew", SecurityAuditOutcome.Requested, SecurityAuditInitiator.System,
+                issuer.Request.TaskId.Value.ToString("D"));
+            audit.Write(requested);
+            var previous = expected.Catalogue.ValidUntil;
+            expected.Renew(expires);
+            try { audit.Write(requested.WithOutcome(SecurityAuditOutcome.Succeeded)); }
+            catch
+            {
+                // An unconfirmed renewal receipt cannot extend authority.
+                expected.Renew(previous);
+                throw;
+            }
+            return true;
+        }
     }
 
     public async Task RefreshAsync(Func<bool> eligible, CancellationToken token)

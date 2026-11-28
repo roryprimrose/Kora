@@ -16,6 +16,47 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Turn lifetime check-ins - 2026-11-28
+
+The product owner made these decisions on 2026-11-28 for the approved
+[model interaction outcome](MVP_Scope.md#approved-core-outcomes). They replace
+fixed whole-turn limits on ordinary conversation turns; they do not add a new
+provider, tool or authority.
+
+| ID | Decision |
+|---|---|
+| T1 | No ordinary conversation turn (local Ollama or hosted Copilot/Claude) silently times out. A check-in model replaces the fixed hard whole-turn limits. |
+| T2 | When a running ordinary turn reaches the user's ordinary-turn setting (`work.active-deadline-minutes`, default 5 minutes, now the check-in interval), Kora posts a check-in in that session: keep going for another interval, keep going for a chosen 1-60 minutes, keep running until done, or Stop. The turn keeps running while the check-in is pending. An unanswered check-in retires when the turn finishes. Stop uses the existing audited running-conversation cancellation path with a truthful outcome. |
+| T3 | Check-ins, and session questions generally where not already supported, accept voice answers in the same way permission cards accept spoken approval: exact single target, readback, assistant-name activation and the protected-call spoken-approval policy. |
+| T4 | Permission cards block with no time limit. While any permission card for a turn is open, every clock of that turn pauses: context expiry checks, the runtime deadline, the ordinary check-in interval and transport conversation deadlines. Clocks resume after the decision. The pause is reusable through a turn-owned host-wait scope. |
+| T5 | Hosted account/credential leases are renewed or revalidated for long turns without bypassing any admission, egress or audit boundary. |
+
+The product owner approved these implementation choices on the same day:
+
+- **Presentation:** the check-in is a volatile, host-owned card on the
+  session's running-turn status (beside Stop), answerable by native buttons or
+  spoken/typed replies. It is not a persisted question record and never
+  occupies the single modal native question slot that permission cards use.
+- **Permission-card scope:** `HostInteractionLifetime.UntilAnswered` and the
+  host-wait pause apply to every existing in-turn card: local web-page approval
+  and in-turn MCP reviews. Hosted Copilot/Claude final-byte reviews were since
+  replaced by automatic audited admission
+  ([Settings-routed single Submit](#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27)),
+  so no hosted per-send card remains to pause.
+- **Lease renewal:** audited in-place revalidation extends the same lease by
+  at most five minutes while the same deployment approval and credential lease
+  remain current. It never re-authenticates, changes the catalogue revision or
+  extends past approval expiry.
+
+Implementation owners: [turn clock](../src/Kora.Core/Dependencies/ModelTurnLifetime.cs),
+[pausable deadline](../src/Kora.Core/Dependencies/ModelTurnDeadline.cs),
+[until-answered lifetime](../src/Kora.Core/Interaction/HostInteractionLifetime.cs),
+[check-in owner](../src/Kora.Application/Hosting/OrdinaryTurnCheckIns.cs) and
+[hosted renewal](../src/Kora.Windows/Dependencies/HostedLeaseRenewal.cs).
+These are product decisions with deterministic implementation evidence, not
+provider qualification. Qualification freshness (registration and catalogue
+evidence windows) remains an independent gate and is not paused.
+
 ## Settings-routed single Submit and automatic hosted disclosure - 2026-11-27
 
 The product owner directed: "There should be no ordinary submit vs copilot submit buttons. The settings would define which platform is used", "We don't need the user to confirm bytes. Just send the session. The only reason the message should be blocked (before sending) would be related to permissions/grants/allow-all", "The chat UI should only have one submit button" and "A voice command is implicitly submitted when the text is obtained". For sessions below Approve all, the owner chose automatic sending, with the hosted platform choice in Settings acting as the permission.

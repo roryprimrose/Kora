@@ -12,4 +12,7 @@ public sealed partial class CopilotSdkTurnRuntime
 
     [LoggerMessage(3, LogLevel.Warning, "Copilot final transmission was denied. ExceptionType={ExceptionType}")]
     private static partial void TransmissionDenied(ILogger<CopilotSdkTurnRuntime> logger, string exceptionType);
+
+    [LoggerMessage(4, LogLevel.Warning, "Copilot account lease renewal failed. ExceptionType={ExceptionType}; the lease lapses and later checks fail closed.")]
+    private static partial void LeaseRenewalFailed(ILogger<CopilotSdkTurnRuntime> logger, string exceptionType);
 }

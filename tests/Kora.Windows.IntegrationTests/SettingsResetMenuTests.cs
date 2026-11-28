@@ -1,4 +1,4 @@
-﻿using System.Xml.Linq;
+using System.Xml.Linq;
 
 using Avalonia;
 using Avalonia.Automation;
@@ -41,7 +41,7 @@ public sealed class SettingsResetMenuTests
         { "RefreshConversationExecutionCommand", "Ordinary conversation execution maximum", "CanChangeConversationExecution", "Refresh ordinary conversation execution maximum" },
         { "RefreshSpeechTextCommand", "Speech captions", "CanChangeSpeechText", "Refresh captions" },
         { "RefreshSessionRetentionCommand", "Session inactivity retention", "CanChangeSessionRetentionNative", "Refresh archive and deletion settings" },
-        { "RefreshOrdinaryDeadlineCommand", "Ordinary task deadline", "CanChangeOrdinaryDeadlineNative", "Refresh future ordinary task deadline" },
+        { "RefreshOrdinaryDeadlineCommand", "Ordinary turn check-in interval", "CanChangeOrdinaryDeadlineNative", "Refresh ordinary turn check-in interval" },
         { "RefreshDiagnosticRetentionCommand", "Diagnostic record storage", "CanChangeDiagnosticRetentionNative", "Refresh diagnostic settings" },
         { "RefreshAuditRetentionCommand", "Security record storage", "CanChangeAuditRetentionNative", "Refresh security record settings" },
         { "GetManualCallStatusCommand", "Manual call mode", null, "Show last known call status" },
@@ -179,7 +179,7 @@ public sealed class SettingsResetMenuTests
             .Should().Be(44);
         elements.Where(element => element.Name.LocalName is nameof(SettingActionsButton))
             .Select(element => AssistantNameXaml.Resolve(element.Attribute("SettingName")?.Value)).Should().Contain(
-                ["Ordinary task deadline", "Ordinary conversation execution maximum",
+                ["Ordinary turn check-in interval", "Ordinary conversation execution maximum",
                     "Scheduled proactive speech quiet hours", "Detailed result offers"]);
         foreach (var binding in bindings)
         {

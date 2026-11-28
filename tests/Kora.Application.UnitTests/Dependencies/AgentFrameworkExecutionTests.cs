@@ -733,6 +733,37 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
         f.Invocations.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OrdinaryConversationQuestionRequiresNativeCorrelationBeforeCallingTheHost(bool correlated)
+    {
+        await using var f = new Fixture(1, 2, version: 2, mode: ModelToolMode.InteractiveConversation);
+        SetQuestion(f, correlated);
+        var asks = 0;
+        using var bridge = f.CreateBridge(ask: (question, _) =>
+        {
+            asks++;
+            return Task.FromResult(new ModelQuestionAnswerMessage(question, new(["option-1"]), RequestOrigin.LocalUi));
+        });
+        using var functions = new ModelChatMessageProjection.QuestionContinuationClient(bridge)
+        { MaximumConsecutiveErrorsPerRequest = 0, AdditionalTools = bridge.QuestionTools };
+        var run = () => functions.GetResponseAsync([new(ChatRole.User, "Original task")], new() { Tools = bridge.Tools }, Token);
+        if (correlated)
+        {
+            (await run()).Text.Should().Be("Exact final answer.");
+            f.Transport.Requests.Should().HaveCount(2);
+        }
+        else
+        {
+            (await run.Should().ThrowAsync<AgentFrameworkModelChatClient.TurnStoppedException>())
+                .Which.Reason.Should().Be(ModelTurnReason.InvalidProviderResponse);
+            f.Transport.Requests.Should().ContainSingle();
+        }
+        asks.Should().Be(correlated ? 1 : 0);
+        f.Invocations.Should().BeEmpty();
+    }
+
     private static void SetQuestion(Fixture fixture, bool correlated, bool exhaustOutput = false)
     {
         fixture.Transport.Messages = [Answer, Answer];
@@ -923,13 +954,13 @@ public sealed class AgentFrameworkExecutionTests : IDisposable
         internal Func<ModelTurnReason> Validate { get; set; } = () => ModelTurnReason.None;
         internal Func<CancellationToken, ValueTask<CapabilityReply>> Tool { get; set; } = _ => ValueTask.FromResult(Version());
 
-        internal Fixture(int calls, int rounds, int deadline = 15000, bool local = true, int version = 1)
+        internal Fixture(int calls, int rounds, int deadline = 15000, bool local = true, int version = 1, ModelToolMode? mode = null)
         {
             var request = HostRequest.Create(RequestOrigin.LocalUi);
             Provenance = new(new(Guid.NewGuid()), request, local ? ModelProviderSelection.OllamaCandidate : ModelProviderSelection.CopilotCandidate);
             envelope = new(request, "Exact captured agent instructions", "Original task",
                 [new(new(Guid.NewGuid()), request, new(1), "Already-consented shared skill guidance", ModelEvidenceDisclosure.LocalOnly)],
-                Time.Now, Time.Now.AddMinutes(1), calls == 0 ? ModelToolMode.None : ModelToolMode.ReadOnly,
+                Time.Now, Time.Now.AddMinutes(1), mode ?? (calls == 0 ? ModelToolMode.None : ModelToolMode.ReadOnly),
                 new(version, calls == 0 ? [] : [ReadOnlyCapabilityCatalog.Version], calls, rounds, 32768, 4096, deadline));
             Adapter = new(Transport, Time, NullLogger<BoundedModelTurnAdapter>.Instance);
         }

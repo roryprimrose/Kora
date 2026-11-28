@@ -68,7 +68,8 @@ public sealed class McpCapabilityPreferences(ArtifactUsePreferences preferences,
         { return context; }
         var ids = context.Tools.Where(tool => IsToolEnabled(KoraMcpCatalog.ServerId, tool.Id))
             .Select(tool => tool.Id).ToImmutableArray();
-        if (context.ToolMode == ModelToolMode.InteractiveConversation && ids.IsEmpty)
+        if (context.ToolMode == ModelToolMode.InteractiveConversation && ids.IsEmpty
+            && !IsToolEnabled(KoraMcpCatalog.ServerId, ModelToolProtocol.AskUserToolName))
         {
             var limits = context.Constraints;
             var noTools = new ModelTurnConstraints(2, [], 0, 1,

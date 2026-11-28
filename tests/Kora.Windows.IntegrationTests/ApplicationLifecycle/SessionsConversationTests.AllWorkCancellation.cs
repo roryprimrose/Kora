@@ -154,6 +154,9 @@ public sealed partial class SessionsConversationTests
         public void Post(Action action) => action();
     }
 
+    // A lost signal or an unjoined stop must fail this test, not hold its serial UI partition indefinitely.
+    private static readonly TimeSpan StopAllSignalBound = TimeSpan.FromSeconds(30);
+
     [Theory]
     [InlineData("typed", "confirm")]
     [InlineData("native", "confirm")]
@@ -183,7 +186,7 @@ public sealed partial class SessionsConversationTests
             sessions.Show();
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var native = new NativeUxFixtureSession(parent);
+            using var native = new NativeUxFixtureSession(parent, bufferedEvidence: true);
             await native.InitializeAsync();
             using var questions = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
             questions.BindGate(() => native.Main.CanRevealPrivatePresentation);
@@ -208,7 +211,7 @@ public sealed partial class SessionsConversationTests
                 var otherTarget = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
                 var seed = await composed.Conversation.SubmitQueuedAsync(otherTarget, "establish an ordinary failure hold",
                     () => true, f.Token);
-                var seedInvocation = await adapter.NextAsync();
+                var seedInvocation = await adapter.NextAsync().WaitAsync(StopAllSignalBound, f.Token);
                 seedInvocation.Completion.SetResult(new(ModelTurnOutcome.Denied, seedInvocation.Provenance.Selection, null));
                 await seed.Completion;
                 await model.RefreshAsync();
@@ -216,7 +219,7 @@ public sealed partial class SessionsConversationTests
                 model.ComposerBody = "running original outside the foreground session";
                 sessions.FindControl<Button>("SubmitConversation")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 first = sessions.ConversationOperation;
-                var running = await adapter.NextAsync();
+                var running = await adapter.NextAsync().WaitAsync(StopAllSignalBound, f.Token);
                 await WhenModelAsync(model, () => model.CanCompose && !model.ComposerDirty);
                 model.ComposerBody = "pending original outside any loaded overview page";
                 sessions.FindControl<Button>("SubmitConversation")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -237,7 +240,12 @@ public sealed partial class SessionsConversationTests
                     overview.FindControl<Button>("StopAllSubmittedWork")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     operation = all.StopAllOperation;
                 }
-                var question = await opened.Task.WaitAsync(f.Token);
+                var question = await opened.Task.WaitAsync(StopAllSignalBound, f.Token);
+                // The platform activates the shown review in a later dispatcher job, and activation starts the question's own
+                // target refresh. Its gestures are refused until that settles (NativeQuestionViewModel.DecideAsync).
+                await QuestionWindowActivated(question, f.Token).WaitAsync(StopAllSignalBound, f.Token);
+                await NoticeQuestionReady(question.GetLogicalDescendants().OfType<QuestionView>().Single().State, f.Token)
+                    .WaitAsync(StopAllSignalBound, f.Token);
                 question.FindControl<TextBlock>("TargetLabel")!.Text.Should()
                     .Contain("stop-all-work/host-stop-all-work").And.Contain("LocalUi");
                 question.Owner!.GetLogicalDescendants().OfType<TextBlock>().Select(item => item.Text)
@@ -270,13 +278,13 @@ public sealed partial class SessionsConversationTests
                     try
                     {
                         question.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                        await stopping.Task.WaitAsync(f.Token);
+                        await stopping.Task.WaitAsync(StopAllSignalBound, f.Token);
                         operation.IsCompleted.Should().BeFalse("the noncooperative provider has not physically joined");
                         first.IsCompleted.Should().BeFalse();
                         closed.Should().Be(0);
                         if (decision is "close-joining") { overview.Close(); }
                         running.Release();
-                        await operation;
+                        await operation.WaitAsync(StopAllSignalBound, f.Token);
                     }
                     finally { composed.Conversation.RunningConversationChanged -= Changed; }
                     cancellingNotifications.Should().BeGreaterThan(1, "the observer remains attached through terminal completion");
@@ -300,7 +308,7 @@ public sealed partial class SessionsConversationTests
                         if (decision is "stale") { composed.Access.ControlRevision++; }
                         question.FindControl<Button>("CancelQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     }
-                    await operation;
+                    await operation.WaitAsync(StopAllSignalBound, f.Token);
                     first.IsCompleted.Should().BeFalse();
                     adapter.Calls.Should().Be(2);
                     if (decision is not "dispose")

@@ -157,13 +157,22 @@ public sealed class CopilotAccountBrokerTests : IDisposable
         internal int Starts { get; private set; }
         internal CopilotClientOptions? Options { get; private set; }
         internal FakeClient Client { get; } = new();
-        internal TimeProvider Time { get; } = new FixedTime();
-        private readonly CopilotDeploymentApproval deployment = new(@"Q:\owned\copilot.exe", @"Q:\owned\work",
-            @"Q:\owned\state", new Dictionary<string, string>(StringComparer.Ordinal), DateTimeOffset.UnixEpoch.AddHours(1));
+        internal FixedTime Time { get; } = new();
+        internal List<SecurityAuditEvent> Audits { get; } = [];
+        internal Func<SecurityAuditEvent, bool>? FailWrite { get; set; }
+        internal DateTimeOffset ApprovalExpiresAt { get; init; } = DateTimeOffset.UnixEpoch.AddHours(1);
+        private CopilotDeploymentApproval? deployment;
+        private CopilotDeploymentApproval Deployment => deployment ??= new(@"Q:\owned\copilot.exe", @"Q:\owned\work",
+            @"Q:\owned\state", new Dictionary<string, string>(StringComparer.Ordinal), ApprovalExpiresAt);
         internal CopilotAccountBroker Create() => new(this, Time, this, options =>
         { Starts++; Options = options; return Client; }, NullLogger<CopilotAccountBroker>.Instance);
-        public ValueTask<CopilotDeploymentApproval?> ResolveAsync(CancellationToken token) => ValueTask.FromResult(Approved ? deployment : null);
-        public void Write(SecurityAuditEvent auditEvent) => HostActivity.RequireCurrent();
+        public ValueTask<CopilotDeploymentApproval?> ResolveAsync(CancellationToken token) => ValueTask.FromResult(Approved ? Deployment : null);
+        public void Write(SecurityAuditEvent auditEvent)
+        {
+            HostActivity.RequireCurrent();
+            if (FailWrite?.Invoke(auditEvent) == true) { throw new IOException("Synthetic audit unavailable"); }
+            Audits.Add(auditEvent);
+        }
     }
     internal sealed class FakeClient : ICopilotSdkClient
     {
@@ -181,8 +190,9 @@ public sealed class CopilotAccountBrokerTests : IDisposable
         public Task StopAsync() { Stops++; Stopped.TrySetResult(); return Task.CompletedTask; }
         public ValueTask DisposeAsync() { Disposals++; return ValueTask.CompletedTask; }
     }
-    private sealed class FixedTime : TimeProvider
+    internal sealed class FixedTime : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch;
+        internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 }

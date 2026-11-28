@@ -340,6 +340,37 @@ Restart recovers that dispatched task as Unknown with no answer/replay. Intent-o
 legacy recovery remains Interrupted. Late output cannot append an answer or release
 an unquiesced provider slot prematurely.
 
+### Running-turn check-ins - 2026-11-28
+
+Ordinary conversation turns, local or hosted, have no whole-turn time limit
+([decision](Decision_Register.md#turn-lifetime-check-ins---2026-11-28)). After
+each check-in interval of active time (`work.active-deadline-minutes`, default
+five minutes) the running-turn status in that session shows one check-in card:
+**Keep going for another interval**, **Keep going for these minutes** (1-60),
+**Keep running until done** or **Stop this turn**. The turn keeps running and
+publishing provisional output while the card is open; nothing waits for it.
+Typed or activated-voice replies `keep going`, `keep going for 10 minutes`,
+`keep going until done` and `stop this turn` answer the single current
+check-in after an exact readback, under the protected-call spoken-approval
+policy ([voice route](../src/Kora.Application/ViewModels/MainViewModel.TurnCheckIns.cs)).
+Several pending check-ins or a withdrawn target refuse the reply.
+
+The card is a volatile host-owned observation on
+[ConversationExecutionStatus](../src/Kora.Core/Conversation/ConversationExecutionStatus.cs),
+not a persisted question, approval or grant. It never occupies the single modal
+native question slot, so in-turn permission cards remain available. Each answer
+names the exact running turn and check-in; stale or repeated answers refuse.
+Stop uses the ordinary audited running-conversation cancellation, joins owned
+resources and retains a truthful terminal outcome. An unanswered check-in
+closes when the turn ends. Issuance and answers use trusted typed audit; without
+it the turn stops instead of running without a check-in
+([owner](../src/Kora.Application/Hosting/OrdinaryTurnCheckIns.cs),
+[regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.CheckIns.cs)).
+A request or routing review window bounds confirmation only until the exact work
+is accepted or dispatched; the accepted turn then runs on its own clock, and its
+reviewed one-task output stays current with that clock. Session, control,
+source and cancellation checks still apply throughout.
+
 Schema 12 [migrates the message revision constraint](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationExecution.cs)
 transactionally from schema 11 to admit terminal revision 3; exact legacy schema,
 integrity and authority are validated before replacement. It retains every

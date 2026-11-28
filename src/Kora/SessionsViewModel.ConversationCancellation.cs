@@ -210,6 +210,7 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(CanCancelRunningConversation));
         OnPropertyChanged(nameof(ProvisionalAnswer));
         OnPropertyChanged(nameof(HasProvisionalAnswer));
+        NotifyTurnCheckIn();
         NotifyPendingConversation();
     }
 }

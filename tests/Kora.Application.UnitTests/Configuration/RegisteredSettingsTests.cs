@@ -77,7 +77,7 @@ public sealed class RegisteredSettingsTests
         descriptor.RequiresNativeReview.Should().BeTrue();
         descriptor.Minimum.Should().Be(1);
         descriptor.Maximum.Should().Be(60);
-        RegisteredSettingSuggestions.ModelPolicy.Should().Contain("No deadline undo").And.Contain("earlier provider/tool ceilings");
+        RegisteredSettingSuggestions.ModelPolicy.Should().Contain("No deadline undo").And.Contain("ordinary-turn check-in interval");
     }
 
     [Theory]

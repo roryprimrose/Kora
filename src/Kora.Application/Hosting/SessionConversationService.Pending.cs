@@ -57,6 +57,8 @@ public sealed partial class SessionConversationService
         internal TaskResponseOutputReview? Output;
         internal DateTimeOffset OutputCreatedAt;
         internal DateTimeOffset OutputExpiresAt;
+        // The executing turn's clock: paused host waits and check-ins extend output freshness like its context.
+        internal ModelTurnLifetime? OutputLifetime;
         internal long OutputControlRevision;
     }
 

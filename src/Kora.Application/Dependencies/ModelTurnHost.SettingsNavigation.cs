@@ -18,7 +18,7 @@ public sealed partial class ModelTurnHost
         bool Current() => !disposed && turn.IsRunning && host.IsCurrentHost && access.CanControl && access.CanInspect
             && turn.Provenance.Request.InvocationId is null
             && turn.Provenance.Request.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice
-            && access.ControlRevision == turn.ControlRevision && time.GetUtcNow() < turn.Context.ExpiresAt
+            && access.ControlRevision == turn.ControlRevision && turn.ContextCurrent(time)
             && ReferenceEquals(navigate, Volatile.Read(ref settingsNavigation)) && !token.IsCancellationRequested;
         if (!Current())
         { return new(CapabilityOutcome.Denied, "settings-navigation-source-not-admitted"); }

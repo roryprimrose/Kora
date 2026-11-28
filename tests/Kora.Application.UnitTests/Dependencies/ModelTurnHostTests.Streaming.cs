@@ -109,7 +109,6 @@ public sealed partial class ModelTurnHostTests
     [InlineData("owner")]
     [InlineData("generation")]
     [InlineData("metadata")]
-    [InlineData("expiry")]
     public async Task LocalAnswerRevalidatesSourcePrivacyOwnerGenerationAndMetadataBeforeEveryPublication(string fault)
     {
         using var f = new Fixture();
@@ -134,10 +133,9 @@ public sealed partial class ModelTurnHostTests
             case "owner": f.Current = false; break;
             case "generation": f.Session = f.Session with { Generation = new(2) }; break;
             case "metadata": f.Metadata = new(f.Session.SessionId, new(1), new("changed")); break;
-            case "expiry": f.Time.Now += TimeSpan.FromMinutes(1); break;
         }
         transport.Release.TrySetResult();
-        if (fault is "owner" or "expiry")
+        if (fault is "owner")
         {
             var receipt = await submission;
             receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);

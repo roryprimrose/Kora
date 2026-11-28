@@ -22,6 +22,7 @@ internal sealed class CopilotModelProviderFactory(OllamaModelProviderFactory loc
             ModelQualificationGate.DotNetFinalRequest | (account.IsEvaluation
                 ? ModelQualificationGate.UserReviewedCopilotEvaluation : ModelQualificationGate.AllPathLifecycle)
                 | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost,
-            account.ExpiresAt, new CopilotModelTurnAdapter(runtime, reviews), () => account.ExpiresAt > time.GetUtcNow());
+            // The live account lease governs; a running turn's audited renewal extends it in place.
+            DateTimeOffset.MaxValue, new CopilotModelTurnAdapter(runtime, reviews), () => account.ExpiresAt > time.GetUtcNow());
     }
 }

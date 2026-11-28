@@ -84,6 +84,49 @@ public sealed partial class CopilotAccountBroker : ICopilotExecutionAccountSourc
 
     private void RevokeCore() { accounts.Clear(); catalogue = null; deployment = null; }
 
+    /// <summary>
+    /// Audited in-place revalidation for one running host turn: extends the same published accounts and catalogue
+    /// by at most five minutes, never past the deployment approval, without re-authentication, catalogue revision
+    /// change or new egress. Returns <see langword="false"/> when nothing can be extended.
+    /// </summary>
+    public async ValueTask<bool> RenewAsync(CopilotExecutionAccount expected, CancellationToken token)
+    {
+        var issuer = HostActivity.Current;
+        var approved = await deployments.ResolveAsync(token).ConfigureAwait(false);
+        lock (stateGate)
+        {
+            var now = time.GetUtcNow();
+            if (disposed || heldClient is not null || issuer is null || issuer.Activity!.IsStopped
+                || approved is null || !ReferenceEquals(approved, deployment) || approved.ExpiresAt <= now
+                || catalogue is not { } current || !current.IsCurrent(now)
+                || !accounts.Values.Any(item => ReferenceEquals(item, expected)))
+            { return false; }
+            var expires = now.AddMinutes(5) < approved.ExpiresAt ? now.AddMinutes(5) : approved.ExpiresAt;
+            if (expires <= current.ValidUntil) { return false; }
+            var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval,
+                "model.copilot.lease-renew", SecurityAuditOutcome.Requested, SecurityAuditInitiator.System,
+                issuer.Request.TaskId.Value.ToString("D"));
+            audit.Write(requested);
+            var previous = current.ValidUntil;
+            Extend(current, expires);
+            try { audit.Write(requested.WithOutcome(SecurityAuditOutcome.Succeeded)); }
+            catch
+            {
+                // An unconfirmed renewal receipt cannot extend authority.
+                Extend(catalogue!, previous);
+                throw;
+            }
+            return true;
+        }
+    }
+
+    private void Extend(ProviderCapabilityCatalogue current, DateTimeOffset expires)
+    {
+        catalogue = new(current.Service, current.Status, current.Account, current.Revision, current.ObservedAt,
+            expires, current.Models);
+        foreach (var account in accounts.Values) { account.Renew(expires); }
+    }
+
     public async Task RefreshAsync(Func<bool> eligible, CancellationToken token)
     {
         _ = await ObserveAsync(token).ConfigureAwait(false);

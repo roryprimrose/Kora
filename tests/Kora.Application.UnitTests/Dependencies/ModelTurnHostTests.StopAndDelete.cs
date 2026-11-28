@@ -143,8 +143,9 @@ public sealed partial class ModelTurnHostTests
         else
         {
             await submission;
-            f.Retained!.Outcome.Should().Be(fault is "expired" or "clock-back"
-                ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded);
+            f.Retained!.Outcome.Should().Be(fault is "clock-back"
+                ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded,
+                "an expired stop-and-delete review does not expire the running ordinary turn, which keeps check-ins");
         }
     }
 

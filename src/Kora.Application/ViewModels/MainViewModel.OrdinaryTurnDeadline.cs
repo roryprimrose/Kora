@@ -17,7 +17,7 @@ public sealed partial class MainViewModel
     private bool ordinaryDeadlineControlActive;
     private long ordinaryDeadlineControlRevision;
     private int selectedOrdinaryDeadlineMinutes = OrdinaryTurnDeadline.DefaultMinutes;
-    private string ordinaryDeadlineStatus = "Refresh to review the future ordinary task deadline.";
+    private string ordinaryDeadlineStatus = "Refresh to review the ordinary turn check-in interval.";
 
     public int SelectedOrdinaryDeadlineMinutes
     {
@@ -87,10 +87,10 @@ public sealed partial class MainViewModel
             if (!Eligible()) { throw new InvalidOperationException("Deadline readback admission changed."); }
             ordinaryDeadlineObservation = observation;
             SelectedOrdinaryDeadlineMinutes = observation.Effective.Minutes;
-            OrdinaryDeadlineStatus = $"Future ordinary task deadline: {observation.Effective.Minutes} minutes "
+            OrdinaryDeadlineStatus = $"Ordinary turn check-in interval: {observation.Effective.Minutes} minutes "
                 + (observation.Saved is null ? "(default). " : "(saved). ")
-                + "Running turns are unchanged. Earlier context expiry and fixed provider/tool limits always win. "
-                + "Clarification and approval turns retain their existing fixed limits.";
+                + "Running turns are unchanged. Ordinary turns keep running and check in after each interval of active time. "
+                + "Clarification turns retain their existing fixed limits.";
             Transcript = OrdinaryDeadlineStatus;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException
@@ -98,7 +98,7 @@ public sealed partial class MainViewModel
         {
             ordinaryDeadlineObservation = null;
             OrdinaryDeadlineStatus = "Future task deadline unavailable: " + exception.Message;
-            ApplicationLog.Error(logger, exception, "Configuring future ordinary task deadline");
+            ApplicationLog.Error(logger, exception, "Configuring ordinary turn check-in interval");
             ShowFailure("Task deadline not confirmed.", exception.Message);
         }
         finally

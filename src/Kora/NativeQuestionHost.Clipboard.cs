@@ -64,8 +64,8 @@ internal sealed partial class NativeQuestionHost
             current = opened;
             Interlocked.Exchange(ref currentFocusRevision, Interlocked.Read(ref focusRevision));
             await present(opened);
-            var remaining = proposal.ExpiresAt - time.GetUtcNow();
-            using var deadline = new CancellationTokenSource(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, time);
+            // An until-answered card has no deadline; it retires only on answer, cancellation or lost ownership.
+            using var deadline = new CancellationTokenSource(HostInteractionLifetime.Remaining(proposal.ExpiresAt, time.GetUtcNow()), time);
             using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
             var completed = await opened.Completion.WaitAsync(cancellation.Token);
             if (!Eligible() || completed is not { Outcome: HostInteractionOutcome.Approved, Grant: { } grant })

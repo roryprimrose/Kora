@@ -1,6 +1,7 @@
 using Kora.Application.Dependencies;
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
@@ -36,17 +37,18 @@ public sealed partial class SessionConversationService
         RequireOriginalSource(origin);
         var revision = access.ControlRevision;
         bool Live() => access.CanControl && access.ControlRevision == revision && admitted();
-        bool Current()
-        {
-            var now = time.GetUtcNow();
-            return Live() && now >= target.CreatedAt && now < target.ExpiresAt;
-        }
         ConversationCancellationLease running;
         lock (cancellationGate)
         {
             if (!runningConversations.TryGetValue(target.Request.SessionId, out var found) || found.Target != target)
             { throw new InvalidOperationException("Only the exact observed running conversation can be cancelled."); }
             running = found;
+        }
+        bool Current()
+        {
+            var now = time.GetUtcNow();
+            return Live() && now >= target.CreatedAt
+                && now < (running.Lifetime?.Extend(target.ExpiresAt) ?? target.ExpiresAt);
         }
         var control = new HostRequest(new(Guid.NewGuid()), target.Request.SessionId, target.Request.TaskId, origin);
         using var activity = HostActivity.BeginRoot(control, HostActivityLayer.Application, HostOperation.Request, [running.Link]);
@@ -99,13 +101,13 @@ public sealed partial class SessionConversationService
     {
         var identity = new ConversationCancellationTarget(Guid.NewGuid(), turn.Provenance.Request,
             target.Authority.Generation, turn.TaskRevision, turn.Context.CreatedAt, turn.Context.ExpiresAt);
-        var lease = RegisterRunningConversation(identity, live, token);
+        var lease = RegisterRunningConversation(identity, live, token, turn.Lifetime);
         turn.AuthorityRetired = () => RunningConversationChanged?.Invoke(lease.Status);
         return lease;
     }
 
     private ConversationCancellationLease RegisterRunningConversation(ConversationCancellationTarget identity,
-        Func<bool> live, CancellationToken token)
+        Func<bool> live, CancellationToken token, ModelTurnLifetime? lifetime = null)
     {
         lock (cancellationGate)
         {
@@ -116,7 +118,7 @@ public sealed partial class SessionConversationService
                 throw new InvalidOperationException("The exact session already owns a running conversation.");
             }
             var lease = new ConversationCancellationLease(identity, live, status => RunningConversationChanged?.Invoke(status),
-                new(HostActivity.RequireCurrent().Activity!.Context), token);
+                new(HostActivity.RequireCurrent().Activity!.Context), token, lifetime);
             runningConversations.Add(identity.Request.SessionId, lease);
             return lease;
         }

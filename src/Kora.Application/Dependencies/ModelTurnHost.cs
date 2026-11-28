@@ -193,11 +193,12 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                     else
                     {
                         turn = new(owner, issuer, provenance, context, wire, session.Authority.Generation, task!.Task.Revision,
-                            revision, registration);
+                            revision, registration, time);
                         CaptureCapabilityUse(turn);
                         if (hostedAuthorization is not null)
                         {
                             var boundTurn = turn;
+                            hostedAuthorization.Lifetime = turn.Lifetime;
                             turn.Registration = registration with
                             {
                                 Adapter = BindHosted(registration.Adapter!, hostedAuthorization, token => HostedCurrentAsync(boundTurn, token)),
@@ -249,18 +250,16 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Runtime);
         Tag(turn.Provenance);
         var requested = StartAudit(turn.Provenance);
-        var remaining = turn.OrdinaryActiveBudget?.Remaining ?? RuntimeDeadline(turn);
-        using var deadline = new CancellationTokenSource(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, time);
+        // Host waits pause this deadline; check-in turns have none and are governed by user check-ins instead.
+        using var lifetimeScope = ModelTurnLifetime.Enter(turn.Lifetime);
+        using var deadline = new ModelTurnDeadline(turn.Lifetime, RuntimeDeadline(turn), time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token, lifetime.Token,
             turn.ResourceLease?.Evidence?.Revoked ?? CancellationToken.None);
         ModelTurnResult result;
         try
         {
-            if (turn.OrdinaryActiveBudget?.Expired == true) { await deadline.CancelAsync().ConfigureAwait(false); }
             result = await ExecuteAsync(turn, linked.Token).ConfigureAwait(false);
-            if (result.Outcome == ModelTurnOutcome.Succeeded && deadline.IsCancellationRequested
-                || turn.OrdinaryActiveBudget?.Expired == true
-                    && (result.Outcome == ModelTurnOutcome.Succeeded || result.Reason == ModelTurnReason.DeadlineExceeded))
+            if (result.Outcome == ModelTurnOutcome.Succeeded && deadline.IsCancellationRequested)
             { result = Finish(ModelTurnOutcome.TimedOut, ModelTurnReason.DeadlineExceeded, turn.Provenance); }
         }
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
@@ -405,7 +404,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ? turn.Context.ToolMode == ModelToolMode.ApplicationMaintenance && maintenance is not null
                 ? await maintenance.InvokeAsync(id, input,
                     () => !disposed && turn.IsRunning && host.IsCurrentHost && access.CanControl && access.CanInspect
-                        && access.ControlRevision == turn.ControlRevision && time.GetUtcNow() < turn.Context.ExpiresAt,
+                        && access.ControlRevision == turn.ControlRevision && turn.ContextCurrent(time),
                     toolToken).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "maintenance-mcp-unavailable")
             :
@@ -499,9 +498,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         { return ModelTurnReason.QualificationPending; }
         if (!ConsumerAdmissionCurrent(turn) || !CapabilityUseCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         if (turn.Policy is { } policy && !IsCurrentPolicy(policy)) { return ModelTurnReason.PolicyChanged; }
-        var reason = ContextReason(turn.Context, turn.Provenance.Request);
+        var reason = ContextReason(turn.Context, turn.Provenance.Request, turn.Lifetime);
         if (reason != ModelTurnReason.None) { return reason; }
-        if (turn.OrdinaryActiveBudget?.Expired == true) { return ModelTurnReason.DeadlineExceeded; }
         if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn) || !CapabilityUseCurrent(turn))
         { return ModelTurnReason.HostAdmissionClosed; }
         var session = await workspace.ReadMetadataAsync(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
@@ -518,9 +516,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         {
             return ModelTurnReason.SessionNotAdmitted;
         }
-        reason = ContextReason(turn.Context, turn.Provenance.Request);
+        reason = ContextReason(turn.Context, turn.Provenance.Request, turn.Lifetime);
         if (reason != ModelTurnReason.None) { return reason; }
-        if (turn.OrdinaryActiveBudget?.Expired == true) { return ModelTurnReason.DeadlineExceeded; }
         if (turn.Issuer.Activity!.IsStopped || turn.Issuer.Outcome != HostOperationOutcome.Unknown)
         {
             return ModelTurnReason.HostContextRequired;
@@ -535,10 +532,12 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         task is not null && task.CurrentSource && task.Generation == generation
         && task.Task.Request == request && !task.Task.IsTerminal;
 
-    private ModelTurnReason ContextReason(ModelContextEnvelope? context, HostRequest request) =>
+    private ModelTurnReason ContextReason(ModelContextEnvelope? context, HostRequest request,
+        ModelTurnLifetime? turnLifetime = null) =>
         context is null ? ModelTurnReason.ContextMissing
         : context.Request != request ? ModelTurnReason.ContextMismatch
-        : time.GetUtcNow() < context.CreatedAt || time.GetUtcNow() >= context.ExpiresAt
+        : time.GetUtcNow() < context.CreatedAt
+            || time.GetUtcNow() >= (turnLifetime?.Extend(context.ExpiresAt) ?? context.ExpiresAt)
             ? ModelTurnReason.ContextExpired : ModelTurnReason.None;
 
     private static bool ValidResponse(LocalModelResponse? response) =>

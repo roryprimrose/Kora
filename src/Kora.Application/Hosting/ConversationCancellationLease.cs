@@ -8,7 +8,8 @@ namespace Kora.Application.Hosting;
 
 internal sealed class ConversationCancellationLease(
     ConversationCancellationTarget target, Func<bool> admitted,
-    Action<ConversationExecutionStatus> publish, ActivityLink link, CancellationToken caller) : IAsyncDisposable
+    Action<ConversationExecutionStatus> publish, ActivityLink link, CancellationToken caller,
+    ModelTurnLifetime? lifetime = null) : IAsyncDisposable
 {
     private readonly Lock gate = new();
     private readonly CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(caller);
@@ -18,6 +19,7 @@ internal sealed class ConversationCancellationLease(
     private HostTaskState? taskState;
     private ConversationExecutionProgress progress = new(ConversationExecutionStep.GeneratingAnswer, 0, 0);
     private ConversationResourceStatus? resources;
+    private ConversationCheckIn? checkIn;
     private bool accepted;
     private Task signal = Task.CompletedTask;
     private readonly TaskCompletionSource<ConversationExecutionStatus> physicalCompletion =
@@ -25,6 +27,9 @@ internal sealed class ConversationCancellationLease(
 
     internal ConversationCancellationTarget Target { get { lock (gate) { return currentTarget; } } }
     internal ActivityLink Link => link;
+    /// <summary>The running turn's clock; host waits and check-ins extend the observed target's freshness.</summary>
+    internal ModelTurnLifetime? Lifetime => lifetime;
+    internal OrdinaryTurnCheckIns? CheckIns { get; set; }
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
         Justification = "Observes this host-owned lease's asynchronously signalled physical completion, never UI-affine work.")]
     internal Task<ConversationExecutionStatus> JoinPhysicalCompletionAsync() => physicalCompletion.Task;
@@ -51,9 +56,16 @@ internal sealed class ConversationCancellationLease(
             lock (gate)
             {
                 return new(currentTarget, phase, outcome, taskState,
-                    phase == ConversationExecutionPhase.Running ? progress : null, resources);
+                    phase == ConversationExecutionPhase.Running ? progress : null, resources,
+                    phase == ConversationExecutionPhase.Running ? checkIn : null);
             }
         }
+    }
+
+    internal void PresentCheckIn(ConversationCheckIn? observation)
+    {
+        lock (gate) { checkIn = observation; }
+        publish(Status);
     }
 
     internal void PresentResources(ConversationResourceStatus observation)

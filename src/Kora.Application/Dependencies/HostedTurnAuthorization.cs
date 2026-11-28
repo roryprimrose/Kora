@@ -16,6 +16,11 @@ public abstract class HostedTurnAuthorization
     internal HostActivity Issuer { get; }
     internal ModelContextEnvelope Context { get; }
     internal int Used;
+    /// <summary>The admitted turn's clock; set once by the host when it binds this authorization to that turn.</summary>
+    internal ModelTurnLifetime? Lifetime { get; set; }
+    internal bool ContextCurrent(TimeProvider time) =>
+        Context.CreatedAt <= time.GetUtcNow()
+        && time.GetUtcNow() < (Lifetime?.Extend(Context.ExpiresAt) ?? Context.ExpiresAt);
     internal (Kora.Core.Storage.ISessionPermissionStore Store,
         Kora.Core.Authorization.SessionPermission.SessionPermissionPolicy Policy)? AutomaticPermission { get; set; }
     public ProviderProfileTuple Profile { get; }

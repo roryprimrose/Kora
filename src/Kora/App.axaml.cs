@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 
 using Avalonia;
 using Avalonia.Controls;
@@ -156,6 +156,8 @@ public sealed partial class App : Avalonia.Application
                     Services.GetRequiredService<ILogger<Kora.Application.Interaction.HostQuestionVoiceReplyService>>()));
             nativeQuestions.BindWorkspace(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
             viewModel.BindSpokenToolApprovals(nativeQuestions.CaptureSpokenToolApprovals);
+            viewModel.BindTurnCheckIns(Kora.Application.ViewModels.MainViewModel.TurnCheckInPort.For(
+                Services.GetRequiredService<Kora.Application.Hosting.SessionConversationService>()));
             viewModel.BindDetailsOfferPriority(() => !nativeQuestions.IsWaiting);
             nativeQuestions.BindPrivateRevision(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().ControlRevision);
             nativeQuestions.BindClipboardAnswers(model => new QuestionClipboardAnswer(model,

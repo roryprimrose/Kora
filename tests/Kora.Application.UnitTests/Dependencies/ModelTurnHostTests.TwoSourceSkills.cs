@@ -55,7 +55,7 @@ public sealed partial class ModelTurnHostTests
                 next.Binding.ImplementationDigest, next.Binding.InvocationDigest, next.Binding.ResourceDigest,
                 next.Binding.IdentityDigest, next.Binding.DestinationDigest, next.Binding.TransformationDigest, next.Binding.PolicyRevision) : next.Binding,
             fault is "effect" ? HostOperationEffect.BoundedWrite : next.Effect,
-            fault is "expiry" ? next.ExpiresAt.AddTicks(1) : next.ExpiresAt);
+            fault is "expiry" ? next.ExpiresAt.AddTicks(-1) : next.ExpiresAt);
         store.ReplaceProposal(fault is "missing" ? null : other);
         if (fault is "revoked") { store.Revoke(); }
         await first.Invoking(value => value.ValidateAsync(Token)).Should().ThrowAsync<InvalidOperationException>();
@@ -248,6 +248,31 @@ public sealed partial class ModelTurnHostTests
         loop.IsQuiescent.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task TwoSourceSecondPageStaysAdmittedAfterAFirstApprovalCardOutlastsTheFixedContextWindow()
+    {
+        using var f = new Fixture();
+        await using var skill = new SharedSkillHarness(f);
+        await skill.Register();
+        DeclareWebTool(skill);
+        var transport = new ToolTransport(PageCall, SecondPageCall, ComparisonAnswer);
+        await using var loop = CreateLoop(f, transport);
+        // The first card stays open for twice the 15-second context window; open cards pause every turn clock.
+        var approvals = new TwoPageApprovals(f) { FirstReview = TimeSpan.FromSeconds(30) };
+        var network = new PageNetwork();
+        var workflow = skill.ToolWorkflow(adapter: loop, network: network, approval: approvals);
+        using var review = await workflow.ReviewAsync(skill.Reader.Source, skill.Reader.Snapshot(), new(f.Session, null),
+            skill.Eligible, RequestOrigin.LocalUi, Token);
+        await workflow.EnableAsync(review, skill.Eligible, RequestOrigin.LocalUi, Token);
+        using var invocation = await workflow.PrepareAsync(review, "Compare the two explicit sources.", TwoSources,
+            skill.Eligible, RequestOrigin.LocalUi, Token);
+        var receipt = await workflow.InvokeAsync(invocation, skill.Eligible, approvals.Present, Token);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        network.Sends.Should().Be(2);
+        approvals.Shared.Presentations.Should().Be(2);
+        loop.IsQuiescent.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData("source")]
     [InlineData("registration")]
@@ -330,11 +355,13 @@ public sealed partial class ModelTurnHostTests
     {
         internal PageApprovalStore Shared { get; } = new(f) { KeepPrevious = true };
         internal int DenyAt { get; init; }
+        internal TimeSpan FirstReview { get; init; }
 
         internal Task<WebPageApprovalPresentation> Present(HostOperationProposal proposal, HostRevision generation,
             Uri address, Func<bool> admitted, CancellationToken token)
         {
             Shared.Fault = Shared.Presentations + 1 == DenyAt ? "deny" : null;
+            if (Shared.Presentations == 0) { f.Time.Now += FirstReview; }
             return Shared.Present(proposal, generation, address, admitted, token);
         }
 

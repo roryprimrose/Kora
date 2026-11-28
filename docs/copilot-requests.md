@@ -55,7 +55,11 @@ Approve all session level also writes its typed session audit. Stale authority,
 privacy loss or cancellation stops the send. Account setup and model selection
 alone never send content.
 
-The whole turn has a two-minute deadline. Successful bounded
+Ordinary Copilot requests have no whole-turn time limit: after each
+[check-in interval](settings.md#check-ins-while-a-turn-runs) Kora asks whether
+to keep going, and the turn keeps running meanwhile. While the turn runs, Kora renews the account lease
+in place only while the same approved deployment remains current; each renewal
+is audited and no content is sent for it. Successful bounded
 answers are retained as ASSISTANT data in the same conversation; failed or
 denied turns retain no assistant answer. Provisional answer prefixes from the
 SDK are volatile: cancellation or changed authority invalidates them, and only

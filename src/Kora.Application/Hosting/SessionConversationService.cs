@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 
 using Kora.Application.Dependencies;
 using Kora.Core.Authorization;
@@ -63,14 +63,14 @@ public sealed partial class SessionConversationService(
 
     public async Task<ConversationSubmissionReceipt> SubmitPermissionBoundAsync(SessionWorkspaceEntry target, string body,
         SessionPermissionPolicy expected, Func<bool> admitted, CancellationToken token,
-        Func<CancellationToken, Task>? beforeRetain = null, IEnumerable<ActivityLink>? links = null)
+        Func<CancellationToken, Task>? beforeRetain = null, IEnumerable<ActivityLink>? links = null, Action? accepted = null)
     {
         RequireOriginalSource(RequestOrigin.ActivatedVoice);
         expected.Validate(target.Authority);
         if (expected.Level != SessionPermissionLevel.ApproveAll)
         { throw new InvalidOperationException("Automatic readback submission requires the exact Approve all destination."); }
         var submitted = await SubmitQueuedCoreAsync(target, body, admitted, beforeRetain, links,
-            RequestOrigin.ActivatedVoice, false, null, null, token, readbackPermission: expected).ConfigureAwait(false);
+            RequestOrigin.ActivatedVoice, false, accepted, null, token, readbackPermission: expected).ConfigureAwait(false);
         if (submitted.Position > 0) { return submitted.Receipt; }
         try { return (await submitted.Completion.WaitAsync(token).ConfigureAwait(false)).RequireReceipt(); }
         catch (OperationCanceledException exception) when (token.IsCancellationRequested)
@@ -329,6 +329,7 @@ public sealed partial class SessionConversationService(
                             bindWebPage?.Invoke(admission.Turn, Live);
                             admission.Turn.RetainLocalObservations = (createContext is null || retainAgentObservations) && prepareContext is null
                                 && !copilot && !claude;
+                            if (pending?.Output is not null) { pending.OutputLifetime = admission.Turn.Lifetime; }
                             using var deferred = pending is null ? null : HostActivity.BeginRoot(request,
                                 HostActivityLayer.Application, HostOperation.Request,
                                 [pending.Cause]);

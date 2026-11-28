@@ -77,13 +77,13 @@ proposed minutes, default five minutes, and future-only device-local scope.
 Review changes nothing. Separately confirm in the same current native surface
 within 60 seconds, or Cancel. Confirmed atomic persistence, audit and readback
 are required before future dispatch uses it; Reset restores unsaved five minutes.
-Running work, original context expiry and earlier provider/tool ceilings are
-unchanged. Source/page replacement, hide/reopen, changed preference or host/call
+The value is the ordinary-turn check-in interval; running turns keep the interval
+and check-ins they started with. Source/page replacement, hide/reopen, changed preference or host/call
 authority requires fresh inspection. An uncertain save may have persisted:
 inspect Settings and audit receipts, with no automatic retry or rollback.
 This model route adds no typed/voice confirmation, deadline undo, current-value
 discovery authority or automatic allowance inference. Direct original-user
-controls remain independent ([deadline controls](settings.md#future-ordinary-task-deadline)).
+controls remain independent ([check-in interval controls](settings.md#ordinary-turn-check-in-interval)).
 For slower Windows speech, the complete retained answer may be
 `set speech.windows-rate to -1`. Rate alone permits canonical negative integers;
 plus signs, negative zero, padding, leading zeroes, suffixes and commentary are rejected.

@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 
 using Kora.Application.Definitions;
 using Kora.Application.ViewModels;
@@ -605,6 +605,8 @@ internal sealed partial class OwnedInstructionEditorController(
     {
         _ = OwnedDefinitionKind.DirectoryName(requestedKind);
         if (kind == requestedKind) { return true; }
+        // A requested kind change retires Find like a native Kind selection, before any review can interrupt it.
+        opened.RetireBufferFind(clearQuery: true);
         if (!await AbandonDraft(opened, token))
         { opened.SelectKind(kind); return false; }
         token.ThrowIfCancellationRequested();

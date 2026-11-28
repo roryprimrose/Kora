@@ -75,6 +75,29 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task DirectOriginalLocalSubmitWithoutQueuedOwnerNeverBindsAskUserClarification(RequestOrigin channel)
+    {
+        using var f = new Fixture(channel);
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        var transport = new ToolTransport(
+            """{"kind":"question","prompt":"Choose details","options":["Version","Runtime"],"callId":"ask_1"}""", FinalAnswer);
+        await using var loop = CreateLoop(f, transport);
+        var host = f.ConfiguredProfiles(adapter: loop);
+        var receipt = await QuestionService(f, host).SubmitOriginalLocalAsync(new(f.Session, null), "Original direct request",
+            static () => true, _ => Task.CompletedTask, [], channel, Token);
+        receipt.Message.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
+        receipt.Message.AssistantResponse.Should().BeNull();
+        transport.Requests.Should().ContainSingle()
+            .Which.Context.ToolMode.Should().Be(ModelToolMode.InteractiveConversation);
+        f.Questions.Snapshot.Questions.Should().BeEmpty();
+        f.Questions.Commits.Should().NotContain(commit => commit.Audit.ActionId == "question.continue");
+        host.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(false, RequestOrigin.LocalUi)]
     [InlineData(false, RequestOrigin.ActivatedVoice)]
     [InlineData(true, RequestOrigin.LocalUi)]

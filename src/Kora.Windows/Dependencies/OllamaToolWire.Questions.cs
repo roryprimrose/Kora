@@ -5,7 +5,7 @@ namespace Kora.Windows.Dependencies;
 
 internal static partial class OllamaToolWire
 {
-    internal static JsonElement QuestionFormat(ModelToolMode mode)
+    internal static JsonElement QuestionFormat(ModelToolMode mode, bool includeQuestion = true)
     {
         using var memory = new MemoryStream();
         using (var writer = new Utf8JsonWriter(memory))
@@ -15,7 +15,8 @@ internal static partial class OllamaToolWire
             writer.WriteEndObject();
         }
         using var document = JsonDocument.Parse(memory.ToArray());
-        return document.RootElement.GetProperty("format").Clone();
+        var format = document.RootElement.GetProperty("format");
+        return (includeQuestion ? format : format.GetProperty("oneOf")[0]).Clone();
     }
 
     private static void WriteQuestionFormat(Utf8JsonWriter writer, ModelToolMode mode)

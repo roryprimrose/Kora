@@ -34,7 +34,17 @@ On 2026-11-28, the product owner approved these bounded follow-on decisions:
 - Remove **Answer locally (no tools)**. Settings selects the provider; an ordinary local Submit with no enabled effective tools uses the existing tool-free stream. Tool-enabled turns may remain buffered.
 - Keep model-free MCP Invoke and Read/Preview as separately grouped non-submit actions with their existing permissions.
 
-These decisions are not completed tool integration or provider qualification. The local-answer cleanup removes its button from the [primary conversation](../src/Kora/SessionInteractionView.axaml), [Sessions](../src/Kora/SessionsManagementView.axaml) and [compact](../src/Kora/CompactSessionWindow.axaml) surfaces and normalizes an empty ordinary tool catalogue to None without widening captured input/output/deadline limits ([restriction owner](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs)). Remaining clarification, web, MCP and metadata submission variants require their respective integration increments.
+These decisions are not completed tool integration or provider qualification. The local-answer cleanup removes its button from the [primary conversation](../src/Kora/SessionInteractionView.axaml), [Sessions](../src/Kora/SessionsManagementView.axaml) and [compact](../src/Kora/CompactSessionWindow.axaml) surfaces and normalizes an ordinary turn without enabled observation/navigation or clarification tools to None without widening captured input/output/deadline limits ([restriction owner](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs)). Remaining clarification, web, MCP and metadata submission variants require their respective integration increments.
+
+The next bounded increment admits one explicit original-user clarification in
+ordinary local Submit before/after admitted observations, through the existing
+question and permission owners. The product owner selected compact framing under
+the unchanged 32 KiB cumulative input cap, not a budget increase. Context version
+2 preserves exact catalogue metadata binding and legacy readability
+([transport contract](Local_Inference.md#native-tool-message-transport-boundary),
+[submission owner](../src/Kora.Application/Hosting/SessionConversationService.cs)).
+Hosted ordinary tools and removal of the remaining submission variants are still
+separate increments, not delivered by this local clarification change.
 
 The owner chose "Include earlier USER/ASSISTANT messages from this session, limited to fit the request size". On 2026-11-27, the owner further selected a separate hosted-history envelope contract preserving reviewed LocalOnly history, and exclusion of LocalOnly-derived and unknown-source ASSISTANT answers.
 

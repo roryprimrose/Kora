@@ -61,7 +61,7 @@ Exports leave Kora retention and are never opened automatically.
 
 ## Bounded provisional local answers
 
-Use ordinary **Submit** with **Local only** selected in Settings and no enabled effective conversation tools for a tool-free local stream. The separate **Answer locally (no tools)** button is removed; an empty ordinary catalogue becomes None without widening captured limits ([restriction owner](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs), [single-Submit decision](Decision_Register.md#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27)).
+Use ordinary **Submit** with **Local only** selected in Settings and no enabled effective conversation tools for a tool-free local stream. The separate **Answer locally (no tools)** button is removed; an empty ordinary catalogue with clarification disabled becomes None without widening captured limits ([restriction owner](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs), [single-Submit decision](Decision_Register.md#settings-routed-single-submit-and-automatic-hosted-disclosure---2026-11-27)).
 
 The primary conversation, Sessions and compact views label arriving text **Provisional answer - not retained**. Tool-enabled and clarification turns remain buffered; existing hosted streaming/buffering behavior is unchanged ([native controls](../src/Kora/SessionInteractionView.axaml), [adapter selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs)).
 

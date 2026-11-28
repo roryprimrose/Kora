@@ -62,7 +62,7 @@ public sealed partial class SessionConversationService
             || !ModelToolProtocol.AllowsClarification(turn.Context.ToolMode, turn.Provenance.Selection.Provider)
             || !turn.Context.Evidence.IsEmpty
             || turn.QuestionContinuation is not null)
-        { throw new InvalidOperationException("Exact question continuation requires the composed interaction store and a fresh local tool-free or read-only turn, or dedicated hosted clarification."); }
+        { throw new InvalidOperationException("Exact question continuation requires the composed interaction store and a fresh admitted local turn, or dedicated hosted clarification."); }
         turn.QuestionContinuation = new(interactions, presenter, turn.Provenance.Request, turn.SessionGeneration,
             turn.Context.ExpiresAt, live, time);
     }

@@ -132,8 +132,8 @@ public sealed partial class MemoryAdmissionServiceTests
     {
         var text = ModelProposalText.Replace("responsePreference", classification, StringComparison.Ordinal);
         ModelMemoryProposal.Parse(text).Should().Be(new MemoryCandidate(expected, "Prefer short answers."));
-        ModelMemoryProposal.ModelPolicy.Should().Contain("original user explicitly requests").And.Contain("session-only")
-            .And.Contain("inert lower-trust").And.Contain("No other fields");
+        ModelMemoryProposal.ModelPolicy.Should().Contain("Explicit original-user session-memory proposal request only")
+            .And.Contain("session-only").And.Contain("Inert lower-trust").And.Contain("no other fields");
     }
 
     [Theory]

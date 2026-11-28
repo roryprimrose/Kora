@@ -10,6 +10,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
 using Kora.Core.Tools;
+using Kora.Windows.Dependencies;
 using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -331,31 +332,110 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    private sealed class QuestionTransport(bool text, bool readOnly = false, bool multiple = false) : IModelToolTransport
+    private sealed class QuestionTransport(bool text, bool readOnly = false, bool multiple = false,
+        bool interactive = false, TimeProvider? time = null) : IModelToolTransport
     {
         internal List<ModelToolRequest> Requests { get; } = [];
+        internal List<byte[]> NativeBodies { get; } = [];
+        internal List<ModelToolUsage> NativeUsage { get; } = [];
+        private WindowsOllamaToolTransport? native;
+        private byte[]? nativeReply;
 
-        public Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
+        public async Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             request.ClarificationAllowed.Should().BeTrue();
-            request.Context.ToolMode.Should().Be(readOnly ? ModelToolMode.ReadOnly : ModelToolMode.None);
-            if (readOnly)
+            request.Context.ToolMode.Should().Be(interactive ? ModelToolMode.InteractiveConversation
+                : readOnly ? ModelToolMode.ReadOnly : ModelToolMode.None);
+            if (readOnly || interactive)
             {
-                request.Context.Tools.Select(tool => tool.Id).Should().Equal(ReadOnlyCapabilityCatalog.Descriptors.Select(tool => tool.Id));
+                request.Context.Tools.Select(tool => tool.Id).Should().Equal(ModelToolProtocol.GetTools(request.Context.ToolMode).Select(tool => tool.Id));
             }
             else { request.Context.Tools.Should().BeEmpty(); }
             Requests.Add(request);
             ModelAssistantMessage message = Requests.Count == (readOnly ? 2 : 1)
                 ? new ModelClarificationQuestion(new("Which format?", text ? [] : ["Compact", "Detailed"], Maximum: multiple ? 2 : 1), "ask_format")
-                : readOnly && Requests.Count is 1 or 3
+                : readOnly && Requests.Count is 1 or 3 || interactive && Requests.Count == 2
                 ? ModelToolProtocol.ParseAssistant(System.Text.Encoding.UTF8.GetBytes(
                     $$$"""{"kind":"toolCalls","calls":[{"callId":"version_{{{Requests.Count}}}","capabilityId":"application.get_version","input":{}}]}"""))
                 : ModelToolProtocol.ParseAssistant("""{"kind":"answer","answer":"Genuine final response after exact clarification"}"""u8);
-            return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,
-                new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length)));
+            if (interactive)
+            {
+                nativeReply = NativeReply(message);
+                native ??= CreateNative(request);
+                var reply = await native.CompleteAsync(request, cancellationToken);
+                if (reply.Usage is { } usage) { NativeUsage.Add(usage); }
+                return reply;
+            }
+            return new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,
+                new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length));
         }
 
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        private const string NativeModel = "deterministic-fake:conversation";
+        private static readonly string NativeDigest = new('a', 64);
+
+        private WindowsOllamaToolTransport CreateNative(ModelToolRequest original)
+        {
+            var clock = time ?? throw new InvalidOperationException("The native conversation test requires its host clock.");
+            var profile = original.Profile ?? throw new InvalidOperationException("The native conversation test requires its selected profile.");
+            var handler = new QuestionNativeHttpHandler(async (request, token) =>
+            {
+                var path = request.RequestUri!.AbsolutePath;
+                byte[] body;
+                if (path is "/api/chat")
+                {
+                    NativeBodies.Add(await request.Content!.ReadAsByteArrayAsync(token));
+                    body = nativeReply ?? throw new InvalidOperationException("The native conversation script has no reply.");
+                }
+                else if (path is "/api/version") { body = """{"version":"fake-runtime"}"""u8.ToArray(); }
+                else if (path is "/api/tags")
+                {
+                    body = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new
+                    { models = new[] { new { name = NativeModel, digest = NativeDigest } } });
+                }
+                else { throw new InvalidOperationException("The native conversation test has no admitted route."); }
+                var content = new ByteArrayContent(body);
+                content.Headers.ContentType = new("application/json");
+                return new(System.Net.HttpStatusCode.OK) { Content = content, RequestMessage = request };
+            });
+            return new(new HttpClient(handler), _ => new(original.Provenance, profile, NativeModel, NativeDigest,
+                "fake-runtime", 4242, clock.GetUtcNow(), @"C:\fake\ollama.exe", NativeDigest,
+                clock.GetUtcNow().AddMinutes(1), static () => true, CancellationToken.None),
+                (_, token) => { token.ThrowIfCancellationRequested(); return Task.FromResult(true); },
+                clock, NullLogger<WindowsOllamaToolTransport>.Instance);
+        }
+
+        private static byte[] NativeReply(ModelAssistantMessage message) => message switch
+        {
+            ModelClarificationQuestion question => System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                model = NativeModel, done = true, message = new { role = "assistant", content = "",
+                    tool_calls = new[] { new { id = question.CallId, function = new { name = ModelToolProtocol.AskUserToolName,
+                        arguments = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+                            ModelToolProtocol.SerializeQuestionArguments(question.Question)) } } } },
+            }),
+            ModelAssistantToolCalls calls => System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                model = NativeModel, done = true, message = new { role = "assistant", content = "",
+                    tool_calls = calls.Calls.Select(call => new { id = call.CallId, function = new { name = call.CapabilityId,
+                        arguments = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(call.InputJson) } }) },
+            }),
+            ModelFinalResponse answer => System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new
+            { model = NativeModel, done = true, message = new { role = "assistant",
+                content = System.Text.Encoding.UTF8.GetString(ModelToolProtocol.SerializeMessage(answer)) } }),
+            _ => throw new InvalidOperationException("The native conversation test received an unsupported message."),
+        };
+
+        public async ValueTask DisposeAsync()
+        {
+            if (native is not null) { await native.DisposeAsync(); }
+        }
+    }
+
+    private sealed class QuestionNativeHttpHandler(
+        Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> exchange) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) =>
+            exchange(request, token);
     }
 }

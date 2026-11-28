@@ -160,11 +160,14 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            await using var f = await DraftValidationFixture.Create(ArtifactKind.Prompt, true);
+            // Production-composed buffered evidence keeps the interrupted review inside one 250 ms Find poll, so
+            // retirement cannot depend on a periodic tick observing the review.
+            await using var f = await DraftValidationFixture.Create(ArtifactKind.Prompt, true, bufferedEvidence: true);
             var editor = f.Editor!;
             editor.Source.Text = "dirty literal draft";
             editor.BufferFindQuery.Text = "literal";
             ClickBuffer(editor.BufferFindFirst);
+            editor.BufferFindOutcome.Text.Should().NotBeNull();
             Window? review = null;
             using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((candidate, _) =>
             { if (!ReferenceEquals(editor, candidate)) { review = candidate; } });
@@ -172,6 +175,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             if (action is "kind") { switching = f.Run("instructions create different"); }
             else { editor.Close(); }
             review.Should().NotBeNull();
+            editor.BufferFindOutcome.Text.Should().BeNull("an interrupting kind or close request retires Find before its review");
+            editor.BufferFindNext.IsEnabled.Should().BeFalse();
             review!.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Cancel"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             if (switching is not null) { await switching; }

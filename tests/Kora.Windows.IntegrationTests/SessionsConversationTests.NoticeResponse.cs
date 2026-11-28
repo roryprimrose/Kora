@@ -55,7 +55,8 @@ public sealed partial class SessionsConversationTests
             f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
-            using var native = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true);
+            // Production-composed buffered evidence does not mask the window activation ordering below.
+            using var native = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true, bufferedEvidence: true);
             await native.InitializeAsync();
             await using var transport = new QuestionTransport(text, multiple: fault is "multiple");
             await using var adapter = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
@@ -99,6 +100,9 @@ public sealed partial class SessionsConversationTests
                 await (await Task.WhenAny(shown.Task, operation).WaitAsync(f.Token));
                 shown.Task.IsCompletedSuccessfully.Should().BeTrue(model.ConversationStatus);
                 questionWindow = await shown.Task;
+                // The platform activates a shown window in a later dispatcher job, and activation starts the question's
+                // own target refresh. Focus capture requires that operation to have settled (NativeQuestionHost.CaptureFocusEligibility).
+                await QuestionWindowActivated(questionWindow, f.Token);
                 // Inspect the existing controller-owned state without adding a production test accessor.
                 state = (NativeQuestionViewModel)typeof(QuestionWindowController)
                     .GetField("state", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(controller)!;
@@ -306,6 +310,19 @@ public sealed partial class SessionsConversationTests
             await change();
             return await inner.FocusAsync(isAdmitted);
         }
+    }
+
+    private static async Task QuestionWindowActivated(QuestionWindow window, CancellationToken token)
+    {
+        var activated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Activated(object? sender, EventArgs args) => activated.TrySetResult();
+        window.Activated += Activated;
+        try
+        {
+            if (window.IsActive) { activated.TrySetResult(); }
+            await activated.Task.WaitAsync(token);
+        }
+        finally { window.Activated -= Activated; }
     }
 
     private static async Task NoticeQuestionReady(NativeQuestionViewModel state, CancellationToken token)

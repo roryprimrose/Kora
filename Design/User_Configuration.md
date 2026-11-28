@@ -1921,7 +1921,7 @@ Stale observations, malformed values and unconfirmed writes fail explicitly; an 
 
 Only newly dispatched queued ordinary conversations, including their ordinary instruction/retry routes, and explicit Copilot/Claude ordinary requests capture this preference.
 Their admitted subset has no clarification waits: tool-free answers and already-admitted read-only observation tools.
-Specialized source workflows and clarification turns keep their existing fixed limits ([dispatch owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+Specialized source workflows and clarification turns, including an ordinary local turn with a bound ask_user continuation, keep their existing fixed limits and receive no check-ins; no output-text inference is added ([dispatch owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
 
 **Check-ins replace whole-turn limits** ([decision](Decision_Register.md#turn-lifetime-check-ins---2026-11-28)).
 Pending work has no running schedule. At durable dispatch, while the original context is still current, the host captures one immutable interval and removes the ordinary turn's fixed context, runtime, adapter and transport limits ([check-in admission](../src/Kora.Application/Dependencies/ModelTurnHost.OrdinaryDeadline.cs)).

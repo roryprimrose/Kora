@@ -300,36 +300,49 @@ question controls retain their existing explicit one-shot answer behavior.
 
 ## Conversation clarification
 
-A conversation sent using **Submit with one clarification** in Sessions or
-its compact view can use the existing native question window for **one**
-structured clarification during that exact model turn. Ordinary **Submit exact
-message** keeps its existing final-answer/read-only-tool behavior; it does not
-automatically acquire question continuation. The clarification route is a
-local request with only `ask_user`: it does not silently include
+With Settings selecting an admitted local model and `ask_user` enabled, ordinary
+**Submit** can ask **one** clarification, use admitted observations before or
+after the answer, and retain the actual final answer in the original conversation.
+This applies to the primary conversation, Sessions and compact surfaces
+([submission owner](../src/Kora.Application/Hosting/SessionConversationService.cs),
+[native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.IndependentQuestions.cs)).
+The original session owns the question even if you switch sessions; its answer
+does not replace another session's unsent text.
+
+The retained **Submit with one clarification** route is a local request with
+only `ask_user`: it does not silently include
 history, memory, attachments or instructions. Models and profiles that are not
 qualified remain explicitly unavailable; this implementation does not enable
 either local inference or hosted egress.
 
 For an ambiguous observation request, use **Ask locally with observations and one question** instead. For example, ask "Which version or readiness information applies here?", answer the model's question, and receive the answer from the actual admitted host observations. The model may observe first, ask once, then observe again before answering ([submission policy](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs)).
 
-This separate local path admits only the six existing read-only observation tools and `ask_user` once. Web/MCP calls, effectful actions, settings writes and hosted providers remain excluded. The clarification-only button and ordinary read-only Submit remain separate ([bounded protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs), [native controls](../src/Kora/SessionsWindow.axaml)).
+That separate path admits only the six existing read-only observation tools and
+`ask_user` once. Ordinary local Submit also retains its existing native Settings
+navigation, not settings-write authority. Web/MCP and metadata submission
+variants remain separate; ordinary hosted Submit remains tool-free in this
+increment ([bounded protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs),
+[routing owner](../src/Kora.Application/Hosting/SessionConversationService.cs)).
+Existing permission/grant checks still govern tools. Even Approve all cannot
+answer a clarification for you
+([question owner](../src/Kora.Application/Interaction/HostQuestionService.cs)).
 
 The model calls the actual `ask_user` tool, not prose that looks like a question
-or approval. Both local clarification paths support:
+or approval. Ordinary Submit and both retained local clarification paths support:
 
 - **Single answer:** two to four labels shown as radio buttons.
 - **Multiple answers:** two to four labels shown as checkboxes, with explicit
   minimum and maximum selections.
 - **Text input:** an input field bounded to 500 characters.
 
-The session-owned question window opens from either Sessions view. Its input is
+The session-owned question window opens from the submitting chat surface. Its input is
 separate from the unsent conversation composer. Legacy structured questions remain supported.
 
 **Submit with one clarification** can also ask for one form with up to four required text or single-choice fields. Every field shows its limits: text is at most 500 characters / 2000 strict UTF-8 bytes, and each choice field has two to four options. No choice is preselected ([field contract](../src/Kora.Core/Interaction/QuestionField.cs)).
 
 Edit fields with keyboard/mouse or choose **Speak field** for the exact displayed field when voice readiness permits. Spoken entry changes only that field; it does not submit. **Review exact record** shows the whole current draft; further edits invalidate the review. Choose **Submit answer** to validate and submit all required fields together. Partial, invalid or over-limit answers are refused, not shortened ([native question controls](../src/Kora/QuestionWindow.axaml.cs)).
 
-Form drafts stay in memory and have no Save draft or autosave. Closing, cancelling, expiry or privacy/target changes do not submit any fields. Forms are unavailable in the observations-and-one-question path and in Claude; their existing single-question behavior is unchanged. No credentials, permissions or consent may be collected by this form ([submission boundary](../src/Kora.Application/Interaction/HostQuestionService.cs), [local-only protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Forms.cs)).
+Form drafts stay in memory and have no Save draft or autosave. Closing, cancelling, expiry or privacy/target changes do not submit any fields. Forms are unavailable in ordinary Submit, the observations-and-one-question path and Claude; their existing single-question behavior is unchanged. No credentials, permissions or consent may be collected by this form ([submission boundary](../src/Kora.Application/Interaction/HostQuestionService.cs), [local-only protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Forms.cs)).
 
 Review the question, then explicitly **Submit answer**, or use **Answer by
 voice** / **Hear then answer** when the one exact foreground question and

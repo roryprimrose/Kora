@@ -73,6 +73,27 @@ internal sealed partial class SessionsViewModel
         bool PresentLive() => SourceLive() && selected == target && selectionEpoch == epoch;
         var released = false;
         var automatic = CaptureAutomaticDetails();
+        var questionPresenter = QuestionPresenter;
+        async Task<ConversationQuestionPresentation> PresentQuestion(HostRequest request, HostRevision generation,
+            Kora.Core.Interaction.QuestionSpec spec, DateTimeOffset expiry, Func<bool> admitted, CancellationToken cancellation)
+        {
+            return await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (!SourceLive() || !admitted() || cancellation.IsCancellationRequested
+                    || request.SessionId != target.Authority.SessionId || generation != target.Authority.Generation
+                    || request.Origin != RequestOrigin.LocalUi)
+                { throw new OperationCanceledException("Original ordinary clarification admission changed.", cancellation); }
+                sourceAccepted = true;
+                if (composerBufferRevision == buffer && string.Equals(composerBody, body, StringComparison.Ordinal))
+                { composerBody = string.Empty; }
+                RememberUnsent();
+                conversationBusy = false;
+                busy = false;
+                released = true;
+                Notify();
+                return await questionPresenter!(request, generation, spec, expiry, admitted, cancellation);
+            });
+        }
         conversationBusy = true;
         busy = true;
         Notify();
@@ -80,7 +101,8 @@ internal sealed partial class SessionsViewModel
             new(Guid.NewGuid()), RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
         try
         {
-            var submitted = await conversation!.SubmitQueuedAsync(target, body, SourceLive, token, localAnswer: localAnswer);
+            var submitted = await conversation!.SubmitQueuedAsync(target, body, SourceLive, token, localAnswer: localAnswer,
+                questionPresenter: localAnswer || questionPresenter is null ? null : PresentQuestion);
             if (!PresentLive()) { throw new OperationCanceledException("Original private submission presentation changed."); }
             sourceAccepted = true;
             if (composerBufferRevision == buffer && string.Equals(composerBody, body, StringComparison.Ordinal))

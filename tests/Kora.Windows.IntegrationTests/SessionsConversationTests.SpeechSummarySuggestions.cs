@@ -145,7 +145,7 @@ public sealed partial class SessionsConversationTests
             CancellationToken cancellationToken)
         {
             Calls++;
-            Encoding.UTF8.GetString(context.Span).Should().Contain("speech.summary-words").And.Contain("one inert suggestion");
+            Encoding.UTF8.GetString(context.Span).Should().Contain("speech.summary-words").And.Contain("one suggestion or 2 through 8");
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection, new(text, null)));
         }
     }

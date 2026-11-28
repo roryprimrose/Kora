@@ -26,7 +26,7 @@ public static partial class ModelToolProtocol
         """;
 
     public static bool AllowsClarification(ModelToolMode mode, ModelProviderIdentity provider) =>
-        provider == ModelProviderIdentity.Ollama && mode is ModelToolMode.None or ModelToolMode.ReadOnly
+        provider == ModelProviderIdentity.Ollama && mode is ModelToolMode.None or ModelToolMode.ReadOnly or ModelToolMode.InteractiveConversation
         || provider == ModelProviderIdentity.Claude && mode == ModelToolMode.HostedClarification;
 
     private static ModelClarificationQuestion ReadQuestion(JsonElement root, bool formsAllowed)

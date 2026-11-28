@@ -146,6 +146,30 @@ continuation and replay/authority policy remain host-owned, without SDK
 automatic function invocation
 ([compatibility rationale](Runtime_Provider_Feasibility.md#rt1-net-outcome-selected-source-built-profile-passes)).
 
+Ordinary local InteractiveConversation uses context version 2: ordered tool IDs
+and a digest of every canonical descriptor field replace duplicated descriptor
+metadata. The reader reconstructs the exact admitted catalogue and rejects
+changed order, count, version or metadata; legacy full-descriptor contexts remain
+readable. The digest is integrity binding, never permission
+([serializer](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs),
+[reader and regressions](../tests/Kora.Core.UnitTests/Dependencies/ModelToolProtocolTests.ReadOnlyQuestions.cs)).
+Complete policy, original input, evidence, constraints and native schemas remain.
+JSON-only encoding and compact repeated policy prose reduce framing overhead;
+after the ordinary question is spent, its response format becomes the existing
+answer-only schema
+([native projection](../src/Kora.Windows/Dependencies/OllamaChatMessages.cs),
+[final request gate](../src/Kora.Windows/Dependencies/OllamaSdkRequestHandler.cs)).
+The cumulative 32 KiB input cap and output/call/round/evidence/deadline ceilings
+are unchanged. Every request charges at least the larger of its physical and
+canonical bytes; oversized complete turns fail rather than truncate or enlarge
+the budget. Successful bounded clarification/observation/final regressions do
+not promise every maximum-length input or serial sequence fits
+([charge owner](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.cs),
+[physical-path regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.IndependentQuestions.cs)).
+Question-bearing ordinary turns retain their fixed original context/provider
+deadlines, not a renewed or paused active-work clock
+([deadline contract](User_Configuration.md#delivered-future-ordinary-conversation-deadline)).
+
 The catalogue parser accepts typed optional `capabilities`, `context_length`,
 `embedding_length` and `runner` observations from current Ollama metadata.
 These observations cannot expand the host-owned tool set, establish a usable
